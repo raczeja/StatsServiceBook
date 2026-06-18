@@ -1,14 +1,10 @@
-# CLAUDE.md — openwrt/
-
-Guidance for Claude Code when working in this subfolder. It supplements the
-root [../CLAUDE.md](../CLAUDE.md); read that first for the main app.
+# CLAUDE.md
 
 ## Overview
 
-This is a **self-contained router-native port** of StravaStats' leaderboard,
-sized for a router-class device running OpenWrt. A single POSIX shell script driven by cron, using `curl`
-to talk to Strava and `jq` to aggregate, writing a static HTML page + JSON into
-uhttpd's web root.
+A **router-native Strava stats app** for OpenWrt. A set of POSIX shell scripts
+driven by cron, using `curl` to talk to Strava and `jq` to aggregate, writing
+static HTML pages + JSON into uhttpd's web root.
 
 ## Files
 
@@ -25,7 +21,7 @@ uhttpd's web root.
 | [config-my.example](config-my.example)                         | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities.                                    |
 | [install.sh](install.sh)                                       | Installs deps (`curl jq ca-bundle`), both scripts, all helper files, both config templates, timezone, and both daily cron entries. Idempotent.                                               |
 | [README.md](README.md)                                         | End-user setup: Strava API app, one-time OAuth, install, scheduling, ops, limitations. Keep it in sync with behavior changes.                                                                |
-| [test/Containerfile](test/Containerfile)                       | Alpine container that serves all four pages via BusyBox httpd for local testing. Build context is `openwrt/`.                                                                                |
+| [test/Containerfile](test/Containerfile)                       | Alpine container that serves all four pages via BusyBox httpd for local testing. Build context is the repo root.                                                                             |
 | [test/run.sh](test/run.sh)                                     | Container entrypoint: extracts HTML from each helper script's `<<'HTML'` heredoc, sets up the CGI, and starts httpd on :8080.                                                                |
 | [test/screenshot.mjs](test/screenshot.mjs)                     | Node.js (puppeteer-core + system Edge) script called by `make-screenshots.ps1` to capture all four pages.                                                                                    |
 | [test/make-screenshots.ps1](test/make-screenshots.ps1)         | PowerShell driver: builds the container, starts it, runs the screenshot script, saves PNGs to `test/screenshots/`.                                                                           |
@@ -46,10 +42,10 @@ Run from the repo root on the dev machine:
 
 ```sh
 # Push updated scripts+helpers and regenerate the dashboard immediately
-scp openwrt/strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities && \
-scp openwrt/strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh && \
-scp openwrt/strava-my-html-dashboard.sh openwrt/strava-my-html-detail.sh \
-    openwrt/strava-my-html-bike.sh openwrt/strava-my-html-stats.sh \
+scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities && \
+scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh && \
+scp strava-my-html-dashboard.sh strava-my-html-detail.sh \
+    strava-my-html-bike.sh strava-my-html-stats.sh \
     root@192.168.1.1:/usr/bin/ && \
 ssh root@192.168.1.1 strava-my-activities
 ```
@@ -57,24 +53,24 @@ ssh root@192.168.1.1 strava-my-activities
 For the club leaderboard script:
 
 ```sh
-scp openwrt/strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard && \
+scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard && \
 ssh root@192.168.1.1 strava-leaderboard
 ```
 
 Full reinstall (first time or after `install.sh` changes):
 
 ```sh
-scp -r openwrt root@192.168.1.1:/tmp/strava && ssh root@192.168.1.1 sh /tmp/strava/install.sh
+scp -r . root@192.168.1.1:/tmp/strava && ssh root@192.168.1.1 sh /tmp/strava/install.sh
 ```
 
 ## How it runs (no dev server, no tests)
 
-There is **no test framework, linter, or local run loop** for this folder. The
-script targets BusyBox `sh` on the router, not your Windows dev box — you can't
-meaningfully execute it here. To validate changes:
+There is **no test framework, linter, or local run loop**. The scripts target
+BusyBox `sh` on the router — you can't meaningfully execute them on a Windows
+dev box. To validate changes:
 
-- **Syntax / lint:** `shellcheck openwrt/*.sh` if available (the script already
-  carries `# shellcheck disable=` pragmas). Otherwise `sh -n strava-leaderboard.sh`.
+- **Syntax / lint:** `shellcheck *.sh` if available (the scripts already carry
+  `# shellcheck disable=` pragmas). Otherwise `sh -n strava-leaderboard.sh`.
 - **Real testing happens on the router** via scp + ssh, then a manual
   `strava-leaderboard` run whose output must end in `done.` (see README §5).
 
@@ -97,25 +93,20 @@ meaningfully execute it here. To validate changes:
   (default `/usr/lib/strava-leaderboard`, in the overlay).
 - **Config is sourced by `/bin/sh`** — `KEY="value"`, no spaces around `=`.
 
-## Parity with the main app
+## Algorithm notes
 
-The shell rewrite deliberately mirrors the TypeScript services; if you change
-aggregation logic in one place, check the other:
+- Activity dedupe by content **signature** (club leaderboard): a pipe-joined
+  string of athlete name + activity shape — `firstname|lastname|name|distance|
+  moving_time|elapsed_time|total_elevation_gain|sport_type`. Strava's club feed
+  has **no dates and no activity IDs**, so this is the only stable identity.
+- Leaderboard grouping/summing/ranking: group by `firstname|lastname|profile_medium`,
+  sum distance/time/elevation, rank by distance, avg speed in km/h.
 
-- Activity dedupe by content **signature** mirrors
-  [../server/src/services/activityStore.ts](../server/src/services/activityStore.ts)
-  (`buildSignature`).
-- Leaderboard grouping/summing/ranking mirrors
-  [../server/src/services/stats.service.ts](../server/src/services/stats.service.ts):
-  group by `firstname|lastname|profile_medium`, sum distance/time/elevation,
-  rank by distance, avg speed in km/h. This matches the main app's
-  `buildAthleteKey` fallback for the feed's missing athlete `id`.
-
-**Key shared constraint:** Strava's `/clubs/{id}/activities` feed has **no dates
-and no activity IDs** — it's just _recent_ activities. The script works around
-this by accumulating a persistent store and stamping each newly seen activity
-with its **first-seen date** (today, or `STRAVA_FIRST_SEEN_DATE` for the initial
-seeding run). Dates are therefore approximate — first-seen, not performed.
+**Key constraint:** Strava's `/clubs/{id}/activities` feed has **no dates and no
+activity IDs** — it's just _recent_ activities. The script works around this by
+accumulating a persistent store and stamping each newly seen activity with its
+**first-seen date** (today, or `STRAVA_FIRST_SEEN_DATE` for the initial seeding
+run). Dates are therefore approximate — first-seen, not performed.
 
 ## Bike-service tracker (the one read/WRITE page)
 
@@ -140,20 +131,19 @@ the browser **saves** data back through a CGI.
   a bike's mapped Strava `gear_id`. This required adding `gear_id` to the store
   projection (§3) and to the emitted `activities.json` (§4), plus a `gears` map
   (`gear_id → {name}`) built from the detail files' `.gear` object for labelling.
-- **No auth.** Same open-on-LAN trust model as the other dashboards; the CGI
-  accepts any valid-JSON write from the LAN. Fine for a private home router only.
+- **No auth.** Open-on-LAN trust model; the CGI accepts any valid-JSON write from
+  the LAN. Fine for a private home router only.
 - **First-time serving:** uhttpd serves `/www/cgi-bin` as CGI by default;
   `install.sh` sets `uhttpd.main.cgi_prefix=/cgi-bin` idempotently. A bare
   `scp + run` deploy works once that prefix is set.
 
 ## Token handling
 
-Unlike the server (cookie JWT, no refresh-token persistence), this script holds
-a long-lived **refresh token in the config** and manages access tokens itself:
-it caches the last token response in `$STATE_DIR/token.json`, reuses the cached
-access token until it's within `STRAVA_TOKEN_REFRESH_MARGIN` of expiry, then
-refreshes. Strava may rotate the refresh token on refresh, so the script
-persists whatever it returns and prefers that next run.
+The scripts hold a long-lived **refresh token in the config** and manage access
+tokens themselves: the last token response is cached in `$STATE_DIR/token.json`,
+the cached access token is reused until it's within `STRAVA_TOKEN_REFRESH_MARGIN`
+of expiry, then refreshed. Strava may rotate the refresh token on refresh, so the
+script persists whatever it returns and prefers that next run.
 
 ## Editing notes
 
