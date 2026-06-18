@@ -7,6 +7,18 @@ Strava API and **`jq`** to aggregate. The result is written as a static HTML pag
 (plus JSON) into **uhttpd's** web root, so the router's built-in web server serves
 it with no extra daemon and almost no RAM.
 
+### What it gives you
+
+| Page | URL | What it shows |
+|---|---|---|
+| **Club leaderboard** | `/strava/` | Monthly/yearly distance ranking for your Strava club — filterable by year and month |
+| **My Activities** | `/strava/me/` | All your activities in a sortable table with year/month/sport filters, bests strip, and monthly bar charts |
+| **Activity detail** | `/strava/me/activity.html` | Per-activity stats cards, interactive route map (Leaflet + OSM), and per-km splits chart |
+| **Personal stats** | `/strava/me/stats.html` | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, and day-of-week chart |
+| **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: add parts, record service dates, track mileage auto-computed from your rides |
+
+Everything runs on the router or docker container. The browser fetches a static JSON file and renders all charts and filters client-side — no server-side processing after the nightly cron.
+
 ```
 cron (23:50) ──► strava-leaderboard.sh
                    │  1. refresh access token (curl)
@@ -53,10 +65,10 @@ cron (23:55) ──► strava-my-activities.sh
 
 > Screenshots generated from sample data via `powershell -File test/make-screenshots.ps1`.
 
-## Why it differs from the main app
+## Features
 
-- **No Node, no React, no build step.** Just `sh` + `curl` + `jq`.
-- **No OAuth callback server.** You authorize once on your PC and store a
+- Just `sh` + `curl` + `jq`.
+- You authorize once on your PC and store a
   long-lived refresh token in a config file; the script refreshes the access
   token itself on every run (and persists the rotated refresh token).
 - **Accumulating activity store + month/year filtering (club leaderboard).**
