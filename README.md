@@ -1,6 +1,6 @@
 # StravaStats for OpenWrt
 
-A router-native port of StravaStats' leaderboard, sized for a router-class device running OpenWrt.
+A router-native Strava stats app for OpenWrt, sized for a router-class device.
 
 This is a single POSIX shell script driven by **cron**, using **`curl`** to talk to the
 Strava API and **`jq`** to aggregate. The result is written as a static HTML page
