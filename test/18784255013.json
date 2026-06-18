@@ -1,0 +1,116 @@
+{
+  "resource_state": 3,
+  "athlete": {
+    "id": 100000001,
+    "resource_state": 1
+  },
+  "name": "West Wroclaw Sample Ride",
+  "distance": 64250.4,
+  "moving_time": 14780,
+  "elapsed_time": 16012,
+  "total_elevation_gain": 612.0,
+  "type": "Ride",
+  "sport_type": "Ride",
+  "workout_type": null,
+  "device_name": "Bike Computer",
+  "id": 18784255013,
+  "start_date": "2026-06-04T08:51:49Z",
+  "start_date_local": "2026-06-04T10:51:49Z",
+  "timezone": "(GMT+01:00) Europe/Warsaw",
+  "utc_offset": 7200.0,
+  "location_city": "Wroclaw",
+  "location_state": "Lower Silesian Voivodeship",
+  "location_country": "Poland",
+  "achievement_count": 3,
+  "kudos_count": 0,
+  "comment_count": 0,
+  "athlete_count": 1,
+  "photo_count": 0,
+  "description": "Sample anonymized activity for local UI testing in west Wroclaw.",
+  "average_speed": 4.347,
+  "max_speed": 13.12,
+  "average_heartrate": 138.4,
+  "max_heartrate": 171.0,
+  "average_cadence": 82.2,
+  "average_watts": 186.0,
+  "weighted_average_watts": 202.0,
+  "max_watts": 624.0,
+  "kilojoules": 2746.0,
+  "calories": 1780.0,
+  "suffer_score": 121,
+  "average_temp": 21,
+  "gear": {
+    "id": "b-anon-1",
+    "name": "Bike A"
+  },
+  "map": {
+    "id": "a18784255013",
+    "polyline": "w{`wHgrnfBfO~f@jMja@bLb`@vG~a@~Cjf@kHn_@gTjMoUgJ{Os]sDcj@nF_l@~Msg@jMsb@nF{^cLkW_SsD_SvL_Ir]jC~f@nPn_@vVvLjWgEbQkWjHsb@{@gh@sNo_@wVcQsX{@cV~M"
+  },
+  "splits_metric": [
+    {
+      "distance": 1000.0,
+      "moving_time": 221,
+      "elapsed_time": 229,
+      "average_speed": 4.52,
+      "elevation_difference": 22.0,
+      "average_heartrate": 134.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 232,
+      "elapsed_time": 241,
+      "average_speed": 4.31,
+      "elevation_difference": 14.0,
+      "average_heartrate": 136.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 238,
+      "elapsed_time": 247,
+      "average_speed": 4.2,
+      "elevation_difference": 8.0,
+      "average_heartrate": 138.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 230,
+      "elapsed_time": 239,
+      "average_speed": 4.35,
+      "elevation_difference": 6.0,
+      "average_heartrate": 141.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 246,
+      "elapsed_time": 256,
+      "average_speed": 4.07,
+      "elevation_difference": -4.0,
+      "average_heartrate": 143.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 244,
+      "elapsed_time": 255,
+      "average_speed": 4.1,
+      "elevation_difference": 2.0,
+      "average_heartrate": 144.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 248,
+      "elapsed_time": 259,
+      "average_speed": 4.03,
+      "elevation_difference": 11.0,
+      "average_heartrate": 146.0
+    },
+    {
+      "distance": 1000.0,
+      "moving_time": 236,
+      "elapsed_time": 244,
+      "average_speed": 4.24,
+      "elevation_difference": 25.0,
+      "average_heartrate": 149.0
+    }
+  ]
+}

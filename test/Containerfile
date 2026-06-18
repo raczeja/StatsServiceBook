@@ -1,0 +1,31 @@
+# Local test image for club + My Activities pages + CGI (NOT used on the router).
+# Alpine gives us the same ash shell + jq, and busybox-extras provides httpd,
+# which serves /cgi-bin/* as CGI just like OpenWrt's uhttpd.
+#
+# Build context is the openwrt/ directory:
+#   podman build -f openwrt/test/Containerfile -t stravame-test openwrt
+#   podman run --rm -p 8080:8080 stravame-test
+# then open:
+#   http://localhost:8080/strava/me/         (dashboard)
+#   http://localhost:8080/strava/me/stats.html
+#   http://localhost:8080/strava/me/activity.html?id=18784255013
+#   http://localhost:8080/strava/me/bike.html
+#   http://localhost:8080/strava/            (club dashboard)
+FROM docker.io/library/alpine:3.20
+
+RUN apk add --no-cache jq busybox-extras
+
+COPY strava-my-html-dashboard.sh /opt/strava-my-html-dashboard.sh
+COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
+COPY strava-my-html-bike.sh      /opt/strava-my-html-bike.sh
+COPY strava-my-html-stats.sh     /opt/strava-my-html-stats.sh
+COPY strava-leaderboard.sh       /opt/strava-leaderboard.sh
+COPY test/activities.sample.json /opt/activities.sample.json
+COPY test/club-activities.sample.json /opt/club-activities.sample.json
+COPY test/bike-service.sample.json /opt/bike-service.sample.json
+COPY test/18784255013.json       /opt/18784255013.json
+COPY test/run.sh /opt/run.sh
+RUN chmod 0755 /opt/run.sh
+
+EXPOSE 8080
+CMD ["/opt/run.sh"]
