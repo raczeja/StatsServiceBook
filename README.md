@@ -134,18 +134,33 @@ cron (23:55) ──► strava-my-activities.sh
   bar chart. All computed client-side from `activities.json`.
 - **Bike service tracker (My Activities).** A separate page at
   `http://<router-ip>/strava/me/bike.html` (linked from the My Activities footer)
-  for tracking bike maintenance. You add **parts** to a bike (free-text name +
-  note — chain, tyres, brake pads…); each records the date it was fitted and the
-  bike's **mileage** at that moment. Mileage is the cumulative distance of your
-  outdoor `Ride` activities up to a date, computed in the browser from
-  `activities.json`; every date is a calendar picker (default today) and changing
-  it **auto-recomputes** the mileage. You can **service** a part (logs a date +
-  mileage + note) and **replace** it (the old part moves to an **Archived**
-  section with its final mileage; optionally a successor part is fitted on the
-  same day). You can track **multiple bikes**, each optionally mapped to a Strava
-  **gear** so only that bike's rides count toward its mileage.
-  Unlike every other page here this one **writes data back**: it reads and saves a
-  single `bike-service.json` through a tiny POSIX-sh **CGI** that
+  for tracking bike maintenance per part — chain, tyres, brake pads, cables, etc.
+
+  **Mileage from Strava.** Every mileage figure on this page is computed live in
+  the browser from your `activities.json`: cumulative distance of outdoor `Ride`
+  activities up to a chosen date. A calendar picker (default today) lets you pick
+  any date and the mileage **auto-recomputes** instantly — no manual entry. Map a
+  bike to a Strava **gear** and only that bike's rides count toward its mileage;
+  leave it unmapped and all rides are attributed to it.
+
+  **Parts & service history.** Each part records the date it was fitted and the
+  bike's mileage at that moment. You can **service** a part (logs a date + current
+  mileage + free-text note) and **replace** it: the old part moves to an
+  **Archived** section with its final mileage, and optionally a successor is fitted
+  on the same day.
+
+  **Service alerts.** Each part can have an optional **km threshold** and/or
+  **hours threshold** (riding time since the last service or install). Once a part
+  exceeds its threshold its row is **highlighted in yellow** as a visual reminder
+  that it is due for service. For example: chain → 2 000 km, tyres → 5 000 km,
+  brake pads → 3 000 km. Thresholds are per-part and editable at any time.
+
+  **Multiple bikes.** Track as many bikes as you like; each is a separate tab.
+  The initial bike name is configurable via `STRAVA_MY_DEFAULT_BIKE_NAME` and is
+  used only as a seed when no bikes are stored yet.
+
+  **Writes data back.** Unlike every other page here this one saves data: it reads
+  and writes a single `bike-service.json` through a tiny POSIX-sh **CGI** that
   `strava-my-activities` installs to `STRAVA_MY_CGI_DIR` (uhttpd's `/www/cgi-bin`,
   served as CGI by default). The CGI is the only writer of the data file, so daily
   cron runs that regenerate the page never touch your data. There is **no auth** —
