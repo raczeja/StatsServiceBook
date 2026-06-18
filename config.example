@@ -1,0 +1,48 @@
+# StravaStats for OpenWrt — configuration
+# Copy to /etc/strava-leaderboard.conf and `chmod 600` it (it holds secrets).
+# This file is sourced by /bin/sh, so use KEY="value" with no spaces around '='.
+
+# --- Required: from your Strava API application -----------------------------
+# Create one at https://www.strava.com/settings/api
+STRAVA_CLIENT_ID="12345"
+STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
+
+# A long-lived refresh token authorized with the `activity:read` scope for a
+# user who is a member of the club. See README.md "One-time authorization".
+STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
+
+# Numeric club id, taken from the club URL: https://www.strava.com/clubs/<id>
+STRAVA_CLUB_ID="123456"
+
+# --- Optional ---------------------------------------------------------------
+# Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
+STRAVA_SPORT_TYPE=""
+
+# Strava access tokens last ~6h. The cached token is reused until it's within
+# this many seconds of expiry, then refreshed. Bump it if a run could ever take
+# longer than the gap between this and the 6h lifetime.
+STRAVA_TOKEN_REFRESH_MARGIN="600"
+
+# Date (YYYY-MM-DD) to stamp newly seen activities with. Defaults to today.
+# Set this only to bootstrap the store: it attributes the activities the feed
+# currently shows to the month they were really performed (e.g. 2026-05-15)
+# instead of install day. Affects only activities added during that run, so set
+# it for the first seeding run, then comment it back out for normal daily runs.
+# STRAVA_FIRST_SEEN_DATE="2026-05-15"
+
+# How many pages of the activities feed to pull (200 activities/page).
+STRAVA_MAX_PAGES="5"
+STRAVA_PER_PAGE="200"
+
+# Where the dashboard is written (served by uhttpd at http://<router>/strava/).
+# To spare the small flash overlay you may point this at roomy persistent
+# storage (e.g. "/mnt/sda5/strava-leaderboard/web"); install.sh then symlinks
+# the generated files back under /www/strava so uhttpd still serves them.
+STRAVA_WEB_DIR="/www/strava"
+
+# Where token state + dated JSON snapshots are kept. MUST be on persistent
+# storage — on OpenWrt /tmp and /var live in RAM and are wiped on reboot.
+STRAVA_STATE_DIR="/mnt/sda5/strava-leaderboard"
+
+# How many daily JSON snapshots to retain before pruning the oldest.
+STRAVA_KEEP_SNAPSHOTS="90"
