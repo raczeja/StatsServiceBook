@@ -1,0 +1,76 @@
+# StravaStats for OpenWrt — My Activities configuration
+# Copy to /etc/strava-my-activities.conf and `chmod 600` it (it holds secrets).
+# This file is sourced by /bin/sh, so use KEY="value" with no spaces around '='.
+
+# --- Required: from your Strava API application -----------------------------
+# Same app credentials as the leaderboard (same client ID/secret/token).
+STRAVA_CLIENT_ID="12345"
+STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
+
+# A long-lived refresh token for *your own* Strava account, authorized with
+# the `activity:read` scope. `activity:read_all` is needed to include private
+# activities. See README.md "One-time authorization" for how to obtain this.
+STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
+
+# --- Optional ---------------------------------------------------------------
+# Strava access tokens last ~6h. The cached token is reused until it's within
+# this many seconds of expiry, then refreshed.
+STRAVA_TOKEN_REFRESH_MARGIN="600"
+
+# How many pages of your activity feed to pull (200 activities/page).
+# 20 pages = up to 4000 activities — covers several years for most athletes.
+STRAVA_MY_MAX_PAGES="20"
+STRAVA_MY_PER_PAGE="200"
+
+# Where the dashboard is written (served by uhttpd at http://<router>/strava/me/).
+# To spare the small flash overlay you may point this at roomy persistent
+# storage (e.g. "/mnt/sda5/strava-my-activities/web"); install.sh then symlinks
+# /www/strava/me to it so uhttpd still serves it at the same URL.
+STRAVA_MY_WEB_DIR="/www/strava/me"
+
+# Where token state is kept. MUST be on persistent storage — on OpenWrt
+# /tmp and /var live in RAM and are wiped on reboot.
+STRAVA_MY_STATE_DIR="/mnt/sda5/strava-my-activities"
+
+# --- Bike service tracker ---------------------------------------------------
+# A read/WRITE page at http://<router>/strava/me/bike.html that tracks bike
+# parts (chain, tyres, …): when each was fitted, its mileage at that moment, its
+# service history, and replaced parts archived with their final mileage. Mileage
+# is the cumulative distance of your outdoor "Ride" activities up to a chosen
+# date, computed in the browser from activities.json.
+#
+# Unlike everything else here the page SAVES data, through a tiny CGI written to
+# CGI_DIR (uhttpd serves /www/cgi-bin as CGI by default). The data file is the
+# single source of truth and MUST be on persistent storage (off RAM-backed
+# /tmp,/var). Defaults to bike-service.json inside STRAVA_MY_STATE_DIR.
+STRAVA_MY_BIKE_DATA="/mnt/sda5/strava-my-activities/bike-service.json"
+STRAVA_MY_CGI_DIR="/www/cgi-bin"
+
+# --- Per-activity detail backfill -------------------------------------------
+# Each run fetches the full activity object (GET /activities/{id}) for activities
+# that don't yet have one and saves it as <id>.json in this folder. Defaults to a
+# "details/" subfolder of the web dir, so each file is browsable at
+# http://<router>/strava/me/details/<id>.json (and linked from the dashboard).
+# Put it on roomy persistent storage, not the small flash overlay.
+STRAVA_MY_DETAIL_DIR="/www/strava/me/details"
+
+# Strava's read API is rate limited (default 100 req / 15 min, 1000 / day for a
+# non-premium app). To stay well under it we fetch at most this many *new* detail
+# files per run, newest activities first; the rest backfill on later daily runs.
+# Set to 0 to disable detail fetching entirely. Raise it to backfill history
+# faster, but keep it comfortably below the 15-minute limit.
+STRAVA_MY_DETAIL_MAX_PER_RUN="40"
+
+# Seconds to pause between detail fetches, so a burst doesn't trip the limit.
+STRAVA_MY_DETAIL_SLEEP="1"
+
+# --- Historical sync --------------------------------------------------------
+# Each run rebuilds the store from the feed so edits propagate (a renamed ride, a
+# corrected sport type, a recalculated distance) and activities you delete on
+# Strava are pruned locally. Deletion only happens when it's safe to conclude an
+# activity was really removed: the run paged to the end of your feed, or — on a
+# run that hit STRAVA_MY_MAX_PAGES — the activity falls inside the date window
+# actually fetched. An empty feed (likely a transient error) never prunes.
+# Set to 0 to disable only the deletion of missing activities; additions and
+# in-place updates of still-present activities always happen regardless.
+STRAVA_MY_PRUNE_DELETED="1"
