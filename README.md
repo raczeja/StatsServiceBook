@@ -273,8 +273,8 @@ goes into `STRAVA_REFRESH_TOKEN`.
 
 ### 3.0 Find your router's IP and confirm SSH
 
-The OpenWrt-capable home router's LAN/gateway IP is usually **`192.168.1.1`** (ASUS firmware often
-uses `192.168.50.1`; on OpenWrt it's whatever you set). On your PC:
+Your router's LAN/gateway IP is usually **`192.168.1.1`** (some firmware defaults
+differ; on OpenWrt it's whatever you set). On your PC:
 
 ```powershell
 # Windows / PowerShell — the "Default Gateway" is your router
