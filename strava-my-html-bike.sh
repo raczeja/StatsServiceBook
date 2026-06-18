@@ -10,11 +10,13 @@
 # mileage is computed in the browser from activities.json (sport_type "Ride",
 # cumulative distance up to a chosen date) and the computed value is stored into
 # bike-service.json so each part keeps an accurate historical snapshot even if
-# the underlying Strava data later changes. Quoted heredoc — nothing expanded.
-cat > "$WEB_DIR/bike.html" <<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
+# the underlying Strava data later changes. Config is injected before the quoted
+# heredoc (same pattern as the CGI preamble); the rest is shell-unexpanded.
+{
+  printf '%s\n' '<!doctype html><html lang="en"><head>'
+  printf '<script>var _CFG={defaultBikeName:"%s"};</script>\n' "$DEFAULT_BIKE_NAME"
+} > "$WEB_DIR/bike.html"
+cat >> "$WEB_DIR/bike.html" <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bike Service</title>
@@ -319,7 +321,7 @@ function loadAll(){
       // No Strava gears discovered yet (detail backfill still pending) and nothing
       // stored — seed the known default bike so the page is useful immediately.
       if (MODEL.bikes.length === 0) {
-        MODEL.bikes.push({ id:uid("b-"), name:"Kross Level 6.0 SRAM", gearId:"", baseMileage:0, parts:[] });
+        MODEL.bikes.push({ id:uid("b-"), name:(_CFG&&_CFG.defaultBikeName)||"My Bike", gearId:"", baseMileage:0, parts:[] });
         seeded = true;
       }
       if (!curBike() && MODEL.bikes.length) {

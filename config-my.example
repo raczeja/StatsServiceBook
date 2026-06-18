@@ -46,6 +46,12 @@ STRAVA_MY_STATE_DIR="/mnt/sda5/strava-my-activities"
 STRAVA_MY_BIKE_DATA="/mnt/sda5/strava-my-activities/bike-service.json"
 STRAVA_MY_CGI_DIR="/www/cgi-bin"
 
+# Name seeded into the bike-service tracker when no bikes are saved yet and
+# Strava gear sync hasn't happened yet (detail backfill still pending). Once
+# you save or rename a bike in the browser the stored name takes over; this is
+# only the first-time default.
+STRAVA_MY_DEFAULT_BIKE_NAME="My Bike"
+
 # --- Per-activity detail backfill -------------------------------------------
 # Each run fetches the full activity object (GET /activities/{id}) for activities
 # that don't yet have one and saves it as <id>.json in this folder. Defaults to a

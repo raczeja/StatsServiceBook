@@ -38,6 +38,7 @@ STATE_DIR="${STRAVA_MY_STATE_DIR:-/usr/lib/strava-my-activities}"
 # the RAM-backed /tmp,/var); CGI_DIR is uhttpd's default CGI prefix, /www/cgi-bin.
 BIKE_DATA="${STRAVA_MY_BIKE_DATA:-$STATE_DIR/bike-service.json}"
 CGI_DIR="${STRAVA_MY_CGI_DIR:-/www/cgi-bin}"
+DEFAULT_BIKE_NAME="${STRAVA_MY_DEFAULT_BIKE_NAME:-My Bike}"
 
 # Per-activity detail backfill (rate-limit aware — see section 3b).
 DETAIL_DIR="${STRAVA_MY_DETAIL_DIR:-$WEB_DIR/details}"        # one <id>.json per activity
