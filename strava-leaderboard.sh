@@ -7,7 +7,7 @@
 # server/src/services/stats.service.ts + activityStore.ts), and renders a static
 # HTML dashboard plus JSON into uhttpd's web root. The dashboard lets you pick a
 # year and month (defaulting to the current ones) and filters in the browser.
-# Designed for low-RAM MIPS routers such as the ASUS OpenWrt-capable home router. Pure POSIX sh /
+# Designed for low-RAM MIPS home routers running OpenWrt. Pure POSIX sh /
 # BusyBox; deps: curl + jq.
 #
 # Run by cron once a day. See README.md for setup.
