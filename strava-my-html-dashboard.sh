@@ -179,7 +179,7 @@ function defGear(){
 
 // Compute km for the primary bike within a filtered activity set.
 // Untagged rides are attributed to the primary gear, matching bike.html logic.
-function computeKrossOdo(filteredActs){
+function computePrimaryBikeOdo(filteredActs){
   if (!DATA) return null;
   var g = defGear();
   if (!g) return null;
@@ -457,7 +457,7 @@ function render(){
   }
 
   var span = fmtSpan(first, last);
-  var odo = computeKrossOdo(rows);
+  var odo = computePrimaryBikeOdo(rows);
   summaryEl.textContent = fmtInt(totalDist/1000)+" km · "+fmtTime(totalTime)+" · "+fmtInt(totalElev)+" m elev"+
     (span ? " · "+span : "") +
     (odo ? " · "+odo.name+": "+fmtInt(odo.km)+" km" : "");
