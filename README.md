@@ -1,6 +1,6 @@
 # StravaStats for OpenWrt
 
-A router-native Strava stats app for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with Strava-computed mileage and service alerts. Runs entirely on the router: no cloud, no extra server, no RAM daemon.
+A router-native Strava stats app for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with Strava-computed mileage and service alerts. Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
 
 This is a single POSIX shell script driven by **cron**, using **`curl`** to talk to the
 Strava API and **`jq`** to aggregate. The result is written as a static HTML page
@@ -9,13 +9,13 @@ it with no extra daemon and almost no RAM.
 
 ### What it gives you
 
-| Page | URL | What it shows |
-|---|---|---|
-| **Club leaderboard** | `/strava/` | Monthly/yearly distance ranking for your Strava club — filterable by year and month |
-| **My Activities** | `/strava/me/` | All your activities in a sortable table with year/month/sport filters, bests strip, and monthly bar charts |
-| **Activity detail** | `/strava/me/activity.html` | Per-activity stats cards, interactive route map (Leaflet + OSM), and per-km splits chart |
-| **Personal stats** | `/strava/me/stats.html` | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, and day-of-week chart |
-| **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: add parts, record service dates, track mileage auto-computed from your rides |
+| Page                 | URL                        | What it shows                                                                                              |
+| -------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Club leaderboard** | `/strava/`                 | Monthly/yearly distance ranking for your Strava club — filterable by year and month                        |
+| **My Activities**    | `/strava/me/`              | All your activities in a sortable table with year/month/sport filters, bests strip, and monthly bar charts |
+| **Activity detail**  | `/strava/me/activity.html` | Per-activity stats cards, interactive route map (Leaflet + OSM), and per-km splits chart                   |
+| **Personal stats**   | `/strava/me/stats.html`    | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, and day-of-week chart           |
+| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: add parts, record service dates, track mileage auto-computed from your rides     |
 
 Everything runs on the router or docker container. The browser fetches a static JSON file and renders all charts and filters client-side — no server-side processing after the nightly cron.
 
@@ -167,32 +167,29 @@ cron (23:55) ──► strava-my-activities.sh
   same open-on-the-LAN posture as the other dashboards; intended for a private
   home router only.
 
-## Testing locally with Docker / Podman
+## Running locally (Docker / WSL)
 
-You can test all four pages locally with sample data (no Strava API credentials needed) by running the test container. This is useful for previewing the UI, testing changes, or generating screenshots.
+The app can run on your local machine — either with sample data for a quick UI preview, or with your real Strava credentials as a personal dashboard on any PC.
 
-**Prerequisites:**
+### Quick preview with sample data (no Strava credentials needed)
 
-- Docker or Podman installed
-- PowerShell (Windows) or shell (Linux/macOS) to run the build/screenshot scripts
+The test container serves all five pages from bundled sample data. Nothing to configure.
 
-**a. Build and start the test container:**
+**Prerequisites:** Docker or Podman installed.
+
+**Build and start:**
 
 ```sh
-# From the repo root, build the image
+# From the repo root
 podman build -f test/Containerfile -t stravame-test .
+podman run --rm -p 8080:8080 stravame-test
 
 # Or with Docker
 docker build -f test/Containerfile -t stravame-test .
+docker run --rm -p 8080:8080 stravame-test
 ```
 
-Then start it:
-
-```sh
-podman run --rm -p 8080:8080 stravame-test
-```
-
-**b. Open a browser and view the pages:**
+**Open in a browser:**
 
 - Club leaderboard: <http://localhost:8080/strava/index.html>
 - My Activities dashboard: <http://localhost:8080/strava/me/index.html>
@@ -200,24 +197,129 @@ podman run --rm -p 8080:8080 stravame-test
 - Activity detail (map + splits): <http://localhost:8080/strava/me/activity.html?id=18784255013>
 - Bike service tracker: <http://localhost:8080/strava/me/bike.html>
 
-**c. Generate screenshots (Windows PowerShell only):**
+**Test data:** `test/activities.sample.json` (24 rides), `test/club-activities.sample.json` (10 club activities), `test/bike-service.sample.json` (3 bikes), `test/18784255013.json` (full activity detail). All synthetic/anonymized — no personal data.
 
-From the repo root, run:
+**Generate screenshots (Windows PowerShell):**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test\make-screenshots.ps1
 ```
 
-This builds the image, starts the container, captures all five pages with Puppeteer + Edge, and saves them to `test/screenshots/`. Screenshots are embedded in the README and used for documentation.
+Builds the image, captures all five pages with Puppeteer + Edge, saves PNGs to `test/screenshots/`.
 
-**Test data:**
+---
 
-- `test/activities.sample.json` — 24 sample activities (My Activities dashboard)
-- `test/club-activities.sample.json` — 10 anonymized club activities (Club leaderboard)
-- `test/bike-service.sample.json` — Sample bike service data with 3 bikes and maintenance history
-- `test/18784255013.json` — Full detail for a sample activity (Wrocław, Poland bike ride with map and splits)
+### Running with your real Strava data
 
-All sample data uses synthetic/anonymized names and realistic Strava IDs; no personal data is included.
+#### Docker (from a Linux shell or WSL terminal)
+
+From the repo root:
+
+```sh
+# 1. Copy the My Activities config and fill in your credentials + fix the state path
+cp config-my.example my-activities.conf
+```
+
+Edit `my-activities.conf` and set:
+
+- `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REFRESH_TOKEN` — your Strava credentials (see §1–2 below)
+- `STRAVA_MY_STATE_DIR="/state"` — change from the OpenWrt default
+- `STRAVA_MY_BIKE_DATA="/state/bike-service.json"` — change from the OpenWrt default
+- Leave all other paths (`WEB_DIR`, `CGI_DIR`, `DETAIL_DIR`) at their defaults
+
+```sh
+# 2. Fetch your activities and render HTML into named Docker volumes
+docker run --rm \
+  -v "$(pwd):/app:ro" \
+  -e STRAVA_MY_CONFIG=/app/my-activities.conf \
+  -v strava-state:/state \
+  -v strava-web:/www \
+  alpine:3.20 \
+  sh -c "apk add --no-cache curl jq ca-certificates && sh /app/strava-my-activities.sh"
+
+# 3. Serve — busybox httpd runs /www/cgi-bin as CGI so the bike tracker save button works
+docker run --rm -p 8080:8080 \
+  -v strava-web:/www \
+  alpine:3.20 \
+  sh -c "apk add --no-cache busybox-extras && httpd -f -p 8080 -h /www"
+
+# Browse to http://localhost:8080/strava/me/
+```
+
+Re-run step **2** daily to keep the dashboard fresh (schedule with Task Scheduler or cron).
+
+> **Windows PowerShell (without WSL):** replace `$(pwd)` with `${PWD}` and use a backtick `` ` `` for line continuation instead of `\`.
+
+> **Club leaderboard:** same pattern — copy `config.example` to `strava-leaderboard.conf`, set credentials and `STRAVA_STATE_DIR="/state"`, then run `sh /app/strava-leaderboard.sh` with `-v strava-web:/www/strava` added. Browse to `http://localhost:8080/strava/`.
+
+---
+
+#### Windows (WSL — Windows Subsystem for Linux)
+
+WSL gives you a full Linux environment on Windows — the scripts run directly with no container overhead.
+
+**a. Install WSL2 (one-time, in PowerShell as Administrator):**
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+Reboot if prompted, then open the Ubuntu app from the Start menu.
+
+**b. Install dependencies:**
+
+```sh
+sudo apt update && sudo apt install -y curl jq
+```
+
+**c. Navigate to the repo (Windows drives are mounted under `/mnt/` in WSL):**
+
+```sh
+cd /mnt/c/CProjektyGIT/Git_OS/StatsServiceBook   # adjust to your clone path
+```
+
+**d. Create a config with your credentials and local paths:**
+
+```sh
+cp config-my.example ~/.strava-my.conf
+nano ~/.strava-my.conf
+```
+
+Set the three required credentials and change the path lines so state lives in your home directory:
+
+```sh
+STRAVA_MY_WEB_DIR="$HOME/strava-web/strava/me"
+STRAVA_MY_STATE_DIR="$HOME/strava-state"
+STRAVA_MY_CGI_DIR="$HOME/strava-web/cgi-bin"
+STRAVA_MY_BIKE_DATA="$HOME/strava-state/bike-service.json"
+STRAVA_MY_DETAIL_DIR="$HOME/strava-web/strava/me/details"
+```
+
+**e. Create directories and run:**
+
+```sh
+mkdir -p ~/strava-state ~/strava-web/strava/me/details ~/strava-web/cgi-bin
+STRAVA_MY_CONFIG="$HOME/.strava-my.conf" sh strava-my-activities.sh
+```
+
+The run ends with `done.` — see [§5 (Verify it ran)](#5-verify-it-ran-check-the-logs) for what healthy output looks like.
+
+**f. Serve the output:**
+
+```sh
+python3 -m http.server 8080 --directory ~/strava-web
+# Browse to http://localhost:8080/strava/me/
+```
+
+> **Bike service CGI:** Python's `http.server` does not execute CGI scripts, so the bike page's **Save** button won't work in this setup. Either use the Docker approach above (busybox httpd serves CGI natively), or install busybox in WSL (`sudo apt install busybox`) and serve with `busybox httpd -f -p 8080 -h ~/strava-web`.
+
+**To keep the dashboard fresh**, add a cron job in WSL:
+
+```sh
+crontab -e
+# Add this line (adjust path to your repo):
+55 23 * * *  STRAVA_MY_CONFIG="$HOME/.strava-my.conf" sh /mnt/c/CProjektyGIT/Git_OS/StatsServiceBook/strava-my-activities.sh >> ~/strava-my-activities.log 2>&1
+```
 
 ## Requirements
 
