@@ -12,25 +12,30 @@ $ScriptDir  = Split-Path -Parent $TestDir            # openwrt/  (Podman build c
 $OutDir     = Join-Path $TestDir 'screenshots'
 $Container  = 'stravame-screenshots'
 $Image      = 'stravame-test'
+$HostPort   = if ($env:STRAVA_TEST_PORT) { [int]$env:STRAVA_TEST_PORT } else {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    try { $listener.Start(); ($listener.LocalEndpoint).Port } finally { $listener.Stop() }
+}
+$ContainerPort = 8080
 
 # ---- 1. Build the Podman image -----------------------------------------------
 Write-Host "==> Building image '$Image' (context: $ScriptDir) ..."
-& podman build -f "$TestDir\Containerfile" -t $Image $ScriptDir
+& podman build -f "$(Join-Path $TestDir 'Containerfile')" -t $Image $ScriptDir
 if ($LASTEXITCODE -ne 0) { throw "podman build failed" }
 
 # ---- 2. Start the container --------------------------------------------------
-Write-Host "==> Starting container '$Container' on :8080 ..."
+Write-Host "==> Starting container '$Container' on :$HostPort ..."
 & podman rm -f $Container 2>$null
-& podman run -d --name $Container -p 8080:8080 $Image
+& podman run -d --name $Container -p "${HostPort}:$ContainerPort" $Image
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
-# ---- 3. Wait for httpd to be ready ------------------------------------------
+# ---- 3. Wait for httpd to become ready ------------------------------------------
 Write-Host "==> Waiting for httpd to become ready ..."
 $ready = $false
 for ($i = 0; $i -lt 20; $i++) {
     Start-Sleep -Seconds 1
     try {
-        $null = Invoke-WebRequest -Uri 'http://localhost:8080/strava/me/index.html' `
+        $null = Invoke-WebRequest -Uri "http://localhost:$HostPort/strava/me/index.html" `
                                   -UseBasicParsing -TimeoutSec 2
         $ready = $true; break
     } catch { Write-Host "  [$i] not yet ready ..."; }
@@ -42,24 +47,28 @@ if (-not $ready) {
 }
 Write-Host "   httpd is ready."
 
-# ---- 4. Set up a temp npm project with puppeteer-core ------------------------
+# ---- 4. Set up a temp npm project with puppeteer -----------------------------
 # Copy screenshot.mjs into the temp dir so Node ESM resolves bare imports
 # from co-located node_modules.
-$TmpDir = Join-Path $env:TEMP "strava-screenshots-$(Get-Date -Format 'yyyyMMddHHmmss')"
+$TmpRoot = [System.IO.Path]::GetTempPath()
+$TmpDir  = Join-Path $TmpRoot "strava-screenshots-$(Get-Date -Format 'yyyyMMddHHmmss')"
 New-Item -ItemType Directory -Force $TmpDir | Out-Null
-Write-Host "==> Installing puppeteer-core into $TmpDir ..."
+Write-Host "==> Installing puppeteer into $TmpDir ..."
 Push-Location $TmpDir
 try {
     & npm init -y 2>&1 | Out-Null
-    & npm install --save puppeteer-core 2>&1 | Where-Object { $_ -match 'added|warn|error' }
-    if ($LASTEXITCODE -ne 0) { throw "npm install puppeteer-core failed" }
+    & npm install --save puppeteer 2>&1 | Where-Object { $_ -match 'added|warn|error' }
+    if ($LASTEXITCODE -ne 0) { throw "npm install puppeteer failed" }
     Copy-Item (Join-Path $TestDir 'screenshot.mjs') (Join-Path $TmpDir 'screenshot.mjs')
 
     # ---- 5. Take screenshots --------------------------------------------------
     Write-Host "==> Taking screenshots ..."
     New-Item -ItemType Directory -Force $OutDir | Out-Null
+    $env:TEST_PORT = $HostPort
     & node screenshot.mjs $OutDir
-    if ($LASTEXITCODE -ne 0) { throw "screenshot.mjs failed - check Edge path and container logs" }
+    $LastExit = $LASTEXITCODE
+    Remove-Item Env:TEST_PORT -ErrorAction SilentlyContinue
+    if ($LastExit -ne 0) { throw "screenshot.mjs failed - check Edge path and container logs" }
 } finally {
     Pop-Location
     # ---- 6. Stop the container -----------------------------------------------
