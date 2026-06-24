@@ -11,6 +11,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My Activities</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlN0YXRzU2VydmljZUJvb2siPgogIDxkZWZzPgogICAgPGNsaXBQYXRoIGlkPSJjbGlwIj4KICAgICAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiLz4KICAgIDwvY2xpcFBhdGg+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExMTExIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIGNpcmNsZSAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0idXJsKCNiZykiLz4KCiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXApIj4KCiAgICA8IS0tIEFyZWEgZmlsbCB1bmRlciB0aGUgcm91dGUgbGluZSAtLT4KICAgIDxwb2x5Z29uCiAgICAgIHBvaW50cz0iNCw0NiAxMyw0NiAxOSwzMiAyNSw0MCAzMiwxOCAzOSwzMiA0NSwyNSA1MSwzMiA2MCwzMiA2MCw1NiA0LDU2IgogICAgICBmaWxsPSIjZmM0YzAyIiBmaWxsLW9wYWNpdHk9IjAuMTUiLz4KCiAgICA8IS0tIFJvdXRlIC8gZWxldmF0aW9uIHByb2ZpbGUg4oCUIHRoZSBjb3JlIGZlYXR1cmUgLS0+CiAgICA8cG9seWxpbmUKICAgICAgcG9pbnRzPSI0LDQ2IDEzLDQ2IDE5LDMyIDI1LDQwIDMyLDE4IDM5LDMyIDQ1LDI1IDUxLDMyIDYwLDMyIgogICAgICBmaWxsPSJub25lIgogICAgICBzdHJva2U9IiNmYzRjMDIiCiAgICAgIHN0cm9rZS13aWR0aD0iMy4yIgogICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KCiAgICA8IS0tIEdQUyAvIHN0YXJ0IGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjQiIGN5PSI0NiIgcj0iMi41IiBmaWxsPSIjZmM0YzAyIi8+CgogICAgPCEtLSBGaW5pc2ggLyBjdXJyZW50LXBvc2l0aW9uIGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjYwIiBjeT0iMzIiIHI9IjIuNSIgZmlsbD0iI2ZjNGMwMiIvPgoKICA8L2c+CgogIDwhLS0gV2lGaSBzaWduYWwgYXJjcyDigJQgdG9wLXJpZ2h0LCByZXByZXNlbnRzIHRoZSByb3V0ZXIgLS0+CiAgPHBhdGggZD0iTTQzLDEzIFE1MCw3ICA1NywxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjQ1Ii8+CiAgPHBhdGggZD0iTTQ2LDE3IFE1MCwxMyA1NCwxNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjc1Ii8+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSIyMSIgcj0iMi4yIiBmaWxsPSIjZmM0YzAyIi8+CgogIDwhLS0gT3V0ZXIgcmluZyAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjAuOCIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiLz4KPC9zdmc+Cg==" type="image/svg+xml">
 <style>
   body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1000px;padding:0 1rem;background:#fafafa;color:#222}
   h1{margin:0 0 .25rem}
@@ -50,7 +51,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
-<h1>My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a></h1>
+<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a></h1></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
@@ -121,10 +122,38 @@ var metaEl   = document.getElementById("meta");
 var summaryEl= document.getElementById("summary");
 var bestsEl  = document.getElementById("bests");
 var board    = document.getElementById("board");
-var DATA      = null;
+var DATA       = null;
 var BIKE_MODEL = null;
+var BIKE_ASSIGNS = {};   // {actId: bikeName} — per-activity overrides
 var sortCol  = "date";
 var sortAsc  = false;
+
+var RIDE_SPORTS = {Ride:1,EBikeRide:1,VirtualRide:1,Handcycle:1,MountainBikeRide:1,GravelRide:1};
+function isRide(s){ return !!RIDE_SPORTS[s]; }
+function bikeName(a){
+  var ov = BIKE_ASSIGNS[a.id]; if (ov) return ov;
+  var g = a.gear_id;
+  if (!g) {
+    if (BIKE_MODEL && BIKE_MODEL.bikes) {
+      for (var i = 0; i < BIKE_MODEL.bikes.length; i++) {
+        if (BIKE_MODEL.bikes[i].isDefault) return BIKE_MODEL.bikes[i].name;
+      }
+    }
+    return null;
+  }
+  return ((DATA.gears||{})[g]||{}).name || g;
+}
+function setBike(actId, name){
+  BIKE_ASSIGNS[actId] = name;
+  for (var i=0;i<(DATA.activities||[]).length;i++){
+    if (String(DATA.activities[i].id)===String(actId)){
+      DATA.activities[i].gear_id = name; _defGear=null; break;
+    }
+  }
+  fetch("/cgi-bin/bike-assign",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(BIKE_ASSIGNS)})
+    .catch(function(){});
+}
+window.setBike = setBike;
 
 function saveFilter(){
   try { sessionStorage.setItem("activityFilter",JSON.stringify({year:yearSel.value,month:monthSel.value,sport:sportSel.value,sortCol:sortCol,sortAsc:sortAsc})); } catch(e){}
@@ -177,17 +206,30 @@ function defGear(){
   return _defGear;
 }
 
-// Compute km for the primary bike within a filtered activity set.
-// Untagged rides are attributed to the primary gear, matching bike.html logic.
+// Compute km for the primary/default bike within a filtered activity set.
+// Untagged rides count toward whichever bike is marked isDefault in BIKE_MODEL.
 function computePrimaryBikeOdo(filteredActs){
   if (!DATA) return null;
-  var g = defGear();
-  if (!g) return null;
-  var name = ((DATA.gears||{})[g]||{}).name || g;
+  var name, gid;
+  if (BIKE_MODEL && BIKE_MODEL.bikes) {
+    for (var i = 0; i < BIKE_MODEL.bikes.length; i++) {
+      if (BIKE_MODEL.bikes[i].isDefault) {
+        name = BIKE_MODEL.bikes[i].name;
+        gid  = BIKE_MODEL.bikes[i].gearId || "";
+        break;
+      }
+    }
+  }
+  if (!name) {
+    gid = defGear();
+    if (!gid) return null;
+    name = ((DATA.gears||{})[gid]||{}).name || gid;
+  }
   var km = 0;
   filteredActs.forEach(function(a){
     if (a.sport_type !== "Ride") return;
-    if ((a.gear_id || g) === g) km += (a.distance||0) / 1000;
+    if (gid && a.gear_id && a.gear_id !== gid) return;  // tagged to a different bike
+    km += (a.distance||0) / 1000;
   });
   return { name: name, km: km };
 }
@@ -247,7 +289,7 @@ function init(){
     } catch(e) {}
   }
 
-  yearSel.onchange  = function(){ saveFilter(); render(); };
+  yearSel.onchange  = function(){ if (yearSel.value === "all") monthSel.value = "all"; saveFilter(); render(); };
   monthSel.onchange = function(){ saveFilter(); render(); };
   sportSel.onchange = function(){ saveFilter(); render(); };
   document.getElementById("resetFilters").onclick = function() {
@@ -379,8 +421,8 @@ function renderCharts(rows, selMonth, year) {
   drawBars("svg-elev", elevVals, selMonth, 0, elevAvg);
 }
 
-var COLS       = ["date","name","sport_type","distance","moving_time","total_elevation_gain","average_speed","max_speed","vam","average_heartrate","average_watts","kilojoules"];
-var COL_LABELS = ["Date","Name","Sport","Distance","Time","Elev (m)","Avg km/h","Max km/h","VAM","Avg HR","Avg W","kJ"];
+var COLS       = ["date","name","sport_type","gear_id","distance","moving_time","total_elevation_gain","average_speed","max_speed","vam","average_heartrate","average_watts","kilojoules"];
+var COL_LABELS = ["Date","Name","Sport","Bike","Distance","Time","Elev (m)","Avg km/h","Max km/h","VAM","Avg HR","Avg W","kJ"];
 // Hover explanations for the less-obvious columns (shown as native tooltips).
 var COL_TIPS   = {
   vam:               "VAM — average climbing speed in vertical metres per hour (elevation gain ÷ moving time). Higher means you climbed faster.",
@@ -531,10 +573,25 @@ function render(){
     var nameCell = a.detail
       ? '<a href="activity.html?id='+encodeURIComponent(a.id)+'" title="Activity detail" class="clamp2">'+esc(a.name||"")+'</a>'
       : '<span class="clamp2">'+esc(a.name||"")+'</span>';
+    var bikeCell;
+    if (isRide(a.sport_type)) {
+      var bv = bikeName(a) || "";
+      var bopts = '<option value="">—</option>';
+      var bikes = (BIKE_MODEL && BIKE_MODEL.bikes) ? BIKE_MODEL.bikes : [];
+      bikes.forEach(function(b){
+        bopts += '<option value="'+esc(b.name)+'"'+(bv===b.name?' selected':'')+'>'+esc(b.name)+'</option>';
+      });
+      if (bv && !bikes.some(function(b){ return b.name===bv; }))
+        bopts = '<option value="'+esc(bv)+'" selected>'+esc(bv)+'</option>'+bopts;
+      bikeCell = '<td><select style="font:inherit;font-size:.8rem;border:1px solid #ccc;border-radius:.3rem;padding:.1rem .25rem;background:#fff;max-width:140px" onchange="setBike(\''+esc(String(a.id))+'\',this.value)">'+bopts+'</select></td>';
+    } else {
+      bikeCell = '<td style="color:#bbb">—</td>';
+    }
     html += '<tr data-id="'+esc(a.id)+'">'+
       '<td style="white-space:nowrap">'+esc(a.date||"")+"</td>"+
       "<td>"+nameCell+"</td>"+
       "<td>"+esc(a.sport_type||"")+"</td>"+
+      bikeCell+
       '<td class="num">'+fmtKm(a.distance)+" km</td>"+
       '<td class="num">'+fmtTime(a.moving_time)+"</td>"+
       '<td class="num">'+Math.floor(a.total_elevation_gain||0)+"</td>"+
@@ -570,11 +627,13 @@ fetch("activities.json", { cache:"no-store" })
   .then(function(r){ if (!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
   .then(function(d){
     DATA = d;
-    return fetch("/cgi-bin/bike-service", { cache:"no-store" })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .catch(function(){ return null; });
+    var p1 = fetch("/cgi-bin/bike-service", { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+    var p2 = fetch("/cgi-bin/bike-assign", { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; });
+    return Promise.all([p1, p2]);
   })
-  .then(function(bm){ BIKE_MODEL = bm; progressDone(); init(); })
+  .then(function(res){ BIKE_MODEL = res[0]; BIKE_ASSIGNS = res[1] || {}; progressDone(); init(); })
   .catch(function(err){
     progressDone();
     metaEl.textContent = "Failed to load activities.json ("+err.message+

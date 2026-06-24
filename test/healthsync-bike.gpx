@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="HealthSync" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Sample Bike Ride</name>
+    <trkseg>
+      <trkpt lat="51.1070" lon="17.0380"><ele>120.0</ele><time>2026-06-22T08:30:00Z</time></trkpt>
+      <trkpt lat="51.1095" lon="17.0450"><ele>122.0</ele><time>2026-06-22T08:34:00Z</time></trkpt>
+      <trkpt lat="51.1120" lon="17.0520"><ele>124.0</ele><time>2026-06-22T08:40:00Z</time></trkpt>
+      <trkpt lat="51.1155" lon="17.0600"><ele>127.0</ele><time>2026-06-22T08:45:00Z</time></trkpt>
+      <trkpt lat="51.1190" lon="17.0680"><ele>131.0</ele><time>2026-06-22T08:50:00Z</time></trkpt>
+      <trkpt lat="51.1220" lon="17.0765"><ele>134.0</ele><time>2026-06-22T08:55:00Z</time></trkpt>
+      <trkpt lat="51.1250" lon="17.0850"><ele>138.0</ele><time>2026-06-22T09:00:00Z</time></trkpt>
+      <trkpt lat="51.1275" lon="17.0935"><ele>141.0</ele><time>2026-06-22T09:05:00Z</time></trkpt>
+      <trkpt lat="51.1300" lon="17.1020"><ele>145.0</ele><time>2026-06-22T09:10:00Z</time></trkpt>
+      <trkpt lat="51.1325" lon="17.1100"><ele>148.0</ele><time>2026-06-22T09:15:00Z</time></trkpt>
+      <trkpt lat="51.1350" lon="17.1180"><ele>152.0</ele><time>2026-06-22T09:20:00Z</time></trkpt>
+      <trkpt lat="51.1368" lon="17.1265"><ele>150.0</ele><time>2026-06-22T09:25:00Z</time></trkpt>
+      <trkpt lat="51.1380" lon="17.1350"><ele>148.0</ele><time>2026-06-22T09:30:00Z</time></trkpt>
+      <trkpt lat="51.1360" lon="17.1425"><ele>145.0</ele><time>2026-06-22T09:35:00Z</time></trkpt>
+      <trkpt lat="51.1330" lon="17.1500"><ele>142.0</ele><time>2026-06-22T09:40:00Z</time></trkpt>
+      <trkpt lat="51.1298" lon="17.1432"><ele>139.0</ele><time>2026-06-22T09:45:00Z</time></trkpt>
+      <trkpt lat="51.1260" lon="17.1360"><ele>135.0</ele><time>2026-06-22T09:50:00Z</time></trkpt>
+      <trkpt lat="51.1228" lon="17.1282"><ele>132.0</ele><time>2026-06-22T09:55:00Z</time></trkpt>
+      <trkpt lat="51.1190" lon="17.1200"><ele>128.0</ele><time>2026-06-22T10:00:00Z</time></trkpt>
+      <trkpt lat="51.1155" lon="17.1120"><ele>125.0</ele><time>2026-06-22T10:03:30Z</time></trkpt>
+      <trkpt lat="51.1120" lon="17.1040"><ele>122.0</ele><time>2026-06-22T10:07:00Z</time></trkpt>
+      <trkpt lat="51.1095" lon="17.0960"><ele>121.0</ele><time>2026-06-22T10:10:30Z</time></trkpt>
+      <trkpt lat="51.1070" lon="17.0880"><ele>120.0</ele><time>2026-06-22T10:14:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

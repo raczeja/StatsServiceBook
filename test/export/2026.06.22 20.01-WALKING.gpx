@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="HealthSync" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Sample Walk</name>
+    <trkseg>
+      <trkpt lat="51.1050" lon="17.0320"><ele>120.0</ele><time>2026-06-22T18:01:42Z</time></trkpt>
+      <trkpt lat="51.1072" lon="17.0298"><ele>122.0</ele><time>2026-06-22T18:07:42Z</time></trkpt>
+      <trkpt lat="51.1094" lon="17.0272"><ele>125.0</ele><time>2026-06-22T18:13:42Z</time></trkpt>
+      <trkpt lat="51.1115" lon="17.0248"><ele>128.0</ele><time>2026-06-22T18:19:42Z</time></trkpt>
+      <trkpt lat="51.1132" lon="17.0222"><ele>131.0</ele><time>2026-06-22T18:25:42Z</time></trkpt>
+      <trkpt lat="51.1148" lon="17.0198"><ele>128.0</ele><time>2026-06-22T18:31:42Z</time></trkpt>
+      <trkpt lat="51.1138" lon="17.0172"><ele>125.0</ele><time>2026-06-22T18:37:42Z</time></trkpt>
+      <trkpt lat="51.1118" lon="17.0155"><ele>122.0</ele><time>2026-06-22T18:43:42Z</time></trkpt>
+      <trkpt lat="51.1095" lon="17.0168"><ele>120.0</ele><time>2026-06-22T18:49:42Z</time></trkpt>
+      <trkpt lat="51.1073" lon="17.0192"><ele>119.0</ele><time>2026-06-22T18:55:42Z</time></trkpt>
+      <trkpt lat="51.1055" lon="17.0218"><ele>120.0</ele><time>2026-06-22T19:01:42Z</time></trkpt>
+      <trkpt lat="51.1050" lon="17.0320"><ele>120.0</ele><time>2026-06-22T19:11:42Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

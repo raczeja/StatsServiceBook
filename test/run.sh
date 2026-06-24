@@ -2,9 +2,8 @@
 # Local test harness for club + My Activities pages + bike-service CGI.
 # Extracts each page from its dedicated helper script (the single source of
 # truth — no copy/paste drift), lays them out like the router does, and
-# serves them with BusyBox httpd, which runs /cgi-bin/* as CGI exactly like
-# OpenWrt's uhttpd. Used inside the container built by Containerfile; not
-# shipped to the router.
+# serves them with lighttpd (CGI/1.1 compliant POST handling).
+# Used inside the container built by Containerfile; not shipped to the router.
 set -eu
 
 DASHBOARD=/opt/strava-my-html-dashboard.sh
@@ -17,14 +16,18 @@ WEB=/www/strava/me
 DATA=/data/bike-service.json
 CLUB_WEB=/www/strava
 
-mkdir -p "$WEB/details" "$CLUB_WEB" /www/cgi-bin /data
+mkdir -p "$WEB/details" "$WEB/gpx" "$CLUB_WEB" /www/cgi-bin /data
 
 # Extract each page from its helper script's <<'HTML' heredoc.
 awk '/^cat > "\$WEB_DIR\/index\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$DASHBOARD" > "$WEB/index.html"
 awk '/^cat > "\$WEB_DIR\/index\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$CLUB"      > "$CLUB_WEB/index.html"
 awk '/^cat > "\$WEB_DIR\/activity\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DETAIL"    > "$WEB/activity.html"
 awk '/^cat > "\$WEB_DIR\/stats\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$STATS"     > "$WEB/stats.html"
-awk '/^cat > "\$WEB_DIR\/bike\.html" <<.HTML.$/{f=1;next}     /^HTML$/{f=0} f' "$BIKE"      > "$WEB/bike.html"
+{
+  printf '%s\n' '<!doctype html><html lang="en"><head>'
+  printf '<script>var _CFG={defaultBikeName:""};</script>\n'
+  awk '/^cat >> "\$WEB_DIR\/bike\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$BIKE"
+} > "$WEB/bike.html"
 
 # CGI: prepend the two lines the main script injects (shebang + data path),
 # then the body of the <<'CGI' heredoc in strava-my-html-bike.sh.
@@ -35,11 +38,28 @@ awk '/^cat > "\$WEB_DIR\/bike\.html" <<.HTML.$/{f=1;next}     /^HTML$/{f=0} f' "
 } > /www/cgi-bin/bike-service
 chmod 0755 /www/cgi-bin/bike-service
 
+BIKE_ASSIGN=/data/bike-assignments.json
+[ -f "$BIKE_ASSIGN" ] || printf '{}' > "$BIKE_ASSIGN"
+{
+  echo '#!/bin/sh'
+  echo "DATA_FILE=\"$BIKE_ASSIGN\""
+  awk '/^cat >> "\$CGI_DIR\/bike-assign" <<.CGI.$/{f=1;next} /^CGI$/{f=0} f' "$BIKE"
+} > /www/cgi-bin/bike-assign
+chmod 0755 /www/cgi-bin/bike-assign
+
 cp /opt/activities.sample.json "$WEB/activities.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
 
 # Sample per-activity detail JSON (served at details/<id>.json, linked from the dashboard).
 cp /opt/18784255013.json "$WEB/details/18784255013.json"
+
+# HealthSync sample: detail JSON + GPX file for testing the GPX map path.
+cp /opt/healthsync-20260622.json "$WEB/details/2026-06-22-15-07-running.json"
+cp /opt/healthsync-sample.gpx "$WEB/gpx/healthsync-sample.gpx"
+
+# HealthSync bike/cycling sample: detail JSON + GPX for testing gear_id assignment.
+cp /opt/healthsync-bike.json "$WEB/details/2026-06-22-10-30-cycling.json"
+cp /opt/healthsync-bike.gpx "$WEB/gpx/2026.06.22_10.30-CYCLING.gpx"
 
 # Seed the bike-service store with sample parts/services so the page has data on
 # first load. Only seed if absent: once the CGI has written real edits we don't clobber them.
@@ -60,5 +80,19 @@ echo "  Club leaderboard ->  http://localhost:8080/strava/"
 echo "  My Activities  ->  http://localhost:8080/strava/me/"
 echo "  Stats          ->  http://localhost:8080/strava/me/stats.html"
 echo "  Activity       ->  http://localhost:8080/strava/me/activity.html?id=18784255013"
+echo "  GPX activity   ->  http://localhost:8080/strava/me/activity.html?id=2026-06-22-15-07-running"
+echo "  Bike activity  ->  http://localhost:8080/strava/me/activity.html?id=2026-06-22-10-30-cycling"
 echo "  Bike service   ->  http://localhost:8080/strava/me/bike.html"
-exec httpd -f -vv -p 8080 -h /www
+cat > /tmp/lighttpd.conf <<'CONF'
+server.document-root = "/www"
+server.port          = 8080
+server.bind          = "0.0.0.0"
+server.modules       = ("mod_cgi", "mod_indexfile", "mod_staticfile", "mod_dirlisting")
+server.errorlog      = "/dev/stderr"
+server.pid-file      = "/tmp/lighttpd.pid"
+index-file.names     = ("index.html")
+$HTTP["url"] =~ "^/cgi-bin/" {
+  cgi.assign = ("" => "/bin/sh")
+}
+CONF
+exec lighttpd -D -f /tmp/lighttpd.conf

@@ -9,6 +9,7 @@ cat > "$WEB_DIR/stats.html" <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My Stats</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlN0YXRzU2VydmljZUJvb2siPgogIDxkZWZzPgogICAgPGNsaXBQYXRoIGlkPSJjbGlwIj4KICAgICAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiLz4KICAgIDwvY2xpcFBhdGg+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExMTExIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIGNpcmNsZSAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0idXJsKCNiZykiLz4KCiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXApIj4KCiAgICA8IS0tIEFyZWEgZmlsbCB1bmRlciB0aGUgcm91dGUgbGluZSAtLT4KICAgIDxwb2x5Z29uCiAgICAgIHBvaW50cz0iNCw0NiAxMyw0NiAxOSwzMiAyNSw0MCAzMiwxOCAzOSwzMiA0NSwyNSA1MSwzMiA2MCwzMiA2MCw1NiA0LDU2IgogICAgICBmaWxsPSIjZmM0YzAyIiBmaWxsLW9wYWNpdHk9IjAuMTUiLz4KCiAgICA8IS0tIFJvdXRlIC8gZWxldmF0aW9uIHByb2ZpbGUg4oCUIHRoZSBjb3JlIGZlYXR1cmUgLS0+CiAgICA8cG9seWxpbmUKICAgICAgcG9pbnRzPSI0LDQ2IDEzLDQ2IDE5LDMyIDI1LDQwIDMyLDE4IDM5LDMyIDQ1LDI1IDUxLDMyIDYwLDMyIgogICAgICBmaWxsPSJub25lIgogICAgICBzdHJva2U9IiNmYzRjMDIiCiAgICAgIHN0cm9rZS13aWR0aD0iMy4yIgogICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KCiAgICA8IS0tIEdQUyAvIHN0YXJ0IGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjQiIGN5PSI0NiIgcj0iMi41IiBmaWxsPSIjZmM0YzAyIi8+CgogICAgPCEtLSBGaW5pc2ggLyBjdXJyZW50LXBvc2l0aW9uIGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjYwIiBjeT0iMzIiIHI9IjIuNSIgZmlsbD0iI2ZjNGMwMiIvPgoKICA8L2c+CgogIDwhLS0gV2lGaSBzaWduYWwgYXJjcyDigJQgdG9wLXJpZ2h0LCByZXByZXNlbnRzIHRoZSByb3V0ZXIgLS0+CiAgPHBhdGggZD0iTTQzLDEzIFE1MCw3ICA1NywxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjQ1Ii8+CiAgPHBhdGggZD0iTTQ2LDE3IFE1MCwxMyA1NCwxNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjc1Ii8+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSIyMSIgcj0iMi4yIiBmaWxsPSIjZmM0YzAyIi8+CgogIDwhLS0gT3V0ZXIgcmluZyAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjAuOCIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiLz4KPC9zdmc+Cg==" type="image/svg+xml">
 <style>
   body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1100px;padding:0 1rem;background:#fafafa;color:#222}
   h1{margin:0 0 .25rem;font-size:1.6rem}
@@ -60,7 +61,7 @@ cat > "$WEB_DIR/stats.html" <<'HTML'
 <div id="pbar"></div>
 <div id="tip"></div>
 <div class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="bike.html">🔧 Bike service</a></div>
-<h1>My Stats</h1>
+<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Stats</h1></div>
 <div class="meta" id="meta">Loading…</div>
 
 <div class="filters">
@@ -84,7 +85,7 @@ cat > "$WEB_DIR/stats.html" <<'HTML'
 <h2>Personal records <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time &middot; selected sport</span></h2>
 <div class="recs" id="recs"></div>
 
-<h2>By sport <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time</span></h2>
+<h2>By sport <span id="sportSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time</span></h2>
 <div id="sportTable"></div>
 
 <h2>Average per day of week <span id="dowSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; selected sport &middot; all years</span></h2>
@@ -278,7 +279,7 @@ function drawBars(svgId, bars, viewW, viewH){
     var tipTxt = b.tip || b.label;
     return '<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+bh+'"'+
            ' fill="'+fill+'" rx="1"'+
-           ' onmouseenter="showTip(event,'+JSON.stringify(tipTxt)+')"'+
+           ' onmouseenter="showTip(event,'+esc(JSON.stringify(tipTxt))+')"'+
            ' onmousemove="moveTip(event)" onmouseleave="hideTip()" style="cursor:default"/>'+
       (bh>14?'<text x="'+(x+bw/2)+'" y="'+(y-2)+'"'+
              ' text-anchor="middle" font-size="8.5" fill="#555">'+fmtKmD(b.val||0)+'</text>':'')+
@@ -295,6 +296,7 @@ function render(){
   var isAll = (!selYear || selYear==="all");
   var yrStr = isAll ? curY : selYear;
   document.getElementById("dowSubtitle").innerHTML = "— selected sport · " + (isAll ? "all years" : selYear);
+  document.getElementById("sportSubtitle").innerHTML = "— " + (isAll ? "all time" : selYear);
   var f = filtered();
   var fyAll  = isAll ? f : filterYear(f, selYear);  // KPIs, records, DOW
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
@@ -472,9 +474,10 @@ function render(){
            '</div>';
   }).join("") || '<div class="empty">No data yet.</div>';
 
-  // --- By sport (always all activities, all time) ---
+  // --- By sport (all sports, year-filtered when a year is selected) ---
+  var sportSrc = isAll ? ALL_ACTS : filterYear(ALL_ACTS, selYear);
   var sportAgg={};
-  ALL_ACTS.forEach(function(a){
+  sportSrc.forEach(function(a){
     var st=a.sport_type||"Other";
     if(!sportAgg[st]) sportAgg[st]={n:0,distM:0,secs:0,elev:0};
     sportAgg[st].n++;

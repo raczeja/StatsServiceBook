@@ -1,9 +1,10 @@
 # Local test image for club + My Activities pages + CGI (NOT used on the router).
-# Alpine gives us the same ash shell + jq, and busybox-extras provides httpd,
-# which serves /cgi-bin/* as CGI just like OpenWrt's uhttpd.
+# lighttpd is used instead of BusyBox httpd because BusyBox httpd does not
+# forward POST bodies to CGI stdin reliably, breaking bike-service saves.
+# lighttpd is a full CGI/1.1 server and handles POST correctly.
 #
-# Build context is the openwrt/ directory:
-#   podman build -f openwrt/test/Containerfile -t stravame-test openwrt
+# Build context is the repo root:
+#   podman build -f test/Containerfile -t stravame-test .
 #   podman run --rm -p 8080:8080 stravame-test
 # then open:
 #   http://localhost:8080/strava/me/         (dashboard)
@@ -13,7 +14,7 @@
 #   http://localhost:8080/strava/            (club dashboard)
 FROM docker.io/library/alpine:3.20
 
-RUN apk add --no-cache jq busybox-extras
+RUN apk add --no-cache jq lighttpd
 
 COPY strava-my-html-dashboard.sh /opt/strava-my-html-dashboard.sh
 COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
@@ -24,6 +25,10 @@ COPY test/activities.sample.json /opt/activities.sample.json
 COPY test/club-activities.sample.json /opt/club-activities.sample.json
 COPY test/bike-service.sample.json /opt/bike-service.sample.json
 COPY test/18784255013.json       /opt/18784255013.json
+COPY test/healthsync-20260622.json /opt/healthsync-20260622.json
+COPY test/healthsync-sample.gpx  /opt/healthsync-sample.gpx
+COPY test/healthsync-bike.json   /opt/healthsync-bike.json
+COPY test/healthsync-bike.gpx    /opt/healthsync-bike.gpx
 COPY test/run.sh /opt/run.sh
 RUN chmod 0755 /opt/run.sh
 

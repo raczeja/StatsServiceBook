@@ -37,6 +37,7 @@ STATE_DIR="${STRAVA_MY_STATE_DIR:-/usr/lib/strava-my-activities}"
 # and writes a single JSON file. BIKE_DATA must live on persistent storage (off
 # the RAM-backed /tmp,/var); CGI_DIR is uhttpd's default CGI prefix, /www/cgi-bin.
 BIKE_DATA="${STRAVA_MY_BIKE_DATA:-$STATE_DIR/bike-service.json}"
+BIKE_ASSIGN="${STRAVA_MY_BIKE_ASSIGN:-$STATE_DIR/bike-assignments.json}"
 CGI_DIR="${STRAVA_MY_CGI_DIR:-/www/cgi-bin}"
 DEFAULT_BIKE_NAME="${STRAVA_MY_DEFAULT_BIKE_NAME:-My Bike}"
 
@@ -51,6 +52,7 @@ DETAIL_SKIP="$STATE_DIR/detail-skip.txt"                     # ids Strava said a
 # (destructive) deletion of activities missing from the feed; additions and
 # in-place updates of still-present activities always happen regardless.
 PRUNE_DELETED="${STRAVA_MY_PRUNE_DELETED:-1}"
+IMPORT_ENABLED="${STRAVA_MY_IMPORT_ENABLED:-1}"
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -61,6 +63,8 @@ TOKEN_STATE="$STATE_DIR/token.json"
 STORE="$STATE_DIR/activities.ndjson"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
+
+if [ "$IMPORT_ENABLED" != "0" ]; then
 
 # --- 1. Ensure a valid access token (see strava-lib.sh) -------------------
 ensure_access_token
@@ -305,6 +309,11 @@ else
   log "detail backfill: disabled (STRAVA_MY_DETAIL_MAX_PER_RUN=0)"
 fi
 
+else
+  log "import disabled (STRAVA_MY_IMPORT_ENABLED=0) — re-rendering from existing store"
+fi
+TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
+
 # --- 4. Emit activities.json for the dashboard ----------------------------
 # Flat list of all stored activities, sorted newest-first. The browser handles
 # all year/month/sport-type filtering; no server-side aggregation needed.
@@ -313,6 +322,9 @@ GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 # ids that currently have a detail file, so the dashboard can link to them.
 ls -1 "$DETAIL_DIR" 2>/dev/null | grep -E '^[0-9]+\.json$' | cut -d. -f1 \
   | jq -Rn '[inputs]' > "$TMP/detail_ids.json"
+
+[ -f "$BIKE_ASSIGN" ] || printf '{}' > "$BIKE_ASSIGN"
+cp "$BIKE_ASSIGN" "$TMP/bike-assign.json"
 
 # Historical backfill: the store is append-only, so activities saved before the
 # richer fields were added lack them. Build an id -> scalars map from the detail
@@ -358,21 +370,24 @@ fi
 jq -s --arg generatedAt "$GENERATED_AT" \
   --slurpfile det "$TMP/detail_ids.json" \
   --slurpfile enr "$TMP/enrich.json" \
-  --slurpfile gears "$TMP/gears.json" '
+  --slurpfile gears "$TMP/gears.json" \
+  --slurpfile assigns "$TMP/bike-assign.json" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
   | ($enr[0] // {}) as $enrich
+  | ($assigns[0] // {}) as $A
   | {
     generatedAt: $generatedAt,
     gears: ($gears[0] // {}),
     activities: [
       .[]
       | ($enrich[(.id | tostring)] // {}) as $e
+      | ($A[(.id | tostring)] // .gear_id) as $bike
       | {
           id:                     .id,
           date:                   .date,
           name:                   .name,
           sport_type:             .sport_type,
-          gear_id:                (.gear_id // null),
+          gear_id:                $bike,
           distance:               (.distance // 0),
           moving_time:            (.moving_time // 0),
           elapsed_time:           ((.elapsed_time // $e.elapsed_time) // 0),

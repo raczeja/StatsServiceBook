@@ -1,0 +1,121 @@
+# HealthSync / Google Drive activities config
+# Copy to /etc/healthsync-activities.conf and chmod 600 it.
+# SOURCE this file (KEY="value", no spaces around =).
+
+# --- Google OAuth credentials -----------------------------------------------
+# One-time setup. Do this on your PC, not on the router.
+#
+# QUICK PATH — browser authorization code flow (recommended, no GCP project)
+# ---------------------------------------------------------------------------
+# STEP 1 — Authorize in your browser
+#   Open this URL (sign in with the Google account that owns the Drive folder):
+#
+#   https://accounts.google.com/o/oauth2/v2/auth?client_id=495717612467-uak1ugf5c36snhmtehq36b47t2j8aj14.apps.googleusercontent.com&redirect_uri=http://localhost&response_type=code&scope=https://www.googleapis.com/auth/drive.readonly&access_type=offline&prompt=consent
+#
+#   Click Allow. Your browser redirects to a http://localhost/?code=...&scope=...
+#   URL that fails to load — that's expected. Copy only the "code=..." value
+#   from the address bar (everything between "code=" and the next "&" or end).
+#
+# STEP 2 — Exchange the code for a refresh token (one curl command on your PC)
+#
+#   CODE="4/0A..."          # paste the code from the address bar
+#   CLIENT_SECRET="paste-your-client-secret-here"
+#   curl -s -X POST https://oauth2.googleapis.com/token \
+#     -d "client_id=495717612467-uak1ugf5c36snhmtehq36b47t2j8aj14.apps.googleusercontent.com" \
+#     -d "client_secret=$CLIENT_SECRET" \
+#     -d "code=$CODE" \
+#     -d "redirect_uri=http://localhost" \
+#     -d "grant_type=authorization_code" | jq .
+#
+#   Copy the "refresh_token" value from the JSON response.
+#   Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN below.
+#
+#   Common errors:
+#     "invalid_grant" / "Token has been expired or revoked"
+#         → the code was already used or expired (they are single-use, ~60 s TTL);
+#           re-open the authorization URL and copy a fresh code.
+#     "redirect_uri_mismatch"
+#         → ensure you copied the redirect_uri exactly as http://localhost (no slash).
+#
+# ADVANCED PATH — use your own Google Cloud credentials
+# -----------------------------------------------------
+# Only needed if you want your own OAuth app instead of the shared credential.
+#
+# STEP A — Create a Google Cloud project and enable the Drive API
+#   a) https://console.cloud.google.com/ → project dropdown → New Project → Create
+#   b) Search "Google Drive API" → Enable
+#
+# STEP B — Configure the OAuth consent screen
+#   APIs & Services → OAuth consent screen → External → Create
+#   Fill in app name, support email, developer contact → Save and Continue
+#   Publishing status: leave as "Testing"
+#
+# STEP C — Create a Desktop app OAuth 2.0 credential
+#   APIs & Services → Credentials → + Create Credentials → OAuth client ID
+#   Application type: Desktop app  ← MUST be Desktop app, not Web application
+#   Copy Client ID and Client Secret → paste into GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+#
+# STEP D — Add yourself as a test user
+#   OAuth consent screen → Test users → + Add Users → your Gmail → Save
+#
+# STEP E — Get the refresh token (device flow, requires curl + jq)
+#   CLIENT_ID="your-client-id"
+#   CLIENT_SECRET="your-client-secret"
+#   curl -s https://accounts.google.com/o/oauth2/device/code \
+#     -d "client_id=$CLIENT_ID" \
+#     -d "scope=https://www.googleapis.com/auth/drive.readonly" | tee /tmp/dc.json | jq .
+#   # Open "verification_url" in browser, enter "user_code", click Allow, then:
+#   curl -s https://oauth2.googleapis.com/token \
+#     -d "client_id=$CLIENT_ID" -d "client_secret=$CLIENT_SECRET" \
+#     -d "device_code=$(jq -r .device_code /tmp/dc.json)" \
+#     -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" | jq .
+#   # Copy "refresh_token" → GOOGLE_REFRESH_TOKEN below.
+#
+# NOTE: Refresh tokens from apps in "Testing" status expire after 7 days of
+# inactivity. Re-run the auth step if the script fails with "invalid_grant".
+# To get non-expiring tokens: OAuth consent screen → Publish App.
+
+GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET"
+GOOGLE_REFRESH_TOKEN="YOUR_GOOGLE_REFRESH_TOKEN"
+
+# --- Google Drive folder ----------------------------------------------------
+# The ID of the Drive folder where healthsync.app exports activity files.
+# Find it in the URL when you open the folder in Drive:
+#   https://drive.google.com/drive/folders/FOLDER_ID_HERE
+DRIVE_FOLDER_ID="YOUR_DRIVE_FOLDER_ID"
+
+# --- Paths (defaults shown; uncomment to override) --------------------------
+#HEALTHSYNC_STATE_DIR="/usr/lib/healthsync"       # persistent store (not tmpfs)
+#HEALTHSYNC_WEB_DIR="/www/strava/me"              # uhttpd web root output dir
+#HEALTHSYNC_BIKE_DATA="/usr/lib/healthsync/bike-service.json"
+#HEALTHSYNC_BIKE_ASSIGN="/usr/lib/healthsync/bike-assignments.json"
+#HEALTHSYNC_CGI_DIR="/www/cgi-bin"
+
+# --- Default bike name -------------------------------------------------------
+# Ride-type activities are attributed to this bike until manually reassigned
+# on the dashboard. Must match a bike name in the Bike Service page.
+HEALTHSYNC_DEFAULT_BIKE="Kross"
+
+# --- Token refresh margin (seconds before expiry to refresh) ----------------
+#HEALTHSYNC_TOKEN_REFRESH_MARGIN="300"
+
+# Set to 0 to skip the Google Drive download/sync step and just re-render the
+# HTML from the existing local store. Useful while debugging the dashboard or
+# when temporarily blocking outbound requests. The local store and cached GPX
+# files are not touched; only the HTML/JSON output files are regenerated.
+#HEALTHSYNC_IMPORT_ENABLED="1"
+
+# --- Strava history migration -----------------------------------------------
+# HealthSync only keeps ~30 days of exports on Google Drive, so switching cold
+# from Strava would lose all your history. Point this at your existing Strava
+# NDJSON store to carry it over.
+#
+# On each run, records whose ID is not yet in the HealthSync store are appended.
+# Idempotent: safe to leave in place permanently — Strava IDs are numeric while
+# HealthSync IDs are date strings, so they never collide. After the initial
+# migration you can set this to "" to stop reading the old store (once Strava
+# API stops working the file won't change anyway).
+#
+# Typical path on OpenWrt (default STRAVA_MY_STATE_DIR):
+#HEALTHSYNC_IMPORT_STRAVA_STORE="/usr/lib/strava-my-activities/activities.ndjson"
