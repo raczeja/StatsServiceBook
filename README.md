@@ -220,6 +220,14 @@ docker run --rm -p 8080:8080 stravame-test
 
 **Test data:** `test/activities.sample.json` (24 rides), `test/club-activities.sample.json` (10 club activities), `test/bike-service.sample.json` (3 bikes), `test/18784255013.json` (full activity detail). All synthetic/anonymized — no personal data.
 
+**Run functional regression tests (Windows PowerShell):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
+```
+
+Builds the image, runs 36 Puppeteer assertions across all five pages and the bike-service CGI, exits 0 on pass. Requires Node.js ≥ 18 and Microsoft Edge.
+
 **Generate screenshots (Windows PowerShell):**
 
 ```powershell
