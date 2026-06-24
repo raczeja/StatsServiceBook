@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Build test container
         run: docker build -f test/Containerfile -t stravame-test .
@@ -57,7 +57,7 @@ jobs:
         with:
           name: functional-tests
           path: test-results.xml
-          reporter: junit
+          reporter: java-junit
           fail-on-error: false
 
       - name: Upload test report artifact
