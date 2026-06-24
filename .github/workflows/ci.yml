@@ -47,9 +47,25 @@ jobs:
           npm init -y >/dev/null
           npm install puppeteer >/dev/null
           cp "$GITHUB_WORKSPACE/test/functional-tests.mjs" .
-          node functional-tests.mjs
+          TEST_RESULTS="$GITHUB_WORKSPACE/test-results.xml" node functional-tests.mjs
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
+
+      - name: Publish JUnit test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: functional-tests
+          path: test-results.xml
+          reporter: junit
+          fail-on-error: false
+
+      - name: Upload test report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: functional-tests-report
+          path: test-results.xml
 
       - name: Stop test container
         if: always()
