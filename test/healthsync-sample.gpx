@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="HealthSync" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Sample HealthSync Run</name>
+    <trkseg>
+      <trkpt lat="51.1000" lon="17.0300"><ele>120.0</ele><time>2026-06-22T15:07:00Z</time></trkpt>
+      <trkpt lat="51.1010" lon="17.0320"><ele>122.0</ele><time>2026-06-22T15:08:00Z</time></trkpt>
+      <trkpt lat="51.1025" lon="17.0340"><ele>125.0</ele><time>2026-06-22T15:09:00Z</time></trkpt>
+      <trkpt lat="51.1040" lon="17.0355"><ele>128.0</ele><time>2026-06-22T15:10:00Z</time></trkpt>
+      <trkpt lat="51.1055" lon="17.0370"><ele>130.0</ele><time>2026-06-22T15:11:00Z</time></trkpt>
+      <trkpt lat="51.1070" lon="17.0385"><ele>127.0</ele><time>2026-06-22T15:12:00Z</time></trkpt>
+      <trkpt lat="51.1080" lon="17.0400"><ele>123.0</ele><time>2026-06-22T15:13:00Z</time></trkpt>
+      <trkpt lat="51.1065" lon="17.0415"><ele>120.0</ele><time>2026-06-22T15:14:00Z</time></trkpt>
+      <trkpt lat="51.1045" lon="17.0430"><ele>118.0</ele><time>2026-06-22T15:15:00Z</time></trkpt>
+      <trkpt lat="51.1020" lon="17.0440"><ele>119.0</ele><time>2026-06-22T15:16:00Z</time></trkpt>
+      <trkpt lat="51.1000" lon="17.0300"><ele>120.0</ele><time>2026-06-22T15:17:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

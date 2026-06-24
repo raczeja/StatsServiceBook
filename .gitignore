@@ -1,0 +1,7 @@
+# Local config files — contain secrets, never commit
+*.conf
+my-activities.conf
+config-healthsync
+strava-leaderboard.conf
+
+test/router-state/

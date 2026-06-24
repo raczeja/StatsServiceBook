@@ -80,3 +80,9 @@ STRAVA_MY_DETAIL_SLEEP="1"
 # Set to 0 to disable only the deletion of missing activities; additions and
 # in-place updates of still-present activities always happen regardless.
 STRAVA_MY_PRUNE_DELETED="1"
+
+# Set to 0 to skip the Strava API fetch/sync step and just re-render the HTML
+# from the existing local store. Useful while debugging the dashboard or when
+# temporarily blocking outbound requests. The local store and detail files are
+# not touched; only the HTML/JSON output files are regenerated.
+#STRAVA_MY_IMPORT_ENABLED="1"

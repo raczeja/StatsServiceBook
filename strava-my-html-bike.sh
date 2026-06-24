@@ -20,6 +20,7 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bike Service</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlN0YXRzU2VydmljZUJvb2siPgogIDxkZWZzPgogICAgPGNsaXBQYXRoIGlkPSJjbGlwIj4KICAgICAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiLz4KICAgIDwvY2xpcFBhdGg+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExMTExIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIGNpcmNsZSAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0idXJsKCNiZykiLz4KCiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXApIj4KCiAgICA8IS0tIEFyZWEgZmlsbCB1bmRlciB0aGUgcm91dGUgbGluZSAtLT4KICAgIDxwb2x5Z29uCiAgICAgIHBvaW50cz0iNCw0NiAxMyw0NiAxOSwzMiAyNSw0MCAzMiwxOCAzOSwzMiA0NSwyNSA1MSwzMiA2MCwzMiA2MCw1NiA0LDU2IgogICAgICBmaWxsPSIjZmM0YzAyIiBmaWxsLW9wYWNpdHk9IjAuMTUiLz4KCiAgICA8IS0tIFJvdXRlIC8gZWxldmF0aW9uIHByb2ZpbGUg4oCUIHRoZSBjb3JlIGZlYXR1cmUgLS0+CiAgICA8cG9seWxpbmUKICAgICAgcG9pbnRzPSI0LDQ2IDEzLDQ2IDE5LDMyIDI1LDQwIDMyLDE4IDM5LDMyIDQ1LDI1IDUxLDMyIDYwLDMyIgogICAgICBmaWxsPSJub25lIgogICAgICBzdHJva2U9IiNmYzRjMDIiCiAgICAgIHN0cm9rZS13aWR0aD0iMy4yIgogICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KCiAgICA8IS0tIEdQUyAvIHN0YXJ0IGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjQiIGN5PSI0NiIgcj0iMi41IiBmaWxsPSIjZmM0YzAyIi8+CgogICAgPCEtLSBGaW5pc2ggLyBjdXJyZW50LXBvc2l0aW9uIGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjYwIiBjeT0iMzIiIHI9IjIuNSIgZmlsbD0iI2ZjNGMwMiIvPgoKICA8L2c+CgogIDwhLS0gV2lGaSBzaWduYWwgYXJjcyDigJQgdG9wLXJpZ2h0LCByZXByZXNlbnRzIHRoZSByb3V0ZXIgLS0+CiAgPHBhdGggZD0iTTQzLDEzIFE1MCw3ICA1NywxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjQ1Ii8+CiAgPHBhdGggZD0iTTQ2LDE3IFE1MCwxMyA1NCwxNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjc1Ii8+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSIyMSIgcj0iMi4yIiBmaWxsPSIjZmM0YzAyIi8+CgogIDwhLS0gT3V0ZXIgcmluZyAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjAuOCIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiLz4KPC9zdmc+Cg==" type="image/svg+xml">
 <style>
   body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1000px;padding:0 1rem;background:#fafafa;color:#222}
   h1{margin:0 0 .25rem;font-size:1.6rem}
@@ -84,7 +85,7 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
 <body>
 <div id="pbar"></div>
 <div class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="stats.html">📊 My Stats</a></div>
-<h1>🔧 Bike Service</h1>
+<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">🔧 Bike Service</h1></div>
 <div class="meta" id="meta">Loading…</div>
 <div id="err"></div>
 <div class="bikes" id="bikes"></div>
@@ -157,49 +158,60 @@ function fmtSpan(first,last){
 function err(msg){ document.getElementById("err").textContent = msg || ""; }
 
 // ---- mileage math (client-side, from activities.json) ---------------------
-// Cumulative distance of outdoor rides up to (and including) a date. When a bike
-// is mapped to a Strava gear id only that gear's rides count; an unmapped bike
-// ("") counts every ride.
-function rideMileage(gearId, dateStr){
+// True when ride r should count toward a bike. Three match paths:
+//   • no gearId ("all rides") → every ride counts
+//   • ride gear matches Strava gear ID or the bike's display name (bike-assign
+//     overrides on the dashboard store the bike name, not the gear ID)
+//   • bike is the default AND ride has no gear tag → untagged rides fall here
+function rideMatchesBike(r, bike){
+  var gearId = bike.gearId || "";
+  if (!gearId) return true;
+  if (r.gear === gearId) return true;
+  if (r.gear && r.gear === bike.name) return true;
+  if (bike.isDefault && !r.gear) return true;
+  return false;
+}
+// Cumulative distance of outdoor rides up to (and including) a date.
+function rideMileage(bike, dateStr){
   var sum = 0;
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (r.date > dateStr) continue;           // dates are "YYYY-MM-DD", lexical compare works
-    if (gearId && r.gear !== gearId) continue;
+    if (!rideMatchesBike(r, bike)) continue;
     sum += r.km;
   }
   return sum;
 }
-function rideTimeSince(gearId, fromDate){
+function rideTimeSince(bike, fromDate){
   var t = 0;
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (fromDate && r.date < fromDate) continue;
-    if (gearId && r.gear !== gearId) continue;
+    if (!rideMatchesBike(r, bike)) continue;
     t += r.time;
   }
   return t;  // seconds
 }
-function rideMileageSince(gearId, fromDate){
+function rideMileageSince(bike, fromDate){
   var sum = 0;
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (fromDate && r.date < fromDate) continue;
-    if (gearId && r.gear !== gearId) continue;
+    if (!rideMatchesBike(r, bike)) continue;
     sum += r.km;
   }
   return sum;
 }
 function bikeMileage(bike, dateStr){
-  return (+bike.baseMileage || 0) + rideMileage(bike.gearId || "", dateStr || todayStr());
+  return (+bike.baseMileage || 0) + rideMileage(bike, dateStr || todayStr());
 }
 function bikeTotals(bike, dateStr){
-  var gearId = bike.gearId || "", dt = dateStr || todayStr();
+  var dt = dateStr || todayStr();
   var km = +bike.baseMileage || 0, time = 0, elev = 0, first = null, last = null;
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (r.date > dt) continue;
-    if (gearId && r.gear !== gearId) continue;
+    if (!rideMatchesBike(r, bike)) continue;
     km += r.km; time += r.time; elev += r.elev;
     if (!first || r.date < first) first = r.date;
     if (!last  || r.date > last)  last  = r.date;
@@ -212,13 +224,12 @@ function bikeTotals(bike, dateStr){
 function partRides(bike, part){
   var lo = part.installedDate || "";
   var hi = part.archivedDate || "9999-12-31";
-  var g  = bike.gearId || "";
   var out = [];
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (lo && r.date < lo) continue;
     if (r.date > hi) continue;
-    if (g && r.gear !== g) continue;
+    if (!rideMatchesBike(r, bike)) continue;
     out.push(r);
   }
   return out.sort(function(a,c){ return a.date < c.date ? 1 : -1; });   // newest → oldest
@@ -278,23 +289,33 @@ function gearOptions(){
 function loadAll(){
   err("");
   progressStart();
-  fetch("activities.json", { cache:"no-store" })
-    .then(function(r){ if(!r.ok) throw new Error("activities.json HTTP "+r.status); return r.json(); })
-    .then(function(d){
+  // Fetch activities and live bike assignments in parallel. activities.json bakes
+  // in assignments from the last cron run; the CGI has the current state, so we
+  // apply it on top to pick up changes made since the last script execution.
+  Promise.all([
+    fetch("activities.json", { cache:"no-store" })
+      .then(function(r){ if(!r.ok) throw new Error("activities.json HTTP "+r.status); return r.json(); }),
+    fetch("/cgi-bin/bike-assign", { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
+  ])
+    .then(function(results){
+      var d = results[0], assigns = results[1] || {};
       ACT = d; GEARS = d.gears || {};
       var rides = (d.activities || [])
         .filter(function(a){ return a.sport_type === "Ride" && a.date; });
-      // Strava leaves many rides untagged (gear_id null). Attribute them to the
-      // gear with the most total distance — that's almost always the primary bike,
-      // and is more stable than "most recent" (which flips if you happen to tag
-      // a single ride on a secondary bike last).
       var gearDist = {};
-      for (var i=0;i<rides.length;i++){ var g=rides[i].gear_id; if(g) gearDist[g]=(gearDist[g]||0)+(rides[i].distance||0); }
+      for (var i=0;i<rides.length;i++){
+        var g = assigns[String(rides[i].id)] || rides[i].gear_id;
+        if(g) gearDist[g]=(gearDist[g]||0)+(rides[i].distance||0);
+      }
       DEFGEAR = "";
       var maxDist = 0;
       Object.keys(gearDist).forEach(function(g){ if(gearDist[g]>maxDist){ maxDist=gearDist[g]; DEFGEAR=g; } });
       RIDES = rides
-        .map(function(a){ return { date:a.date, km:(a.distance||0)/1000, time:(a.moving_time||0), elev:(a.total_elevation_gain||0), gear:(a.gear_id || DEFGEAR || ""), name:(a.name||"") }; })
+        .map(function(a){
+          var gear = assigns[String(a.id)] || a.gear_id || "";
+          return { date:a.date, km:(a.distance||0)/1000, time:(a.moving_time||0), elev:(a.total_elevation_gain||0), gear:gear, name:(a.name||"") };
+        })
         .sort(function(a,b){ return a.date < b.date ? -1 : 1; });
       return fetch("/cgi-bin/bike-service", { cache:"no-store" });
     })
@@ -321,7 +342,18 @@ function loadAll(){
       // No Strava gears discovered yet (detail backfill still pending) and nothing
       // stored — seed the known default bike so the page is useful immediately.
       if (MODEL.bikes.length === 0) {
-        MODEL.bikes.push({ id:uid("b-"), name:(_CFG&&_CFG.defaultBikeName)||"My Bike", gearId:"", baseMileage:0, parts:[] });
+        MODEL.bikes.push({ id:uid("b-"), name:(_CFG&&_CFG.defaultBikeName)||"My Bike", gearId:"", baseMileage:0, isDefault:true, parts:[] });
+        seeded = true;
+      }
+      // Ensure exactly one bike is marked as the default (absorbs untagged rides).
+      // On first open after this update, auto-set the DEFGEAR bike (highest-distance).
+      var hasDefault = false;
+      MODEL.bikes.forEach(function(b){ if (b.isDefault) hasDefault = true; });
+      if (!hasDefault && MODEL.bikes.length) {
+        var autoDefault = null;
+        if (DEFGEAR) MODEL.bikes.forEach(function(b){ if (!autoDefault && b.gearId === DEFGEAR) autoDefault = b; });
+        if (!autoDefault) autoDefault = MODEL.bikes[0];
+        autoDefault.isDefault = true;
         seeded = true;
       }
       if (!curBike() && MODEL.bikes.length) {
@@ -388,6 +420,8 @@ function bikeForm(bike){
     '<label>Strava gear (which rides count toward this bike’s mileage)</label><select id="b-gear">'+opts+'</select>'+
     '<label>Base mileage (km already ridden before Strava tracking)</label>'+
     '<input id="b-base" type="number" step="0.1" value="'+(bike?(+bike.baseMileage||0):0)+'">'+
+    '<div class="chk"><input type="checkbox" id="b-default"'+((bike&&bike.isDefault)?' checked':'')+'>'+
+    '<label style="margin:0">Default bike — untagged rides are counted here</label></div>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveBike('+(bike?'\''+bike.id+'\'':'null')+')">Save</button></div>'
   );
@@ -399,10 +433,12 @@ window.saveBike = function(id){
   if (!name){ document.getElementById("b-name").focus(); return; }
   var gear = document.getElementById("b-gear").value;
   var base = +document.getElementById("b-base").value || 0;
+  var isDefault = document.getElementById("b-default").checked;
+  if (isDefault) MODEL.bikes.forEach(function(b){ b.isDefault = false; });
   if (id){
-    MODEL.bikes.forEach(function(b){ if(b.id===id){ b.name=name; b.gearId=gear; b.baseMileage=base; } });
+    MODEL.bikes.forEach(function(b){ if(b.id===id){ b.name=name; b.gearId=gear; b.baseMileage=base; b.isDefault=isDefault; } });
   } else {
-    var nb = { id:uid("b-"), name:name, gearId:gear, baseMileage:base, parts:[] };
+    var nb = { id:uid("b-"), name:name, gearId:gear, baseMileage:base, isDefault:isDefault, parts:[] };
     MODEL.bikes.push(nb); selBike = nb.id;
   }
   closeModal(); persist();
@@ -597,6 +633,7 @@ function render(){
   var now = todayStr();
   var tot = bikeTotals(b, now);
   var gearName = b.gearId ? ((GEARS[b.gearId] && GEARS[b.gearId].name) ? GEARS[b.gearId].name : b.gearId) : "all rides";
+  if (b.gearId && b.isDefault) gearName += " + untagged rides";
   var span = fmtSpan(tot.first, tot.last);
   var subStats = tot.time > 0
     ? fmtTime(tot.time) + ' · ' + fmtInt(tot.elev) + ' m elev' + (span ? ' · ' + span : '')
@@ -621,16 +658,16 @@ function render(){
   } else {
     html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th></th></tr></thead><tbody>';
     active.forEach(function(p){
-      var ridden = rideMileageSince(b.gearId || "", p.installedDate);
-      var riddenSec = rideTimeSince(b.gearId || "", p.installedDate);
+      var ridden = rideMileageSince(b, p.installedDate);
+      var riddenSec = rideTimeSince(b, p.installedDate);
       var svc = (p.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
       var last = svc.length ? svc[svc.length-1] : null;
       var lastCell = servicesBlock(svc);
-      var sinceSvc = last ? rideMileageSince(b.gearId || "", last.date) : null;
+      var sinceSvc = last ? rideMileageSince(b, last.date) : null;
       var sinceCell = last
         ? '<b>'+fmtKm(sinceSvc<0?0:sinceSvc)+'</b> km'
         : '<span class="muted">—</span>';
-      var sinceSvcSec = last ? rideTimeSince(b.gearId || "", last.date) : null;
+      var sinceSvcSec = last ? rideTimeSince(b, last.date) : null;
       var sinceSvcTimeCell = sinceSvcSec !== null
         ? '<b>'+(sinceSvcSec/3600).toFixed(1)+'</b> h'
         : '<span class="muted">—</span>';
@@ -747,17 +784,20 @@ if [ "$method" = "POST" ]; then
   [ "$len" -gt 0 ]       || fail '400 Bad Request' 'empty body'
   [ "$len" -le 1048576 ] || fail '413 Payload Too Large' 'body exceeds 1 MB'
 
-  body="$(head -c "$len")"
+  tmpbody="$DATA_FILE.body.$$"
+  cat > "$tmpbody"
+  [ -s "$tmpbody" ] \
+    || { rm -f "$tmpbody"; fail '400 Bad Request' 'empty body'; }
   # Validate it parses as JSON and looks like our document (has a bikes array).
-  printf '%s' "$body" | jq -e 'type=="object" and (.bikes|type=="array")' >/dev/null 2>&1 \
-    || fail '400 Bad Request' 'body is not a valid bike-service document'
+  jq -e 'type=="object" and (.bikes|type=="array")' "$tmpbody" >/dev/null 2>&1 \
+    || { rm -f "$tmpbody"; fail '400 Bad Request' 'body is not a valid bike-service document'; }
 
   tmp="$DATA_FILE.tmp.$$"
-  if printf '%s' "$body" \
-       | jq --arg t "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" '.updatedAt=$t' > "$tmp" 2>/dev/null; then
+  if jq --arg t "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" '.updatedAt=$t' "$tmpbody" > "$tmp" 2>/dev/null; then
+    rm -f "$tmpbody"
     mv "$tmp" "$DATA_FILE"
   else
-    rm -f "$tmp"
+    rm -f "$tmp" "$tmpbody"
     fail '500 Internal Server Error' 'failed to write store'
   fi
 
@@ -771,3 +811,53 @@ CGI
 
 chmod 0755 "$CGI_DIR/bike-service"
 log "installed bike-service CGI -> $CGI_DIR/bike-service (data: $BIKE_DATA)"
+
+# --- 6d. Install the bike-assign CGI (per-activity bike override) ------------
+# Simple GET/POST CGI for the flat {actId: bikeName} JSON assignments file.
+# Shared between strava-my-activities and healthsync-activities; idempotent.
+[ -f "$BIKE_ASSIGN" ] || printf '{}' > "$BIKE_ASSIGN"
+{
+  printf '%s\n' '#!/bin/sh'
+  printf 'DATA_FILE=%s\n' "\"$BIKE_ASSIGN\""
+} > "$CGI_DIR/bike-assign"
+
+cat >> "$CGI_DIR/bike-assign" <<'CGI'
+set -eu
+emit_json() { printf 'Content-Type: application/json\r\n\r\n'; }
+fail() {
+    printf 'Status: %s\r\nContent-Type: application/json\r\n\r\n{"error":"%s"}\n' "$1" "$2"
+    exit 0
+}
+method="${REQUEST_METHOD:-GET}"
+if [ "$method" = "GET" ]; then
+    emit_json
+    if [ -f "$DATA_FILE" ]; then cat "$DATA_FILE"; else printf '{}'; fi
+    exit 0
+fi
+if [ "$method" = "POST" ]; then
+    len="${CONTENT_LENGTH:-0}"
+    case "$len" in ''|*[!0-9]*) fail '411 Length Required' 'bad Content-Length' ;; esac
+    [ "$len" -le 524288 ] || fail '413 Payload Too Large' 'body exceeds 512 KB'
+    tmpbody="${DATA_FILE}.body.$$"
+    cat > "$tmpbody"
+    [ -s "$tmpbody" ] \
+        || { rm -f "$tmpbody"; fail '400 Bad Request' 'empty body'; }
+    jq -e 'type == "object"' "$tmpbody" >/dev/null 2>&1 \
+        || { rm -f "$tmpbody"; fail '400 Bad Request' 'body must be a JSON object'; }
+    tmp="${DATA_FILE}.tmp.$$"
+    if jq '.' "$tmpbody" > "$tmp" 2>/dev/null; then
+        rm -f "$tmpbody"
+        mv "$tmp" "$DATA_FILE"
+    else
+        rm -f "$tmp" "$tmpbody"
+        fail '500 Internal Server Error' 'write failed'
+    fi
+    emit_json
+    cat "$DATA_FILE"
+    exit 0
+fi
+fail '405 Method Not Allowed' 'use GET or POST'
+CGI
+
+chmod 0755 "$CGI_DIR/bike-assign"
+log "installed bike-assign CGI -> $CGI_DIR/bike-assign"
