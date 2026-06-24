@@ -5,10 +5,9 @@
  * Usage:
  *   node screenshot.mjs <outputDir>
  *
- * Requires puppeteer-core (installed by make-screenshots.ps1 into a temp dir).
- * Points at the system Edge executable — no browser download needed.
+ * Requires puppeteer (installed by make-screenshots.ps1 into a temp dir).
  */
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
 
@@ -19,32 +18,40 @@ if (!outDir) {
 }
 fs.mkdirSync(outDir, { recursive: true });
 
-const BASE = "http://localhost:8080/strava/me";
+const PORT = process.env.TEST_PORT || process.env.STRAVA_TEST_PORT || "8080";
+const BASE = `http://localhost:${PORT}/strava/me`;
 
 const PAGES = [
-  { name: "club-dashboard", url: "http://localhost:8080/strava/index.html" },
+  { name: "club-dashboard", url: `http://localhost:${PORT}/strava/index.html` },
   { name: "my-activities", url: `${BASE}/index.html` },
   { name: "stats", url: `${BASE}/stats.html` },
   { name: "activity-detail", url: `${BASE}/activity.html?id=18784255013` },
   { name: "bike-service", url: `${BASE}/bike.html` },
 ];
 
-const EDGE_CANDIDATES = [
+const BROWSER_CANDIDATES = [
   process.env.EDGE_PATH,
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+  process.env.BROWSER_PATH,
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/google-chrome",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/chromium",
 ].filter(Boolean);
 
-function findEdge() {
-  for (const p of EDGE_CANDIDATES) {
+async function findBrowser() {
+  const bundled = await puppeteer.executablePath?.();
+  if (bundled && fs.existsSync(bundled)) return bundled;
+
+  for (const p of BROWSER_CANDIDATES) {
     if (fs.existsSync(p)) return p;
   }
+
   throw new Error(
-    "Edge not found. Set EDGE_PATH env var to the msedge.exe path.",
+    "Browser not found. Set EDGE_PATH/BROWSER_PATH to a browser executable, or install puppeteer so it can download a browser.",
   );
 }
 
-const executablePath = findEdge();
+const executablePath = await findBrowser();
 console.log("Using Edge:", executablePath);
 
 const browser = await puppeteer.launch({
