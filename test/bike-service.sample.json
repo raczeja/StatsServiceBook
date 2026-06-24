@@ -1,141 +1,204 @@
 {
   "version": 1,
-  "updatedAt": "2026-06-18T20:00:00Z",
+  "updatedAt": "2026-06-23T08:00:00Z",
   "bikes": [
     {
-      "id": "b-kross",
-      "name": "Trail Bike A",
+      "id": "b-road",
+      "name": "Road Bike",
       "gearId": "b16239154",
       "baseMileage": 0,
       "parts": [
         {
           "id": "p-chain",
           "name": "Chain",
-          "note": "11-speed, waxed setup",
-          "installedDate": "2025-01-01",
+          "note": "11-speed, waxed — re-wax every 500 km",
+          "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
-          "alertKm": 2000,
+          "alertKm": 500,
           "alertH": null,
           "services": [
             {
               "id": "s-1",
-              "date": "2025-06-01",
-              "mileage": 2500,
-              "note": "re-waxed"
-            },
-            {
-              "id": "s-2",
-              "date": "2026-01-01",
-              "mileage": 4200,
-              "note": "checked wear, re-waxed"
+              "date": "2025-11-30",
+              "mileage": 161,
+              "note": "waxed"
             }
           ]
         },
         {
-          "id": "p-tyres",
+          "id": "p-rear-tyre",
           "name": "Rear tyre",
-          "note": "all-terrain 29x2.2",
-          "installedDate": "2025-01-01",
+          "note": "25c, tubeless",
+          "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
           "alertKm": 5000,
           "alertH": null,
           "services": [
             {
-              "id": "s-3",
-              "date": "2025-10-12",
-              "mileage": 3180,
+              "id": "s-2",
+              "date": "2025-10-22",
+              "mileage": 106,
               "note": "sealant top-up"
             }
           ]
         },
         {
-          "id": "p-brake-front",
+          "id": "p-front-brake",
           "name": "Front brake pads",
-          "note": "resin",
-          "installedDate": "2025-08-05",
-          "installedMileage": 2100,
-          "status": "new",
-          "alertKm": 1800,
-          "alertH": null,
-          "services": [
-            {
-              "id": "s-4",
-              "date": "2025-12-02",
-              "mileage": 3420,
-              "note": "cleaned caliper"
-            },
-            {
-              "id": "s-5",
-              "date": "2026-03-19",
-              "mileage": 4710,
-              "note": "pads replaced"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "b-kellys",
-      "name": "Road Bike B",
-      "gearId": "b18141502",
-      "baseMileage": 0,
-      "parts": [
-        {
-          "id": "p-chain-road",
-          "name": "Chain",
-          "note": "12-speed",
-          "installedDate": "2026-02-01",
+          "note": "resin compound",
+          "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
           "alertKm": 3000,
           "alertH": null,
           "services": [
             {
-              "id": "s-6",
-              "date": "2026-04-10",
-              "mileage": 1260,
-              "note": "deep clean + lube"
+              "id": "s-3",
+              "date": "2026-03-10",
+              "mileage": 340,
+              "note": "cleaned caliper and pads"
             }
           ]
         },
         {
-          "id": "p-cassette",
-          "name": "Cassette",
-          "note": "11-32",
-          "installedDate": "2026-02-01",
+          "id": "p-rear-brake",
+          "name": "Rear brake pads",
+          "note": "resin compound",
+          "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
-          "alertKm": 9000,
+          "alertKm": 3000,
+          "alertH": null,
+          "services": []
+        },
+        {
+          "id": "p-cables",
+          "name": "Gear cables",
+          "note": "stainless inner + housing",
+          "installedDate": "2025-09-01",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": 8000,
           "alertH": null,
           "services": []
         }
       ]
     },
     {
+      "id": "b-gravel",
+      "name": "Gravel Bike",
+      "gearId": "b18141502",
+      "baseMileage": 0,
+      "parts": [
+        {
+          "id": "p-chain-g",
+          "name": "Chain",
+          "note": "12-speed, dry lube",
+          "installedDate": "2025-10-01",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": 2000,
+          "alertH": null,
+          "services": [
+            {
+              "id": "s-4",
+              "date": "2025-12-15",
+              "mileage": 146,
+              "note": "deep clean + re-lube"
+            },
+            {
+              "id": "s-5",
+              "date": "2026-03-01",
+              "mileage": 410,
+              "note": "wear check (0.5%), re-lube"
+            }
+          ]
+        },
+        {
+          "id": "p-cassette-g",
+          "name": "Cassette",
+          "note": "11-34T steel",
+          "installedDate": "2025-10-01",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": 9000,
+          "alertH": null,
+          "services": []
+        },
+        {
+          "id": "p-tyres-g",
+          "name": "Tyres (pair)",
+          "note": "40c gravel, tubeless",
+          "installedDate": "2026-01-05",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": 6000,
+          "alertH": null,
+          "services": [
+            {
+              "id": "s-6",
+              "date": "2026-04-05",
+              "mileage": 166,
+              "note": "sealant refresh both tyres"
+            }
+          ]
+        },
+        {
+          "id": "p-bartape",
+          "name": "Bar tape",
+          "note": "cork-padded",
+          "installedDate": "2026-01-05",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": null,
+          "alertH": 200,
+          "services": []
+        }
+      ]
+    },
+    {
+      "id": "b-kross",
+      "name": "Kross",
+      "gearId": "Kross",
+      "baseMileage": 0,
+      "parts": []
+    },
+    {
       "id": "b-trainer",
       "name": "Indoor Trainer",
       "gearId": null,
-      "baseMileage": 2500,
+      "baseMileage": 0,
       "parts": [
         {
           "id": "p-trainer-belt",
           "name": "Drive belt",
-          "note": "manufacturer replacement",
-          "installedDate": "2025-11-15",
-          "installedMileage": 2500,
+          "note": "manufacturer part",
+          "installedDate": "2025-09-01",
+          "installedMileage": 0,
           "status": "new",
           "alertKm": null,
           "alertH": 300,
           "services": [
             {
               "id": "s-7",
-              "date": "2026-05-01",
-              "mileage": 2500,
-              "note": "tension check"
+              "date": "2026-02-22",
+              "mileage": 0,
+              "note": "tension check, cleaned rollers"
             }
           ]
+        },
+        {
+          "id": "p-trainer-fluid",
+          "name": "Resistance fluid",
+          "note": "check level annually",
+          "installedDate": "2025-09-01",
+          "installedMileage": 0,
+          "status": "new",
+          "alertKm": null,
+          "alertH": 500,
+          "services": []
         }
       ]
     }

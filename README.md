@@ -7,6 +7,8 @@ Strava API and **`jq`** to aggregate. The result is written as a static HTML pag
 (plus JSON) into **uhttpd's** web root, so the router's built-in web server serves
 it with no extra daemon and almost no RAM.
 
+> **No Strava subscription?** Strava's read API is restricted to paying subscribers. As a workaround, you can use [healthsync.app](https://healthsync.app/) on Android — it syncs activities from Huawei Health, Fitbit, Garmin, and others and exports them (CSV + GPX/TCX) to a Google Drive folder. Switch cron to `healthsync-activities.sh` and it downloads those files instead of calling the Strava API, giving you the same dashboard pages with full route maps. See [§ Switching from Strava to HealthSync](#switching-from-strava-to-healthsync-keeping-full-history) for setup.
+
 ### What it gives you
 
 | Page                 | URL                        | What it shows                                                                                              |
@@ -33,13 +35,22 @@ cron (23:50) ──► strava-leaderboard.sh
                    └─ page fetches activities.json and filters by year/month
                       (defaulting to the current month) entirely in the browser
 
-cron (23:55) ──► strava-my-activities.sh
+cron (23:55) ──► strava-my-activities.sh          ← Strava API (active while subscribed)
                    │  1. refresh access token (curl)
                    │  2. page /athlete/activities feed (curl)
                    │       real Strava IDs + real dates (start_date_local)
                    │  3. merge into activity store (jq)
                    │       dedupe by Strava activity ID — no approximation
                    └► 4. render static /www/strava/me/{index,activity,stats,bike}.html
+
+             — OR —
+
+cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava-API-free)
+                   │  1. refresh Google OAuth token (curl)
+                   │  2. list Drive folder, find new CSV/GPX/TCX files
+                   │  3. parse CSV (summary), TCX (HR/calories), GPX (map + elevation)
+                   │       GPX files cached locally; map rendered in-browser via Leaflet polyline
+                   └► 4. render the same /www/strava/me/{index,activity,stats,bike}.html
                                     │
    browser on LAN ◄── uhttpd ◄──────┘   http://<router-ip>/strava/me/
                    │
@@ -132,6 +143,16 @@ cron (23:55) ──► strava-my-activities.sh
   (longest, most climbing, fastest avg, best VAM, most work — all time for the
   selected sport), a by-sport breakdown, and an average-distance-per-day-of-week
   bar chart. All computed client-side from `activities.json`.
+- **HealthSync / Google Drive data source.** A drop-in replacement for the Strava
+  API. [healthsync.app](https://healthsync.app/) runs on Android and exports
+  activities to Google Drive as CSV + GPX + TCX files. `healthsync-activities.sh`
+  downloads those files, parses them with `curl` + `jq` + `grep`, and produces the
+  exact same `activities.json` and HTML pages as `strava-my-activities.sh`. GPX
+  files are cached locally and rendered in-browser via Leaflet polyline (same as
+  the Strava encoded-polyline path). Switching is as simple as changing which script cron runs.
+  Strava activity IDs are numeric; HealthSync IDs are date-based strings like
+  `2026-06-22-20-01-ride` — all pages handle both transparently.
+
 - **Bike service tracker (My Activities).** A separate page at
   `http://<router-ip>/strava/me/bike.html` (linked from the My Activities footer)
   for tracking bike maintenance per part — chain, tyres, brake pads, cables, etc.
@@ -251,6 +272,47 @@ Re-run step **2** daily to keep the dashboard fresh (schedule with Task Schedule
 > **Windows PowerShell (without WSL):** replace `$(pwd)` with `${PWD}` and use a backtick `` ` `` for line continuation instead of `\`.
 
 > **Club leaderboard:** same pattern — copy `config.example` to `strava-leaderboard.conf`, set credentials and `STRAVA_STATE_DIR="/state"`, then run `sh /app/strava-leaderboard.sh` with `-v strava-web:/www/strava` added. Browse to `http://localhost:8080/strava/`.
+
+---
+
+#### Docker — HealthSync / Google Drive (Strava-API-free)
+
+Use this instead of (or after) the Strava variant above. Same pages, same URLs.
+
+```sh
+# 1. Copy the healthsync config and fill in your Google credentials
+cp config-healthsync.example healthsync.conf
+```
+
+Edit `healthsync.conf` and set:
+
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — get a refresh token via the browser auth flow at the top of [config-healthsync.example](config-healthsync.example) (open the pre-filled URL, click Allow, copy the code, run one `curl` command — no Google Cloud project needed)
+- `DRIVE_FOLDER_ID` — the ID of the Drive folder where healthsync.app exports files
+- `HEALTHSYNC_STATE_DIR="/state"` — change from the OpenWrt default
+- `HEALTHSYNC_BIKE_DATA="/state/bike-service.json"`
+
+```sh
+# 2. Download activities from Drive, parse, and render HTML into named Docker volumes
+docker run --rm \
+  -v "$(pwd):/app:ro" \
+  -e HEALTHSYNC_CONFIG=/app/healthsync.conf \
+  -v healthsync-state:/state \
+  -v strava-web:/www \
+  alpine:3.20 \
+  sh -c "apk add --no-cache curl jq ca-certificates && sh /app/healthsync-activities.sh"
+
+# 3. Serve — same command as the Strava variant; reuse the same strava-web volume
+docker run --rm -p 8080:8080 \
+  -v strava-web:/www \
+  alpine:3.20 \
+  sh -c "apk add --no-cache busybox-extras && httpd -f -p 8080 -h /www"
+
+# Browse to http://localhost:8080/strava/me/
+```
+
+Re-run step **2** daily. The script only downloads files not yet in the local store — incremental runs are fast.
+
+> **Skip-import flag:** set `HEALTHSYNC_IMPORT_ENABLED=0` (in the config or as an env var) to skip the Google Drive download and just re-render the HTML from the existing local store. Useful for testing HTML changes without re-fetching. The equivalent for the Strava script is `STRAVA_MY_IMPORT_ENABLED=0`.
 
 ---
 
@@ -439,8 +501,14 @@ The installer will:
 - install deps `curl jq ca-bundle` (auto-detects **`apk`** on 24.10+/snapshots, or **`opkg`** on older releases)
 - install `strava-leaderboard` to `/usr/bin/strava-leaderboard` and drop a config template at `/etc/strava-leaderboard.conf`
 - install `strava-my-activities` to `/usr/bin/strava-my-activities` and drop a config template at `/etc/strava-my-activities.conf`
+- install `healthsync-activities` to `/usr/bin/healthsync-activities` and drop a config template at `/etc/healthsync-activities.conf`
 - set the router timezone to **Europe/Warsaw** (so cron times are local, DST-aware)
-- add two daily cron entries: leaderboard at **23:50** and my-activities at **23:55** Warsaw time, and (re)start `cron`
+- add three daily cron entries: leaderboard at **23:50**, my-activities at **23:55**, and healthsync at **23:55** Warsaw time, and (re)start `cron`
+- create `HEALTHSYNC_STATE_DIR` (reads your existing `/etc/healthsync-activities.conf`) so the state directory exists before the first run — safe to re-run on a USB mount
+
+> **Config files are never overwritten.** If `/etc/healthsync-activities.conf` (or either Strava config) already exists, `install.sh` leaves it untouched. Re-running after an upgrade is safe.
+
+> **Both my-activities and healthsync are scheduled.** They write to the same output dir, so only run one at a time. When you switch to HealthSync, remove the strava-my-activities cron line: `crontab -l | grep -v 'strava-my-activities' | crontab -`
 
 ### 3.2 If the dependency install fails for lack of space
 
@@ -452,11 +520,23 @@ and point `STRAVA_STATE_DIR` there, or free space by removing unused packages.
 A failed package-list update (`apk update` / `opkg update`) usually means no
 internet/DNS on the router — check with `ping -c1 downloads.openwrt.org`.
 
-You can also move the **web output** off flash by pointing `STRAVA_WEB_DIR` /
-`STRAVA_MY_WEB_DIR` at persistent storage (e.g. `/mnt/sda5/.../web`). `uhttpd`
-only serves `/www`, so `install.sh` recreates the bridging symlinks under
-`/www/strava` on every run — re-run it (or `sh install.sh`) after changing those
-paths. The store (`STRAVA_STATE_DIR`) and web output can share the same disk.
+You can also move the **web output** and **state** off flash by setting the path variables in the relevant config:
+
+| Config | State dir | Web dir |
+|--------|-----------|---------|
+| `/etc/strava-my-activities.conf` | `STRAVA_MY_STATE_DIR` | `STRAVA_MY_WEB_DIR` |
+| `/etc/strava-leaderboard.conf` | `STRAVA_STATE_DIR` | `STRAVA_WEB_DIR` |
+| `/etc/healthsync-activities.conf` | `HEALTHSYNC_STATE_DIR` | `HEALTHSYNC_WEB_DIR` |
+
+Example for a USB drive at `/mnt/sda5`:
+
+```sh
+HEALTHSYNC_STATE_DIR="/mnt/sda5/healthsync"
+HEALTHSYNC_BIKE_DATA="/mnt/sda5/healthsync/bike-service.json"
+HEALTHSYNC_BIKE_ASSIGN="/mnt/sda5/healthsync/bike-assignments.json"
+```
+
+`uhttpd` only serves `/www`, so `install.sh` recreates the bridging symlinks under `/www/strava` on every run, and creates `HEALTHSYNC_STATE_DIR` if it does not exist. Re-run `install.sh` after changing any path.
 
 ## 4. Configure and run
 
@@ -492,6 +572,20 @@ saving CGI is installed). The bike page is at **`http://<router-ip>/strava/me/bi
 > (`uci set uhttpd.main.cgi_prefix=/cgi-bin`). If you only `scp` the script
 > instead of running the installer, confirm with
 > `uci get uhttpd.main.cgi_prefix` (should print `/cgi-bin`).
+
+**HealthSync / Google Drive (Strava-API-free alternative):**
+
+Before editing the config, get a Google Drive refresh token using the quick browser flow documented at the top of [config-healthsync.example](config-healthsync.example): open the pre-filled authorization URL, click Allow, copy the `code` from the redirect, and exchange it with one `curl` command. No Google Cloud project required.
+
+```sh
+vi /etc/healthsync-activities.conf   # fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+                                     # GOOGLE_REFRESH_TOKEN, DRIVE_FOLDER_ID
+healthsync-activities                # run once now to verify
+```
+
+The same pages are written to the same URLs — point cron at `healthsync-activities` instead of `strava-my-activities` when Strava API access ends.
+
+> **Skip-import mode.** Both scripts support re-rendering the HTML from the existing local store without making any API calls: set `STRAVA_MY_IMPORT_ENABLED=0` or `HEALTHSYNC_IMPORT_ENABLED=0` in the respective config (or as an environment variable). Useful after editing a dashboard helper script to preview changes without waiting for a full fetch.
 
 ## 5. Verify it ran (check the logs)
 
@@ -575,6 +669,44 @@ crontab -e
 …or reinstall with custom times:
 `CRON_TIME="0 6 * * *" CRON_TIME_ME="5 6 * * *" sh install.sh`, or
 `TZ_POSIX="" sh install.sh` to leave the router's timezone untouched.
+
+## Switching from Strava to HealthSync (keeping full history)
+
+HealthSync only keeps approximately 30 days of exports on Google Drive. If you switch cold — just change which script cron runs — the HealthSync dashboard will start from scratch and show only recent activities.
+
+To carry over your full Strava history, set `HEALTHSYNC_IMPORT_STRAVA_STORE` in `/etc/healthsync-activities.conf`:
+
+```sh
+# In /etc/healthsync-activities.conf — point at the Strava NDJSON store
+HEALTHSYNC_IMPORT_STRAVA_STORE="/usr/lib/strava-my-activities/activities.ndjson"
+```
+
+On each run, `healthsync-activities` reads that file and appends any records whose ID is not yet in the HealthSync store. It is **idempotent** — safe to leave in place permanently. Strava IDs are numeric (`18784255013`); HealthSync IDs are date strings (`2026-06-22-20-01-ride`) — they never collide, so there is no risk of mixing up or duplicating activities across the two sources.
+
+**Migration steps:**
+
+```sh
+# 1. Configure healthsync with your Google credentials and the Strava store path
+vi /etc/healthsync-activities.conf
+
+# 2. Run once — imports Strava history, downloads new HealthSync activities, renders HTML
+healthsync-activities
+
+# 3. Verify the activity count in the log:
+#    "Strava history: 1234 activities merged from …"
+#    "store: N activities total"
+
+# 4. Switch cron — healthsync is already scheduled by install.sh; just remove strava-my-activities
+crontab -l | grep -v 'strava-my-activities' | crontab -
+```
+
+The Strava detail JSON files (per-activity maps and splits) stay in `DETAIL_DIR` (`/www/strava/me/details/` by default) and are served by the HealthSync dashboard unchanged — numeric Strava IDs still link correctly from the activity list. New HealthSync activities use GPX files cached in `$WEB_DIR/gpx/` instead.
+
+> **Keep Strava cron running until your API access ends.** Every daily Strava run adds activities to `activities.ndjson`. The more history you accumulate before switching, the more complete the HealthSync dashboard will be from day one. Do not switch cron early.
+
+> **Do not delete the Strava NDJSON after switching.** `/usr/lib/strava-my-activities/activities.ndjson` is the migration source that `HEALTHSYNC_IMPORT_STRAVA_STORE` reads on every run. It is safe to leave it in place — it will not change once the Strava API is gone, and it takes up almost no flash space. Deleting it would prevent future `healthsync-activities` runs from re-importing history (e.g. after a router reset).
+
+> **Why not just run both scripts?** Both write to the same `WEB_DIR` — the last one to run overwrites `activities.json` and the HTML. You'd see only one source's activities. The migration approach above is the right path: merge the Strava store into HealthSync once, then switch cron.
 
 ## Upgrading an existing install
 
@@ -663,6 +795,14 @@ ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-my-activities && strava-my-acti
 - **Persistent storage:** keep `STRAVA_STATE_DIR` off `/tmp` and `/var` (RAM on
   OpenWrt). The default `/usr/lib/...` lives in the overlay and survives reboots.
 - **TLS:** `ca-bundle` is required so `curl` can verify `strava.com`.
+- **Running both scripts simultaneously is not recommended.** `strava-my-activities.sh`
+  and `healthsync-activities.sh` have separate NDJSON stores (different state dirs),
+  so there is no duplication in storage. However, both write to the same web dir
+  (`/www/strava/me`) by default, so whichever script runs last overwrites
+  `activities.json` and all HTML — the dashboard ends up showing only that source's
+  activities. To run both side-by-side you would need to point them at different
+  web dirs and serve at different URLs. In practice: run `strava-my-activities` while
+  you still have API access, then switch cron to `healthsync-activities` when it ends.
 
 ## Files
 
@@ -677,4 +817,6 @@ ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-my-activities && strava-my-acti
 | [strava-my-html-bike.sh](strava-my-html-bike.sh)           | Renders `bike.html` + installs the bike-service CGI                      |
 | [strava-lib.sh](strava-lib.sh)                             | Shared library: `log()`, `die()`, `ensure_access_token()`                |
 | [config-my.example](config-my.example)                     | Config template → `/etc/strava-my-activities.conf`                       |
-| [install.sh](install.sh)                                   | Installs deps, both scripts, all helpers, both configs, and cron entries |
+| [healthsync-activities.sh](healthsync-activities.sh)       | HealthSync / Google Drive: download CSV+GPX+TCX → parse → emit `activities.json` → render same HTML pages (Strava-API-free replacement) |
+| [config-healthsync.example](config-healthsync.example)     | Config template → `/etc/healthsync-activities.conf` (Google OAuth + Drive folder ID) |
+| [install.sh](install.sh)                                   | Installs deps, both data-source scripts, all helpers, all configs, and cron entries |

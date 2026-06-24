@@ -16,10 +16,12 @@ static HTML pages + JSON into uhttpd's web root.
 | [strava-my-activities.sh](strava-my-activities.sh)             | My Activities: token refresh → page `/athlete/activities` → merge store (dedup by Strava ID) → emit JSON → source the four HTML helpers below. Installed to `/usr/bin/strava-my-activities`. |
 | [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh)     | Sourced by `strava-my-activities.sh`: writes `index.html` (activities dashboard with year/month/sport filter + reset button).                                                                |
 | [strava-my-html-detail.sh](strava-my-html-detail.sh)           | Sourced by `strava-my-activities.sh`: writes `activity.html` (per-activity detail page with Leaflet map and splits chart).                                                                   |
-| [strava-my-html-bike.sh](strava-my-html-bike.sh)               | Sourced by `strava-my-activities.sh`: writes `bike.html` + installs the bike-service CGI.                                                                                                    |
-| [strava-my-html-stats.sh](strava-my-html-stats.sh)             | Sourced by `strava-my-activities.sh`: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                 |
+| [strava-my-html-bike.sh](strava-my-html-bike.sh)               | Sourced by both main scripts: writes `bike.html` + installs the bike-service CGI + installs the bike-assign CGI.                                                                             |
+| [strava-my-html-stats.sh](strava-my-html-stats.sh)             | Sourced by both main scripts: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                         |
 | [config-my.example](config-my.example)                         | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed. |
-| [install.sh](install.sh)                                       | Installs deps (`curl jq ca-bundle`), both scripts, all helper files, both config templates, timezone, and both daily cron entries. Idempotent.                                               |
+| [healthsync-activities.sh](healthsync-activities.sh)           | HealthSync / Google Drive data source: Drive OAuth → download CSV+GPX+TCX → parse → cache GPX → emit `activities.json` → source HTML helpers. Same output format as `strava-my-activities.sh`. Switch cron to this when Strava API ends. Installed to `/usr/bin/healthsync-activities`. |
+| [config-healthsync.example](config-healthsync.example)         | Config template → `/etc/healthsync-activities.conf`. Holds Google OAuth credentials, Drive folder ID, `HEALTHSYNC_DEFAULT_BIKE`. |
+| [install.sh](install.sh)                                       | Installs deps (`curl jq ca-bundle`), all scripts, all helper files, all config templates, timezone, and cron entries. Idempotent.                                                            |
 | [README.md](README.md)                                         | End-user setup: Strava API app, one-time OAuth, install, scheduling, ops, limitations. Keep it in sync with behavior changes.                                                                |
 | [test/Containerfile](test/Containerfile)                       | Alpine container that serves all four pages via BusyBox httpd for local testing. Build context is the repo root.                                                                             |
 | [test/run.sh](test/run.sh)                                     | Container entrypoint: extracts HTML from each helper script's `<<'HTML'` heredoc, sets up the CGI, and starts httpd on :8080.                                                                |
@@ -40,21 +42,19 @@ static HTML pages + JSON into uhttpd's web root.
 
 Run from the repo root on the dev machine:
 
-```sh
+```powershell
 # Push updated scripts+helpers and regenerate the dashboard immediately
-scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities && \
-scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh && \
-scp strava-my-html-dashboard.sh strava-my-html-detail.sh \
-    strava-my-html-bike.sh strava-my-html-stats.sh \
-    root@192.168.1.1:/usr/bin/ && \
-ssh root@192.168.1.1 strava-my-activities
+scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
+  && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
+  && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh root@192.168.1.1:/usr/bin/ `
+  && ssh root@192.168.1.1 strava-my-activities
 ```
 
 For the club leaderboard script:
 
-```sh
-scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard && \
-ssh root@192.168.1.1 strava-leaderboard
+```powershell
+scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard `
+  && ssh root@192.168.1.1 strava-leaderboard
 ```
 
 Full reinstall (first time or after `install.sh` changes):

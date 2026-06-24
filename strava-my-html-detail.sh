@@ -12,6 +12,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Activity detail</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlN0YXRzU2VydmljZUJvb2siPgogIDxkZWZzPgogICAgPGNsaXBQYXRoIGlkPSJjbGlwIj4KICAgICAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAiLz4KICAgIDwvY2xpcFBhdGg+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyYTJhMmEiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExMTExIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIGNpcmNsZSAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0idXJsKCNiZykiLz4KCiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXApIj4KCiAgICA8IS0tIEFyZWEgZmlsbCB1bmRlciB0aGUgcm91dGUgbGluZSAtLT4KICAgIDxwb2x5Z29uCiAgICAgIHBvaW50cz0iNCw0NiAxMyw0NiAxOSwzMiAyNSw0MCAzMiwxOCAzOSwzMiA0NSwyNSA1MSwzMiA2MCwzMiA2MCw1NiA0LDU2IgogICAgICBmaWxsPSIjZmM0YzAyIiBmaWxsLW9wYWNpdHk9IjAuMTUiLz4KCiAgICA8IS0tIFJvdXRlIC8gZWxldmF0aW9uIHByb2ZpbGUg4oCUIHRoZSBjb3JlIGZlYXR1cmUgLS0+CiAgICA8cG9seWxpbmUKICAgICAgcG9pbnRzPSI0LDQ2IDEzLDQ2IDE5LDMyIDI1LDQwIDMyLDE4IDM5LDMyIDQ1LDI1IDUxLDMyIDYwLDMyIgogICAgICBmaWxsPSJub25lIgogICAgICBzdHJva2U9IiNmYzRjMDIiCiAgICAgIHN0cm9rZS13aWR0aD0iMy4yIgogICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiCiAgICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KCiAgICA8IS0tIEdQUyAvIHN0YXJ0IGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjQiIGN5PSI0NiIgcj0iMi41IiBmaWxsPSIjZmM0YzAyIi8+CgogICAgPCEtLSBGaW5pc2ggLyBjdXJyZW50LXBvc2l0aW9uIGRvdCAtLT4KICAgIDxjaXJjbGUgY3g9IjYwIiBjeT0iMzIiIHI9IjIuNSIgZmlsbD0iI2ZjNGMwMiIvPgoKICA8L2c+CgogIDwhLS0gV2lGaSBzaWduYWwgYXJjcyDigJQgdG9wLXJpZ2h0LCByZXByZXNlbnRzIHRoZSByb3V0ZXIgLS0+CiAgPHBhdGggZD0iTTQzLDEzIFE1MCw3ICA1NywxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjQ1Ii8+CiAgPHBhdGggZD0iTTQ2LDE3IFE1MCwxMyA1NCwxNyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBvcGFjaXR5PSIwLjc1Ii8+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSIyMSIgcj0iMi4yIiBmaWxsPSIjZmM0YzAyIi8+CgogIDwhLS0gT3V0ZXIgcmluZyAtLT4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmM0YzAyIiBzdHJva2Utd2lkdGg9IjAuOCIgc3Ryb2tlLW9wYWNpdHk9IjAuMzUiLz4KPC9zdmc+Cg==" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
@@ -52,10 +53,11 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 <div class="crumbs"><a href="index.html">&larr; All activities</a></div>
 <div id="err"></div>
 <div id="content" style="display:none">
-  <h1 id="name"></h1>
+  <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 id="name" style="margin:0"></h1></div>
   <div class="sub" id="sub"></div>
   <div class="desc" id="desc" style="display:none"></div>
   <div class="links" id="links"></div>
+  <div id="bike-row" style="display:none;margin:.25rem 0 .75rem;font-size:.9rem"></div>
   <div class="cards" id="cards"></div>
   <div id="map-box">
     <div id="map"></div>
@@ -153,7 +155,7 @@ function decodePolyline(str){
 function getId(){
   var m = /[?&]id=([^&]*)/.exec(location.search);
   if (!m) return "";
-  return decodeURIComponent(m[1]).replace(/[^0-9]/g, "");   // digits only
+  return decodeURIComponent(m[1]).replace(/[^a-zA-Z0-9-]/g, "");
 }
 
 function card(k, v){ return '<div class="card"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
@@ -211,7 +213,100 @@ function renderCards(d){
   document.getElementById("cards").innerHTML = html;
 }
 
+// --- GPX map (healthsync activities) ----------------------------------------
+// Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
+// uhttpd serves .gpx without an XML Content-Type header.
+function renderGpxMap(gpxUrl){
+  var box = document.getElementById("map-box");
+  if (typeof L === "undefined") {
+    hideMapSpin();
+    box.innerHTML = '<div class="note">Map library unavailable (needs internet).</div>';
+    return;
+  }
+  fetch(gpxUrl)
+    .then(function(r){
+      if (!r.ok) { hideMapSpin(); box.innerHTML = '<div class="note">GPX not found (' + r.status + '): ' + gpxUrl + '</div>'; throw null; }
+      return r.text();
+    })
+    .then(function(txt){
+      if (txt === null) return;
+      if (!txt.trim()) { hideMapSpin(); box.innerHTML = '<div class="note">GPX file is empty.</div>'; return; }
+      var doc = (new DOMParser()).parseFromString(txt, "application/xml");
+      var perr = doc.documentElement && doc.documentElement.nodeName === "parsererror";
+      if (perr) { hideMapSpin(); box.innerHTML = '<div class="note">GPX not valid XML — first bytes: <code>' + txt.slice(0,120).replace(/</g,"&lt;") + '</code></div>'; return; }
+      var els = doc.getElementsByTagNameNS("*", "trkpt");
+      if (!els.length) els = doc.getElementsByTagNameNS("*", "rtept");
+      var pts = [], i, el;
+      for (i = 0; i < els.length; i++) {
+        el = els[i];
+        pts.push([parseFloat(el.getAttribute("lat")), parseFloat(el.getAttribute("lon"))]);
+      }
+      if (!pts.length) { hideMapSpin(); box.innerHTML = '<div class="note">GPX has no track points.</div>'; return; }
+      try {
+        var map = L.map("map");
+        var tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+        var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
+        map.fitBounds(line.getBounds(), { padding: [20, 20] });
+        L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
+        L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
+        setTimeout(function(){ map.invalidateSize(); map.fitBounds(line.getBounds(), { padding: [20, 20] }); }, 0);
+        tileLayer.once("load", hideMapSpin);
+        setTimeout(hideMapSpin, 10000);
+      } catch(e) {
+        hideMapSpin();
+        box.innerHTML = '<div class="note">Map render failed: ' + e.message + '</div>';
+      }
+    })
+    .catch(function(e){
+      if (e === null) return;
+      hideMapSpin();
+      box.innerHTML = '<div class="note">GPX fetch error: ' + (e && e.message || String(e)) + '</div>';
+    });
+}
+
+// --- GPX elevation profile (replaces splits chart for healthsync) -----------
+function renderGpxElevation(gpxUrl){
+  var box = document.getElementById("splits-box");
+  box.innerHTML = '<h3>Elevation profile</h3><div class="note" id="elev-status">Loading…</div>';
+  fetch(gpxUrl)
+    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .then(function(txt){
+      var doc = (new DOMParser()).parseFromString(txt, "application/xml");
+      var eles = doc.getElementsByTagNameNS("*", "ele");
+      if (!eles.length){ document.getElementById("elev-status").textContent = "No elevation data."; return; }
+      var all = [], i;
+      for (i = 0; i < eles.length; i++) all.push(parseFloat(eles[i].textContent) || 0);
+      // Downsample to at most 300 points for chart readability.
+      var step = Math.max(1, Math.floor(all.length / 300));
+      var s = [];
+      for (i = 0; i < all.length; i += step) s.push(all[i]);
+      var n = s.length, minE = s[0], maxE = s[0];
+      for (i = 1; i < n; i++){ if (s[i] < minE) minE = s[i]; if (s[i] > maxE) maxE = s[i]; }
+      var range = (maxE - minE) || 1;
+      var W = Math.max(n * 2, 360), H = 200, px = 36, py = 14, ch = H - py;
+      var path = "", fill;
+      for (i = 0; i < n; i++){
+        var x = (px + i * (W - px * 2) / (n > 1 ? n - 1 : 1)).toFixed(1);
+        var y = (ch - ((s[i] - minE) / range) * (ch - 20)).toFixed(1);
+        path += (i ? "L" : "M") + x + "," + y;
+      }
+      fill = path + "L" + (px + (W - px * 2)).toFixed(1) + "," + ch + "L" + px + "," + ch + "Z";
+      box.innerHTML = '<h3>Elevation profile</h3>' +
+        '<svg class="splits" viewBox="0 0 ' + W + ' ' + H + '" style="width:' + W + 'px">' +
+        '<path d="' + fill + '" fill="#fc4c02" opacity=".2"/>' +
+        '<path d="' + path + '" fill="none" stroke="#fc4c02" stroke-width="2"/>' +
+        '<text x="' + (px - 3) + '" y="12" text-anchor="end" font-size="9" fill="#888">' + Math.round(maxE) + ' m</text>' +
+        '<text x="' + (px - 3) + '" y="' + (ch - 2) + '" text-anchor="end" font-size="9" fill="#888">' + Math.round(minE) + ' m</text>' +
+        '</svg>';
+    })
+    .catch(function(e){ box.innerHTML = '<h3>Elevation profile</h3><div class="note">Could not load: ' + e.message + '</div>'; });
+}
+
 function renderMap(d){
+  // GPX path: healthsync activities — the GPX file is cached locally on the router.
+  if (d.gpx_file) { renderGpxMap(d.gpx_file); return; }
   var box = document.getElementById("map-box");
   var enc = d.map && (d.map.polyline || d.map.summary_polyline);
   if (!enc || typeof L === "undefined") {
@@ -243,6 +338,8 @@ function renderMap(d){
 }
 
 function renderSplits(d){
+  // GPX activities: show elevation profile in place of per-km splits.
+  if (d.gpx_file) { renderGpxElevation(d.gpx_file); return; }
   var box = document.getElementById("splits-box");
   var splits = d.splits_metric || [];
   if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
@@ -293,6 +390,66 @@ function renderSplits(d){
   svg.innerHTML = html;
 }
 
+// --- Bike assignment picker (cycling activities only) -------------------------
+var BIKE_SPORTS = { Ride:1, EBikeRide:1, VirtualRide:1, MountainBikeRide:1, GravelRide:1, Handcycle:1 };
+function isBike(sport){ return !!BIKE_SPORTS[sport]; }
+
+function loadBikePicker(d, actId) {
+  Promise.all([
+    fetch("/cgi-bin/bike-service")
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }),
+    fetch("/cgi-bin/bike-assign")
+      .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })
+  ]).then(function(res) {
+    var svc = res[0], assigns = res[1] || {};
+    var bikes = (svc && svc.bikes) || [];
+    if (!bikes.length) return;
+    // Current value: explicit override, then Strava gear name, then HealthSync gear_id string,
+    // then the default bike for untagged activities.
+    var current = assigns[actId];
+    if (current === undefined) {
+      current = (d.gear && d.gear.name) ||
+                (d.gear_id && !/^b[0-9]+$/.test(String(d.gear_id)) ? d.gear_id : "") || "";
+    }
+    if (!current && isBike(d.sport_type)) {
+      for (var i = 0; i < bikes.length; i++) {
+        if (bikes[i].isDefault) { current = bikes[i].name || ""; break; }
+      }
+    }
+    var opts = '<option value="">— unassigned —</option>';
+    for (var i = 0; i < bikes.length; i++) {
+      var n = bikes[i].name || "";
+      opts += '<option value="' + esc(n) + '"' + (current === n ? ' selected' : '') + '>' + esc(n) + '</option>';
+    }
+    var row = document.getElementById("bike-row");
+    row.innerHTML = '<label style="color:#666">Bike: '
+      + '<select id="bike-sel" style="font:inherit;font-size:.9rem;border:1px solid #ccc;'
+      + 'border-radius:.3rem;padding:.1rem .4rem;margin-left:.2rem">'
+      + opts + '</select></label>'
+      + ' <span id="bike-status" style="font-size:.8rem;color:#888"></span>';
+    row.style.display = "block";
+    document.getElementById("bike-sel").onchange = function() {
+      saveBike(actId, this.value, assigns);
+    };
+  }).catch(function(){});
+}
+
+function saveBike(actId, value, assigns) {
+  var status = document.getElementById("bike-status");
+  if (status) status.textContent = "Saving…";
+  if (value) { assigns[actId] = value; } else { delete assigns[actId]; }
+  fetch("/cgi-bin/bike-assign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(assigns)
+  }).then(function(r) {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    if (status) { status.textContent = "Saved"; setTimeout(function(){ status.textContent = ""; }, 2000); }
+  }).catch(function(e) {
+    if (status) status.textContent = "Error: " + (e && e.message || String(e));
+  });
+}
+
 function render(d, id){
   // Reveal the container first so the map measures a real size at init time —
   // a Leaflet map created inside a display:none box renders grey, tile-less.
@@ -308,11 +465,14 @@ function render(d, id){
     var de = document.getElementById("desc");
     de.textContent = d.description; de.style.display = "block";
   }
-  document.getElementById("links").innerHTML =
-    '<a href="https://www.strava.com/activities/'+encodeURIComponent(id)+'" target="_blank" rel="noopener">Open on Strava</a>'
+  var stravaLink = /^[0-9]+$/.test(id)
+    ? '<a href="https://www.strava.com/activities/'+encodeURIComponent(id)+'" target="_blank" rel="noopener">Open on Strava</a>'
+    : '';
+  document.getElementById("links").innerHTML = stravaLink
     + '<a href="details/'+encodeURIComponent(id)+'.json">Raw JSON</a>';
 
   renderCards(d);
+  if (isBike(d.sport_type || d.type || "")) loadBikePicker(d, id);
   renderMap(d);
   renderSplits(d);
 }

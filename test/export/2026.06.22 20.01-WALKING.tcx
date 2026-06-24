@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="Other">
+      <Id>2026-06-22T18:01:42Z</Id>
+      <Lap StartTime="2026-06-22T18:01:42Z">
+        <TotalTimeSeconds>4200</TotalTimeSeconds>
+        <DistanceMeters>4229</DistanceMeters>
+        <Calories>310</Calories>
+        <Track>
+          <Trackpoint><Time>2026-06-22T18:01:42Z</Time><Position><LatitudeDegrees>51.1050</LatitudeDegrees><LongitudeDegrees>17.0320</LongitudeDegrees></Position><AltitudeMeters>120.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:07:42Z</Time><Position><LatitudeDegrees>51.1072</LatitudeDegrees><LongitudeDegrees>17.0298</LongitudeDegrees></Position><AltitudeMeters>122.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:13:42Z</Time><Position><LatitudeDegrees>51.1094</LatitudeDegrees><LongitudeDegrees>17.0272</LongitudeDegrees></Position><AltitudeMeters>125.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:19:42Z</Time><Position><LatitudeDegrees>51.1115</LatitudeDegrees><LongitudeDegrees>17.0248</LongitudeDegrees></Position><AltitudeMeters>128.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:25:42Z</Time><Position><LatitudeDegrees>51.1132</LatitudeDegrees><LongitudeDegrees>17.0222</LongitudeDegrees></Position><AltitudeMeters>131.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:31:42Z</Time><Position><LatitudeDegrees>51.1148</LatitudeDegrees><LongitudeDegrees>17.0198</LongitudeDegrees></Position><AltitudeMeters>128.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:37:42Z</Time><Position><LatitudeDegrees>51.1138</LatitudeDegrees><LongitudeDegrees>17.0172</LongitudeDegrees></Position><AltitudeMeters>125.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:43:42Z</Time><Position><LatitudeDegrees>51.1118</LatitudeDegrees><LongitudeDegrees>17.0155</LongitudeDegrees></Position><AltitudeMeters>122.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:49:42Z</Time><Position><LatitudeDegrees>51.1095</LatitudeDegrees><LongitudeDegrees>17.0168</LongitudeDegrees></Position><AltitudeMeters>120.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T18:55:42Z</Time><Position><LatitudeDegrees>51.1073</LatitudeDegrees><LongitudeDegrees>17.0192</LongitudeDegrees></Position><AltitudeMeters>119.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T19:01:42Z</Time><Position><LatitudeDegrees>51.1055</LatitudeDegrees><LongitudeDegrees>17.0218</LongitudeDegrees></Position><AltitudeMeters>120.0</AltitudeMeters></Trackpoint>
+          <Trackpoint><Time>2026-06-22T19:11:42Z</Time><Position><LatitudeDegrees>51.1050</LatitudeDegrees><LongitudeDegrees>17.0320</LongitudeDegrees></Position><AltitudeMeters>120.0</AltitudeMeters></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

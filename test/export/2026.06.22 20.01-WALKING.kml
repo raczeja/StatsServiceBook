@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>WALKING</name>
+    <description>Health Sync</description>
+    <Style id="healthsynccolor">
+      <LineStyle><color>FF00b223</color><width>4</width></LineStyle>
+      <PolyStyle><color>0000b223</color></PolyStyle>
+    </Style>
+    <Placemark>
+      <name>WALKING</name>
+      <description>Health Sync</description>
+      <styleUrl>#healthsynccolor</styleUrl>
+      <LineString>
+        <tessellate>1</tessellate>
+        <coordinates>
+17.0320,51.1050,120
+17.0298,51.1072,122
+17.0272,51.1094,125
+17.0248,51.1115,128
+17.0222,51.1132,131
+17.0198,51.1148,128
+17.0172,51.1138,125
+17.0155,51.1118,122
+17.0168,51.1095,120
+17.0192,51.1073,119
+17.0218,51.1055,120
+17.0320,51.1050,120
+        </coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,27 @@
+# Live HealthSync test image — runs healthsync-activities.sh against your real
+# Google Drive account, then serves the generated pages with lighttpd.
+#
+# Build (from repo root):
+#   podman build -f test/Containerfile.healthsync -t healthsync-test .
+#
+# Run (mount your real config):
+#   podman run --rm -p 8080:8080 `
+#     -v "${PWD}\config-healthsync.conf:/etc/healthsync-activities.conf:ro" `
+#     healthsync-test
+#
+# Then open http://localhost:8080/strava/me/
+FROM docker.io/library/alpine:3.20
+
+RUN apk add --no-cache curl jq lighttpd ca-certificates
+
+COPY healthsync-activities.sh    /opt/healthsync-activities.sh
+COPY strava-lib.sh               /opt/strava-lib.sh
+COPY strava-my-html-dashboard.sh /opt/strava-my-html-dashboard.sh
+COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
+COPY strava-my-html-bike.sh      /opt/strava-my-html-bike.sh
+COPY strava-my-html-stats.sh     /opt/strava-my-html-stats.sh
+COPY test/run-healthsync.sh      /opt/run.sh
+RUN chmod 0755 /opt/run.sh /opt/healthsync-activities.sh
+
+EXPOSE 8080
+CMD ["/opt/run.sh"]
