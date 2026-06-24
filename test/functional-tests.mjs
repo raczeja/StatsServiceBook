@@ -10,6 +10,7 @@
  */
 import puppeteer from "puppeteer";
 import fs from "fs";
+import path from "path";
 import assert from "assert/strict";
 
 const BASE = "http://localhost:8080/strava/me";
@@ -21,6 +22,10 @@ const URLS = {
   activity: `${BASE}/activity.html?id=18784255013`,
   bike: `${BASE}/bike.html`,
 };
+
+const TEST_RESULTS =
+  process.env.TEST_RESULTS || path.resolve("test-results.xml");
+const START_TIME_MS = Date.now();
 
 const BROWSER_CANDIDATES = [
   process.env.BROWSER_PATH,
@@ -496,6 +501,7 @@ async function main() {
 
   console.log("\n" + "=".repeat(50));
   console.log(`Results: ${passed} passed, ${failed} failed`);
+  writeJUnitXml(TEST_RESULTS);
   if (failed > 0) {
     console.error("\nFailed tests:");
     results
@@ -510,6 +516,38 @@ async function main() {
     console.log("All tests passed.");
     return 0;
   }
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function writeJUnitXml(filePath) {
+  const duration = ((Date.now() - START_TIME_MS) / 1000).toFixed(3);
+  const failures = results.filter((r) => !r.ok).length;
+  const testCount = results.length;
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += `<testsuites>\n`;
+  xml += `<testsuite name=\"functional-tests\" tests=\"${testCount}\" failures=\"${failures}\" time=\"${duration}\">\n`;
+  results.forEach((r) => {
+    const name = `${r.suite} / ${r.name}`;
+    xml += `  <testcase classname=\"${escapeXml(r.suite)}\" name=\"${escapeXml(name)}\" time=\"0\">`;
+    if (!r.ok) {
+      const message = escapeXml(
+        r.error?.message ?? String(r.error) ?? "failure",
+      );
+      xml += `\n    <failure message=\"${message}\">${message}</failure>\n  `;
+    }
+    xml += `</testcase>\n`;
+  });
+  xml += `</testsuite>\n</testsuites>\n`;
+  fs.writeFileSync(filePath, xml, "utf8");
+  console.log(`JUnit XML test report written to ${filePath}`);
 }
 
 // Set exitCode rather than calling process.exit() directly — avoids a
