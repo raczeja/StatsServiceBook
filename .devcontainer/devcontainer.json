@@ -1,0 +1,11 @@
+{
+  "name": "StatsServiceBook Codespace",
+  "image": "mcr.microsoft.com/devcontainers/ubuntu:24.04",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends podman nodejs npm chromium libatk1.0-0t64 libatk-bridge2.0-0t64 libgtk-3-0t64 libasound2t64 libgbm1 libpangocairo-1.0-0 fonts-liberation && sudo bash /workspaces/StatsServiceBook/scripts/install-pwsh-in-codespaces.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-vscode.powershell"]
+    }
+  },
+  "remoteUser": "vscode"
+}
