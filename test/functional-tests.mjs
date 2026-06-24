@@ -13,10 +13,11 @@ import fs from "fs";
 import path from "path";
 import assert from "assert/strict";
 
-const BASE = "http://localhost:8080/strava/me";
-const CGI = "http://localhost:8080/cgi-bin";
+const PORT = process.env.TEST_PORT || process.env.STRAVA_TEST_PORT || "8080";
+const BASE = `http://localhost:${PORT}/strava/me`;
+const CGI = `http://localhost:${PORT}/cgi-bin`;
 const URLS = {
-  club: "http://localhost:8080/strava/index.html",
+  club: `http://localhost:${PORT}/strava/index.html`,
   dash: `${BASE}/index.html`,
   stats: `${BASE}/stats.html`,
   activity: `${BASE}/activity.html?id=18784255013`,
@@ -38,16 +39,16 @@ const BROWSER_CANDIDATES = [
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
 ].filter(Boolean);
 
-function findBrowser() {
+async function findBrowser() {
+  const bundled = await puppeteer.executablePath?.();
+  if (bundled && fs.existsSync(bundled)) return bundled;
+
   for (const p of BROWSER_CANDIDATES) {
     if (fs.existsSync(p)) return p;
   }
 
-  const bundled = puppeteer.executablePath?.();
-  if (bundled && fs.existsSync(bundled)) return bundled;
-
   throw new Error(
-    "Browser not found. Set BROWSER_PATH or EDGE_PATH to a Chrome/Chromium executable path, or install puppeteer with its bundled browser.",
+    "Browser not found. Install puppeteer so it can download a browser, or set BROWSER_PATH/EDGE_PATH to a valid executable.",
   );
 }
 
@@ -461,7 +462,7 @@ async function testBikeServiceCgi() {
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const executablePath = findBrowser();
+  const executablePath = await findBrowser();
   console.log("Using browser:", executablePath);
 
   const browser = await puppeteer.launch({

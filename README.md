@@ -220,21 +220,23 @@ docker run --rm -p 8080:8080 stravame-test
 
 **Test data:** `test/activities.sample.json` (24 rides), `test/club-activities.sample.json` (10 club activities), `test/bike-service.sample.json` (3 bikes), `test/18784255013.json` (full activity detail). All synthetic/anonymized — no personal data.
 
-**Run functional regression tests (Windows PowerShell):**
+w**Run functional regression tests:**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
 ```
 
-Builds the image, runs 36 Puppeteer assertions across all five pages and the bike-service CGI, exits 0 on pass. Requires Node.js ≥ 18 and Microsoft Edge.
+Builds the image, runs 36 Puppeteer assertions across all five pages and the bike-service CGI, exits 0 on pass. Requires Node.js ≥ 18 and PowerShell Core (`pwsh`) on Linux/macOS. On Linux, Puppeteer downloads and uses its bundled Chromium browser automatically.
 
-**Generate screenshots (Windows PowerShell):**
+If you need to force a specific host port for the container, set `STRAVA_TEST_PORT` before running the script.
+
+**Generate screenshots:**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test\make-screenshots.ps1
 ```
 
-Builds the image, captures all five pages with Puppeteer + Edge, saves PNGs to `test/screenshots/`.
+Builds the image, captures all five pages with Puppeteer, saves PNGs to `test/screenshots/`. Requires Node.js ≥ 18 and PowerShell Core (`pwsh`) on Linux/macOS. `STRAVA_TEST_PORT` is also supported here if you want a fixed host port.
 
 ---
 
