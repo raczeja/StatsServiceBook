@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  functional-tests:
+    name: Functional tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build test container
+        run: docker build -f test/Containerfile -t stravame-test .
+
+      - name: Start test container
+        run: docker run -d --name stravame-tests -p 8080:8080 stravame-test
+
+      - name: Wait for test server
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/strava/me/index.html >/dev/null; then
+              echo "server ready"
+              exit 0
+            fi
+            echo "waiting for server... ($i)"
+            sleep 1
+          done
+          echo "=== container logs ==="
+          docker logs stravame-tests || true
+          exit 1
+
+      - name: Run functional tests
+        run: |
+          TMP_DIR=$(mktemp -d)
+          pushd "$TMP_DIR"
+          npm init -y >/dev/null
+          npm install puppeteer >/dev/null
+          cp "$GITHUB_WORKSPACE/test/functional-tests.mjs" .
+          node functional-tests.mjs
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+
+      - name: Stop test container
+        if: always()
+        run: |
+          docker stop stravame-tests || true
+          docker rm stravame-tests || true
