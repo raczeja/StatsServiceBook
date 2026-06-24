@@ -399,6 +399,35 @@ crontab -e
   and point `STRAVA_STATE_DIR` at it.
 - A Strava account that is a **member of the club** you want to rank.
 
+**Używanie PowerShell (pwsh) w Codespaces**
+
+- **Szybkie wyjaśnienie:** GitHub Codespaces może uruchamiać kontenery oparty na Ubuntu (tu: Ubuntu 24.04). Niektóre testy i narzędzia pomocnicze (skrypty w `test/`) używają PowerShell (`pwsh`). Jeśli chcesz mieć `pwsh` w środowisku Codespaces/devcontainer, możesz zainstalować go ręcznie lub dodać instalację do `devcontainer.json` `postCreateCommand`.
+
+- **Ręczna instalacja w sesji Codespaces (uruchom w terminalu):**
+
+```sh
+# Run as root or prefix with sudo
+curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb
+sudo dpkg -i /tmp/packages-microsoft-prod.deb
+rm -f /tmp/packages-microsoft-prod.deb
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends powershell
+
+# Start PowerShell
+pwsh
+```
+
+- **Automatyczna instalacja po utworzeniu Codespace (devcontainer):**
+
+1. Dodaj plik `scripts/install-pwsh-in-codespaces.sh` z repozytorium (znajdziesz go w `scripts/`).
+2. W `devcontainer.json` ustaw `postCreateCommand` na wywołanie tego skryptu, np.:
+
+```json
+"postCreateCommand": "bash /workspaces/StatsServiceBook/scripts/install-pwsh-in-codespaces.sh"
+```
+
+- **Skrypt pomocniczy:** Zawarty skrypt instalacyjny znajduje się tutaj: [scripts/install-pwsh-in-codespaces.sh](scripts/install-pwsh-in-codespaces.sh#L1). Uruchamia dodanie repozytorium Microsoft i instaluje pakiet `powershell` na Ubuntu 24.04.
+
 ## 1. Create a Strava API application
 
 Your `CLIENT_ID` and `CLIENT_SECRET` come from a free Strava API application
@@ -530,10 +559,10 @@ internet/DNS on the router — check with `ping -c1 downloads.openwrt.org`.
 
 You can also move the **web output** and **state** off flash by setting the path variables in the relevant config:
 
-| Config | State dir | Web dir |
-|--------|-----------|---------|
-| `/etc/strava-my-activities.conf` | `STRAVA_MY_STATE_DIR` | `STRAVA_MY_WEB_DIR` |
-| `/etc/strava-leaderboard.conf` | `STRAVA_STATE_DIR` | `STRAVA_WEB_DIR` |
+| Config                            | State dir              | Web dir              |
+| --------------------------------- | ---------------------- | -------------------- |
+| `/etc/strava-my-activities.conf`  | `STRAVA_MY_STATE_DIR`  | `STRAVA_MY_WEB_DIR`  |
+| `/etc/strava-leaderboard.conf`    | `STRAVA_STATE_DIR`     | `STRAVA_WEB_DIR`     |
 | `/etc/healthsync-activities.conf` | `HEALTHSYNC_STATE_DIR` | `HEALTHSYNC_WEB_DIR` |
 
 Example for a USB drive at `/mnt/sda5`:
@@ -814,17 +843,17 @@ ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-my-activities && strava-my-acti
 
 ## Files
 
-| File                                                       | Purpose                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [strava-leaderboard.sh](strava-leaderboard.sh)             | Club leaderboard: fetch feed, aggregate, render HTML                     |
-| [config.example](config.example)                           | Config template → `/etc/strava-leaderboard.conf`                         |
-| [strava-my-activities.sh](strava-my-activities.sh)         | My Activities: fetch own activities, merge store, source HTML helpers    |
-| [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh) | Renders `index.html` (sortable table + monthly bar charts)               |
-| [strava-my-html-detail.sh](strava-my-html-detail.sh)       | Renders `activity.html` (Leaflet map, per-km splits, stat cards)         |
-| [strava-my-html-stats.sh](strava-my-html-stats.sh)         | Renders `stats.html` (KPIs, year comparison, records, DOW chart)         |
-| [strava-my-html-bike.sh](strava-my-html-bike.sh)           | Renders `bike.html` + installs the bike-service CGI                      |
-| [strava-lib.sh](strava-lib.sh)                             | Shared library: `log()`, `die()`, `ensure_access_token()`                |
-| [config-my.example](config-my.example)                     | Config template → `/etc/strava-my-activities.conf`                       |
+| File                                                       | Purpose                                                                                                                                 |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [strava-leaderboard.sh](strava-leaderboard.sh)             | Club leaderboard: fetch feed, aggregate, render HTML                                                                                    |
+| [config.example](config.example)                           | Config template → `/etc/strava-leaderboard.conf`                                                                                        |
+| [strava-my-activities.sh](strava-my-activities.sh)         | My Activities: fetch own activities, merge store, source HTML helpers                                                                   |
+| [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh) | Renders `index.html` (sortable table + monthly bar charts)                                                                              |
+| [strava-my-html-detail.sh](strava-my-html-detail.sh)       | Renders `activity.html` (Leaflet map, per-km splits, stat cards)                                                                        |
+| [strava-my-html-stats.sh](strava-my-html-stats.sh)         | Renders `stats.html` (KPIs, year comparison, records, DOW chart)                                                                        |
+| [strava-my-html-bike.sh](strava-my-html-bike.sh)           | Renders `bike.html` + installs the bike-service CGI                                                                                     |
+| [strava-lib.sh](strava-lib.sh)                             | Shared library: `log()`, `die()`, `ensure_access_token()`                                                                               |
+| [config-my.example](config-my.example)                     | Config template → `/etc/strava-my-activities.conf`                                                                                      |
 | [healthsync-activities.sh](healthsync-activities.sh)       | HealthSync / Google Drive: download CSV+GPX+TCX → parse → emit `activities.json` → render same HTML pages (Strava-API-free replacement) |
-| [config-healthsync.example](config-healthsync.example)     | Config template → `/etc/healthsync-activities.conf` (Google OAuth + Drive folder ID) |
-| [install.sh](install.sh)                                   | Installs deps, both data-source scripts, all helpers, all configs, and cron entries |
+| [config-healthsync.example](config-healthsync.example)     | Config template → `/etc/healthsync-activities.conf` (Google OAuth + Drive folder ID)                                                    |
+| [install.sh](install.sh)                                   | Installs deps, both data-source scripts, all helpers, all configs, and cron entries                                                     |
