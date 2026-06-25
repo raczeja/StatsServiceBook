@@ -90,8 +90,7 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   "first seen" day. With a daily cron and a feed that spans ~2 weeks, that date
   tracks the performed day to within the polling interval — enough to **filter
   the dashboard by year and month** (defaulting to the current month), which the
-  live app and earlier versions of this script couldn't do. This mirrors
-  [activityStore.ts](../server/src/services/activityStore.ts) in the main app.
+  live app and earlier versions of this script couldn't do.
 - **My Activities dashboard (individual athlete).** The
   `/athlete/activities` endpoint returns full activity objects with real Strava
   IDs and real dates (`start_date_local`), so **no first-seen approximation is
