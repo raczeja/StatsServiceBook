@@ -433,12 +433,22 @@ var COL_TIPS   = {
 
 // Scroll the table to a given activity and briefly highlight its row. Called
 // from the "bests" chips; exposed on window so the inline onclick can reach it.
+var _flashRow = null, _flashTid = null;
 function focusRow(id){
   var tr = board.querySelector('tr[data-id="'+id+'"]');
   if (!tr) return;
   tr.scrollIntoView({ behavior: "smooth", block: "center" });
-  tr.classList.add("flash");
-  setTimeout(function(){ tr.classList.remove("flash"); }, 1800);
+  // Cancel any in-flight flash and clear the previous row, then start the new
+  // flash after a short delay so smooth scrolling has time to finish first.
+  clearTimeout(_flashTid);
+  if (_flashRow) _flashRow.classList.remove("flash");
+  _flashRow = tr;
+  _flashTid = setTimeout(function(){
+    tr.classList.remove("flash");
+    void tr.offsetWidth; // force reflow so CSS animation restarts
+    tr.classList.add("flash");
+    _flashTid = setTimeout(function(){ tr.classList.remove("flash"); _flashRow = null; }, 1800);
+  }, 500);
 }
 window.focusRow = focusRow;
 
