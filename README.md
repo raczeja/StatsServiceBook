@@ -1,6 +1,6 @@
 # StravaStats for OpenWrt
 
-A router-native activity stats and bike service tracker for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with mileage and service alerts. Supports Strava as the primary source, and also works with HealthSync-exported CSV/GPX/TCX files from Google Drive for Strava-API-free use. Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
+A router-native activity stats and bike service tracker for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with mileage and service alerts. Supports Strava as the primary source, and also works with [HealthSync](https://healthsync.app/)-exported CSV/GPX/TCX files from Google Drive for Strava-API-free use. Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
 
 This is a single POSIX shell script driven by **cron**, using **`curl`** to talk to the
 Strava API or Google Drive + HealthSync exports and **`jq`** to aggregate. The result is written as a static HTML page
