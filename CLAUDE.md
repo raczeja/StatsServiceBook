@@ -27,7 +27,8 @@ static HTML pages + JSON into uhttpd's web root.
 | [test/run.sh](test/run.sh)                                     | Container entrypoint: extracts HTML from each helper script's `<<'HTML'` heredoc, sets up the CGI, and starts lighttpd on :8080.                                                             |
 | [test/screenshot.mjs](test/screenshot.mjs)                     | Node.js (puppeteer-core + system Edge) script called by `make-screenshots.ps1` to capture all five pages.                                                                                    |
 | [test/make-screenshots.ps1](test/make-screenshots.ps1)         | PowerShell driver: builds the container, starts it, runs the screenshot script, saves PNGs to `test/screenshots/`.                                                                           |
-| [test/functional-tests.mjs](test/functional-tests.mjs)        | Node.js (puppeteer-core + system Edge) regression test script: 36 assertions across all five pages + CGI round-trip. Called by `run-tests.ps1`. Exits 0 on all pass, 1 on failure.          |
+| [test/functional-tests.mjs](test/functional-tests.mjs)        | Node.js (puppeteer-core + system Edge) regression test script: 87 assertions across all five pages + CGI round-trip (includes reset-filter, column-sorting, stats-sport-filter suites). Called by `run-tests.ps1`. Exits 0 on all pass, 1 on failure. |
+| [.claude/settings.json](.claude/settings.json)                | Claude Code project settings: `PostToolUse` hook that runs `sh -n` after every `.sh` file edit and injects a reminder to run the full test suite.                                           |
 | [test/run-tests.ps1](test/run-tests.ps1)                       | PowerShell driver: builds the container, starts it, runs `functional-tests.mjs`, stops the container. Propagates exit code for CI use.                                                      |
 | [test/make-test-html.ps1](test/make-test-html.ps1)             | Extracts the dashboard heredoc from `strava-my-html-dashboard.sh`, inlines `activities.json`, writes `test/test.html` for offline preview.                                                   |
 | [test/activities.sample.json](test/activities.sample.json)     | Sample activities dataset served inside the container (and used by `make-test-html.ps1`).                                                                                                    |
@@ -72,13 +73,15 @@ them on a Windows dev box. To validate changes:
 
 - **Syntax / lint:** `shellcheck *.sh` if available (the scripts already carry
   `# shellcheck disable=` pragmas). Otherwise `sh -n strava-leaderboard.sh`.
+  Claude Code runs `sh -n` automatically after every `.sh` edit via the
+  `.claude/settings.json` hook and will remind you to run the full suite.
 - **Functional regression tests (HTML + JS + CGI):** run the Puppeteer test suite
   against the local container — this is the primary way to catch breakage in the
   HTML helper scripts:
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
   ```
-  36 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
+  87 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
   Requires Podman, Node.js ≥ 18, and Microsoft Edge.
 - **Real testing on the router** via scp + ssh, then a manual
   `strava-leaderboard` run whose output must end in `done.` (see README §5).
