@@ -225,7 +225,7 @@ docker run --rm -p 8080:8080 stravame-test
 powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
 ```
 
-Builds the image, runs 36 Puppeteer assertions across all five pages and the bike-service CGI, exits 0 on pass. Requires Node.js ≥ 18 and PowerShell Core (`pwsh`) on Linux/macOS. On Linux, Puppeteer downloads and uses its bundled Chromium browser automatically.
+Builds the image, runs Puppeteer assertions across all five pages and the bike-service CGI, exits 0 on pass. Requires Node.js ≥ 18 and PowerShell Core (`pwsh`) on Linux/macOS. On Linux, Puppeteer downloads and uses its bundled Chromium browser automatically.
 
 If you need to force a specific host port for the container, set `STRAVA_TEST_PORT` before running the script.
 
