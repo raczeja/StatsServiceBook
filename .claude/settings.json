@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(sh -n c:/CProjektyGIT/Git_OS/StatsServiceBook/strava-my-html-stats.sh)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File .\\\\test\\\\run-tests.ps1)",
+      "Bash(git commit -m ' *)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -6,10 +13,10 @@
         "hooks": [
           {
             "type": "command",
-            "shell": "powershell",
             "command": "$json = [Console]::In.ReadToEnd() | ConvertFrom-Json; $f = $json.tool_input.file_path; if ($f -like '*.sh') { $sh = 'C:\\Program Files\\Git\\bin\\sh.exe'; $err = (& $sh -n $f 2>&1 | Out-String).Trim(); if ($LASTEXITCODE -ne 0) { $ctx = 'SHELL SYNTAX ERROR in ' + $f + ': ' + $err; @{hookSpecificOutput=@{hookEventName='PostToolUse';additionalContext=$ctx}} | ConvertTo-Json -Depth 5 } else { @{hookSpecificOutput=@{hookEventName='PostToolUse';additionalContext='Syntax OK. Remember to run the functional tests: powershell -ExecutionPolicy Bypass -File .\\test\\run-tests.ps1'}} | ConvertTo-Json -Depth 5 } }",
-            "statusMessage": "Checking shell syntax...",
-            "timeout": 30
+            "shell": "powershell",
+            "timeout": 30,
+            "statusMessage": "Checking shell syntax..."
           }
         ]
       }

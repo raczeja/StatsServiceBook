@@ -117,7 +117,7 @@ function progressDone(){
   _pbar.style.width="100%";
   setTimeout(function(){_pbar.style.transition="opacity .4s ease";_pbar.style.opacity="0";},200);
 }
-var DATA = null, ALL_ACTS = [];
+var DATA = null, ALL_ACTS = [], genStr = "";
 var selSport = "Ride", selYear = "";
 
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -204,6 +204,24 @@ function avgPerWeek(acts, yr){
     weeks = Math.max(1, Math.ceil((d2-d1)/86400000/7)+1);
   }
   return (a.distM/1000)/weeks;
+}
+
+// first-to-last activity span → "X years, Y months, Z days" (or "" if < 2 dates)
+function fmtPeriod(acts){
+  var dates=acts.map(function(a){return a.date;}).filter(Boolean).sort();
+  if(dates.length<2) return "";
+  var d1=new Date(dates[0]+"T12:00:00"), d2=new Date(dates[dates.length-1]+"T12:00:00");
+  if(d2<=d1) return "";
+  var y1=d1.getFullYear(),m1=d1.getMonth(),day1=d1.getDate();
+  var y2=d2.getFullYear(),m2=d2.getMonth(),day2=d2.getDate();
+  var years=y2-y1, months=m2-m1, days=day2-day1;
+  if(days<0){ months--; days+=new Date(y2,m2,0).getDate(); }
+  if(months<0){ years--; months+=12; }
+  var parts=[];
+  if(years>0) parts.push(years+" year"+(years===1?"":"s"));
+  if(months>0) parts.push(months+" month"+(months===1?"":"s"));
+  if(days>0) parts.push(days+" day"+(days===1?"":"s"));
+  return parts.join(", ");
 }
 
 // ---- personal records -------------------------------------------------------
@@ -295,8 +313,13 @@ function render(){
   var curMo = new Date().getMonth(); // 0-indexed
   var isAll = (!selYear || selYear==="all");
   var yrStr = isAll ? curY : selYear;
+  var _period = isAll ? fmtPeriod(ALL_ACTS) : "";
+  if(ALL_ACTS.length){
+    document.getElementById("meta").textContent =
+      ALL_ACTS.length+" activities"+(_period?" · "+_period:"")+genStr;
+  }
   document.getElementById("dowSubtitle").innerHTML = "— selected sport · " + (isAll ? "all years" : selYear);
-  document.getElementById("sportSubtitle").innerHTML = "— " + (isAll ? "all time" : selYear);
+  document.getElementById("sportSubtitle").innerHTML = "— " + (isAll ? "all time"+(_period?" · "+_period:"") : selYear);
   var f = filtered();
   var fyAll  = isAll ? f : filterYear(f, selYear);  // KPIs, records, DOW
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
@@ -557,8 +580,7 @@ function load(){
       document.getElementById("yearSel").innerHTML=yOpts;
       document.getElementById("yearSel").value=curY;
 
-      var gen=d.generatedAt?" · updated "+d.generatedAt.slice(0,10):"";
-      document.getElementById("meta").textContent=ALL_ACTS.length+" activities"+gen;
+      genStr=d.generatedAt?" · updated "+d.generatedAt.slice(0,10):"";
       progressDone();
       render();
     })

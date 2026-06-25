@@ -263,6 +263,31 @@ async function testStats(page, jsErrors) {
     // In 2026 the sample has Ride, Run, Walk, VirtualRide (Hike is 2025-only)
     assert.ok(n >= 4, `expected >= 4 sport rows for 2026, got ${n}`);
   });
+
+  // Switch to "All years" and verify period appears in meta + sport subtitle
+  await page.evaluate(() => {
+    const sel = document.getElementById("yearSel");
+    sel.value = "all";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  await check(S, "all-years-meta-shows-period", async () => {
+    const meta = await page.$eval("#meta", (el) => el.textContent);
+    // period looks like "X year(s)" or "X month(s)" or "X day(s)"
+    assert.ok(
+      /\d+\s+year|\d+\s+month|\d+\s+day/.test(meta),
+      `expected period in #meta when all years selected, got: "${meta}"`,
+    );
+  });
+
+  await check(S, "all-years-sport-subtitle-shows-period", async () => {
+    const subtitle = await page.$eval("#sportSubtitle", (el) => el.textContent);
+    assert.ok(
+      subtitle.includes("all time") && /\d+\s+year|\d+\s+month|\d+\s+day/.test(subtitle),
+      `expected "all time · <period>" in #sportSubtitle, got: "${subtitle}"`,
+    );
+  });
 }
 
 async function testActivityDetail(page, jsErrors) {
