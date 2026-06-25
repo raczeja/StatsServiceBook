@@ -63,6 +63,14 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
     <div id="map"></div>
     <div id="map-spin">Loading map…<div id="map-spin-bar"></div></div>
   </div>
+  <div class="box" id="elev-box" style="display:none">
+    <h3>Elevation profile</h3>
+    <svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="box" id="hr-box" style="display:none">
+    <h3>Heart rate</h3>
+    <svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
   <div class="box" id="splits-box">
     <h3 id="splits-title">Splits</h3>
     <svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg>
@@ -117,8 +125,27 @@ function fmtPace(mps){
 var FOOT = { Run:1, TrailRun:1, Walk:1, Hike:1, VirtualRun:1 };
 function isFoot(sport){ return !!FOOT[sport]; }
 
-// --- Tooltip (shared with the splits chart) --------------------------------
+// --- Tooltip (shared with splits chart and line charts) --------------------
 var TIP_DATA = [], tipEl = null;
+var LINE_TIPS = {};   // svgId -> [{x, html}] — populated by drawLineSvg
+function lineChartHover(e, svgId) {
+  var data = LINE_TIPS[svgId];
+  if (!data || !data.length) return;
+  var svg = document.getElementById(svgId);
+  var rect = svg.getBoundingClientRect();
+  var vb = svg.viewBox.baseVal;
+  if (!rect.width || !vb) return;
+  var mx = (e.clientX - rect.left) * vb.width / rect.width;
+  var best = 0, bestDist = Infinity, i, d;
+  for (i = 0; i < data.length; i++) {
+    d = Math.abs(data[i].x - mx);
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  if (!tipEl) tipEl = document.getElementById("chart-tip");
+  tipEl.innerHTML = data[best].html;
+  tipEl.style.display = "block";
+  moveTip(e);
+}
 function showTip(e, idx){
   if (!tipEl) tipEl = document.getElementById("chart-tip");
   if (!TIP_DATA[idx]) return;
@@ -213,6 +240,102 @@ function renderCards(d){
   document.getElementById("cards").innerHTML = html;
 }
 
+// --- Generic area line chart (elevation profile / heart rate) ----------------
+// points: numeric array; color: stroke/fill hex; unit: label suffix (e.g. "m", "bpm")
+// xLabels: optional string array (same length as points) — when provided the chart
+// uses 30 px/point spacing (matching the splits bar chart) and renders x-axis ticks.
+// Without xLabels (GPX charts with hundreds of points) the chart stays compact.
+function drawLineSvg(svgId, points, color, unit, xLabels) {
+  var n = points.length;
+  if (!n) return;
+  var minV = points[0], maxV = points[0], i;
+  for (i = 1; i < n; i++) {
+    if (points[i] < minV) minV = points[i];
+    if (points[i] > maxV) maxV = points[i];
+  }
+  var base = (unit === "bpm") ? Math.max(40, minV - Math.max(10, Math.round((maxV - minV) * 0.15))) : minV;
+  var range = (maxV - base) || 1;
+  var px = 52, barW = 30;          // px wider to fit larger y-axis labels
+  var labelH = xLabels ? 20 : 0;
+  var W = xLabels ? (px + n * barW + 16) : Math.max(n * 2, 360);
+  var H = 200, ch = H - 18 - labelH;
+  var path = "", x, y;
+  for (i = 0; i < n; i++) {
+    x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+    y = (ch - ((points[i] - base) / range) * (ch - 24)).toFixed(1);
+    path += (i ? "L" : "M") + x + "," + y;
+  }
+  var fill = path + "L" + (W - 16) + "," + ch + "L" + px + "," + ch + "Z";
+
+  // Three horizontal grid lines: at base, mid, and max.
+  var gridLines = "";
+  var gridVals = [base, base + range * 0.5, base + range];
+  for (i = 0; i < gridVals.length; i++) {
+    var gy = (ch - ((gridVals[i] - base) / range) * (ch - 24)).toFixed(1);
+    var lbl = Math.round(gridVals[i]) + " " + unit;
+    gridLines +=
+      '<line x1="' + px + '" y1="' + gy + '" x2="' + (W - 16) + '" y2="' + gy +
+      '" stroke="#e0e0e0" stroke-width="1"/>' +
+      '<text x="' + (px - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="#666">' + lbl + '</text>';
+  }
+
+  var html = gridLines +
+    '<path d="' + fill + '" fill="' + color + '" opacity=".18"/>' +
+    '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>';
+  if (xLabels) {
+    var stride = n > 120 ? 5 : n > 60 ? 2 : 1;
+    for (i = 0; i < n; i += stride) {
+      x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+      html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="#666">' + xLabels[i] + '</text>';
+    }
+  }
+  // Build per-point tooltip data and add a transparent hit overlay.
+  var tipEntries = [];
+  for (i = 0; i < n; i++) {
+    var tx = parseFloat((px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1));
+    var tipLabel = xLabels
+      ? ('<strong>Km ' + esc(xLabels[i]) + '</strong>')
+      : ('<strong>' + (unit === 'bpm' ? 'Heart rate' : 'Elevation') + '</strong>');
+    tipEntries.push({x: tx, html: tipLabel + Math.round(points[i]) + ' ' + unit});
+  }
+  LINE_TIPS[svgId] = tipEntries;
+  html += '<rect x="' + px + '" y="0" width="' + (W - px - 16) + '" height="' + H + '"'
+        + ' fill="transparent" style="cursor:crosshair"'
+        + ' onmousemove="lineChartHover(event,\'' + svgId + '\')"'
+        + ' onmouseout="hideTip()"/>';
+
+  var svg = document.getElementById(svgId);
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.style.width = W + "px";
+  svg.innerHTML = html;
+}
+
+function renderElevFromSplits(splits) {
+  var hasElev = false, i;
+  for (i = 0; i < splits.length; i++) {
+    if (splits[i].elevation_difference != null) { hasElev = true; break; }
+  }
+  if (!hasElev) return;
+  var cum = [0], labels = ["0"];
+  for (i = 0; i < splits.length; i++) {
+    cum.push(cum[cum.length - 1] + (splits[i].elevation_difference || 0));
+    labels.push(String(i + 1));
+  }
+  document.getElementById("elev-box").style.display = "";
+  drawLineSvg("svg-elev", cum, "#fc4c02", "m", labels);
+}
+
+function renderHrFromSplits(splits) {
+  var hrs = [], labels = [], i;
+  for (i = 0; i < splits.length; i++) {
+    hrs.push(splits[i].average_heartrate || 0);
+    labels.push(String(i + 1));
+  }
+  if (!hrs.some(function(v) { return v > 0; })) return;
+  document.getElementById("hr-box").style.display = "";
+  drawLineSvg("svg-hr", hrs, "#e91e63", "bpm", labels);
+}
+
 // --- GPX map (healthsync activities) ----------------------------------------
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
 // uhttpd serves .gpx without an XML Content-Type header.
@@ -266,42 +389,51 @@ function renderGpxMap(gpxUrl){
     });
 }
 
-// --- GPX elevation profile (replaces splits chart for healthsync) -----------
-function renderGpxElevation(gpxUrl){
-  var box = document.getElementById("splits-box");
-  box.innerHTML = '<h3>Elevation profile</h3><div class="note" id="elev-status">Loading…</div>';
+// --- GPX elevation + heart rate charts (healthsync activities) ---------------
+// Fetches the GPX once and populates elev-box and hr-box when data is present.
+function renderGpxCharts(gpxUrl) {
   fetch(gpxUrl)
     .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
     .then(function(txt){
       var doc = (new DOMParser()).parseFromString(txt, "application/xml");
+      var i, step;
+
+      // Elevation from <ele> elements
       var eles = doc.getElementsByTagNameNS("*", "ele");
-      if (!eles.length){ document.getElementById("elev-status").textContent = "No elevation data."; return; }
-      var all = [], i;
-      for (i = 0; i < eles.length; i++) all.push(parseFloat(eles[i].textContent) || 0);
-      // Downsample to at most 300 points for chart readability.
-      var step = Math.max(1, Math.floor(all.length / 300));
-      var s = [];
-      for (i = 0; i < all.length; i += step) s.push(all[i]);
-      var n = s.length, minE = s[0], maxE = s[0];
-      for (i = 1; i < n; i++){ if (s[i] < minE) minE = s[i]; if (s[i] > maxE) maxE = s[i]; }
-      var range = (maxE - minE) || 1;
-      var W = Math.max(n * 2, 360), H = 200, px = 36, py = 14, ch = H - py;
-      var path = "", fill;
-      for (i = 0; i < n; i++){
-        var x = (px + i * (W - px * 2) / (n > 1 ? n - 1 : 1)).toFixed(1);
-        var y = (ch - ((s[i] - minE) / range) * (ch - 20)).toFixed(1);
-        path += (i ? "L" : "M") + x + "," + y;
+      if (eles.length) {
+        var allE = [];
+        for (i = 0; i < eles.length; i++) allE.push(parseFloat(eles[i].textContent) || 0);
+        step = Math.max(1, Math.floor(allE.length / 300));
+        var se = [];
+        for (i = 0; i < allE.length; i += step) se.push(allE[i]);
+        document.getElementById("elev-box").style.display = "";
+        drawLineSvg("svg-elev", se, "#fc4c02", "m");
       }
-      fill = path + "L" + (px + (W - px * 2)).toFixed(1) + "," + ch + "L" + px + "," + ch + "Z";
-      box.innerHTML = '<h3>Elevation profile</h3>' +
-        '<svg class="splits" viewBox="0 0 ' + W + ' ' + H + '" style="width:' + W + 'px">' +
-        '<path d="' + fill + '" fill="#fc4c02" opacity=".2"/>' +
-        '<path d="' + path + '" fill="none" stroke="#fc4c02" stroke-width="2"/>' +
-        '<text x="' + (px - 3) + '" y="12" text-anchor="end" font-size="9" fill="#888">' + Math.round(maxE) + ' m</text>' +
-        '<text x="' + (px - 3) + '" y="' + (ch - 2) + '" text-anchor="end" font-size="9" fill="#888">' + Math.round(minE) + ' m</text>' +
-        '</svg>';
+
+      // Heart rate from track-point extensions (<gpxtpx:hr>, <hr>, <heartrate>)
+      var trkpts = doc.getElementsByTagNameNS("*", "trkpt");
+      if (!trkpts.length) trkpts = doc.getElementsByTagNameNS("*", "rtept");
+      var allH = [], hrEls, bpm;
+      for (i = 0; i < trkpts.length; i++) {
+        hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
+        if (!hrEls.length) hrEls = trkpts[i].getElementsByTagNameNS("*", "heartrate");
+        bpm = hrEls.length ? (parseFloat(hrEls[0].textContent) || 0) : 0;
+        allH.push(bpm);
+      }
+      if (allH.some(function(v){ return v > 0; })) {
+        step = Math.max(1, Math.floor(allH.length / 300));
+        var sh = [];
+        for (i = 0; i < allH.length; i += step) sh.push(allH[i]);
+        document.getElementById("hr-box").style.display = "";
+        drawLineSvg("svg-hr", sh, "#e91e63", "bpm");
+      }
     })
-    .catch(function(e){ box.innerHTML = '<h3>Elevation profile</h3><div class="note">Could not load: ' + e.message + '</div>'; });
+    .catch(function(e){
+      var box = document.getElementById("elev-box");
+      box.style.display = "";
+      box.querySelector("svg").insertAdjacentHTML("beforebegin",
+        '<div class="note">GPX charts unavailable: ' + esc(e.message) + '</div>');
+    });
 }
 
 function renderMap(d){
@@ -338,8 +470,9 @@ function renderMap(d){
 }
 
 function renderSplits(d){
-  // GPX activities: show elevation profile in place of per-km splits.
-  if (d.gpx_file) { renderGpxElevation(d.gpx_file); return; }
+  // GPX activities: elevation + HR charts are rendered from renderGpxCharts (called below);
+  // there are no km splits to show, so hide that box.
+  if (d.gpx_file) { renderGpxCharts(d.gpx_file); document.getElementById("splits-box").style.display = "none"; return; }
   var box = document.getElementById("splits-box");
   var splits = d.splits_metric || [];
   if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
@@ -388,6 +521,10 @@ function renderSplits(d){
     html += '<text x="'+(x+barW/2)+'" y="'+(H-3)+'" text-anchor="middle" font-size="9" fill="#888">'+(i+1)+'</text>';
   }
   svg.innerHTML = html;
+
+  // Elevation profile and heart rate charts from splits data (when available).
+  renderElevFromSplits(splits);
+  renderHrFromSplits(splits);
 }
 
 // --- Bike assignment picker (cycling activities only) -------------------------

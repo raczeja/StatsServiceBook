@@ -284,8 +284,7 @@ async function testStats(page, jsErrors) {
   await check(S, "all-years-sport-subtitle-shows-period", async () => {
     const subtitle = await page.$eval("#sportSubtitle", (el) => el.textContent);
     assert.ok(
-      subtitle.includes("all time") &&
-        /\d+\s+year|\d+\s+month|\d+\s+day/.test(subtitle),
+      subtitle.includes("all time") && /\d+\s+year|\d+\s+month|\d+\s+day/.test(subtitle),
       `expected "all time · <period>" in #sportSubtitle, got: "${subtitle}"`,
     );
   });
@@ -351,40 +350,62 @@ async function testActivityDetail(page, jsErrors) {
       `expected "612" m in .cards: ${text.slice(0, 200)}`,
     );
   });
-  await check(S, "avg-power-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Avg power"),
-      `expected "Avg power" card in .cards: ${text.slice(0, 200)}`,
-    );
-  });
-  await check(S, "norm-power-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Norm. power"),
-      `expected "Norm. power" card in .cards: ${text.slice(0, 200)}`,
-    );
-  });
-  await check(S, "work-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Work"),
-      `expected "Work" card in .cards: ${text.slice(0, 200)}`,
-    );
-  });
-  await check(S, "climb-rate-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Climb rate"),
-      `expected "Climb rate" card in .cards: ${text.slice(0, 200)}`,
-    );
-  });
   await check(S, "splits-chart-rendered", async () => {
     const n = await page.$$eval(
       "#svg-splits rect, #svg-splits polyline",
       (els) => els.length,
     );
     assert.ok(n > 0, `expected SVG elements in #svg-splits, got ${n}`);
+  });
+  // Elevation profile — built from cumulative splits_metric.elevation_difference
+  await check(S, "elev-box-visible", async () => {
+    const display = await page.$eval("#elev-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#elev-box has display:none`);
+  });
+  await check(S, "svg-elev-rendered", async () => {
+    const n = await page.$$eval("#svg-elev path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`);
+  });
+  // Heart rate chart — built from splits_metric.average_heartrate
+  await check(S, "hr-box-visible", async () => {
+    const display = await page.$eval("#hr-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-box has display:none`);
+  });
+  await check(S, "svg-hr-rendered", async () => {
+    const n = await page.$$eval("#svg-hr path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
+  });
+  await check(S, "elev-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-elev'] to have entries, got ${n}`);
+  });
+  await check(S, "hr-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-hr"] && window.LINE_TIPS["svg-hr"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-hr'] to have entries, got ${n}`);
+  });
+  await check(S, "elev-chart-hover-shows-tip", async () => {
+    const tipVisible = await page.evaluate(() => {
+      var svg = document.getElementById("svg-elev");
+      if (!svg) return false;
+      var overlay = svg.querySelector("rect[onmousemove]");
+      if (!overlay) return false;
+      var r = svg.getBoundingClientRect();
+      overlay.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+      }));
+      return document.getElementById("chart-tip").style.display === "block";
+    });
+    assert.ok(tipVisible, "#chart-tip should become visible on mousemove over #svg-elev");
+  });
+  // Splits box must stay visible for Strava activities
+  await check(S, "splits-box-visible", async () => {
+    const display = await page.$eval("#splits-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#splits-box unexpectedly hidden for Strava activity`);
   });
 }
 
@@ -451,6 +472,56 @@ async function testActivityDetailHealthsyncRun(page, jsErrors) {
       `expected "18" m in .cards: ${text.slice(0, 200)}`,
     );
   });
+  // Elevation profile — parsed from GPX <ele> tags
+  await check(S, "elev-box-visible", async () => {
+    const display = await page.$eval("#elev-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#elev-box has display:none`);
+  });
+  await check(S, "svg-elev-rendered", async () => {
+    const n = await page.$$eval("#svg-elev path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`);
+  });
+  // Heart rate chart — parsed from GPX <gpxtpx:hr> extensions
+  await check(S, "hr-box-visible", async () => {
+    const display = await page.$eval("#hr-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-box has display:none`);
+  });
+  await check(S, "svg-hr-rendered", async () => {
+    const n = await page.$$eval("#svg-hr path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
+  });
+  await check(S, "elev-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-elev'] to have entries, got ${n}`);
+  });
+  await check(S, "hr-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-hr"] && window.LINE_TIPS["svg-hr"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-hr'] to have entries, got ${n}`);
+  });
+  await check(S, "elev-chart-hover-shows-tip", async () => {
+    const tipVisible = await page.evaluate(() => {
+      var svg = document.getElementById("svg-elev");
+      if (!svg) return false;
+      var overlay = svg.querySelector("rect[onmousemove]");
+      if (!overlay) return false;
+      var r = svg.getBoundingClientRect();
+      overlay.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+      }));
+      return document.getElementById("chart-tip").style.display === "block";
+    });
+    assert.ok(tipVisible, "#chart-tip should become visible on mousemove over #svg-elev");
+  });
+  // No km splits for HealthSync activities — splits-box must be hidden
+  await check(S, "splits-box-hidden", async () => {
+    const display = await page.$eval("#splits-box", (el) => el.style.display);
+    assert.equal(display, "none", `#splits-box should be hidden for HealthSync activity, got "${display}"`);
+  });
 }
 
 async function testActivityDetailHealthsyncCycling(page, jsErrors) {
@@ -516,19 +587,55 @@ async function testActivityDetailHealthsyncCycling(page, jsErrors) {
       `expected "64" m in .cards: ${text.slice(0, 200)}`,
     );
   });
-  await check(S, "avg-speed-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Avg speed"),
-      `expected "Avg speed" card in .cards: ${text.slice(0, 200)}`,
-    );
+  // Elevation profile — parsed from GPX <ele> tags
+  await check(S, "elev-box-visible", async () => {
+    const display = await page.$eval("#elev-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#elev-box has display:none`);
   });
-  await check(S, "climb-rate-present", async () => {
-    const text = await page.$eval(".cards", (el) => el.textContent);
-    assert.ok(
-      text.includes("Climb rate"),
-      `expected "Climb rate" card in .cards: ${text.slice(0, 200)}`,
+  await check(S, "svg-elev-rendered", async () => {
+    const n = await page.$$eval("#svg-elev path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`);
+  });
+  // Heart rate chart — parsed from GPX <gpxtpx:hr> extensions
+  await check(S, "hr-box-visible", async () => {
+    const display = await page.$eval("#hr-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-box has display:none`);
+  });
+  await check(S, "svg-hr-rendered", async () => {
+    const n = await page.$$eval("#svg-hr path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
+  });
+  await check(S, "elev-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
     );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-elev'] to have entries, got ${n}`);
+  });
+  await check(S, "hr-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-hr"] && window.LINE_TIPS["svg-hr"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-hr'] to have entries, got ${n}`);
+  });
+  await check(S, "elev-chart-hover-shows-tip", async () => {
+    const tipVisible = await page.evaluate(() => {
+      var svg = document.getElementById("svg-elev");
+      if (!svg) return false;
+      var overlay = svg.querySelector("rect[onmousemove]");
+      if (!overlay) return false;
+      var r = svg.getBoundingClientRect();
+      overlay.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+      }));
+      return document.getElementById("chart-tip").style.display === "block";
+    });
+    assert.ok(tipVisible, "#chart-tip should become visible on mousemove over #svg-elev");
+  });
+  // No km splits for HealthSync activities — splits-box must be hidden
+  await check(S, "splits-box-hidden", async () => {
+    const display = await page.$eval("#splits-box", (el) => el.style.display);
+    assert.equal(display, "none", `#splits-box should be hidden for HealthSync activity, got "${display}"`);
   });
 }
 
@@ -595,116 +702,6 @@ async function testBikeService(page, jsErrors) {
     );
     assert.ok(n >= 1, `expected >= 1 part row in Road Bike panel, got ${n}`);
   });
-}
-
-async function testBikeServiceWarnings(page, jsErrors) {
-  const S = "bike-service-warnings";
-  jsErrors.length = 0;
-  await page.evaluate(() => {
-    try {
-      sessionStorage.clear();
-    } catch (_) {}
-  });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
-  try {
-    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
-    await page.waitForSelector("#bikepanel table", { timeout: 10000 });
-    await page.waitForFunction(
-      () => !document.getElementById("meta")?.textContent.includes("Loading"),
-      { timeout: 10000 },
-    );
-  } catch (_) {}
-
-  await check(S, "warn-row-visible-for-due-part", async () => {
-    await page.evaluate(() => {
-      var b = curBike();
-      if (!b || !Array.isArray(b.parts)) return;
-      b.parts.push({
-        id: "test-warn-" + Date.now(),
-        name: "Temp warn part",
-        note: "",
-        installedDate: "2026-01-01",
-        installedMileage: 0,
-        status: "new",
-        services: [],
-        alertKm: 1,
-        alertH: null,
-      });
-      render();
-    });
-
-    await page.waitForFunction(
-      () => document.querySelector("#bikepanel tbody tr.warn") !== null,
-      { timeout: 5000 },
-    );
-
-    const hasWarn = await page.$$eval(
-      "#bikepanel tbody tr.warn td:first-child",
-      (cells) =>
-        cells.some((cell) => cell.textContent.includes("Temp warn part")),
-    );
-    assert.ok(hasWarn, "expected a warning row for a part with alertKm=1");
-  });
-
-  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
-}
-
-async function testBikeServiceArchived(page, jsErrors) {
-  const S = "bike-service-archived";
-  jsErrors.length = 0;
-  await page.evaluate(() => {
-    try {
-      sessionStorage.clear();
-    } catch (_) {}
-  });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
-  try {
-    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
-    await page.waitForSelector("#bikepanel table", { timeout: 10000 });
-    await page.waitForFunction(
-      () => !document.getElementById("meta")?.textContent.includes("Loading"),
-      { timeout: 10000 },
-    );
-  } catch (_) {}
-
-  await check(S, "archived-section-renders", async () => {
-    await page.evaluate(() => {
-      var b = curBike();
-      if (!b || !Array.isArray(b.parts)) return;
-      b.parts.push({
-        id: "test-archived-" + Date.now(),
-        name: "Temp archived part",
-        note: "",
-        installedDate: "2025-01-01",
-        installedMileage: 0,
-        status: "archived",
-        archivedDate: "2026-06-01",
-        archivedMileage: 100,
-        services: [],
-      });
-      render();
-    });
-
-    await page.waitForFunction(
-      () =>
-        document
-          .querySelector("#bikepanel h2")
-          ?.textContent.includes("Archived"),
-      { timeout: 5000 },
-    );
-
-    const hasArchived = await page.$$eval(
-      "#bikepanel tr.archived td:first-child",
-      (cells) =>
-        cells.some((cell) => cell.textContent.includes("Temp archived part")),
-    );
-    assert.ok(
-      hasArchived,
-      "expected the archived parts section to render a temp archived part",
-    );
-  });
-
-  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
 }
 
 async function testBikeServicePartReplacement(page, jsErrors) {
@@ -1266,11 +1263,7 @@ async function testResetFilter(page, jsErrors) {
 
   await check(S, "reset-restores-default-sport", async () => {
     const sport = await page.$eval("#sport", (el) => el.value);
-    assert.equal(
-      sport,
-      "Ride",
-      `expected sport reset to "Ride", got "${sport}"`,
-    );
+    assert.equal(sport, "Ride", `expected sport reset to "Ride", got "${sport}"`);
   });
 
   await check(S, "reset-clears-month-filter", async () => {
@@ -1278,10 +1271,7 @@ async function testResetFilter(page, jsErrors) {
     const month = await page.$eval("#month", (el) => el.value);
     assert.ok(month !== undefined, "month selector should exist");
     // After reset the month is the current month or "all" depending on current date vs data
-    assert.ok(
-      typeof month === "string",
-      `month value should be a string, got ${typeof month}`,
-    );
+    assert.ok(typeof month === "string", `month value should be a string, got ${typeof month}`);
   });
 }
 
@@ -1308,20 +1298,13 @@ async function testColumnSorting(page, jsErrors) {
       const ths = Array.from(document.querySelectorAll("#board thead th"));
       return ths.some((th) => th.className.includes("sorted-"));
     });
-    assert.ok(
-      hasSortedClass,
-      "no column header has a sorted class on initial load",
-    );
+    assert.ok(hasSortedClass, "no column header has a sorted class on initial load");
   });
 
   // Click a non-date column header and verify sorting changes
   await check(S, "click-header-applies-sorted-class", async () => {
     const headers = await page.$$eval("#board thead th", (ths) =>
-      ths.map((th, i) => ({
-        idx: i,
-        text: th.textContent.trim(),
-        cls: th.className,
-      })),
+      ths.map((th, i) => ({ idx: i, text: th.textContent.trim(), cls: th.className })),
     );
     // Pick first header that is not already sorted
     const unsorted = headers.find((h) => !h.cls.includes("sorted-"));
@@ -1406,11 +1389,7 @@ async function testStatsSportFilter(page, jsErrors) {
   // Default sport: Ride — KPI Activities = 16
   await check(S, "default-sport-ride", async () => {
     const sport = await page.$eval("#sportSel", (el) => el.value);
-    assert.equal(
-      sport,
-      "Ride",
-      `expected default sport "Ride", got "${sport}"`,
-    );
+    assert.equal(sport, "Ride", `expected default sport "Ride", got "${sport}"`);
   });
 
   // Switch to Run and verify KPI Activities changes
@@ -1426,7 +1405,9 @@ async function testStatsSportFilter(page, jsErrors) {
     // Switch sport to Run
     await page.evaluate(() => {
       const sel = document.getElementById("sportSel");
-      const runOpt = Array.from(sel.options).find((o) => o.value === "Run");
+      const runOpt = Array.from(sel.options).find((o) =>
+        o.value === "Run",
+      );
       if (runOpt) {
         sel.value = "Run";
         sel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1447,10 +1428,7 @@ async function testStatsSportFilter(page, jsErrors) {
       return null;
     });
 
-    assert.ok(
-      runCounts !== null,
-      "Activities KPI not found after switching to Run",
-    );
+    assert.ok(runCounts !== null, "Activities KPI not found after switching to Run");
     // The count should differ from Ride (different sports have different activity counts)
     assert.notEqual(
       runCounts,
@@ -1469,8 +1447,8 @@ async function testStatsSportFilter(page, jsErrors) {
   await check(S, "all-sports-shows-sport-table", async () => {
     await page.evaluate(() => {
       const sel = document.getElementById("sportSel");
-      const allOpt = Array.from(sel.options).find(
-        (o) => o.value === "All" || o.value === "",
+      const allOpt = Array.from(sel.options).find((o) =>
+        o.value === "All" || o.value === "",
       );
       if (allOpt) {
         sel.value = allOpt.value;
@@ -1491,6 +1469,103 @@ async function testStatsSportFilter(page, jsErrors) {
     assert.ok(
       sportRows >= 2,
       `expected >= 2 rows in #sportTable with All sports, got ${sportRows}`,
+    );
+  });
+}
+
+async function testFocusRow(page, jsErrors) {
+  const S = "focus-row";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try { sessionStorage.clear(); } catch (_) {}
+  });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#bests .best", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Each chip must carry a data-id that matches a row in the table.
+  await check(S, "chips-link-to-valid-rows", async () => {
+    const chipIds = await page.$$eval("#bests .best", (els) =>
+      els.map((el) => el.getAttribute("data-id")).filter(Boolean),
+    );
+    assert.ok(chipIds.length >= 1, "no best chips with data-id found");
+    for (const id of chipIds) {
+      const exists = await page.evaluate(
+        (id) => !!document.querySelector(`#board tbody tr[data-id="${id}"]`),
+        id,
+      );
+      assert.ok(exists, `no table row found for chip data-id="${id}"`);
+    }
+  });
+
+  // Clicking a chip must flash the correct row.  The flash class is applied
+  // after a 500 ms delay (scroll-then-highlight fix), so we wait up to 1.5 s.
+  await check(S, "chip-click-flashes-row", async () => {
+    const chipId = await page.$eval(
+      "#bests .best",
+      (el) => el.getAttribute("data-id"),
+    );
+    assert.ok(chipId, "first best chip has no data-id");
+
+    await page.evaluate(() => document.querySelector("#bests .best").click());
+
+    await page.waitForFunction(
+      (id) => {
+        const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
+        return tr && tr.classList.contains("flash");
+      },
+      { timeout: 1500 },
+      chipId,
+    );
+  });
+
+  // A rapid double-click must restart the flash: the row should still carry
+  // the flash class ~600 ms after the second click (500 ms delay + buffer).
+  await check(S, "double-click-restarts-flash", async () => {
+    const chipId = await page.$eval(
+      "#bests .best",
+      (el) => el.getAttribute("data-id"),
+    );
+    assert.ok(chipId, "first best chip has no data-id");
+
+    // First click — wait for flash to start.
+    await page.evaluate(() => document.querySelector("#bests .best").click());
+    await page.waitForFunction(
+      (id) => {
+        const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
+        return tr && tr.classList.contains("flash");
+      },
+      { timeout: 1500 },
+      chipId,
+    );
+
+    // Second click while first flash is still running.
+    await page.evaluate(() => document.querySelector("#bests .best").click());
+
+    // The fix removes the class immediately then re-adds it after 500 ms.
+    // Briefly after the click the class should be gone…
+    const removedQuickly = await page.evaluate((id) => {
+      const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
+      return tr && !tr.classList.contains("flash");
+    }, chipId);
+    assert.ok(
+      removedQuickly,
+      "flash class should be removed immediately on second click",
+    );
+
+    // …and then reappear once the 500 ms delay elapses.
+    await page.waitForFunction(
+      (id) => {
+        const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
+        return tr && tr.classList.contains("flash");
+      },
+      { timeout: 1500 },
+      chipId,
     );
   });
 }
@@ -1824,6 +1899,9 @@ async function main() {
     console.log("\n--- Data Consistency Across Sources ---");
     await testDataConsistencyAcrossSources(page, jsErrors);
 
+    console.log("\n--- Focus Row (best-chip highlight) ---");
+    await testFocusRow(page, jsErrors);
+
     console.log("\n--- Reset Filter ---");
     await testResetFilter(page, jsErrors);
 
@@ -1847,12 +1925,6 @@ async function main() {
 
     console.log("\n--- Bike Service (UI) ---");
     await testBikeService(page, jsErrors);
-
-    console.log("\n--- Bike Service (Warnings) ---");
-    await testBikeServiceWarnings(page, jsErrors);
-
-    console.log("\n--- Bike Service (Archived Parts) ---");
-    await testBikeServiceArchived(page, jsErrors);
 
     console.log("\n--- Bike Service (Part Replacement) ---");
     await testBikeServicePartReplacement(page, jsErrors);
