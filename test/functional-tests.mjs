@@ -284,7 +284,8 @@ async function testStats(page, jsErrors) {
   await check(S, "all-years-sport-subtitle-shows-period", async () => {
     const subtitle = await page.$eval("#sportSubtitle", (el) => el.textContent);
     assert.ok(
-      subtitle.includes("all time") && /\d+\s+year|\d+\s+month|\d+\s+day/.test(subtitle),
+      subtitle.includes("all time") &&
+        /\d+\s+year|\d+\s+month|\d+\s+day/.test(subtitle),
       `expected "all time · <period>" in #sportSubtitle, got: "${subtitle}"`,
     );
   });
@@ -348,6 +349,34 @@ async function testActivityDetail(page, jsErrors) {
     assert.ok(
       text.includes("612"),
       `expected "612" m in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "avg-power-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Avg power"),
+      `expected "Avg power" card in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "norm-power-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Norm. power"),
+      `expected "Norm. power" card in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "work-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Work"),
+      `expected "Work" card in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "climb-rate-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Climb rate"),
+      `expected "Climb rate" card in .cards: ${text.slice(0, 200)}`,
     );
   });
   await check(S, "splits-chart-rendered", async () => {
@@ -487,6 +516,20 @@ async function testActivityDetailHealthsyncCycling(page, jsErrors) {
       `expected "64" m in .cards: ${text.slice(0, 200)}`,
     );
   });
+  await check(S, "avg-speed-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Avg speed"),
+      `expected "Avg speed" card in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "climb-rate-present", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Climb rate"),
+      `expected "Climb rate" card in .cards: ${text.slice(0, 200)}`,
+    );
+  });
 }
 
 async function testBikeService(page, jsErrors) {
@@ -552,6 +595,116 @@ async function testBikeService(page, jsErrors) {
     );
     assert.ok(n >= 1, `expected >= 1 part row in Road Bike panel, got ${n}`);
   });
+}
+
+async function testBikeServiceWarnings(page, jsErrors) {
+  const S = "bike-service-warnings";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForSelector("#bikepanel table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "warn-row-visible-for-due-part", async () => {
+    await page.evaluate(() => {
+      var b = curBike();
+      if (!b || !Array.isArray(b.parts)) return;
+      b.parts.push({
+        id: "test-warn-" + Date.now(),
+        name: "Temp warn part",
+        note: "",
+        installedDate: "2026-01-01",
+        installedMileage: 0,
+        status: "new",
+        services: [],
+        alertKm: 1,
+        alertH: null,
+      });
+      render();
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector("#bikepanel tbody tr.warn") !== null,
+      { timeout: 5000 },
+    );
+
+    const hasWarn = await page.$$eval(
+      "#bikepanel tbody tr.warn td:first-child",
+      (cells) =>
+        cells.some((cell) => cell.textContent.includes("Temp warn part")),
+    );
+    assert.ok(hasWarn, "expected a warning row for a part with alertKm=1");
+  });
+
+  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+}
+
+async function testBikeServiceArchived(page, jsErrors) {
+  const S = "bike-service-archived";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForSelector("#bikepanel table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "archived-section-renders", async () => {
+    await page.evaluate(() => {
+      var b = curBike();
+      if (!b || !Array.isArray(b.parts)) return;
+      b.parts.push({
+        id: "test-archived-" + Date.now(),
+        name: "Temp archived part",
+        note: "",
+        installedDate: "2025-01-01",
+        installedMileage: 0,
+        status: "archived",
+        archivedDate: "2026-06-01",
+        archivedMileage: 100,
+        services: [],
+      });
+      render();
+    });
+
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#bikepanel h2")
+          ?.textContent.includes("Archived"),
+      { timeout: 5000 },
+    );
+
+    const hasArchived = await page.$$eval(
+      "#bikepanel tr.archived td:first-child",
+      (cells) =>
+        cells.some((cell) => cell.textContent.includes("Temp archived part")),
+    );
+    assert.ok(
+      hasArchived,
+      "expected the archived parts section to render a temp archived part",
+    );
+  });
+
+  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
 }
 
 async function testBikeServicePartReplacement(page, jsErrors) {
@@ -1113,7 +1266,11 @@ async function testResetFilter(page, jsErrors) {
 
   await check(S, "reset-restores-default-sport", async () => {
     const sport = await page.$eval("#sport", (el) => el.value);
-    assert.equal(sport, "Ride", `expected sport reset to "Ride", got "${sport}"`);
+    assert.equal(
+      sport,
+      "Ride",
+      `expected sport reset to "Ride", got "${sport}"`,
+    );
   });
 
   await check(S, "reset-clears-month-filter", async () => {
@@ -1121,7 +1278,10 @@ async function testResetFilter(page, jsErrors) {
     const month = await page.$eval("#month", (el) => el.value);
     assert.ok(month !== undefined, "month selector should exist");
     // After reset the month is the current month or "all" depending on current date vs data
-    assert.ok(typeof month === "string", `month value should be a string, got ${typeof month}`);
+    assert.ok(
+      typeof month === "string",
+      `month value should be a string, got ${typeof month}`,
+    );
   });
 }
 
@@ -1148,13 +1308,20 @@ async function testColumnSorting(page, jsErrors) {
       const ths = Array.from(document.querySelectorAll("#board thead th"));
       return ths.some((th) => th.className.includes("sorted-"));
     });
-    assert.ok(hasSortedClass, "no column header has a sorted class on initial load");
+    assert.ok(
+      hasSortedClass,
+      "no column header has a sorted class on initial load",
+    );
   });
 
   // Click a non-date column header and verify sorting changes
   await check(S, "click-header-applies-sorted-class", async () => {
     const headers = await page.$$eval("#board thead th", (ths) =>
-      ths.map((th, i) => ({ idx: i, text: th.textContent.trim(), cls: th.className })),
+      ths.map((th, i) => ({
+        idx: i,
+        text: th.textContent.trim(),
+        cls: th.className,
+      })),
     );
     // Pick first header that is not already sorted
     const unsorted = headers.find((h) => !h.cls.includes("sorted-"));
@@ -1239,7 +1406,11 @@ async function testStatsSportFilter(page, jsErrors) {
   // Default sport: Ride — KPI Activities = 16
   await check(S, "default-sport-ride", async () => {
     const sport = await page.$eval("#sportSel", (el) => el.value);
-    assert.equal(sport, "Ride", `expected default sport "Ride", got "${sport}"`);
+    assert.equal(
+      sport,
+      "Ride",
+      `expected default sport "Ride", got "${sport}"`,
+    );
   });
 
   // Switch to Run and verify KPI Activities changes
@@ -1255,9 +1426,7 @@ async function testStatsSportFilter(page, jsErrors) {
     // Switch sport to Run
     await page.evaluate(() => {
       const sel = document.getElementById("sportSel");
-      const runOpt = Array.from(sel.options).find((o) =>
-        o.value === "Run",
-      );
+      const runOpt = Array.from(sel.options).find((o) => o.value === "Run");
       if (runOpt) {
         sel.value = "Run";
         sel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1278,7 +1447,10 @@ async function testStatsSportFilter(page, jsErrors) {
       return null;
     });
 
-    assert.ok(runCounts !== null, "Activities KPI not found after switching to Run");
+    assert.ok(
+      runCounts !== null,
+      "Activities KPI not found after switching to Run",
+    );
     // The count should differ from Ride (different sports have different activity counts)
     assert.notEqual(
       runCounts,
@@ -1297,8 +1469,8 @@ async function testStatsSportFilter(page, jsErrors) {
   await check(S, "all-sports-shows-sport-table", async () => {
     await page.evaluate(() => {
       const sel = document.getElementById("sportSel");
-      const allOpt = Array.from(sel.options).find((o) =>
-        o.value === "All" || o.value === "",
+      const allOpt = Array.from(sel.options).find(
+        (o) => o.value === "All" || o.value === "",
       );
       if (allOpt) {
         sel.value = allOpt.value;
@@ -1675,6 +1847,12 @@ async function main() {
 
     console.log("\n--- Bike Service (UI) ---");
     await testBikeService(page, jsErrors);
+
+    console.log("\n--- Bike Service (Warnings) ---");
+    await testBikeServiceWarnings(page, jsErrors);
+
+    console.log("\n--- Bike Service (Archived Parts) ---");
+    await testBikeServiceArchived(page, jsErrors);
 
     console.log("\n--- Bike Service (Part Replacement) ---");
     await testBikeServicePartReplacement(page, jsErrors);
