@@ -143,7 +143,7 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   selected sport), a by-sport breakdown, and an average-distance-per-day-of-week
   bar chart. All computed client-side from `activities.json`.
 - **HealthSync / Google Drive data source.** A drop-in replacement for the Strava
-  API. [healthsync.app](https://healthsync.app/) runs on Android and exports
+  API. [healthsync.app](https://healthsync.app/) runs on Android or iPhone and exports
   activities to Google Drive as CSV + GPX + TCX files. `healthsync-activities.sh`
   downloads those files, parses them with `curl` + `jq` + `grep`, and produces the
   exact same `activities.json` and HTML pages as `strava-my-activities.sh`. GPX
@@ -219,7 +219,7 @@ docker run --rm -p 8080:8080 stravame-test
 
 **Test data:** `test/activities.sample.json` (24 rides), `test/club-activities.sample.json` (10 club activities), `test/bike-service.sample.json` (3 bikes), `test/18784255013.json` (full activity detail). All synthetic/anonymized — no personal data.
 
-w**Run functional regression tests:**
+**Run functional regression tests:**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
