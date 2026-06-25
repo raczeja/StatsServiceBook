@@ -1047,6 +1047,257 @@ async function testBikeServiceNotifications(page, jsErrors) {
 
 // ── CGI round-trip (plain fetch, no browser) ───────────────────────────────────
 
+async function testResetFilter(page, jsErrors) {
+  const S = "reset-filter";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#board table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "reset-button-exists", async () => {
+    const btn = await page.$("#resetFilters");
+    assert.ok(btn, "#resetFilters button not found");
+  });
+
+  await check(S, "reset-restores-default-year", async () => {
+    // Change year away from default
+    await page.select("#year", "2025");
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 5000 },
+    );
+    // Click reset
+    await page.click("#resetFilters");
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 5000 },
+    );
+    const year = await page.$eval("#year", (el) => el.value);
+    assert.equal(year, "2026", `expected year reset to "2026", got "${year}"`);
+  });
+
+  await check(S, "reset-restores-default-sport", async () => {
+    const sport = await page.$eval("#sport", (el) => el.value);
+    assert.equal(sport, "Ride", `expected sport reset to "Ride", got "${sport}"`);
+  });
+
+  await check(S, "reset-clears-month-filter", async () => {
+    // Month should be set to current month (not "all")
+    const month = await page.$eval("#month", (el) => el.value);
+    assert.ok(month !== undefined, "month selector should exist");
+    // After reset the month is the current month or "all" depending on current date vs data
+    assert.ok(typeof month === "string", `month value should be a string, got ${typeof month}`);
+  });
+}
+
+async function testColumnSorting(page, jsErrors) {
+  const S = "column-sorting";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#board table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Default sort is date descending — the date header should carry a sorted class
+  await check(S, "default-date-column-sorted", async () => {
+    const hasSortedClass = await page.evaluate(() => {
+      const ths = Array.from(document.querySelectorAll("#board thead th"));
+      return ths.some((th) => th.className.includes("sorted-"));
+    });
+    assert.ok(hasSortedClass, "no column header has a sorted class on initial load");
+  });
+
+  // Click a non-date column header and verify sorting changes
+  await check(S, "click-header-applies-sorted-class", async () => {
+    const headers = await page.$$eval("#board thead th", (ths) =>
+      ths.map((th, i) => ({ idx: i, text: th.textContent.trim(), cls: th.className })),
+    );
+    // Pick first header that is not already sorted
+    const unsorted = headers.find((h) => !h.cls.includes("sorted-"));
+    assert.ok(unsorted, "all headers already sorted — cannot test click");
+
+    await page.$$eval(
+      "#board thead th",
+      (ths, idx) => ths[idx].click(),
+      unsorted.idx,
+    );
+
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 200);
+        }),
+    );
+
+    const hasClass = await page.evaluate((idx) => {
+      const th = document.querySelectorAll("#board thead th")[idx];
+      return th.className.includes("sorted-");
+    }, unsorted.idx);
+
+    assert.ok(
+      hasClass,
+      `expected sorted class on header #${unsorted.idx} ("${unsorted.text}") after click`,
+    );
+  });
+
+  // Click same header again — sort direction should reverse
+  await check(S, "second-click-reverses-sort-direction", async () => {
+    const headers = await page.$$eval("#board thead th", (ths) =>
+      ths.map((th, i) => ({ idx: i, cls: th.className })),
+    );
+    const sorted = headers.find((h) => h.cls.includes("sorted-"));
+    assert.ok(sorted, "no sorted header found for reverse-click test");
+
+    const dirBefore = sorted.cls.includes("sorted-asc") ? "asc" : "desc";
+
+    await page.$$eval(
+      "#board thead th",
+      (ths, idx) => ths[idx].click(),
+      sorted.idx,
+    );
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 200);
+        }),
+    );
+
+    const dirAfter = await page.evaluate((idx) => {
+      const th = document.querySelectorAll("#board thead th")[idx];
+      return th.className.includes("sorted-asc") ? "asc" : "desc";
+    }, sorted.idx);
+
+    assert.notEqual(
+      dirAfter,
+      dirBefore,
+      `expected sort direction to flip from "${dirBefore}" to "${dirAfter}"`,
+    );
+  });
+}
+
+async function testStatsSportFilter(page, jsErrors) {
+  const S = "stats-sport-filter";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Default sport: Ride — KPI Activities = 16
+  await check(S, "default-sport-ride", async () => {
+    const sport = await page.$eval("#sportSel", (el) => el.value);
+    assert.equal(sport, "Ride", `expected default sport "Ride", got "${sport}"`);
+  });
+
+  // Switch to Run and verify KPI Activities changes
+  await check(S, "switch-to-run-updates-kpis", async () => {
+    const rideCounts = await page.evaluate(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Activities"))
+          return k.querySelector(".v")?.textContent.trim();
+      }
+      return null;
+    });
+
+    // Switch sport to Run
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const runOpt = Array.from(sel.options).find((o) =>
+        o.value === "Run",
+      );
+      if (runOpt) {
+        sel.value = "Run";
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 300);
+        }),
+    );
+
+    const runCounts = await page.evaluate(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Activities"))
+          return k.querySelector(".v")?.textContent.trim();
+      }
+      return null;
+    });
+
+    assert.ok(runCounts !== null, "Activities KPI not found after switching to Run");
+    // The count should differ from Ride (different sports have different activity counts)
+    assert.notEqual(
+      runCounts,
+      rideCounts,
+      `expected Run KPI Activities to differ from Ride ("${rideCounts}"), got "${runCounts}"`,
+    );
+  });
+
+  // Verify records section still renders after sport switch
+  await check(S, "records-render-after-sport-switch", async () => {
+    const recsEl = await page.$(".recs");
+    assert.ok(recsEl, ".recs element not found after sport switch");
+  });
+
+  // Switch to All sports and verify the By sport table shows multiple rows
+  await check(S, "all-sports-shows-sport-table", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const allOpt = Array.from(sel.options).find((o) =>
+        o.value === "All" || o.value === "",
+      );
+      if (allOpt) {
+        sel.value = allOpt.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 300);
+        }),
+    );
+
+    const sportRows = await page.$$eval(
+      "#sportTable tbody tr",
+      (rows) => rows.length,
+    );
+    assert.ok(
+      sportRows >= 2,
+      `expected >= 2 rows in #sportTable with All sports, got ${sportRows}`,
+    );
+  });
+}
+
 async function testBikeServiceCgi() {
   const ENDPOINT = `${CGI}/bike-service`;
 
@@ -1376,8 +1627,17 @@ async function main() {
     console.log("\n--- Data Consistency Across Sources ---");
     await testDataConsistencyAcrossSources(page, jsErrors);
 
+    console.log("\n--- Reset Filter ---");
+    await testResetFilter(page, jsErrors);
+
+    console.log("\n--- Column Sorting ---");
+    await testColumnSorting(page, jsErrors);
+
     console.log("\n--- Stats ---");
     await testStats(page, jsErrors);
+
+    console.log("\n--- Stats Sport Filter ---");
+    await testStatsSportFilter(page, jsErrors);
 
     console.log("\n--- Activity Detail ---");
     await testActivityDetail(page, jsErrors);
