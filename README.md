@@ -400,11 +400,11 @@ crontab -e
   and point `STRAVA_STATE_DIR` at it.
 - A Strava account that is a **member of the club** you want to rank.
 
-**Używanie PowerShell (pwsh) w Codespaces**
+**Using PowerShell (pwsh) in Codespaces**
 
-- **Szybkie wyjaśnienie:** GitHub Codespaces może uruchamiać kontenery oparty na Ubuntu (tu: Ubuntu 24.04). Niektóre testy i narzędzia pomocnicze (skrypty w `test/`) używają PowerShell (`pwsh`). Jeśli chcesz mieć `pwsh` w środowisku Codespaces/devcontainer, możesz zainstalować go ręcznie lub dodać instalację do `devcontainer.json` `postCreateCommand`.
+- **Quick explanation:** GitHub Codespaces can run Ubuntu-based containers (here: Ubuntu 24.04). Some tests and helper tools (scripts in `test/`) use PowerShell (`pwsh`). If you want to have `pwsh` in a Codespaces/devcontainer environment, you can install it manually or add the installation to `devcontainer.json` `postCreateCommand`.
 
-- **Ręczna instalacja w sesji Codespaces (uruchom w terminalu):**
+- **Manual installation in a Codespaces session (run in terminal):**
 
 ```sh
 # Run as root or prefix with sudo
@@ -418,16 +418,16 @@ sudo apt-get install -y --no-install-recommends powershell
 pwsh
 ```
 
-- **Automatyczna instalacja po utworzeniu Codespace (devcontainer):**
+- **Automatic installation after creating a Codespace (devcontainer):**
 
-1. Dodaj plik `scripts/install-pwsh-in-codespaces.sh` z repozytorium (znajdziesz go w `scripts/`).
-2. W `devcontainer.json` ustaw `postCreateCommand` na wywołanie tego skryptu, np.:
+1. Add the file `scripts/install-pwsh-in-codespaces.sh` from the repository (you'll find it in `scripts/`).
+2. In `devcontainer.json` set `postCreateCommand` to call this script, for example:
 
 ```json
 "postCreateCommand": "bash /workspaces/StatsServiceBook/scripts/install-pwsh-in-codespaces.sh"
 ```
 
-- **Skrypt pomocniczy:** Zawarty skrypt instalacyjny znajduje się tutaj: [scripts/install-pwsh-in-codespaces.sh](scripts/install-pwsh-in-codespaces.sh#L1). Uruchamia dodanie repozytorium Microsoft i instaluje pakiet `powershell` na Ubuntu 24.04.
+- **Helper script:** The included installation script is located here: [scripts/install-pwsh-in-codespaces.sh](scripts/install-pwsh-in-codespaces.sh#L1). It runs the addition of the Microsoft repository and installs the `powershell` package on Ubuntu 24.04.
 
 ## 1. Create a Strava API application
 
