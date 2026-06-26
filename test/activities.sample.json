@@ -4,7 +4,8 @@
     "b16239154": { "name": "Road Bike" },
     "b18141502": { "name": "Gravel Bike" },
     "b-anon-1":  { "name": "Bike A" },
-    "Kross":     { "name": "Kross" }
+    "Kross":     { "name": "Kross" },
+    "b-kross-strava": { "name": "Kross" }
   },
   "activities": [
     { "id": "2026-06-22-15-07-running",  "date": "2026-06-22", "name": "Sample HealthSync Run",    "sport_type": "Run",  "gear_id": null,       "distance": 3200,    "moving_time": 1200,  "elapsed_time": 1260,  "total_elevation_gain": 18.0,   "average_speed": 2.67,  "average_heartrate": 148, "max_heartrate": 172, "calories": 310,  "gpx_file": "gpx/healthsync-sample.gpx",         "detail": true },
@@ -33,7 +34,8 @@
     { "id": 21, "date": "2025-10-22", "name": "Long Gravel",    "sport_type": "Ride",        "gear_id": "b18141502",   "distance": 84100.0, "moving_time": 19800, "total_elevation_gain": 890.0, "average_speed": 4.247 },
     { "id": 22, "date": "2025-10-05", "name": "Hill Repeats",   "sport_type": "Ride",        "gear_id": "b16239154",   "distance": 33600.0, "moving_time": 6800,  "total_elevation_gain": 1100.0,"average_speed": 4.941 },
     { "id": 23, "date": "2025-09-18", "name": "End of Summer",  "sport_type": "Ride",        "gear_id": "b16239154",   "distance": 72400.0, "moving_time": 12100, "total_elevation_gain": 640.0, "average_speed": 5.983 },
-    { "id": 24, "date": "2025-09-02", "name": "Gravel Sunset",  "sport_type": "Ride",        "gear_id": "b18141502",   "distance": 47700.0, "moving_time": 11500, "total_elevation_gain": 580.0, "average_speed": 4.148 }
+    { "id": 24, "date": "2025-09-02", "name": "Gravel Sunset",  "sport_type": "Ride",        "gear_id": "b18141502",   "distance": 47700.0, "moving_time": 11500, "total_elevation_gain": 580.0, "average_speed": 4.148 },
+    { "id": 25, "date": "2025-08-15", "name": "Strava Migrated Kross Ride", "sport_type": "Ride", "gear_id": "b-kross-strava", "distance": 28000.0, "moving_time": 4500, "total_elevation_gain": 120.0, "average_speed": 6.222 }
   ]
 }
 
