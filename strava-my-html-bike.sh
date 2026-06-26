@@ -271,17 +271,22 @@ function curBike(){
   return null;
 }
 // Distinct gears seen across rides, with km + count, for the bike form dropdown.
+// Collapses aliases: when a Strava opaque gear ID (e.g. "b12345") and a HealthSync
+// name-as-ID (e.g. "Kross Level 6.0 SRAM") both resolve to the same display name,
+// merge them under the canonical key (the one whose key == name).
 function gearOptions(){
   var agg = {};
   RIDES.forEach(function(r){
     var g = r.gear || "";
     if (!g) return;
-    if (!agg[g]) agg[g] = { id:g, km:0, n:0 };
-    agg[g].km += r.km; agg[g].n += 1;
-  });
-  return Object.keys(agg).map(function(g){
     var name = (GEARS[g] && GEARS[g].name) ? GEARS[g].name : g;
-    return { id:g, label: name + " · " + fmtKm(agg[g].km) + " km · " + agg[g].n + " rides" };
+    var key = (GEARS[name] !== undefined) ? name : g;
+    if (!agg[key]) agg[key] = { km:0, n:0, name:name };
+    agg[key].km += r.km; agg[key].n += 1;
+  });
+  return Object.keys(agg).map(function(k){
+    var e = agg[k];
+    return { id:k, label: e.name + " · " + fmtKm(e.km) + " km · " + e.n + " rides" };
   }).sort(function(a,b){ return a.label < b.label ? -1 : 1; });
 }
 
@@ -330,13 +335,18 @@ function loadAll(){
       // Once seeded the bike (and its parts/service history) is persisted, so it
       // survives even if the gear later drops out of the activity window.
       var mapped = {};
-      MODEL.bikes.forEach(function(b){ if (b.gearId) mapped[b.gearId] = true; });
+      var mappedNames = {};
+      MODEL.bikes.forEach(function(b){ if (b.gearId) mapped[b.gearId] = true; if (b.name) mappedNames[b.name] = true; });
       var seeded = false;
       Object.keys(GEARS)
         .sort(function(a,b){ var na=GEARS[a].name||a, nb=GEARS[b].name||b; return na<nb?-1:1; })
         .forEach(function(gid){
-          if (mapped[gid]) return;
-          MODEL.bikes.push({ id:uid("b-"), name:(GEARS[gid].name||gid), gearId:gid, baseMileage:0, parts:[] });
+          var bname = GEARS[gid].name || gid;
+          // Skip if this gear_id is already assigned, or if a bike with the same
+          // name already exists (avoids duplicate tabs after Strava→HealthSync migration).
+          if (mapped[gid] || mappedNames[bname]) return;
+          MODEL.bikes.push({ id:uid("b-"), name:bname, gearId:gid, baseMileage:0, parts:[] });
+          mappedNames[bname] = true;
           seeded = true;
         });
       // No Strava gears discovered yet (detail backfill still pending) and nothing

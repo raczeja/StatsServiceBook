@@ -667,8 +667,38 @@ async function testBikeService(page, jsErrors) {
   });
   await check(S, "bike-tabs-present", async () => {
     const n = await page.$$eval(".bikes .tab:not(.add)", (els) => els.length);
-    // 4 bikes from sample + 1 auto-seeded from gear b-anon-1 (Bike A in activities.json)
+    // 4 bikes from sample + 1 auto-seeded from gear b-anon-1 (Bike A in activities.json).
+    // b-kross-strava (same name "Kross" as existing Kross bike) must NOT create a 6th tab.
     assert.ok(n >= 4, `expected >= 4 bike tabs, got ${n}`);
+  });
+  await check(S, "no-duplicate-bike-tabs", async () => {
+    const labels = await page.$$eval(".bikes .tab:not(.add)", (els) =>
+      els.map((e) => e.textContent.trim()),
+    );
+    const dupes = labels.filter((l, i) => labels.indexOf(l) !== i);
+    assert.equal(dupes.length, 0, `duplicate bike tabs: ${JSON.stringify(dupes)}`);
+  });
+  await check(S, "no-duplicate-gear-options", async () => {
+    // Open Edit Bike for the Kross bike (has a gear alias scenario in sample data).
+    // The gear dropdown must not list the same name twice.
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Kross"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .btn.sm", { timeout: 5000 });
+    await page.evaluate(() => {
+      const btns = document.querySelectorAll("#bikepanel .btn.sm");
+      const edit = Array.from(btns).find((b) => b.textContent.includes("Edit bike"));
+      if (edit) edit.click();
+    });
+    await page.waitForSelector("#b-gear", { timeout: 3000 });
+    const opts = await page.$$eval("#b-gear option", (els) =>
+      els.map((o) => o.textContent.replace(/\s*·.*$/, "").trim()),
+    );
+    const dupes = opts.filter((l, i) => l && opts.indexOf(l) !== i);
+    assert.equal(dupes.length, 0, `duplicate gear options: ${JSON.stringify(dupes)}`);
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
   });
   await check(S, "road-bike-tab-exists", async () => {
     const labels = await page.$$eval(".bikes .tab:not(.add)", (els) =>
@@ -1858,6 +1888,387 @@ async function testBikeAssignmentDropdown(page, jsErrors) {
   });
 }
 
+async function testEmptyState(page, jsErrors) {
+  const S = "empty-state";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#board table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // AlpineSki is not in the sample dataset → board renders empty state
+  await page.evaluate(() => {
+    const sel = document.getElementById("sport");
+    sel.value = "AlpineSki";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  await check(S, "empty-div-shown", async () => {
+    const el = await page.$("#board .empty");
+    assert.ok(el, ".empty not rendered when no activities match filter");
+  });
+  await check(S, "empty-div-text", async () => {
+    const text = await page.$eval("#board .empty", (el) => el.textContent);
+    assert.ok(
+      text.includes("No activities"),
+      `expected "No activities" in .empty, got: "${text}"`,
+    );
+  });
+  await check(S, "summary-cleared", async () => {
+    const text = await page.$eval("#summary", (el) => el.textContent.trim());
+    assert.equal(
+      text,
+      "",
+      `expected #summary cleared on empty filter, got: "${text}"`,
+    );
+  });
+}
+
+async function testDashboardBestChips(page, jsErrors) {
+  const S = "dashboard-best-chips";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#bests .best", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Every chip must have a <b> label and non-empty value text
+  await check(S, "chips-have-label-and-value", async () => {
+    const chips = await page.$$eval("#bests .best", (els) =>
+      els.map((el) => ({
+        label: el.querySelector("b")?.textContent?.trim() || "",
+        full: el.textContent?.trim() || "",
+      })),
+    );
+    assert.ok(chips.length >= 3, `expected >= 3 best chips, got ${chips.length}`);
+    chips.forEach((c, i) => {
+      assert.ok(c.label.length > 0, `chip ${i} has no <b> label`);
+      assert.ok(
+        c.full.length > c.label.length,
+        `chip ${i} has no value text beyond the label`,
+      );
+    });
+  });
+
+  // If temperature chips are present (data-dependent), their values must show °C
+  await check(S, "temperature-chips-have-degree-symbol", async () => {
+    const chipTexts = await page.$$eval("#bests .best", (els) =>
+      els.map((el) => el.textContent || ""),
+    );
+    const coldText = chipTexts.find((t) => t.includes("Coldest"));
+    const hotText = chipTexts.find((t) => t.includes("Hottest"));
+    if (coldText || hotText) {
+      assert.ok(
+        coldText && coldText.includes("°C"),
+        `expected "°C" in Coldest chip, got: "${coldText}"`,
+      );
+      assert.ok(
+        hotText && hotText.includes("°C"),
+        `expected "°C" in Hottest chip, got: "${hotText}"`,
+      );
+    }
+  });
+}
+
+async function testStravaLink(page, jsErrors) {
+  const S = "strava-link";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+
+  // Strava numeric ID → "Open on Strava" link must be present
+  await page.goto(URLS.activity, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "strava-activity-has-open-link", async () => {
+    const text = await page.$eval("#links", (el) => el.textContent);
+    assert.ok(
+      text.includes("Open on Strava"),
+      `expected "Open on Strava" in #links for Strava activity, got: "${text}"`,
+    );
+  });
+  await check(S, "strava-link-href-contains-id", async () => {
+    const href = await page.$eval(
+      '#links a[href*="strava.com"]',
+      (el) => el.href,
+    );
+    assert.ok(
+      href.includes("18784255013"),
+      `expected activity ID in Strava link href, got: "${href}"`,
+    );
+  });
+
+  // HealthSync date-based ID → no Strava link
+  jsErrors.length = 0;
+  await page.goto(URLS.activityHealthsyncRun, {
+    waitUntil: "networkidle0",
+    timeout: 20000,
+  });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "healthsync-activity-no-strava-link", async () => {
+    const link = await page.$('#links a[href*="strava.com"]');
+    assert.ok(!link, 'expected no "Open on Strava" link for HealthSync activity');
+  });
+}
+
+async function testStatsRecords(page, jsErrors) {
+  const S = "stats-records";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "best-week-record-present", async () => {
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
+    );
+    assert.ok(
+      labels.some((l) => l.includes("Best week")),
+      `expected "Best week" in #recs record labels, got: ${JSON.stringify(labels)}`,
+    );
+  });
+  await check(S, "best-week-value-has-km", async () => {
+    const val = await page.evaluate(() => {
+      for (const rec of document.querySelectorAll("#recs .rec")) {
+        if (rec.querySelector(".rl")?.textContent.includes("Best week"))
+          return rec.querySelector(".rv")?.textContent || "";
+      }
+      return null;
+    });
+    assert.ok(
+      val && val.includes("km"),
+      `expected "km" in best-week value, got: "${val}"`,
+    );
+  });
+
+  await check(S, "streak-record-present", async () => {
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
+    );
+    assert.ok(
+      labels.some((l) => l.toLowerCase().includes("streak")),
+      `expected "streak" in #recs record labels, got: ${JSON.stringify(labels)}`,
+    );
+  });
+  await check(S, "streak-value-has-days", async () => {
+    const val = await page.evaluate(() => {
+      for (const rec of document.querySelectorAll("#recs .rec")) {
+        if (rec.querySelector(".rl")?.textContent.toLowerCase().includes("streak"))
+          return rec.querySelector(".rv")?.textContent || "";
+      }
+      return null;
+    });
+    assert.ok(
+      val && val.includes("day"),
+      `expected "day" in streak value, got: "${val}"`,
+    );
+  });
+}
+
+async function testBikeModalCrud(page, jsErrors) {
+  const S = "bike-modal-crud";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  const testBikeName = `TestBike-${Date.now()}`;
+
+  // ── Add bike ──────────────────────────────────────────────────────────────
+  await check(S, "add-bike-modal-opens", async () => {
+    await page.evaluate(() => showAddBike());
+    await page.waitForSelector("#b-name", { timeout: 3000 });
+    const nameInput = await page.$("#b-name");
+    assert.ok(nameInput, "#b-name input not found in add-bike modal");
+  });
+
+  await check(S, "add-bike-creates-tab", async () => {
+    await page.$eval(
+      "#b-name",
+      (el, name) => { el.value = name; },
+      testBikeName,
+    );
+    await page.evaluate(() => saveBike(null));
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+    const tabs = await page.$$eval(".bikes .tab:not(.add)", (els) =>
+      els.map((el) => el.textContent.trim()),
+    );
+    assert.ok(
+      tabs.some((t) => t.includes(testBikeName)),
+      `expected tab with name "${testBikeName}", got: ${JSON.stringify(tabs)}`,
+    );
+  });
+
+  // ── Add part to Road Bike ─────────────────────────────────────────────────
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+  const testPartName = `TestPart-${Date.now()}`;
+
+  await check(S, "add-part-modal-opens", async () => {
+    await page.evaluate(() => showAddPart());
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    const nameInput = await page.$("#p-name");
+    assert.ok(nameInput, "#p-name input not found in add-part modal");
+  });
+
+  await check(S, "add-part-creates-row", async () => {
+    await page.$eval(
+      "#p-name",
+      (el, name) => { el.value = name; },
+      testPartName,
+    );
+    const countBefore = await page.$$eval(
+      "#bikepanel tbody tr:not(.ridesrow)",
+      (rows) => rows.length,
+    );
+    await page.evaluate(() => savePart(null));
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+    const countAfter = await page.$$eval(
+      "#bikepanel tbody tr:not(.ridesrow)",
+      (rows) => rows.length,
+    );
+    assert.ok(
+      countAfter > countBefore,
+      `expected part count to increase from ${countBefore}, got ${countAfter}`,
+    );
+  });
+
+  // ── Delete the test bike ──────────────────────────────────────────────────
+  await check(S, "delete-bike-removes-tab", async () => {
+    await page.evaluate((name) => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      for (const t of tabs) {
+        if (t.textContent.trim().includes(name)) { t.click(); break; }
+      }
+    }, testBikeName);
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+    const tabsBefore = await page.$$eval(".bikes .tab:not(.add)", (els) => els.length);
+    await page.evaluate(() => {
+      window.confirm = () => true;
+      const btn = document.querySelector('button[onclick*="deleteBike"]');
+      if (btn) btn.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+    const tabsAfter = await page.$$eval(".bikes .tab:not(.add)", (els) => els.length);
+    assert.ok(
+      tabsAfter < tabsBefore,
+      `expected tab count to decrease from ${tabsBefore}, got ${tabsAfter}`,
+    );
+  });
+}
+
+async function testAlertThresholds(page, jsErrors) {
+  const S = "alert-thresholds";
+  const ENDPOINT = `${CGI}/bike-service`;
+
+  // Setup: lower alertKm to 1 on Road Bike's first active part so it's
+  // guaranteed to trigger regardless of how much mileage the sample carries.
+  const setupR = await fetch(ENDPOINT, { cache: "no-store" });
+  const setupData = await setupR.json();
+  const road = setupData.bikes.find((b) => b.name === "Road Bike");
+  if (!road || !road.parts || road.parts.length === 0) {
+    console.log(`  SKIP  ${S}: Road Bike has no parts to test`);
+    return;
+  }
+  const originalAlertKm = road.parts[0].alertKm;
+  road.parts[0].alertKm = 1;
+  await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(setupData),
+  });
+
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  await check(S, "warn-row-appears-when-threshold-exceeded", async () => {
+    const n = await page.$$eval("#bikepanel tr.warn", (rows) => rows.length);
+    assert.ok(
+      n >= 1,
+      `expected >= 1 tr.warn in #bikepanel when alertKm=1 is set, got ${n}`,
+    );
+  });
+
+  await check(S, "warn-row-has-highlight-background", async () => {
+    const bg = await page.evaluate(() => {
+      const td = document.querySelector("#bikepanel tr.warn td");
+      return td ? window.getComputedStyle(td).backgroundColor : null;
+    });
+    assert.ok(
+      bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent",
+      `expected coloured background on tr.warn td, got: "${bg}"`,
+    );
+  });
+
+  // Teardown: restore original alertKm so subsequent runs start clean
+  const restoreR = await fetch(ENDPOINT, { cache: "no-store" });
+  const restoreData = await restoreR.json();
+  const restoreRoad = restoreData.bikes.find((b) => b.name === "Road Bike");
+  if (restoreRoad && restoreRoad.parts && restoreRoad.parts.length > 0) {
+    restoreRoad.parts[0].alertKm = originalAlertKm;
+    await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(restoreData),
+    });
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -1883,6 +2294,12 @@ async function main() {
 
     console.log("\n--- My Activities ---");
     await testMyActivities(page, jsErrors);
+
+    console.log("\n--- Empty State (dashboard) ---");
+    await testEmptyState(page, jsErrors);
+
+    console.log("\n--- Dashboard Best Chips ---");
+    await testDashboardBestChips(page, jsErrors);
 
     console.log("\n--- Activity Filtering & Refresh ---");
     await testActivityFilteringAndRefresh(page, jsErrors);
@@ -1914,6 +2331,9 @@ async function main() {
     console.log("\n--- Stats Sport Filter ---");
     await testStatsSportFilter(page, jsErrors);
 
+    console.log("\n--- Stats Records (best week / streak) ---");
+    await testStatsRecords(page, jsErrors);
+
     console.log("\n--- Activity Detail ---");
     await testActivityDetail(page, jsErrors);
 
@@ -1923,6 +2343,9 @@ async function main() {
     console.log("\n--- Activity Detail (HealthSync Cycling) ---");
     await testActivityDetailHealthsyncCycling(page, jsErrors);
 
+    console.log("\n--- Strava Link (numeric vs HealthSync ID) ---");
+    await testStravaLink(page, jsErrors);
+
     console.log("\n--- Bike Service (UI) ---");
     await testBikeService(page, jsErrors);
 
@@ -1931,6 +2354,12 @@ async function main() {
 
     console.log("\n--- Bike Service (Notifications) ---");
     await testBikeServiceNotifications(page, jsErrors);
+
+    console.log("\n--- Bike Modal CRUD (add/delete bike, add part) ---");
+    await testBikeModalCrud(page, jsErrors);
+
+    console.log("\n--- Alert Thresholds (isWarn) ---");
+    await testAlertThresholds(page, jsErrors);
   } finally {
     await browser.close();
   }

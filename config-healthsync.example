@@ -119,3 +119,8 @@ HEALTHSYNC_DEFAULT_BIKE="Kross"
 #
 # Typical path on OpenWrt (default STRAVA_MY_STATE_DIR):
 #HEALTHSYNC_IMPORT_STRAVA_STORE="/usr/lib/strava-my-activities/activities.ndjson"
+#
+# Bike-service migration: when HEALTHSYNC_IMPORT_STRAVA_STORE is set, the script
+# also copies bike-service.json and bike-assignments.json from the same directory
+# on the first run (if the HealthSync files do not exist yet). No extra config
+# needed — your bike history and per-activity assignments carry over automatically.

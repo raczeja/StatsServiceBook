@@ -59,14 +59,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "npm install puppeteer failed" }
     Copy-Item (Join-Path $TestDir 'functional-tests.mjs') (Join-Path $TmpDir 'functional-tests.mjs')
 
-    # ---- 5. Run tests ----------------------------------------------------------
+    # ---- 5a. Run shell unit tests inside the container -----------------------
+    Write-Host "==> Running shell unit tests ..."
+    & podman exec $Container sh /opt/shell-tests.sh
+    $ShellExitCode = $LASTEXITCODE
+
+    # ---- 5b. Run functional (Puppeteer) tests --------------------------------
     Write-Host "==> Running functional tests ..."
     $env:TEST_PORT = $HostPort
     & node functional-tests.mjs
-    $ExitCode = $LASTEXITCODE
+    $FunctionalExitCode = $LASTEXITCODE
     Remove-Item Env:TEST_PORT -ErrorAction SilentlyContinue
 
-    if ($ExitCode -ne 0) {
+    $ExitCode = if ($ShellExitCode -ne 0 -or $FunctionalExitCode -ne 0) { 1 } else { 0 }
+
+    if ($ShellExitCode -ne 0 -or $FunctionalExitCode -ne 0) {
         Write-Host ""
         Write-Host "==> Container logs (on test failure):"
         & podman logs $Container

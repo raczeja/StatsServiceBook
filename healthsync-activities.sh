@@ -45,6 +45,7 @@ GPX_DIR="$WEB_DIR/gpx"
 DETAIL_DIR="$WEB_DIR/details"
 STORE="$STATE_DIR/activities.ndjson"
 TOKEN_STATE="$STATE_DIR/gdrive-token.json"
+GEARS_CACHE="$STATE_DIR/gears-strava-cache.json"
 
 mkdir -p "$STATE_DIR" "$WEB_DIR" "$GPX_DIR" "$DETAIL_DIR"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/healthsync.XXXXXX")"
@@ -71,8 +72,23 @@ if [ -n "$IMPORT_STRAVA" ] && [ -f "$IMPORT_STRAVA" ]; then
         imported=$((imported + 1))
     done < "$IMPORT_STRAVA"
     log "Strava history: $imported activities merged from $IMPORT_STRAVA (store now $(wc -l < "$STORE" | tr -d ' ') total)"
+
+    # One-time migration: copy bike-service.json and bike-assignments.json from
+    # the Strava state dir (same directory as IMPORT_STRAVA) if the HealthSync
+    # files do not exist yet. Idempotent — skipped on every subsequent run.
+    _sd="$(dirname "$IMPORT_STRAVA")"
+    if [ ! -f "$BIKE_DATA" ] && [ -f "$_sd/bike-service.json" ]; then
+        cp "$_sd/bike-service.json" "$BIKE_DATA"
+        log "migrated bike-service.json from $_sd"
+    fi
+    if [ ! -f "$BIKE_ASSIGN" ] && [ -f "$_sd/bike-assignments.json" ]; then
+        cp "$_sd/bike-assignments.json" "$BIKE_ASSIGN"
+        log "migrated bike-assignments.json from $_sd"
+    fi
+    unset _sd
 fi
 
+ADDED=0
 if [ "$IMPORT_ENABLED" != "0" ]; then
 
 # --- 1. Google Drive access token -------------------------------------------
@@ -135,35 +151,32 @@ drive_download() {
 }
 
 # --- 3. Process new activity files ------------------------------------------
-# One CSV per activity; matching TCX (HR/calories) and GPX (map/elevation) are
-# downloaded and cached alongside. Activity IDs are derived from the filename
-# since healthsync exports carry no Strava-style numeric ID.
+# Enumerate unique activity base names from all file extensions (CSV, TCX, GPX,
+# KML, FIT). CSV has precise summary data and is used when present; cycling
+# activities may export only TCX+GPX, so TCX is the fallback for distance/time.
 [ -f "$STORE" ] || : > "$STORE"
 jq -r '.id' "$STORE" 2>/dev/null | sort > "$TMP/known_ids.txt" || : > "$TMP/known_ids.txt"
 
 ADDED=0
 
+# Strip any known extension, then keep names matching either HealthSync format:
+#   Old (type-first):  "WALKING 2026.06.22 20.01"
+#   New (date-first):  "2026.06.22 15.07-WALKING"
+jq -r '.files[].name |
+    gsub("[.](csv|gpx|tcx|kml|fit)$"; "") |
+    select(
+        test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2} [0-9]{2}\\.[0-9]{2}-[A-Z_]+$") or
+        test("^[A-Z_]+ [0-9]{4}\\.[0-9]{2}\\.[0-9]{2} [0-9]{2}\\.[0-9]{2}$")
+    )
+' "$TMP/filelist.json" | sort -u > "$TMP/activity_bases.txt"
+log "unique activities found: $(wc -l < "$TMP/activity_bases.txt" | tr -d ' ')"
 
-# Match both filename formats HealthSync uses:
-#   Old: "{TYPE} {YYYY.MM.DD} {HH.MM}.csv"   e.g. "WALKING 2026.06.22 20.01.csv"
-#   New: "{YYYY.MM.DD} {HH.MM}-{TYPE}.csv"   e.g. "2026.06.22 15.07-WALKING.csv"
-#        (new format without extension:       e.g. "2026.06.22 15.07-WALKING")
-# The date-first regex requires end-of-string ($) so it does not match .kml/.gpx/.tcx
-# files that share the same naming pattern but carry no summary data.
-jq -r '.files[] | select(
-    (.name | endswith(".csv")) or
-    (.name | test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2} [0-9]{2}\\.[0-9]{2}-[A-Z_]+$"))
-) | "\(.id)\t\(.name)"' \
-    "$TMP/filelist.json" > "$TMP/csv_files.tsv"
-log "CSV files found: $(wc -l < "$TMP/csv_files.tsv" | tr -d ' ')"
+while IFS= read -r base; do
+    [ -n "$base" ] || continue
 
-while IFS='	' read -r file_id filename; do
-    [ -n "$file_id" ] || continue
-
-    # Strip .csv suffix if present, then detect which format:
+    # Detect format from base name:
     #   Old (type-first):  "WALKING 2026.06.22 20.01"
     #   New (date-first):  "2026.06.22 15.07-WALKING"
-    base="$(basename "$filename" .csv)"
     case "$base" in
         [0-9]*)
             # New format: date-first
@@ -191,27 +204,36 @@ while IFS='	' read -r file_id filename; do
 
     log "new activity: $act_id"
 
-    drive_download "$file_id" "$TMP/activity.csv" \
-        || { log "WARN: failed to download CSV for $act_id"; continue; }
-
-    # Skip header row; columns: source_app,type,name,date,time,elapsed_s,active_s,dist_km
-    # Strip \r so CRLF exports from the Android app don't leave a trailing \r on the
-    # last field, which would break jq's tonumber on csv_dist_km.
-    csv_data="$(tail -n +2 "$TMP/activity.csv" | head -1 | tr -d '\r')"
-    [ -n "$csv_data" ] || { log "WARN: empty CSV for $act_id"; continue; }
-
-    csv_datetime="$(printf '%s' "$csv_data" | cut -d, -f4)"  # 2026.06.22 20:01:42
-    csv_elapsed="$(printf '%s' "$csv_data" | cut -d, -f6)"   # elapsed seconds
-    csv_active="$(printf '%s' "$csv_data" | cut -d, -f7)"    # active seconds
-    csv_dist_km="$(printf '%s' "$csv_data" | cut -d, -f8)"   # distance in km
-
-    act_date="$(printf '%s' "$csv_datetime" | cut -d' ' -f1 | tr '.' '-')"
-    act_time="$(printf '%s' "$csv_datetime" | cut -d' ' -f2)"
+    # Date/time from filename (CSV may override with the exact recorded value)
+    act_date="$(printf '%s' "$date_part" | tr '.' '-')"
+    act_time="$(printf '%s' "$time_part" | tr '.' ':'):00"
     act_start="${act_date}T${act_time}Z"
+    distance_m=0; csv_active=0; csv_elapsed=0
 
-    distance_m="$(printf '%s' "$csv_dist_km" | jq -Rr 'tonumber * 1000 | round')"
-    avg_speed="$(jq -n --arg d "$distance_m" --arg t "$csv_active" \
-        'if ($t|tonumber)>0 then ($d|tonumber)/($t|tonumber) else 0 end')"
+    # --- Summary data: CSV preferred (exact start time + distance + active time) ---
+    csv_id="$(drive_file_id "${base}.csv")"
+    # Also check extensionless variant (some HealthSync versions omit .csv)
+    [ -z "$csv_id" ] && csv_id="$(drive_file_id "$base")"
+
+    if [ -n "$csv_id" ] && drive_download "$csv_id" "$TMP/activity.csv" 2>/dev/null; then
+        # Skip header row; columns: source_app,type,name,date,time,elapsed_s,active_s,dist_km
+        # Strip \r so CRLF exports from the Android app don't leave a trailing \r on the
+        # last field, which would break jq's tonumber on csv_dist_km.
+        csv_data="$(tail -n +2 "$TMP/activity.csv" | head -1 | tr -d '\r')"
+        if [ -n "$csv_data" ]; then
+            csv_datetime="$(printf '%s' "$csv_data" | cut -d, -f4)"  # 2026.06.22 20:01:42
+            csv_elapsed="$(printf '%s' "$csv_data" | cut -d, -f6)"   # elapsed seconds
+            csv_active="$(printf '%s' "$csv_data" | cut -d, -f7)"    # active seconds
+            csv_dist_km="$(printf '%s' "$csv_data" | cut -d, -f8)"   # distance in km
+            act_date="$(printf '%s' "$csv_datetime" | cut -d' ' -f1 | tr '.' '-')"
+            act_time="$(printf '%s' "$csv_datetime" | cut -d' ' -f2)"
+            act_start="${act_date}T${act_time}Z"
+            distance_m="$(printf '%s' "$csv_dist_km" | jq -Rr 'tonumber * 1000 | round')"
+        fi
+    fi
+
+    avg_speed="$(jq -n --argjson d "$distance_m" --argjson t "$csv_active" \
+        'if $t>0 then $d/$t else 0 end')"
 
     case "$activity_type" in
         WALKING|NORDIC_WALKING) sport_type="Walk" ;;
@@ -222,9 +244,10 @@ while IFS='	' read -r file_id filename; do
         *)                      sport_type="$activity_type" ;;
     esac
 
-    # TCX: extract HR + calories using grep -o (compact XML, no xmllint needed)
-    tcx_name="${date_part} ${time_part}-${activity_type}.tcx"
-    avg_hr="null"; max_hr="null"; calories="null"
+    # TCX: HR + calories; also distance/time when no CSV was available.
+    # Use "${base}.tcx" so both old-format and new-format names resolve correctly.
+    tcx_name="${base}.tcx"
+    avg_hr="null"; max_hr="null"; calories="null"; avg_watts_v="null"; kj_v="null"
     tcx_id="$(drive_file_id "$tcx_name")"
     if [ -n "$tcx_id" ] && drive_download "$tcx_id" "$TMP/activity.tcx" 2>/dev/null; then
         _v="$(grep -o 'AverageHeartRateBpm><Value>[0-9]*</Value>' \
@@ -236,14 +259,45 @@ while IFS='	' read -r file_id filename; do
         _v="$(grep -o '<Calories>[0-9]*</Calories>' \
             "$TMP/activity.tcx" | head -1 | grep -o '[0-9]*</Calories>' | grep -o '^[0-9]*' || true)"
         [ -n "$_v" ] && calories="$_v"
+        # No CSV: extract distance and total time from TCX lap summaries.
+        # Last cumulative <DistanceMeters> trackpoint = total activity distance.
+        # Sum all <TotalTimeSeconds> entries to handle multi-lap activities.
+        if [ "$distance_m" = "0" ] && [ "$csv_active" = "0" ]; then
+            _dist="$(grep -o '<DistanceMeters>[0-9.]*</DistanceMeters>' "$TMP/activity.tcx" \
+                | tail -1 | grep -o '<DistanceMeters>[0-9.]*' | grep -o '[0-9.]*$' || true)"
+            [ -n "$_dist" ] && distance_m="$(printf '%s' "$_dist" | jq -Rr 'tonumber | round')"
+            _time="$(grep -o '<TotalTimeSeconds>[0-9.]*</TotalTimeSeconds>' "$TMP/activity.tcx" \
+                | grep -o '<TotalTimeSeconds>[0-9.]*' | grep -o '[0-9.]*$' \
+                | jq -Rn '[inputs | tonumber] | add // 0 | round' || echo 0)"
+            csv_elapsed="$_time"; csv_active="$_time"
+            avg_speed="$(jq -n --argjson d "$distance_m" --argjson t "$csv_active" \
+                'if $t>0 then $d/$t else 0 end')"
+        fi
+        # Watts: average trackpoint power (power meter only)
+        avg_watts_v="$(grep -o '<Watts>[0-9]*</Watts>' "$TMP/activity.tcx" \
+            | grep -o '[0-9]*</Watts>' | grep -o '^[0-9]*' \
+            | jq -Rn '[inputs | tonumber] | if length>0 then (add/length | round) else null end' \
+            2>/dev/null || echo null)"
+        if [ "$avg_watts_v" != "null" ] && [ "$csv_active" -gt 0 ]; then
+            kj_v="$(jq -n --argjson w "$avg_watts_v" --argjson t "$csv_active" \
+                '$w * $t / 1000 | round')"
+        fi
+    fi
+    # kJ ≈ kcal (Strava convention; ~25% cycling efficiency makes them numerically equal)
+    if [ "$kj_v" = "null" ] && [ "$calories" != "null" ]; then
+        kj_v="$calories"
+        if [ "$avg_watts_v" = "null" ] && [ "$csv_active" -gt 0 ]; then
+            avg_watts_v="$(jq -n --argjson kj "$kj_v" --argjson t "$csv_active" \
+                '$kj * 1000 / $t | round')"
+        fi
     fi
 
     # GPX: cache locally + compute elevation gain
     # Elevation chars removed by tr: <, e, l, > and / — none appear in numeric values.
-    gpx_name="${date_part} ${time_part}-${activity_type}.gpx"
+    gpx_name="${base}.gpx"
     gpx_safe="$(printf '%s' "$gpx_name" | tr ' ' '_')"
     gpx_local="$GPX_DIR/$gpx_safe"
-    gpx_ref="null"; elevation_gain=0
+    gpx_ref="null"; elevation_gain=0; max_speed_v=0
 
     gpx_id="$(drive_file_id "$gpx_name")"
     if [ -n "$gpx_id" ] && drive_download "$gpx_id" "$gpx_local" 2>/dev/null; then
@@ -254,6 +308,12 @@ while IFS='	' read -r file_id filename; do
                 reduce range(1; $e|length) as $i (
                     0; . + (if $e[$i] > $e[$i-1] then $e[$i] - $e[$i-1] else 0 end)
                 ) | round' 2>/dev/null || echo 0)"
+        # Max speed from GPX speed extension (m/s); Garmin/Wahoo export gpxtpx:speed
+        _mspd="$(grep -o ':speed>[0-9.]*' "$gpx_local" \
+            | grep -o '[0-9.]*$' \
+            | jq -Rn '[inputs | tonumber] | if length>0 then max else 0 end' \
+            2>/dev/null || echo 0)"
+        max_speed_v="${_mspd:-0}"
     fi
 
     case "$sport_type" in
@@ -278,18 +338,21 @@ while IFS='	' read -r file_id filename; do
         --argjson calories     "$calories" \
         --argjson gpx_file     "$gpx_ref" \
         --argjson gear_id      "$gear_id" \
+        --argjson max_speed    "$max_speed_v" \
+        --argjson avg_watts    "$avg_watts_v" \
+        --argjson kj           "$kj_v" \
         '{id:$id, date:$date, start_date:$start_date, start_date_local:$start_date,
           name:$name, sport_type:$sport_type, gear_id:$gear_id,
           distance:$distance,
           moving_time:($moving_time|tonumber), elapsed_time:($elapsed_time|tonumber),
-          total_elevation_gain:$elevation, average_speed:$avg_speed, max_speed:0,
+          total_elevation_gain:$elevation, average_speed:$avg_speed, max_speed:$max_speed,
           average_heartrate:$avg_hr, max_heartrate:$max_hr,
-          average_cadence:null, average_watts:null, kilojoules:null,
+          average_cadence:null, average_watts:$avg_watts, kilojoules:$kj,
           average_temp:null, suffer_score:null,
           calories:$calories, gpx_file:$gpx_file}' >> "$STORE"
 
     ADDED=$((ADDED + 1))
-done < "$TMP/csv_files.tsv"
+done < "$TMP/activity_bases.txt"
 
 TOTAL="$(wc -l < "$STORE" | tr -d ' ')"
 log "store: +$ADDED new, $TOTAL total"
@@ -297,11 +360,14 @@ log "store: +$ADDED new, $TOTAL total"
 # --- 4. Write per-activity detail files -------------------------------------
 # activity.html fetches details/{id}.json — for healthsync activities this is
 # the store record (with gpx_file), not a Strava API response.
-while IFS= read -r line; do
-    aid="$(printf '%s' "$line" | jq -r '.id | tostring')"
+# One jq pass emits "id<TAB>json" per line — avoids one subprocess per record.
+_sep="$(printf '\t')"
+jq -r '(.id | tostring) + "\t" + tojson' "$STORE" | \
+while IFS="$_sep" read -r aid content; do
     detail_file="$DETAIL_DIR/${aid}.json"
-    [ -f "$detail_file" ] || printf '%s\n' "$line" > "$detail_file"
-done < "$STORE"
+    [ -f "$detail_file" ] || printf '%s\n' "$content" > "$detail_file"
+done
+unset _sep
 log "detail files: $(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.json$' || echo 0) activities"
 
 else
@@ -309,22 +375,32 @@ else
 fi
 TOTAL="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 
-# --- 5. Emit activities.json ------------------------------------------------
+# --- 5. Emit activities.json + 6. Render HTML --------------------------------
+# Skip when nothing changed: no new activities and bike-assign unchanged
+# (no CGI writes since last emit). After deploying new scripts, run manually.
+if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
+   [ -f "$WEB_DIR/index.html" ] && \
+   [ -f "$BIKE_ASSIGN" ] && [ "$WEB_DIR/activities.json" -nt "$BIKE_ASSIGN" ]; then
+    log "no new activities, outputs up-to-date — skipping re-emit"
+else
 GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
 [ -f "$BIKE_ASSIGN" ] || printf '{}' > "$BIKE_ASSIGN"
 cp "$BIKE_ASSIGN" "$TMP/bike-assign.json"
 
 # gears map: gear_id → {name}.
-# Source 1 (store): HealthSync native activities — gear_id IS the human bike name.
-# Source 2 (detail files): Strava activities — gear_id is opaque (b16239154);
-# detail JSON carries .gear.id + .gear.name. Source 2 overrides source 1.
+# Source 1 (store): HealthSync activities — gear_id IS the human bike name.
+# Source 2 (Strava detail files): opaque gear_id needs .gear.name lookup.
+# Cache source 2 permanently — Strava history is static once imported.
 jq -s 'map(select(.gear_id != null) | {(.gear_id): {name:.gear_id}}) | add // {}' \
     "$STORE" > "$TMP/gears.json"
-if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
+if [ ! -f "$GEARS_CACHE" ] && ls "$DETAIL_DIR"/[0-9]*.json >/dev/null 2>&1; then
     jq -s 'map(.gear | select(. != null and .id != null) | {(.id): {name:(.name // .id)}}) | add // {}' \
-        "$DETAIL_DIR"/*.json > "$TMP/gears-detail.json"
-    jq -s '.[0] * .[1]' "$TMP/gears.json" "$TMP/gears-detail.json" > "$TMP/gears-merged.json"
+        "$DETAIL_DIR"/[0-9]*.json > "$GEARS_CACHE"
+    log "built Strava gear name cache"
+fi
+if [ -f "$GEARS_CACHE" ]; then
+    jq -s '.[0] * .[1]' "$TMP/gears.json" "$GEARS_CACHE" > "$TMP/gears-merged.json"
     mv "$TMP/gears-merged.json" "$TMP/gears.json"
 fi
 
@@ -334,12 +410,21 @@ jq -s \
     --slurpfile gears "$TMP/gears.json" '
   ($assigns[0] // {}) as $A |
   ($gears[0] // {}) as $G |
+  # When Strava history is migrated, the gear cache may contain opaque Strava IDs
+  # (e.g. "b12345") whose name equals a HealthSync gear_id key (the human bike
+  # name).  Build an alias map and drop the opaque IDs so the bike dropdown does
+  # not show the same bike twice.
+  ($G | to_entries
+      | map(select(.key != .value.name and (.value.name as $n | $G | has($n))))
+      | map({(.key): .value.name}) | add // {}) as $ALIAS |
+  ($G | with_entries(select($ALIAS[.key] | not))) as $GCLEAN |
   {
     generatedAt: $gen,
-    gears: $G,
+    gears: $GCLEAN,
     activities: [
       .[] |
-      ($A[.id | tostring] // .gear_id) as $bike |
+      ($A[.id | tostring] // .gear_id) as $raw |
+      (if $raw != null then ($ALIAS[$raw] // $raw) else null end) as $bike |
       {
         id:                   .id,
         date:                 .date,
@@ -351,12 +436,12 @@ jq -s \
         elapsed_time:         .elapsed_time,
         total_elevation_gain: .total_elevation_gain,
         average_speed:        .average_speed,
-        max_speed:            0,
+        max_speed:            (.max_speed // 0),
         average_heartrate:    .average_heartrate,
         max_heartrate:        .max_heartrate,
         average_cadence:      null,
-        average_watts:        null,
-        kilojoules:           null,
+        average_watts:        .average_watts,
+        kilojoules:           .kilojoules,
         average_temp:         null,
         suffer_score:         null,
         calories:             .calories,
@@ -380,4 +465,5 @@ log "wrote $WEB_DIR/activities.json ($TOTAL activities)"
 . "$LIBDIR/strava-my-html-stats.sh"
 
 log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/bike.html, $WEB_DIR/stats.html"
+fi
 log "done."
