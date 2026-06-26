@@ -11,7 +11,16 @@
       "Bash(git fetch *)",
       "Bash(git stash *)",
       "Bash(git checkout *)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(sh -n c:/CProjektyGIT/Git_OS/StatsServiceBook/healthsync-activities.sh)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File .\\\\test\\\\run-tests.ps1 2>&1 | Tail -30)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File .\\\\test\\\\run-tests.ps1 2>&1 | Select-Object -Last 30)",
+      "PowerShell(git -C \"c:\\\\CProjektyGIT\\\\Git_OS\\\\StatsServiceBook\" status --short)",
+      "PowerShell(git -C \"c:\\\\CProjektyGIT\\\\Git_OS\\\\StatsServiceBook\" diff HEAD -- healthsync-activities.sh)",
+      "PowerShell(head -20)",
+      "PowerShell(git -C \"c:\\\\CProjektyGIT\\\\Git_OS\\\\StatsServiceBook\" diff -- healthsync-activities.sh)",
+      "Bash(sh -n c:/CProjektyGIT/Git_OS/StatsServiceBook/strava-my-html-bike.sh)",
+      "Bash(sh -n \"c:/CProjektyGIT/Git_OS/StatsServiceBook/test/shell-tests.sh\")"
     ]
   },
   "hooks": {

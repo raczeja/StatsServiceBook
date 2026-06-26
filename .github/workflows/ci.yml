@@ -40,6 +40,11 @@ jobs:
           docker logs stravame-tests || true
           exit 1
 
+      - name: Run shell unit tests
+        run: |
+          docker exec stravame-tests sh /opt/shell-tests.sh --junit /tmp/shell-tests.xml
+          docker cp stravame-tests:/tmp/shell-tests.xml shell-tests.xml
+
       - name: Run functional tests
         run: |
           TMP_DIR=$(mktemp -d)
@@ -55,8 +60,8 @@ jobs:
         if: always()
         uses: dorny/test-reporter@v1
         with:
-          name: functional-tests
-          path: test-results.xml
+          name: all-tests
+          path: 'shell-tests.xml,test-results.xml'
           reporter: java-junit
           fail-on-error: false
 
@@ -64,8 +69,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: functional-tests-report
-          path: test-results.xml
+          name: test-reports
+          path: |
+            shell-tests.xml
+            test-results.xml
 
       - name: Stop test container
         if: always()

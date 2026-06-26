@@ -326,12 +326,12 @@ function renderElevFromSplits(splits) {
 }
 
 function renderHrFromSplits(splits) {
-  var hrs = [], labels = [], i;
+  var hrs = [], labels = [], i, hr;
   for (i = 0; i < splits.length; i++) {
-    hrs.push(splits[i].average_heartrate || 0);
-    labels.push(String(i + 1));
+    hr = splits[i].average_heartrate;
+    if (hr > 0) { hrs.push(hr); labels.push(String(i + 1)); }
   }
-  if (!hrs.some(function(v) { return v > 0; })) return;
+  if (!hrs.length) return;
   document.getElementById("hr-box").style.display = "";
   drawLineSvg("svg-hr", hrs, "#e91e63", "bpm", labels);
 }
@@ -418,9 +418,9 @@ function renderGpxCharts(gpxUrl) {
         hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
         if (!hrEls.length) hrEls = trkpts[i].getElementsByTagNameNS("*", "heartrate");
         bpm = hrEls.length ? (parseFloat(hrEls[0].textContent) || 0) : 0;
-        allH.push(bpm);
+        if (bpm > 0) allH.push(bpm);
       }
-      if (allH.some(function(v){ return v > 0; })) {
+      if (allH.length) {
         step = Math.max(1, Math.floor(allH.length / 300));
         var sh = [];
         for (i = 0; i < allH.length; i += step) sh.push(allH[i]);
