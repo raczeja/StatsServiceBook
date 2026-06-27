@@ -1,4 +1,5 @@
 # StravaStats for OpenWrt
+[![CI](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml/badge.svg)](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml)
 
 A router-native activity stats and bike service tracker for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with mileage and service alerts. Supports Strava as the primary source, and also works with [HealthSync](https://healthsync.app/)-exported CSV/GPX/TCX files from Google Drive for Strava-API-free use. Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
 
