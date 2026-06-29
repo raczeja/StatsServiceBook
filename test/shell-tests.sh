@@ -162,6 +162,57 @@ fi
 dupe_count="$(grep -c '"id":"18784255013"' "$TMP/hs-store.ndjson" || true)"
 assert_eq "$S" "strava-no-duplicate" "$dupe_count" "1"
 
+# Cross-format deduplication within a single run: old-format (TYPE YYYY.MM.DD
+# HH.MM) and new-format (YYYY.MM.DD HH.MM-TYPE) filenames for the same activity
+# produce identical IDs. The fix appends each new ID to known_ids.txt so the
+# second base name is skipped in the same pass.
+_process_base() {
+    base="$1"; store="$2"; known="$3"
+    case "$base" in
+        [0-9]*)
+            date_part="$(printf '%s' "$base" | cut -d' ' -f1)"
+            rest="$(printf '%s' "$base" | cut -d' ' -f2)"
+            time_part="$(printf '%s' "$rest" | cut -d'-' -f1)"
+            activity_type="$(printf '%s' "$rest" | cut -d'-' -f2-)"
+            ;;
+        *)
+            activity_type="$(printf '%s' "$base" | cut -d' ' -f1)"
+            date_part="$(printf '%s' "$base" | cut -d' ' -f2)"
+            time_part="$(printf '%s' "$base" | cut -d' ' -f3)"
+            ;;
+    esac
+    type_lower="$(printf '%s' "$activity_type" | tr '[:upper:]' '[:lower:]')"
+    act_id="$(printf '%s-%s-%s' "$date_part" "$time_part" "$type_lower" | tr '.' '-')"
+    if grep -qxF "$act_id" "$known" 2>/dev/null; then
+        return 0
+    fi
+    printf '{"id":"%s","sport_type":"Ride"}\n' "$act_id" >> "$store"
+    printf '%s\n' "$act_id" >> "$known"
+}
+
+S="cross-format-deduplication"
+
+: > "$TMP/xf_store.ndjson"
+: > "$TMP/xf_known.txt"
+_process_base "CYCLING 2026.06.28 15.30" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+_process_base "2026.06.28 15.30-CYCLING" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+assert_eq "$S" "old-then-new-no-dupe" \
+    "$(wc -l < "$TMP/xf_store.ndjson" | tr -d ' ')" "1"
+
+: > "$TMP/xf_store.ndjson"
+: > "$TMP/xf_known.txt"
+_process_base "2026.06.28 15.30-CYCLING" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+_process_base "CYCLING 2026.06.28 15.30" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+assert_eq "$S" "new-then-old-no-dupe" \
+    "$(wc -l < "$TMP/xf_store.ndjson" | tr -d ' ')" "1"
+
+: > "$TMP/xf_store.ndjson"
+: > "$TMP/xf_known.txt"
+_process_base "2026.06.28 15.30-CYCLING" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+_process_base "2026.06.29 08.00-RUNNING" "$TMP/xf_store.ndjson" "$TMP/xf_known.txt"
+assert_eq "$S" "distinct-activities-both-stored" \
+    "$(wc -l < "$TMP/xf_store.ndjson" | tr -d ' ')" "2"
+
 # ── tcx-parsing ───────────────────────────────────────────────────────────────
 # Mirrors the grep -o patterns from healthsync-activities.sh TCX block.
 S="tcx-parsing"
@@ -246,6 +297,150 @@ csv_data_cr="$(tail -n +1 "$TMP/crlf.csv" | head -1 | tr -d '\r')"
 csv_dist_cr="$(printf '%s' "$csv_data_cr" | cut -d, -f8)"
 dist_m_cr="$(printf '%s' "$csv_dist_cr" | jq -Rr 'tonumber * 1000 | round')"
 assert_eq "$S" "crlf-distance-m" "$dist_m_cr" "3200"
+
+# ── avg-speed-edge-cases ──────────────────────────────────────────────────────
+# Mirrors the avg_speed formula in healthsync-activities.sh (lines 235-236, 273-274).
+S="avg-speed-edge-cases"
+
+result="$(jq -n --argjson d 30000 --argjson t 0 'if $t>0 then $d/$t else 0 end')"
+assert_eq "$S" "zero-time-returns-0" "$result" "0"
+
+result="$(jq -n --argjson d 0 --argjson t 3600 'if $t>0 then $d/$t else 0 end')"
+assert_eq "$S" "zero-distance-returns-0" "$result" "0"
+
+result="$(jq -n --argjson d 36000 --argjson t 3600 'if $t>0 then $d/$t else 0 end')"
+assert_eq "$S" "normal-speed-10ms" "$result" "10"
+
+# ── elevation-gain ────────────────────────────────────────────────────────────
+# Mirrors the GPX elevation jq pipeline in healthsync-activities.sh (lines 305-310).
+S="elevation-gain"
+
+_elev_from_pts() {
+    printf '%s' "$1" | tr ' ' '\n' | \
+        jq -Rn '[inputs | tonumber] as $e |
+            reduce range(1; $e|length) as $i (
+                0; . + (if $e[$i] > $e[$i-1] then $e[$i] - $e[$i-1] else 0 end)
+            ) | round'
+}
+
+elev="$(printf '' | jq -Rn '[inputs | tonumber] as $e |
+    reduce range(1; $e|length) as $i (
+        0; . + (if $e[$i] > $e[$i-1] then $e[$i] - $e[$i-1] else 0 end)
+    ) | round' 2>/dev/null || echo 0)"
+assert_eq "$S" "zero-points"      "$elev" "0"
+assert_eq "$S" "one-point"        "$(_elev_from_pts '100')"             "0"
+assert_eq "$S" "descending-only"  "$(_elev_from_pts '100 90 80 70')"    "0"
+assert_eq "$S" "typical-route"    "$(_elev_from_pts '100 150 140 190')" "100"
+
+# ── max-speed-no-extension ────────────────────────────────────────────────────
+# GPX without a :speed extension must produce 0, not null or an error.
+S="max-speed-no-extension"
+
+cat > "$TMP/no_speed.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="51.1" lon="17.0"><ele>100</ele></trkpt>
+    <trkpt lat="51.2" lon="17.1"><ele>110</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+
+_mspd="$(grep -o ':speed>[0-9.]*' "$TMP/no_speed.gpx" \
+    | grep -o '[0-9.]*$' \
+    | jq -Rn '[inputs | tonumber] | if length>0 then max else 0 end' \
+    2>/dev/null || echo 0)"
+assert_eq "$S" "no-speed-tags-returns-0" "${_mspd:-0}" "0"
+
+# ── tcx-fallback-condition ────────────────────────────────────────────────────
+# The TCX-no-CSV branch checks [ "$distance_m" = "0" ] && [ "$csv_active" = "0" ].
+# jq `round` must return the bare integer string "0" even for "0.000" input so
+# the string comparison holds.
+S="tcx-fallback-condition"
+
+dist="$(printf '0.000' | jq -Rr 'tonumber * 1000 | round')"
+assert_eq "$S" "zero-km-rounds-to-0-string"  "$dist" "0"
+dist="$(printf '0' | jq -Rr 'tonumber * 1000 | round')"
+assert_eq "$S" "zero-int-stays-0-string"     "$dist" "0"
+
+# ── activity-filter-regex ─────────────────────────────────────────────────────
+# Mirrors the jq select block that builds activity_bases.txt (lines 165-171).
+S="activity-filter-regex"
+
+cat > "$TMP/filelist.json" << 'JSON'
+{"files":[
+  {"name":"CYCLING 2026.06.28 15.30.csv"},
+  {"name":"2026.06.28 15.30-CYCLING.gpx"},
+  {"name":"CYCLING 2026.06.28 15.30"},
+  {"name":"some-random-file.csv"},
+  {"name":"walking 2026.06.28 15.30.csv"},
+  {"name":"CYCLING 2026.06.28 15.30.bak"},
+  {"name":"NORDIC_WALKING 2026.05.10 09.30.tcx"},
+  {"name":"2026.04.03 12.00-E_BIKING.fit"}
+]}
+JSON
+
+bases="$(jq -r '.files[].name |
+    gsub("[.](csv|gpx|tcx|kml|fit)$"; "") |
+    select(
+        test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2} [0-9]{2}\\.[0-9]{2}-[A-Z_]+$") or
+        test("^[A-Z_]+ [0-9]{4}\\.[0-9]{2}\\.[0-9]{2} [0-9]{2}\\.[0-9]{2}$")
+    )
+' "$TMP/filelist.json" | sort -u)"
+
+assert_eq "$S" "valid-base-count" \
+    "$(printf '%s\n' "$bases" | grep -c '.' || true)" "4"
+
+if printf '%s\n' "$bases" | grep -qxF "CYCLING 2026.06.28 15.30"; then
+    ok "$S" "old-format-accepted"
+else
+    err "$S" "old-format-accepted" "old-format base missing"
+fi
+if printf '%s\n' "$bases" | grep -qxF "NORDIC_WALKING 2026.05.10 09.30"; then
+    ok "$S" "underscore-type-accepted"
+else
+    err "$S" "underscore-type-accepted" "underscore type base missing"
+fi
+if printf '%s\n' "$bases" | grep -q "walking "; then
+    err "$S" "lowercase-type-rejected" "lowercase type incorrectly accepted"
+else
+    ok "$S" "lowercase-type-rejected"
+fi
+if printf '%s\n' "$bases" | grep -q "\.bak"; then
+    err "$S" "unknown-extension-rejected" "unknown extension incorrectly accepted"
+else
+    ok "$S" "unknown-extension-rejected"
+fi
+
+# ── multi-lap-tcx ─────────────────────────────────────────────────────────────
+# Multi-lap TCX: TotalTimeSeconds must be summed; DistanceMeters must use the
+# last value (cumulative per-lap total, not per-lap increment).
+S="multi-lap-tcx"
+
+cat > "$TMP/multilap.tcx" << 'TCX'
+<TrainingCenterDatabase>
+  <Activities><Activity Sport="Biking">
+    <Lap>
+      <TotalTimeSeconds>1800</TotalTimeSeconds>
+      <DistanceMeters>5000</DistanceMeters>
+    </Lap>
+    <Lap>
+      <TotalTimeSeconds>1800</TotalTimeSeconds>
+      <DistanceMeters>10000</DistanceMeters>
+    </Lap>
+  </Activity></Activities>
+</TrainingCenterDatabase>
+TCX
+
+_time="$(grep -o '<TotalTimeSeconds>[0-9.]*</TotalTimeSeconds>' "$TMP/multilap.tcx" \
+    | grep -o '<TotalTimeSeconds>[0-9.]*' | grep -o '[0-9.]*$' \
+    | jq -Rn '[inputs | tonumber] | add // 0 | round' || echo 0)"
+assert_eq "$S" "time-sum-both-laps" "$_time" "3600"
+
+_dist="$(grep -o '<DistanceMeters>[0-9.]*</DistanceMeters>' "$TMP/multilap.tcx" \
+    | tail -1 | grep -o '<DistanceMeters>[0-9.]*' | grep -o '[0-9.]*$' || true)"
+dist_m="$(printf '%s' "$_dist" | jq -Rr 'tonumber | round')"
+assert_eq "$S" "distance-uses-last-lap" "$dist_m" "10000"
 
 # ── token-caching ─────────────────────────────────────────────────────────────
 # Mirrors the cached-token-reuse branch in strava-lib.sh / ensure_drive_token.

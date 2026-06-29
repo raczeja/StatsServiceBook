@@ -337,6 +337,42 @@ function renderHrFromSplits(splits) {
 }
 
 // --- GPX map (healthsync activities) ----------------------------------------
+// Try tile providers in order; switch on first error.
+// OSM → CartoDB Voyager → Esri (different CDNs; one usually clears SSL proxies).
+var TILE_PROVIDERS = [
+  { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "&copy; OpenStreetMap contributors" },
+  { url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+    attr: "&copy; OpenStreetMap &copy; CartoDB" },
+  { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    attr: "Tiles &copy; Esri" }
+];
+function makeTileLayer(map) {
+  var idx = 0, switching = false;
+  var p = TILE_PROVIDERS[0];
+  var layer = L.tileLayer(p.url, { maxZoom: 19, attribution: p.attr }).addTo(map);
+  layer.on("tileerror", function() {
+    if (switching) return;
+    if (idx + 1 < TILE_PROVIDERS.length) {
+      switching = true;
+      idx++;
+      var np = TILE_PROVIDERS[idx];
+      layer.options.attribution = np.attr;
+      layer.setUrl(np.url);
+      setTimeout(function() { switching = false; }, 3000);
+    } else {
+      if (!map.getContainer().querySelector(".tile-unavail")) {
+        var n = document.createElement("div");
+        n.className = "tile-unavail";
+        n.style.cssText = "position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.85);padding:4px 10px;font-size:12px;border-radius:3px;pointer-events:none;z-index:1000;white-space:nowrap";
+        n.textContent = "Map tiles unavailable — route still shown";
+        map.getContainer().appendChild(n);
+      }
+    }
+  });
+  return layer;
+}
+
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
 // uhttpd serves .gpx without an XML Content-Type header.
 function renderGpxMap(gpxUrl){
@@ -367,9 +403,7 @@ function renderGpxMap(gpxUrl){
       if (!pts.length) { hideMapSpin(); box.innerHTML = '<div class="note">GPX has no track points.</div>'; return; }
       try {
         var map = L.map("map");
-        var tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
-        }).addTo(map);
+        var tileLayer = makeTileLayer(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         map.fitBounds(line.getBounds(), { padding: [20, 20] });
         L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
@@ -452,9 +486,7 @@ function renderMap(d){
   if (!pts.length) { box.innerHTML = '<div class="note">Route could not be decoded.</div>'; return; }
   try {
     var map = L.map("map");
-    var tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
+    var tileLayer = makeTileLayer(map);
     var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: .9 }).addTo(map);
     map.fitBounds(line.getBounds(), { padding: [20, 20] });
     L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
