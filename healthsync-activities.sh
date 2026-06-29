@@ -351,6 +351,7 @@ while IFS= read -r base; do
           average_temp:null, suffer_score:null,
           calories:$calories, gpx_file:$gpx_file}' >> "$STORE"
 
+    printf '%s\n' "$act_id" >> "$TMP/known_ids.txt"
     ADDED=$((ADDED + 1))
 done < "$TMP/activity_bases.txt"
 

@@ -20,7 +20,10 @@
       "PowerShell(head -20)",
       "PowerShell(git -C \"c:\\\\CProjektyGIT\\\\Git_OS\\\\StatsServiceBook\" diff -- healthsync-activities.sh)",
       "Bash(sh -n c:/CProjektyGIT/Git_OS/StatsServiceBook/strava-my-html-bike.sh)",
-      "Bash(sh -n \"c:/CProjektyGIT/Git_OS/StatsServiceBook/test/shell-tests.sh\")"
+      "Bash(sh -n \"c:/CProjektyGIT/Git_OS/StatsServiceBook/test/shell-tests.sh\")",
+      "Bash(sh test/shell-tests.sh)",
+      "PowerShell(cd c:\\\\CProjektyGIT\\\\Git_OS\\\\StatsServiceBook; powershell -ExecutionPolicy Bypass -File test\\\\run-tests.ps1 2>&1)",
+      "Bash(jq --version)"
     ]
   },
   "hooks": {
