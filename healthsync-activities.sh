@@ -37,6 +37,9 @@ DEFAULT_BIKE_NAME="${HEALTHSYNC_DEFAULT_BIKE:-Kross}"
 CGI_DIR="${HEALTHSYNC_CGI_DIR:-/www/cgi-bin}"
 IMPORT_ENABLED="${HEALTHSYNC_IMPORT_ENABLED:-1}"
 IMPORT_STRAVA="${HEALTHSYNC_IMPORT_STRAVA_STORE:-}"
+BIRTH_YEAR="${HEALTHSYNC_BIRTH_YEAR:-}"
+ATHLETE_AGE=""
+[ -n "$BIRTH_YEAR" ] && ATHLETE_AGE="$(( $(date '+%Y') - BIRTH_YEAR ))"
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (opkg install jq)"
@@ -133,6 +136,9 @@ curl -fsS \
     -o "$TMP/filelist.json" || die "Drive file listing failed"
 file_count="$(jq '.files | length' "$TMP/filelist.json")"
 log "found $file_count files in Drive folder"
+
+# keepalive mode: token refresh + folder check only
+case "${HEALTHSYNC_MODE:-full}" in keepalive) log "keepalive done."; exit 0 ;; esac
 
 # Build name→id lookup (tab-separated, sorted for grep -F)
 jq -r '.files[] | "\(.name)\t\(.id)"' "$TMP/filelist.json" | sort > "$TMP/name_to_id.tsv"
@@ -322,6 +328,23 @@ while IFS= read -r base; do
         *) gear_id="null" ;;
     esac
 
+    # Weather temp: extract start lat/lon from GPX first trackpoint, fall back to config
+    _w_lat="" _w_lon="" _w_temp="null" _w_temp_src="null"
+    if [ -n "$gpx_local" ] && [ -f "$gpx_local" ]; then
+        _w_lat=$(grep '<trkpt' "$gpx_local" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+        _w_lon=$(grep '<trkpt' "$gpx_local" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+    fi
+    [ -z "$_w_lat" ] && _w_lat="${WEATHER_LAT:-}"
+    [ -z "$_w_lon" ] && _w_lon="${WEATHER_LON:-}"
+    if [ -n "$_w_lat" ] && [ -n "$_w_lon" ]; then
+        _fw_temp_source=""
+        _t=$(fetch_weather_temp "$_w_lat" "$_w_lon" "$act_date" || true)
+        if [ -n "$_t" ]; then
+            _w_temp="$_t"
+            _w_temp_src="\"$_fw_temp_source\""
+        fi
+    fi
+
     jq -nc \
         --arg id         "$act_id" \
         --arg date       "$act_date" \
@@ -340,6 +363,8 @@ while IFS= read -r base; do
         --argjson gear_id      "$gear_id" \
         --argjson max_speed    "$max_speed_v" \
         --argjson avg_watts    "$avg_watts_v" \
+        --argjson avg_temp     "$_w_temp" \
+        --argjson temp_src     "$_w_temp_src" \
         --argjson kj           "$kj_v" \
         '{id:$id, date:$date, start_date:$start_date, start_date_local:$start_date,
           name:$name, sport_type:$sport_type, gear_id:$gear_id,
@@ -348,7 +373,7 @@ while IFS= read -r base; do
           total_elevation_gain:$elevation, average_speed:$avg_speed, max_speed:$max_speed,
           average_heartrate:$avg_hr, max_heartrate:$max_hr,
           average_cadence:null, average_watts:$avg_watts, kilojoules:$kj,
-          average_temp:null, suffer_score:null,
+          average_temp:$avg_temp, temp_source:$temp_src, suffer_score:null,
           calories:$calories, gpx_file:$gpx_file}' >> "$STORE"
 
     printf '%s\n' "$act_id" >> "$TMP/known_ids.txt"
@@ -358,6 +383,47 @@ done < "$TMP/activity_bases.txt"
 TOTAL="$(wc -l < "$STORE" | tr -d ' ')"
 log "store: +$ADDED new, $TOTAL total"
 
+# Backfill average_temp for records with null temp (archive + forecast fallback),
+# and upgrade forecast temps to archive once archive data becomes available
+# (~7 days after the activity date). Only null-temp and forecast-sourced records
+# are touched; archive temps and pre-existing records without temp_source are left.
+_bf_count=0
+: > "$TMP/store_patched.ndjson"
+while IFS= read -r _line; do
+    _bf_case=$(printf '%s' "$_line" | jq -r \
+        'if .average_temp == null then "null"
+         elif (.temp_source == "forecast" and .date <= (now - 604800 | strftime("%Y-%m-%d"))) then "upgrade"
+         else "" end' 2>/dev/null || true)
+    if [ -n "$_bf_case" ]; then
+        _d=$(printf '%s' "$_line" | jq -r '.date')
+        _gf=$(printf '%s' "$_line" | jq -r '.gpx_file // ""')
+        _bl="" _blon=""
+        if [ -n "$_gf" ] && [ -f "$WEB_DIR/$_gf" ]; then
+            _bl=$(grep '<trkpt' "$WEB_DIR/$_gf" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+            _blon=$(grep '<trkpt' "$WEB_DIR/$_gf" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+        fi
+        [ -z "$_bl" ] && _bl="${WEATHER_LAT:-}"
+        [ -z "$_blon" ] && _blon="${WEATHER_LON:-}"
+        if [ -n "$_bl" ] && [ -n "$_blon" ]; then
+            _fw_temp_source=""
+            [ "$_bf_case" = "upgrade" ] && _fw_archive_only=1
+            _t2=$(fetch_weather_temp "$_bl" "$_blon" "$_d" || true)
+            _fw_archive_only=0
+            if [ -n "$_t2" ]; then
+                _line=$(printf '%s' "$_line" | jq --argjson t "$_t2" --arg src "$_fw_temp_source" \
+                    '.average_temp = $t | .temp_source = $src')
+                _bf_count=$((_bf_count + 1))
+            fi
+        fi
+    fi
+    printf '%s\n' "$_line"
+done < "$STORE" > "$TMP/store_patched.ndjson"
+mv "$TMP/store_patched.ndjson" "$STORE"
+if [ "$_bf_count" -gt 0 ]; then
+    log "weather: backfilled/upgraded temp for $_bf_count activities"
+    ADDED=$((ADDED + _bf_count))
+fi
+
 # --- 4. Write per-activity detail files -------------------------------------
 # activity.html fetches details/{id}.json — for healthsync activities this is
 # the store record (with gpx_file), not a Strava API response.
@@ -366,7 +432,7 @@ _sep="$(printf '\t')"
 jq -r '(.id | tostring) + "\t" + tojson' "$STORE" | \
 while IFS="$_sep" read -r aid content; do
     detail_file="$DETAIL_DIR/${aid}.json"
-    [ -f "$detail_file" ] || printf '%s\n' "$content" > "$detail_file"
+    printf '%s\n' "$content" > "$detail_file"
 done
 unset _sep
 log "detail files: $(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.json$' || echo 0) activities"
@@ -379,6 +445,13 @@ TOTAL="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 # --- 5. Emit activities.json + 6. Render HTML --------------------------------
 # Skip when nothing changed: no new activities and bike-assign unchanged
 # (no CGI writes since last emit). After deploying new scripts, run manually.
+# Also force re-emit when the computed athlete age differs from the stored one
+# (changing HEALTHSYNC_BIRTH_YEAR in the config, or on new-year rollover, triggers this).
+if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ]; then
+    _stored_age="$(jq -r '.athleteAge // "null"' "$WEB_DIR/activities.json" 2>/dev/null || printf 'null')"
+    _want_age="${ATHLETE_AGE:-null}"
+    [ "$_stored_age" != "$_want_age" ] && ADDED=1
+fi
 if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
    [ -f "$WEB_DIR/index.html" ] && \
    [ -f "$BIKE_ASSIGN" ] && [ "$WEB_DIR/activities.json" -nt "$BIKE_ASSIGN" ]; then
@@ -407,6 +480,7 @@ fi
 
 jq -s \
     --arg gen "$GENERATED_AT" \
+    --arg athleteAge "$ATHLETE_AGE" \
     --slurpfile assigns "$TMP/bike-assign.json" \
     --slurpfile gears "$TMP/gears.json" '
   ($assigns[0] // {}) as $A |
@@ -421,6 +495,7 @@ jq -s \
   ($G | with_entries(select($ALIAS[.key] | not))) as $GCLEAN |
   {
     generatedAt: $gen,
+    athleteAge: (if $athleteAge == "" then null else ($athleteAge | tonumber) end),
     gears: $GCLEAN,
     activities: [
       .[] |
@@ -443,7 +518,7 @@ jq -s \
         average_cadence:      null,
         average_watts:        .average_watts,
         kilojoules:           .kilojoules,
-        average_temp:         null,
+        average_temp:         .average_temp,
         suffer_score:         null,
         calories:             .calories,
         gpx_file:             .gpx_file,
