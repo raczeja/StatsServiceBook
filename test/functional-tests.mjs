@@ -375,6 +375,19 @@ async function testActivityDetail(page, jsErrors) {
     const n = await page.$$eval("#svg-hr path", (els) => els.length);
     assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
   });
+  // Heart rate zone table — visible when HR data is present
+  await check(S, "hr-zone-box-visible", async () => {
+    const display = await page.$eval("#hr-zone-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-zone-box has display:none`);
+  });
+  await check(S, "hr-zone-table-rows", async () => {
+    const n = await page.$$eval("#hr-zone-content tr", (els) => els.length);
+    assert.strictEqual(n, 5, `expected 5 HR zone rows, got ${n}`);
+  });
+  await check(S, "hr-zone-title-age-based", async () => {
+    const txt = await page.$eval("#hr-zone-title", (el) => el.textContent);
+    assert.ok(txt.includes("185"), `#hr-zone-title should mention HRmax 185 bpm (220-35), got: ${txt}`);
+  });
   await check(S, "elev-chart-has-tooltip-data", async () => {
     const n = await page.evaluate(() =>
       (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
@@ -490,6 +503,19 @@ async function testActivityDetailHealthsyncRun(page, jsErrors) {
     const n = await page.$$eval("#svg-hr path", (els) => els.length);
     assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
   });
+  // Heart rate zone table — visible when HR data is present
+  await check(S, "hr-zone-box-visible", async () => {
+    const display = await page.$eval("#hr-zone-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-zone-box has display:none`);
+  });
+  await check(S, "hr-zone-table-rows", async () => {
+    const n = await page.$$eval("#hr-zone-content tr", (els) => els.length);
+    assert.strictEqual(n, 5, `expected 5 HR zone rows, got ${n}`);
+  });
+  await check(S, "hr-zone-title-age-based", async () => {
+    const txt = await page.$eval("#hr-zone-title", (el) => el.textContent);
+    assert.ok(txt.includes("185"), `#hr-zone-title should mention HRmax 185 bpm (220-35), got: ${txt}`);
+  });
   await check(S, "elev-chart-has-tooltip-data", async () => {
     const n = await page.evaluate(() =>
       (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
@@ -604,6 +630,19 @@ async function testActivityDetailHealthsyncCycling(page, jsErrors) {
   await check(S, "svg-hr-rendered", async () => {
     const n = await page.$$eval("#svg-hr path", (els) => els.length);
     assert.ok(n >= 2, `expected >= 2 path elements in #svg-hr (fill + line), got ${n}`);
+  });
+  // Heart rate zone table — visible when HR data is present
+  await check(S, "hr-zone-box-visible", async () => {
+    const display = await page.$eval("#hr-zone-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#hr-zone-box has display:none`);
+  });
+  await check(S, "hr-zone-table-rows", async () => {
+    const n = await page.$$eval("#hr-zone-content tr", (els) => els.length);
+    assert.strictEqual(n, 5, `expected 5 HR zone rows, got ${n}`);
+  });
+  await check(S, "hr-zone-title-age-based", async () => {
+    const txt = await page.$eval("#hr-zone-title", (el) => el.textContent);
+    assert.ok(txt.includes("185"), `#hr-zone-title should mention HRmax 185 bpm (220-35), got: ${txt}`);
   });
   await check(S, "elev-chart-has-tooltip-data", async () => {
     const n = await page.evaluate(() =>
@@ -1961,23 +2000,23 @@ async function testDashboardBestChips(page, jsErrors) {
     });
   });
 
-  // If temperature chips are present (data-dependent), their values must show °C
-  await check(S, "temperature-chips-have-degree-symbol", async () => {
+  // Temperature chips must be present (sample data has average_temp) and show °C
+  await check(S, "temperature-chips-present-with-degree-symbol", async () => {
     const chipTexts = await page.$$eval("#bests .best", (els) =>
       els.map((el) => el.textContent || ""),
     );
     const coldText = chipTexts.find((t) => t.includes("Coldest"));
     const hotText = chipTexts.find((t) => t.includes("Hottest"));
-    if (coldText || hotText) {
-      assert.ok(
-        coldText && coldText.includes("°C"),
-        `expected "°C" in Coldest chip, got: "${coldText}"`,
-      );
-      assert.ok(
-        hotText && hotText.includes("°C"),
-        `expected "°C" in Hottest chip, got: "${hotText}"`,
-      );
-    }
+    assert.ok(coldText, "expected a Coldest chip (sample data has average_temp)");
+    assert.ok(hotText, "expected a Hottest chip (sample data has average_temp)");
+    assert.ok(
+      coldText.includes("°C"),
+      `expected "°C" in Coldest chip, got: "${coldText}"`,
+    );
+    assert.ok(
+      hotText.includes("°C"),
+      `expected "°C" in Hottest chip, got: "${hotText}"`,
+    );
   });
 }
 

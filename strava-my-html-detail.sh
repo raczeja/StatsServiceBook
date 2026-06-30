@@ -45,6 +45,10 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   #map-spin-bar::after{content:'';display:block;height:100%;width:40%;background:#fc4c02;
     animation:map-shimmer 1.2s ease-in-out infinite}
   @keyframes map-shimmer{0%{transform:translateX(-150%)}100%{transform:translateX(400%)}}
+  .hr-zone-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .hr-zone-table td{padding:.25rem .4rem;vertical-align:middle}
+  .hr-zone-table tr:nth-child(odd){background:#f7f7f7}
+  .hr-zone-bar{display:inline-block;height:8px;border-radius:3px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -70,6 +74,10 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   <div class="box" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
     <svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="box" id="hr-zone-box" style="display:none">
+    <h3 id="hr-zone-title">Heart rate zones</h3>
+    <div id="hr-zone-content"></div>
   </div>
   <div class="box" id="splits-box">
     <h3 id="splits-title">Splits</h3>
@@ -128,6 +136,7 @@ function isFoot(sport){ return !!FOOT[sport]; }
 // --- Tooltip (shared with splits chart and line charts) --------------------
 var TIP_DATA = [], tipEl = null;
 var LINE_TIPS = {};   // svgId -> [{x, html}] — populated by drawLineSvg
+var ATHLETE_AGE = 0;  // set from activities.json metadata; 0 = not configured
 function lineChartHover(e, svgId) {
   var data = LINE_TIPS[svgId];
   if (!data || !data.length) return;
@@ -220,8 +229,20 @@ function renderCards(d){
       "VAM — average climbing speed in vertical metres per hour (elevation gain ÷ moving time). Higher means you climbed faster.");
   if (d.total_elevation_gain > 0 && d.distance > 0)
     html += card("Climb/km", (d.total_elevation_gain / (d.distance / 1000)).toFixed(1) + " m/km");
-  if (d.average_heartrate) html += card("Avg HR", Math.round(d.average_heartrate) + " bpm");
-  if (d.max_heartrate)     html += card("Max HR", Math.round(d.max_heartrate) + " bpm");
+  if (d.average_heartrate) {
+    var hrTip = ATHLETE_AGE > 0
+      ? "HRmax = 220 − " + ATHLETE_AGE + " = " + (220 - ATHLETE_AGE) + " bpm · used for zone thresholds"
+      : "Zone thresholds use " + (d.max_heartrate ? d.max_heartrate + " bpm (activity max HR)" : "peak HR from data")
+        + ". Set BIRTH_YEAR in config for age-based zones.";
+    html += cardTip("Avg HR", Math.round(d.average_heartrate) + " bpm", hrTip);
+  }
+  if (d.max_heartrate) {
+    var mhrTip = ATHLETE_AGE > 0
+      ? "HRmax = 220 − " + ATHLETE_AGE + " = " + (220 - ATHLETE_AGE) + " bpm · used for zone thresholds"
+      : "This value is used as HRmax for zone thresholds."
+        + " Set BIRTH_YEAR in config for age-based zones.";
+    html += cardTip("Max HR", Math.round(d.max_heartrate) + " bpm", mhrTip);
+  }
   if (d.average_cadence)   html += card("Avg cadence", Math.round(d.average_cadence));
   if (d.average_watts)     html += card("Avg power", Math.round(d.average_watts) + " W");
   // Normalized power (weighted average) + Variability Index = NP / avg.
@@ -336,6 +357,90 @@ function renderHrFromSplits(splits) {
   drawLineSvg("svg-hr", hrs, "#e91e63", "bpm", labels);
 }
 
+// h:mm:ss / m:ss for zone time display; "0 s" for zero.
+function fmtHMS(s) {
+  s = Math.round(s);
+  if (!s) return "0 s";
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if (h > 0) return h + ":" + (m<10?"0":"") + m + ":" + (sec<10?"0":"") + sec;
+  return m + ":" + (sec<10?"0":"") + sec;
+}
+
+// hrPoints: [{bpm, secs}] — secs is actual time (splits) or equal weight (GPX).
+// maxHR: activity max_heartrate; if 0/null, derived from data.
+// Zones S1–S5: <60%, 60-70%, 70-80%, 80-90%, ≥90% of HRmax.
+// HRmax preference: ATHLETE_AGE > 0 → 220 − age; else activity maxHR; else peak from data.
+function renderHrZones(hrPoints, maxHR) {
+  if (!hrPoints.length) return;
+  var i, bpm;
+  var hrMax, sourceLabel;
+  if (ATHLETE_AGE > 0) {
+    hrMax = 220 - ATHLETE_AGE;
+    sourceLabel = "HRmax " + hrMax + " bpm";
+  } else {
+    hrMax = maxHR || 0;
+    if (!hrMax) {
+      for (i = 0; i < hrPoints.length; i++)
+        if (hrPoints[i].bpm > hrMax) hrMax = hrPoints[i].bpm;
+    }
+    sourceLabel = hrMax ? "HRmax " + hrMax + " bpm (activity max)" : "";
+  }
+  if (!hrMax) return;
+  var pcts = [0.60, 0.70, 0.80, 0.90];
+  var t = [];
+  for (i = 0; i < pcts.length; i++) t.push(Math.round(pcts[i] * hrMax));
+  var labels = [
+    "< " + t[0] + " bpm",
+    t[0] + " – " + (t[1]-1) + " bpm",
+    t[1] + " – " + (t[2]-1) + " bpm",
+    t[2] + " – " + (t[3]-1) + " bpm",
+    "≥ " + t[3] + " bpm"
+  ];
+  var colors = ["#5c9bd4","#4caf50","#ffc107","#ff7043","#ef5350"];
+  var names  = ["Z1","Z2","Z3","Z4","Z5"];
+  var descs  = [
+    "Very light effort — warm-up and recovery (below 60% max HR)",
+    "Easy effort — aerobic base building (60–70% max HR)",
+    "Moderate effort — aerobic tempo (70–80% max HR)",
+    "Intense effort — anaerobic threshold (80–90% max HR)",
+    "Maximum effort — peak performance (above 90% max HR)"
+  ];
+  var zoneSecs = [0,0,0,0,0], totalSecs = 0, zone, secs;
+  for (i = 0; i < hrPoints.length; i++) {
+    bpm = hrPoints[i].bpm; secs = hrPoints[i].secs;
+    if (bpm <= 0) continue;
+    if      (bpm < t[0]) zone = 0;
+    else if (bpm < t[1]) zone = 1;
+    else if (bpm < t[2]) zone = 2;
+    else if (bpm < t[3]) zone = 3;
+    else                 zone = 4;
+    zoneSecs[zone] += secs; totalSecs += secs;
+  }
+  if (!totalSecs) return;
+  var html = '<table class="hr-zone-table">';
+  for (i = 4; i >= 0; i--) {
+    var pct = zoneSecs[i] / totalSecs * 100;
+    var barW = Math.min(100, Math.round(pct));
+    html += '<tr title="' + descs[i] + '">'
+      + '<td style="font-weight:600;color:' + colors[i] + ';white-space:nowrap;cursor:help">' + names[i] + '</td>'
+      + '<td style="color:#666;white-space:nowrap">' + labels[i] + '</td>'
+      + '<td style="font-variant-numeric:tabular-nums;white-space:nowrap">' + fmtHMS(zoneSecs[i]) + '</td>'
+      + '<td style="font-variant-numeric:tabular-nums;color:#888;white-space:nowrap">' + pct.toFixed(1) + '%</td>'
+      + '<td style="width:100px"><div class="hr-zone-bar" style="width:' + barW + 'px;background:' + colors[i] + '"></div></td>'
+      + '</tr>';
+  }
+  html += '</table>';
+  document.getElementById("hr-zone-content").innerHTML = html;
+  var titleEl = document.getElementById("hr-zone-title");
+  titleEl.textContent = "Heart rate zones · " + sourceLabel;
+  titleEl.title = ATHLETE_AGE > 0
+    ? "Max HR = 220 − " + ATHLETE_AGE + " = " + hrMax + " bpm (Haskell-Fox formula)"
+    : "Zone thresholds based on this activity's peak recorded HR (" + hrMax + " bpm)."
+      + " Set BIRTH_YEAR in config for age-based zones.";
+  titleEl.style.cursor = "help";
+  document.getElementById("hr-zone-box").style.display = "";
+}
+
 // --- GPX map (healthsync activities) ----------------------------------------
 // Try tile providers in order; switch on first error.
 // OSM → CartoDB Voyager → Esri (different CDNs; one usually clears SSL proxies).
@@ -424,8 +529,8 @@ function renderGpxMap(gpxUrl){
 }
 
 // --- GPX elevation + heart rate charts (healthsync activities) ---------------
-// Fetches the GPX once and populates elev-box and hr-box when data is present.
-function renderGpxCharts(gpxUrl) {
+// Fetches the GPX once and populates elev-box, hr-box, and hr-zone-box when data is present.
+function renderGpxCharts(gpxUrl, maxHR, movingTime) {
   fetch(gpxUrl)
     .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
     .then(function(txt){
@@ -460,6 +565,11 @@ function renderGpxCharts(gpxUrl) {
         for (i = 0; i < allH.length; i += step) sh.push(allH[i]);
         document.getElementById("hr-box").style.display = "";
         drawLineSvg("svg-hr", sh, "#e91e63", "bpm");
+        // Distribute movingTime equally across all HR track points for zone estimation.
+        var secsPerPt = allH.length > 0 ? (movingTime || allH.length) / allH.length : 1;
+        var gpxZonePts = [];
+        for (i = 0; i < allH.length; i++) gpxZonePts.push({bpm: allH[i], secs: secsPerPt});
+        renderHrZones(gpxZonePts, maxHR);
       }
     })
     .catch(function(e){
@@ -504,7 +614,7 @@ function renderMap(d){
 function renderSplits(d){
   // GPX activities: elevation + HR charts are rendered from renderGpxCharts (called below);
   // there are no km splits to show, so hide that box.
-  if (d.gpx_file) { renderGpxCharts(d.gpx_file); document.getElementById("splits-box").style.display = "none"; return; }
+  if (d.gpx_file) { renderGpxCharts(d.gpx_file, d.max_heartrate || 0, d.moving_time || 0); document.getElementById("splits-box").style.display = "none"; return; }
   var box = document.getElementById("splits-box");
   var splits = d.splits_metric || [];
   if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
@@ -557,6 +667,13 @@ function renderSplits(d){
   // Elevation profile and heart rate charts from splits data (when available).
   renderElevFromSplits(splits);
   renderHrFromSplits(splits);
+  // Heart rate zones estimated from per-km split averages.
+  var hrZonePts = [], zi;
+  for (zi = 0; zi < splits.length; zi++) {
+    if (splits[zi].average_heartrate > 0)
+      hrZonePts.push({bpm: splits[zi].average_heartrate, secs: splits[zi].moving_time || 0});
+  }
+  renderHrZones(hrZonePts, d.max_heartrate || 0);
 }
 
 // --- Bike assignment picker (cycling activities only) -------------------------
@@ -652,14 +769,26 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
   var id = getId();
   if (!id) { fail("No activity id in the URL. Go back and click an activity."); return; }
   progressStart();
-  fetch("details/" + id + ".json", { cache: "no-store" })
-    .then(function(r){
-      if (r.status === 404) throw new Error("Detail for this activity hasn't been downloaded yet — it backfills over the next daily runs. Try again later.");
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    })
-    .then(function(d){ progressDone(); render(d, id); })
-    .catch(function(err){ fail(err.message); });
+  Promise.all([
+    fetch("details/" + id + ".json", { cache: "no-store" })
+      .then(function(r){
+        if (r.status === 404) throw new Error("Detail for this activity hasn't been downloaded yet — it backfills over the next daily runs. Try again later.");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }),
+    fetch("activities.json")
+      .then(function(r){ return r.ok ? r.json() : {}; })
+      .catch(function(){ return {}; })
+  ]).then(function(res){
+    progressDone();
+    var d = res[0], meta = res[1];
+    if (meta && meta.athleteAge) ATHLETE_AGE = meta.athleteAge;
+    if (d.average_temp == null && meta && meta.activities) {
+      var act = meta.activities.find(function(a){ return String(a.id) === String(id); });
+      if (act && act.average_temp != null) d.average_temp = act.average_temp;
+    }
+    render(d, id);
+  }).catch(function(err){ fail(err.message); });
 })();
 </script>
 </body>
