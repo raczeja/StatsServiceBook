@@ -53,6 +53,9 @@ DETAIL_SKIP="$STATE_DIR/detail-skip.txt"                     # ids Strava said a
 # in-place updates of still-present activities always happen regardless.
 PRUNE_DELETED="${STRAVA_MY_PRUNE_DELETED:-1}"
 IMPORT_ENABLED="${STRAVA_MY_IMPORT_ENABLED:-1}"
+BIRTH_YEAR="${STRAVA_MY_BIRTH_YEAR:-}"
+ATHLETE_AGE=""
+[ -n "$BIRTH_YEAR" ] && ATHLETE_AGE="$(( $(date '+%Y') - BIRTH_YEAR ))"
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -61,6 +64,7 @@ mkdir -p "$WEB_DIR" "$STATE_DIR"
 
 TOKEN_STATE="$STATE_DIR/token.json"
 STORE="$STATE_DIR/activities.ndjson"
+WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -196,6 +200,32 @@ if [ "$do_prune" -eq 0 ] && [ "$PRUNE_DELETED" != "0" ]; then
 else
   log "store: +$ADDED new, ~$CHANGED updated, -$DELETED removed, $TOTAL_STORED total"
 fi
+
+# Weather backfill: for null-temp activities not yet in the cache, look up
+# Open-Meteo. The cache ($WEATHER_CACHE) persists across runs so each activity
+# is only queried once even though the Strava store is rebuilt every run.
+# Coordinates come from the cached detail JSON's start_latlng, with WEATHER_LAT/
+# WEATHER_LON as a fallback for activities whose detail hasn't downloaded yet.
+[ -f "$WEATHER_CACHE" ] || printf '{}' > "$WEATHER_CACHE"
+jq -c 'select(.average_temp == null) | {id: (.id|tostring), date}' "$STORE" \
+| while IFS= read -r _entry; do
+    _wid=$(printf '%s' "$_entry" | jq -r '.id')
+    _wd=$(printf '%s' "$_entry" | jq -r '.date')
+    jq -e --arg id "$_wid" '.[$id] != null' "$WEATHER_CACHE" >/dev/null 2>&1 && continue
+    _wlat="" _wlon=""
+    if [ -f "$DETAIL_DIR/$_wid.json" ]; then
+        _wlat=$(jq -r '.start_latlng[0] // ""' "$DETAIL_DIR/$_wid.json" 2>/dev/null || true)
+        _wlon=$(jq -r '.start_latlng[1] // ""' "$DETAIL_DIR/$_wid.json" 2>/dev/null || true)
+    fi
+    [ -z "$_wlat" ] && _wlat="${WEATHER_LAT:-}"
+    [ -z "$_wlon" ] && _wlon="${WEATHER_LON:-}"
+    [ -n "$_wlat" ] && [ -n "$_wlon" ] || continue
+    _wt=$(fetch_weather_temp "$_wlat" "$_wlon" "$_wd" || true)
+    [ -n "$_wt" ] || continue
+    jq --arg id "$_wid" --argjson t "$_wt" '.[$id] = $t' "$WEATHER_CACHE" \
+        > "$WEATHER_CACHE.tmp" && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
+done
+log "weather: cache has $(jq 'length' "$WEATHER_CACHE") entries"
 
 # --- 3a. Reconcile detail files with the synced store ----------------------
 # Deleted activities: drop their cached detail JSON (it is web-served) and any
@@ -368,15 +398,19 @@ else
 fi
 
 jq -s --arg generatedAt "$GENERATED_AT" \
+  --arg athleteAge "$ATHLETE_AGE" \
   --slurpfile det "$TMP/detail_ids.json" \
   --slurpfile enr "$TMP/enrich.json" \
   --slurpfile gears "$TMP/gears.json" \
-  --slurpfile assigns "$TMP/bike-assign.json" '
+  --slurpfile assigns "$TMP/bike-assign.json" \
+  --slurpfile wcache "$WEATHER_CACHE" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
   | ($enr[0] // {}) as $enrich
   | ($assigns[0] // {}) as $A
+  | ($wcache[0] // {}) as $W
   | {
     generatedAt: $generatedAt,
+    athleteAge: (if $athleteAge == "" then null else ($athleteAge | tonumber) end),
     gears: ($gears[0] // {}),
     activities: [
       .[]
@@ -401,7 +435,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           weighted_average_watts: (.weighted_average_watts // $e.weighted_average_watts),
           max_watts:              (.max_watts // $e.max_watts),
           kilojoules:             (.kilojoules // $e.kilojoules),
-          average_temp:           (.average_temp // $e.average_temp),
+          average_temp:           (.average_temp // $e.average_temp // $W[(.id|tostring)]),
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
           detail:                 (($have[(.id | tostring)]) // false)

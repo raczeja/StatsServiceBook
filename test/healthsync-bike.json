@@ -17,7 +17,7 @@
   "average_cadence": null,
   "average_watts": null,
   "kilojoules": null,
-  "average_temp": null,
+  "average_temp": 24,
   "suffer_score": null,
   "calories": 680,
   "gpx_file": "gpx/2026.06.22_10.30-CYCLING.gpx",

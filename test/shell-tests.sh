@@ -519,6 +519,28 @@ assert_eq "$S" "bike-assign-array-rejected" \
 assert_eq "$S" "bike-assign-malformed-rejected" \
     "$(_bike_assign_valid '{bad}')" "false"
 
+# ── keepalive-mode ────────────────────────────────────────────────────────────
+# Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
+# after the Drive folder listing when mode is "keepalive".
+S="keepalive-mode"
+
+HEALTHSYNC_MODE=keepalive
+_kp=""; case "${HEALTHSYNC_MODE:-full}" in keepalive) _kp=keepalive ;; *) _kp=full ;; esac
+assert_eq "$S" "keepalive-matches"   "$_kp" "keepalive"
+
+HEALTHSYNC_MODE=full
+_kp=""; case "${HEALTHSYNC_MODE:-full}" in keepalive) _kp=keepalive ;; *) _kp=full ;; esac
+assert_eq "$S" "full-continues"      "$_kp" "full"
+
+HEALTHSYNC_MODE=""
+_kp=""; case "${HEALTHSYNC_MODE:-full}" in keepalive) _kp=keepalive ;; *) _kp=full ;; esac
+assert_eq "$S" "empty-defaults-full" "$_kp" "full"
+
+unset HEALTHSYNC_MODE
+_kp=""; case "${HEALTHSYNC_MODE:-full}" in keepalive) _kp=keepalive ;; *) _kp=full ;; esac
+assert_eq "$S" "unset-defaults-full" "$_kp" "full"
+HEALTHSYNC_MODE=""
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then

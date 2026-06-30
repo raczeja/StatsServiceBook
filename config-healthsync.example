@@ -4,44 +4,9 @@
 
 # --- Google OAuth credentials -----------------------------------------------
 # One-time setup. Do this on your PC, not on the router.
+# You need your own Google Cloud OAuth client (Desktop app type).
 #
-# QUICK PATH — browser authorization code flow (recommended, no GCP project)
-# ---------------------------------------------------------------------------
-# STEP 1 — Authorize in your browser
-#   Open this URL (sign in with the Google account that owns the Drive folder):
-#
-#   https://accounts.google.com/o/oauth2/v2/auth?client_id=495717612467-uak1ugf5c36snhmtehq36b47t2j8aj14.apps.googleusercontent.com&redirect_uri=http://localhost&response_type=code&scope=https://www.googleapis.com/auth/drive.readonly&access_type=offline&prompt=consent
-#
-#   Click Allow. Your browser redirects to a http://localhost/?code=...&scope=...
-#   URL that fails to load — that's expected. Copy only the "code=..." value
-#   from the address bar (everything between "code=" and the next "&" or end).
-#
-# STEP 2 — Exchange the code for a refresh token (one curl command on your PC)
-#
-#   CODE="4/0A..."          # paste the code from the address bar
-#   CLIENT_SECRET="paste-your-client-secret-here"
-#   curl -s -X POST https://oauth2.googleapis.com/token \
-#     -d "client_id=495717612467-uak1ugf5c36snhmtehq36b47t2j8aj14.apps.googleusercontent.com" \
-#     -d "client_secret=$CLIENT_SECRET" \
-#     -d "code=$CODE" \
-#     -d "redirect_uri=http://localhost" \
-#     -d "grant_type=authorization_code" | jq .
-#
-#   Copy the "refresh_token" value from the JSON response.
-#   Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN below.
-#
-#   Common errors:
-#     "invalid_grant" / "Token has been expired or revoked"
-#         → the code was already used or expired (they are single-use, ~60 s TTL);
-#           re-open the authorization URL and copy a fresh code.
-#     "redirect_uri_mismatch"
-#         → ensure you copied the redirect_uri exactly as http://localhost (no slash).
-#
-# ADVANCED PATH — use your own Google Cloud credentials
-# -----------------------------------------------------
-# Only needed if you want your own OAuth app instead of the shared credential.
-#
-# STEP A — Create a Google Cloud project and enable the Drive API
+# STEP A — Create a Google Cloud project and enable the Drive API (free tier is sufficient)
 #   a) https://console.cloud.google.com/ → project dropdown → New Project → Create
 #   b) Search "Google Drive API" → Enable
 #
@@ -97,6 +62,20 @@ DRIVE_FOLDER_ID="YOUR_DRIVE_FOLDER_ID"
 # on the dashboard. Must match a bike name in the Bike Service page.
 HEALTHSYNC_DEFAULT_BIKE="Kross"
 
+# Your birth year. Used to compute age (current year − birth year) → theoretical
+# max heart rate (220 − age) for zone thresholds on the per-activity detail page.
+# Leave blank to fall back to the activity's recorded max_heartrate instead.
+#HEALTHSYNC_BIRTH_YEAR="1990"
+
+# --- Weather temperature backfill (optional) ----------------------------------
+# When average_temp is not in the exported data, the script looks up the
+# historical mean temperature for the activity's date via Open-Meteo (free, no
+# API key required). GPS coordinates are extracted from the cached GPX file
+# automatically. Set these as a fallback for activities without a GPX file.
+# Leave blank to skip weather lookup when no coordinates are available.
+#WEATHER_LAT="51.11"   # decimal degrees, e.g. latitude of Wroclaw
+#WEATHER_LON="17.03"
+
 # --- Token refresh margin (seconds before expiry to refresh) ----------------
 #HEALTHSYNC_TOKEN_REFRESH_MARGIN="300"
 
@@ -105,6 +84,13 @@ HEALTHSYNC_DEFAULT_BIKE="Kross"
 # when temporarily blocking outbound requests. The local store and cached GPX
 # files are not touched; only the HTML/JSON output files are regenerated.
 #HEALTHSYNC_IMPORT_ENABLED="1"
+
+# Run mode: "full" (default) or "keepalive".
+# Set to "keepalive" while Strava is still your active source. The script will
+# only refresh the Google OAuth token and verify Drive folder access, then exit —
+# no files are downloaded, no store is touched, no HTML is written.
+# Switch to "full" (or remove this line) in September when you disable Strava.
+#HEALTHSYNC_MODE="keepalive"
 
 # --- Strava history migration -----------------------------------------------
 # HealthSync only keeps ~30 days of exports on Google Drive, so switching cold

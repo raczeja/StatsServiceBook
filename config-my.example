@@ -17,6 +17,11 @@ STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
 # this many seconds of expiry, then refreshed.
 STRAVA_TOKEN_REFRESH_MARGIN="600"
 
+# Your birth year. Used to compute age (current year − birth year) → theoretical
+# max heart rate (220 − age) for zone thresholds on the per-activity detail page.
+# Leave blank to fall back to the activity's recorded max_heartrate instead.
+#STRAVA_MY_BIRTH_YEAR="1990"
+
 # How many pages of your activity feed to pull (200 activities/page).
 # 20 pages = up to 4000 activities — covers several years for most athletes.
 STRAVA_MY_MAX_PAGES="20"
@@ -27,6 +32,15 @@ STRAVA_MY_PER_PAGE="200"
 # storage (e.g. "/mnt/sda5/strava-my-activities/web"); install.sh then symlinks
 # /www/strava/me to it so uhttpd still serves it at the same URL.
 STRAVA_MY_WEB_DIR="/www/strava/me"
+
+# --- Weather temperature backfill (optional) ----------------------------------
+# When average_temp is not recorded by the GPS device, the script looks up the
+# historical mean temperature for the activity's date via Open-Meteo (free, no
+# API key required). The detail JSON's start_latlng is used when available; set
+# these as a fallback for activities without GPS coordinates.
+# Leave blank to skip weather lookup when no coordinates are available.
+#WEATHER_LAT="51.11"   # decimal degrees, e.g. latitude of Wroclaw
+#WEATHER_LON="17.03"
 
 # Where token state is kept. MUST be on persistent storage — on OpenWrt
 # /tmp and /var live in RAM and are wiped on reboot.

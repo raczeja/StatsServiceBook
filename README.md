@@ -296,7 +296,7 @@ cp config-healthsync.example healthsync.conf
 
 Edit `healthsync.conf` and set:
 
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — get a refresh token via the browser auth flow at the top of [config-healthsync.example](config-healthsync.example) (open the pre-filled URL, click Allow, copy the code, run one `curl` command — no Google Cloud project needed)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — create a Desktop-app OAuth client in [Google Cloud Console](https://console.cloud.google.com/) (Drive API enabled, yourself as test user), then follow the device-flow steps in [config-healthsync.example](config-healthsync.example) to get a refresh token
 - `DRIVE_FOLDER_ID` — the ID of the Drive folder where healthsync.app exports files
 - `HEALTHSYNC_STATE_DIR="/state"` — change from the OpenWrt default
 - `HEALTHSYNC_BIKE_DATA="/state/bike-service.json"`
