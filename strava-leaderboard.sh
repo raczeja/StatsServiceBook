@@ -105,9 +105,7 @@ jq -c -n \
       ((.athlete.lastname  // "") | ascii_downcase),
       ((.name // "")              | ascii_downcase),
       (.distance             // 0 | tostring),
-      (.moving_time          // 0 | tostring),
       (.elapsed_time         // 0 | tostring),
-      (.total_elevation_gain // 0 | tostring),
       ((.sport_type // .type // "") | ascii_downcase)
     ] | join("|");
   ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
@@ -267,6 +265,18 @@ function fmtTime(s){ return Math.floor(s/3600) + "h " + Math.floor((s%3600)/60) 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 
+function fallbackToLatestMonth(acts, year, month) {
+  var y = year, m = month;
+  for (var i = 0; i < 24; i++) {
+    var yy = y, mm = m;
+    if (acts.some(function(a){ return a.date && +a.date.slice(0,4) === yy && +a.date.slice(5,7) === mm; }))
+      return { year: yy, month: mm };
+    m--; if (m === 0) { m = 12; y--; }
+    if (y < 2000) break;
+  }
+  return null;
+}
+
 function init(){
   var acts = DATA.activities || [];
   var now = new Date();
@@ -288,6 +298,10 @@ function init(){
   for (var i = 0; i < 12; i++) opts.push('<option value="' + (i+1) + '">' + MONTHS[i] + '</option>');
   monthSel.innerHTML = opts.join("");
   monthSel.value = String(curMonth);
+
+  // Step back to the most recent month with data when default period is empty.
+  var _fb = fallbackToLatestMonth(acts, +yearSel.value, +monthSel.value);
+  if (_fb) { yearSel.value = String(_fb.year); monthSel.value = String(_fb.month); }
 
   yearSel.onchange = render;
   monthSel.onchange = render;

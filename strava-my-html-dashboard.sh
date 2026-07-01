@@ -234,6 +234,18 @@ function computePrimaryBikeOdo(filteredActs){
   return { name: name, km: km };
 }
 
+function fallbackToLatestMonth(acts, year, month) {
+  var y = year, m = month;
+  for (var i = 0; i < 24; i++) {
+    var yy = y, mm = m;
+    if (acts.some(function(a){ return a.date && +a.date.slice(0,4) === yy && +a.date.slice(5,7) === mm; }))
+      return { year: yy, month: mm };
+    m--; if (m === 0) { m = 12; y--; }
+    if (y < 2000) break;
+  }
+  return null;
+}
+
 function init(){
   var acts = DATA.activities || [];
 
@@ -275,6 +287,12 @@ function init(){
   sports.forEach(function(s){ sOpts.push('<option value="'+esc(s)+'">'+esc(s)+'</option>'); });
   sportSel.innerHTML = sOpts.join("");
   sportSel.value = sset["Ride"] ? "Ride" : "all";
+
+  // Step back to the most recent month with data when default period is empty.
+  if (!sessionStorage.getItem("activityFilter")) {
+    var _fb = fallbackToLatestMonth(acts, +yearSel.value, +monthSel.value);
+    if (_fb) { yearSel.value = String(_fb.year); monthSel.value = String(_fb.month); }
+  }
 
   // Restore filter + sort state saved before navigating to activity detail.
   var _saved = sessionStorage.getItem("activityFilter");
