@@ -786,6 +786,68 @@ ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-my-activities && strava-my-acti
 > token at the start of each run and reuse a cached one only while still valid,
 > so a daily cron always has a fresh token. No action needed on upgrade.
 
+## Surviving a sysupgrade (OpenWrt firmware update)
+
+OpenWrt's `sysupgrade` wipes the overlay filesystem and reinstalls packages from
+scratch, so **nothing installed by `install.sh` survives by default**. To protect
+your scripts, configs, and state data, list the paths in `/etc/sysupgrade.conf`
+— OpenWrt backs them up before flashing and restores them after.
+
+**Run once on the router** (SSH in and paste):
+
+```sh
+cat >> /etc/sysupgrade.conf << 'EOF'
+/usr/bin/strava-leaderboard
+/usr/bin/strava-my-activities
+/usr/bin/healthsync-activities
+/usr/bin/strava-lib.sh
+/usr/bin/strava-my-html-dashboard.sh
+/usr/bin/strava-my-html-detail.sh
+/usr/bin/strava-my-html-bike.sh
+/usr/bin/strava-my-html-stats.sh
+/etc/strava-leaderboard.conf
+/etc/strava-my-activities.conf
+/etc/healthsync-activities.conf
+/usr/lib/strava-leaderboard
+/usr/lib/strava-my-activities
+/usr/lib/healthsync
+EOF
+```
+
+`/etc/sysupgrade.conf` itself is always preserved by sysupgrade, so this is a
+one-time step.
+
+**After every sysupgrade**, restore the parts that `sysupgrade.conf` cannot
+cover. What you need to do depends on how you upgraded:
+
+| What needs restoring | Plain sysupgrade + keep settings | Attended Sysupgrade (ASU) + keep settings |
+| -------------------- | -------------------------------- | ----------------------------------------- |
+| Scripts / configs / state | Automatic (from backup) | Automatic (from backup) |
+| `curl`, `jq`, `ca-bundle` | **Must reinstall** | Baked into firmware — nothing to do |
+| Cron entries | Automatic (`cron` package registers `/etc/crontabs/`) | Automatic |
+| `/www` symlinks + CGI | **Must run `install.sh`** | **Must run `install.sh`** |
+
+**Plain sysupgrade — post-upgrade steps:**
+
+```sh
+# Re-install packages (wiped by sysupgrade)
+opkg update && opkg install curl jq ca-bundle
+
+# Restore /www symlinks and CGI (copy repo to /tmp/strava first)
+sh /tmp/strava/install.sh
+```
+
+**Attended Sysupgrade (ASU) — post-upgrade steps:**
+
+```sh
+# Packages are already in the new firmware; just restore /www symlinks and CGI
+sh /tmp/strava/install.sh
+```
+
+> **State and configs are already back** (restored from the sysupgrade backup).
+> `install.sh` won't overwrite existing configs, so your secrets and activity
+> history are safe.
+
 ## Operations
 
 | What                          | Where                                                                     |
