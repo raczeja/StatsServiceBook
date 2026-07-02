@@ -228,7 +228,8 @@ function computePrimaryBikeOdo(filteredActs){
   var km = 0;
   filteredActs.forEach(function(a){
     if (a.sport_type !== "Ride") return;
-    if (gid && a.gear_id && a.gear_id !== gid) return;  // tagged to a different bike
+    var bn = bikeName(a);
+    if (bn && bn !== name) return;  // positively tagged to a different bike
     km += (a.distance||0) / 1000;
   });
   return { name: name, km: km };

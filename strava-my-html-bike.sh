@@ -266,6 +266,18 @@ function servicesBlock(services){
     '<details class="rides"><summary>'+asc.length+' services</summary>'+
     '<table class="ridetbl"><tbody>'+rows+'</tbody></table></details>';
 }
+// Percent of the alert threshold used since last service (or install).
+// Returns 0 when no alert thresholds are configured (used only for sorting).
+function partPct(bike,p){
+  var svc=(p.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
+  var last=svc.length?svc[svc.length-1]:null;
+  var fromDate=last?last.date:(p.installedDate||"");
+  var refKm=Math.max(0,rideMileageSince(bike,fromDate));
+  var refH=rideTimeSince(bike,fromDate)/3600;
+  var pctKm=(p.alertKm&&+p.alertKm>0)?(refKm/+p.alertKm*100):0;
+  var pctH=(p.alertH&&+p.alertH>0)?(refH/+p.alertH*100):0;
+  return Math.max(pctKm,pctH);
+}
 function curBike(){
   for (var i=0;i<MODEL.bikes.length;i++) if (MODEL.bikes[i].id === selBike) return MODEL.bikes[i];
   return null;
@@ -659,6 +671,16 @@ function render(){
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
 
   var active   = b.parts.filter(function(p){ return p.status !== "archived"; });
+  // Parts with an alert threshold: sort by % used descending (soonest service due first).
+  // Parts without any threshold: sort by install date descending (newest install first).
+  // The two groups are kept separate — alerted parts always precede unalerted ones.
+  active = active.slice().sort(function(x,y){
+    var ha=x.alertKm!=null||x.alertH!=null, hb=y.alertKm!=null||y.alertH!=null;
+    if(ha!==hb) return ha?-1:1;
+    if(ha){ var pa=partPct(b,x),pb=partPct(b,y); return pb-pa; }
+    var da=x.installedDate||"",db=y.installedDate||"";
+    return da<db?1:da>db?-1:0;
+  });
   var archived = b.parts.filter(function(p){ return p.status === "archived"; });
 
   // active parts
