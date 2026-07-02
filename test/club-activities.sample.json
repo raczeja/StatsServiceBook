@@ -1,106 +1,122 @@
 {
   "generatedAt": "2026-06-18T20:00:00Z",
   "sport": "all",
-  "activities": [
+  "clubs": [
     {
-      "date": "2026-06-18",
-      "firstname": "Alex",
-      "lastname": "R",
-      "profile_medium": "",
-      "distance": 38200.0,
-      "moving_time": 5850,
-      "total_elevation_gain": 420.0,
-      "sport_type": "Ride"
-    },
-    {
-      "date": "2026-06-18",
-      "firstname": "Marta",
-      "lastname": "K",
-      "profile_medium": "",
-      "distance": 12400.0,
-      "moving_time": 3400,
-      "total_elevation_gain": 35.0,
-      "sport_type": "Run"
-    },
-    {
-      "date": "2026-06-17",
-      "firstname": "Alex",
-      "lastname": "R",
-      "profile_medium": "",
-      "distance": 46800.0,
-      "moving_time": 7300,
-      "total_elevation_gain": 510.0,
-      "sport_type": "Ride"
-    },
-    {
-      "date": "2026-06-16",
-      "firstname": "Noah",
-      "lastname": "L",
-      "profile_medium": "",
-      "distance": 9400.0,
-      "moving_time": 2700,
-      "total_elevation_gain": 50.0,
-      "sport_type": "Run"
-    },
-    {
-      "date": "2026-06-15",
-      "firstname": "Marta",
-      "lastname": "K",
-      "profile_medium": "",
-      "distance": 71200.0,
-      "moving_time": 11000,
-      "total_elevation_gain": 860.0,
-      "sport_type": "Ride"
-    },
-    {
-      "date": "2026-06-14",
-      "firstname": "Noah",
-      "lastname": "L",
-      "profile_medium": "",
-      "distance": 27800.0,
-      "moving_time": 4700,
-      "total_elevation_gain": 210.0,
-      "sport_type": "Ride"
-    },
-    {
-      "date": "2026-06-12",
-      "firstname": "Iga",
-      "lastname": "S",
-      "profile_medium": "",
-      "distance": 18800.0,
-      "moving_time": 3550,
-      "total_elevation_gain": 90.0,
-      "sport_type": "Ride"
-    },
-    {
-      "date": "2026-06-11",
-      "firstname": "Iga",
-      "lastname": "S",
-      "profile_medium": "",
-      "distance": 10200.0,
-      "moving_time": 3050,
-      "total_elevation_gain": 20.0,
-      "sport_type": "Walk"
-    },
-    {
-      "date": "2026-06-09",
-      "firstname": "Marta",
-      "lastname": "K",
-      "profile_medium": "",
-      "distance": 8200.0,
-      "moving_time": 2600,
-      "total_elevation_gain": 25.0,
-      "sport_type": "Run"
-    },
-    {
-      "date": "2026-06-06",
-      "firstname": "Alex",
-      "lastname": "R",
-      "profile_medium": "",
-      "distance": 65400.0,
-      "moving_time": 9900,
-      "total_elevation_gain": 780.0,
-      "sport_type": "Ride"
+      "clubId": "123456",
+      "club": {
+        "name": "Sample Cycling Club",
+        "city": "Warsaw",
+        "state": null,
+        "country": "Poland",
+        "member_count": 42,
+        "description": "A sample club for local testing.",
+        "url": "sample-cycling-club",
+        "profile_medium": null,
+        "sport_type": "cycling"
+      },
+      "activities": [
+        {
+          "date": "2026-06-18",
+          "firstname": "Alex",
+          "lastname": "R",
+          "profile_medium": "",
+          "distance": 38200.0,
+          "moving_time": 5850,
+          "total_elevation_gain": 420.0,
+          "sport_type": "Ride"
+        },
+        {
+          "date": "2026-06-18",
+          "firstname": "Marta",
+          "lastname": "K",
+          "profile_medium": "",
+          "distance": 12400.0,
+          "moving_time": 3400,
+          "total_elevation_gain": 35.0,
+          "sport_type": "Run"
+        },
+        {
+          "date": "2026-06-17",
+          "firstname": "Alex",
+          "lastname": "R",
+          "profile_medium": "",
+          "distance": 46800.0,
+          "moving_time": 7300,
+          "total_elevation_gain": 510.0,
+          "sport_type": "Ride"
+        },
+        {
+          "date": "2026-06-16",
+          "firstname": "Noah",
+          "lastname": "L",
+          "profile_medium": "",
+          "distance": 9400.0,
+          "moving_time": 2700,
+          "total_elevation_gain": 50.0,
+          "sport_type": "Run"
+        },
+        {
+          "date": "2026-06-15",
+          "firstname": "Marta",
+          "lastname": "K",
+          "profile_medium": "",
+          "distance": 71200.0,
+          "moving_time": 11000,
+          "total_elevation_gain": 860.0,
+          "sport_type": "Ride"
+        },
+        {
+          "date": "2026-06-14",
+          "firstname": "Noah",
+          "lastname": "L",
+          "profile_medium": "",
+          "distance": 27800.0,
+          "moving_time": 4700,
+          "total_elevation_gain": 210.0,
+          "sport_type": "Ride"
+        },
+        {
+          "date": "2026-06-12",
+          "firstname": "Iga",
+          "lastname": "S",
+          "profile_medium": "",
+          "distance": 18800.0,
+          "moving_time": 3550,
+          "total_elevation_gain": 90.0,
+          "sport_type": "Ride"
+        },
+        {
+          "date": "2026-06-11",
+          "firstname": "Iga",
+          "lastname": "S",
+          "profile_medium": "",
+          "distance": 10200.0,
+          "moving_time": 3050,
+          "total_elevation_gain": 20.0,
+          "sport_type": "Walk"
+        },
+        {
+          "date": "2026-06-09",
+          "firstname": "Marta",
+          "lastname": "K",
+          "profile_medium": "",
+          "distance": 8200.0,
+          "moving_time": 2600,
+          "total_elevation_gain": 25.0,
+          "sport_type": "Run"
+        },
+        {
+          "date": "2026-06-06",
+          "firstname": "Alex",
+          "lastname": "R",
+          "profile_medium": "",
+          "distance": 65400.0,
+          "moving_time": 9900,
+          "total_elevation_gain": 780.0,
+          "sport_type": "Ride"
+        }
+      ]
     }
   ]
 }
