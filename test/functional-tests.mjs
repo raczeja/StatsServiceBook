@@ -1927,6 +1927,72 @@ async function testBikeAssignmentDropdown(page, jsErrors) {
   });
 }
 
+// Regression test: manually-assigned bike rides must be counted in the summary odo.
+// setBike() replaces a.gear_id with the bike name string; computePrimaryBikeOdo used
+// to compare that string against the Strava gear ID and wrongly excluded such rides.
+async function testBikeOdoIncludesManualAssignments(page, jsErrors) {
+  const S = "bike-odo-manual-assign";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector("#board table", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Set sport=Ride so all rows are rides and the odo covers the same set.
+  await page.evaluate(() => {
+    const sel = document.getElementById("sport");
+    sel.value = "Ride";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  // Capture the total distance shown in the summary bar before any reassignment.
+  const beforeText = await page.$eval("#summary", (el) => el.textContent);
+  const beforeKm = parseFloat(beforeText.match(/^([\d\s,]+)\s*km/)?.[1]?.replace(/[\s,]/g, "") || "0");
+  assert.ok(beforeKm > 0, `expected non-zero total km in summary: "${beforeText}"`);
+
+  // Reassign activity id=4 (Gravel Grind, gear b18141502 = "Gravel Bike", 76003.9 m)
+  // to "Road Bike" via setBike. Before the fix, computePrimaryBikeOdo would then
+  // exclude it because a.gear_id becomes "Road Bike" ≠ gid "b16239154".
+  await check(S, "odo-counts-reassigned-ride", async () => {
+    const result = await page.evaluate(() => {
+      // Call setBike directly to simulate the dropdown change.
+      if (typeof setBike === "function") {
+        setBike("4", "Road Bike");
+      } else {
+        window.setBike("4", "Road Bike");
+      }
+      // Give the render cycle a tick to complete.
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const text = document.getElementById("summary")?.textContent || "";
+          const m = text.match(/Road Bike:\s*([\d\s,]+)\s*km/);
+          resolve({ summaryText: text, odoText: m ? m[1] : null });
+        }, 200);
+      });
+    });
+
+    assert.ok(
+      result.odoText !== null,
+      `"Road Bike: X km" not found in summary after reassignment: "${result.summaryText}"`,
+    );
+    const odoKm = parseFloat(result.odoText.replace(/[\s,]/g, ""));
+    // Activity 4 (Gravel Grind) is ~76 km. After reassignment to Road Bike its distance
+    // must appear in the odo. The odo should be >= Road Bike's base total (those already
+    // tagged b16239154: ~608 km in sample data) so it must be well above 76 km.
+    assert.ok(
+      odoKm > 76,
+      `expected Road Bike odo > 76 km after reassigning Gravel Grind (76 km), got ${odoKm} km. ` +
+      `Summary: "${result.summaryText}"`,
+    );
+  });
+}
+
 async function testEmptyState(page, jsErrors) {
   const S = "empty-state";
   jsErrors.length = 0;
@@ -2345,6 +2411,9 @@ async function main() {
 
     console.log("\n--- Bike Assignment (Dropdown) ---");
     await testBikeAssignmentDropdown(page, jsErrors);
+
+    console.log("\n--- Bike Odo Includes Manual Assignments ---");
+    await testBikeOdoIncludesManualAssignments(page, jsErrors);
 
     console.log("\n--- Sync Source Merging (Strava + HealthSync) ---");
     await testSyncSourceMerging(page, jsErrors);

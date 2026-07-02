@@ -11,8 +11,11 @@ STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
 # user who is a member of the club. See README.md "One-time authorization".
 STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
 
-# Numeric club id, taken from the club URL: https://www.strava.com/clubs/<id>
-STRAVA_CLUB_ID="123456"
+# One or more numeric club IDs, comma-separated. Taken from the club URL:
+# https://www.strava.com/clubs/<id>  — the number at the end is the club id.
+# To follow multiple clubs put them all here: STRAVA_CLUB_IDS="123456,1280790"
+# The old single-value STRAVA_CLUB_ID is still accepted for backward compatibility.
+STRAVA_CLUB_IDS="123456"
 
 # --- Optional ---------------------------------------------------------------
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.

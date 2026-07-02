@@ -582,12 +582,12 @@ HEALTHSYNC_BIKE_ASSIGN="/mnt/sda5/healthsync/bike-assignments.json"
 **Club leaderboard:**
 
 ```sh
-vi /etc/strava-leaderboard.conf     # fill in client id/secret, refresh token, club id
+vi /etc/strava-leaderboard.conf     # fill in client id/secret, refresh token, club id(s)
 strava-leaderboard                  # run once now to verify
 ```
 
 Browse to **`http://<router-ip>/strava/`**. Config options are documented inline
-in [config.example](config.example) — client credentials, club id, optional
+in [config.example](config.example) — client credentials, club id(s), optional
 sport-type filter, page cap, output/state paths, and snapshot retention.
 
 **My Activities:**
@@ -643,11 +643,12 @@ A healthy run ends with `done.`:
 ```
 2026-06-01 23:50:01 reusing cached access token (valid for 18230s more)
 2026-06-01 23:50:01 fetching club 1234567 activities (up to 5 pages)...
-2026-06-01 23:50:02 page 1: 143 activities
-2026-06-01 23:50:02 short page, stopping
-2026-06-01 23:50:02 fetched 143 activities total
-2026-06-01 23:50:02 store: +12 new (firstSeen 2026-06-01), 387 activities total
-2026-06-01 23:50:03 wrote /www/strava/index.html, .../activities.json and .../leaderboard.json (snapshot 20260601)
+2026-06-01 23:50:02   page 1: 143 activities
+2026-06-01 23:50:02   short page, stopping
+2026-06-01 23:50:02 fetched 143 activities from club 1234567
+2026-06-01 23:50:02 club 1234567: +12 new (firstSeen 2026-06-01), 387 total
+2026-06-01 23:50:03 wrote /www/strava/activities.json and per-club leaderboard JSON (snapshot 20260601)
+2026-06-01 23:50:03 wrote /www/strava/index.html
 2026-06-01 23:50:03 done.
 ```
 
@@ -666,7 +667,7 @@ A healthy run ends with `done.`:
 ```
 
 Any line starting with `ERROR:` means the run aborted. Common causes: a wrong
-`STRAVA_REFRESH_TOKEN` (`token refresh request failed`), a bad `STRAVA_CLUB_ID`
+`STRAVA_REFRESH_TOKEN` (`token refresh request failed`), a bad `STRAVA_CLUB_IDS`
 (`activities fetch failed`), or `curl`/`jq` not installed.
 
 To confirm the **scheduled** (cron) runs are working, read the log files:
@@ -854,9 +855,9 @@ sh /tmp/strava/install.sh
 | ----------------------------- | ------------------------------------------------------------------------- |
 | Club leaderboard dashboard    | `http://<router-ip>/strava/`                                              |
 | Club activities JSON          | `http://<router-ip>/strava/activities.json`                               |
-| All-time leaderboard JSON     | `http://<router-ip>/strava/leaderboard.json`                              |
-| Club activity store           | `$STRAVA_STATE_DIR/activities.ndjson`                                     |
-| Dated leaderboard snapshots   | `$STRAVA_STATE_DIR/snapshots/YYYYMMDD.json`                               |
+| Per-club all-time JSON        | `http://<router-ip>/strava/leaderboard_<clubid>.json`                     |
+| Club activity store           | `$STRAVA_STATE_DIR/activities_<clubid>.ndjson`                            |
+| Dated leaderboard snapshots   | `$STRAVA_STATE_DIR/snapshots/YYYYMMDD_<clubid>.json`                      |
 | Club token state              | `$STRAVA_STATE_DIR/token.json` (chmod 600)                                |
 | Club leaderboard log          | `/var/log/strava-leaderboard.log`                                         |
 | My Activities dashboard       | `http://<router-ip>/strava/me/`                                           |
@@ -880,8 +881,8 @@ sh /tmp/strava/install.sh
   activity that's already older than the ~2-week feed window when you first
   install will be dated to install day. The year/month filter therefore reflects
   _first-seen_ day, and history only goes back to when you started running this.
-- **The store grows over time.** The club leaderboard's `activities.ndjson` is
-  append-only and never pruned (only the full-leaderboard `snapshots/` are capped
+- **The store grows over time.** Each club leaderboard store (`activities_<clubid>.ndjson`) is
+  append-only and never pruned (only the per-club `snapshots/` are capped
   by `STRAVA_KEEP_SNAPSHOTS`). The _My Activities_ store is instead reconciled
   with the feed each run, so it reflects edits and deletions and can shrink. For a
   club this stays small for years, but it's the one file to watch if flash is very
