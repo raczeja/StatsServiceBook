@@ -24,10 +24,15 @@ Everything runs on the router or docker container. The browser fetches a static 
 
 ```
 cron (23:50) ──► strava-leaderboard.sh
-                   │  1. refresh access token (curl)
-                   │  2. page club activities feed (curl)
-                   │  3. merge into activity store (jq)  ← mirrors activityStore.ts
-                   │       dedupe by signature, stamp firstSeen = today's date
+                   │  STRAVA_SOURCE=api (default; Club API deprecated 2026-09-01):
+                   │    1. refresh OAuth access token (curl)
+                   │    2. page /clubs/{id}/activities feed (curl)
+                   │       dedupe by content signature, stamp firstSeen = today
+                   │  STRAVA_SOURCE=scrape (switch after 2026-09-01):
+                   │    1. verify _strava4_session cookie + CSRF token
+                   │    2. page /clubs/{id}/feed endpoint (curl, cursor pagination)
+                   │       dedupe by Strava activity ID, real activity dates
+                   │  3. merge into activity store (jq, NDJSON, same format both modes)
                    │  4. emit activities.json + all-time leaderboard.json (+ snapshot)
                    └► 5. render static /www/strava/index.html
                                     │
@@ -143,6 +148,8 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   (longest, most climbing, fastest avg, best VAM, most work — all time for the
   selected sport), a by-sport breakdown, and an average-distance-per-day-of-week
   bar chart. All computed client-side from `activities.json`.
+- **Club leaderboard scrape mode (STRAVA_SOURCE=scrape).** Strava's `/clubs/{id}/activities` API endpoint is deprecated **effective 2026-09-01**. Set `STRAVA_SOURCE=scrape` in the config to switch to a web-session-based feed that calls the Strava club feed endpoint directly — no OAuth app required. Scrape mode gives **real activity dates and Strava IDs** (not first-seen approximations). Paste your browser's `_strava4_session` cookie from DevTools → Application → Cookies → strava.com; sessions last ~30 days and the script tells you when to refresh. The NDJSON store format is identical between both modes, so switching is non-destructive. See [§ Switching to scrape mode after September 2026](#switching-to-scrape-mode-after-september-2026) for step-by-step instructions.
+
 - **HealthSync / Google Drive data source.** A drop-in replacement for the Strava
   API. [healthsync.app](https://healthsync.app/) runs on Android or iPhone and exports
   activities to Google Drive as CSV + GPX + TCX files. `healthsync-activities.sh`
@@ -590,6 +597,8 @@ Browse to **`http://<router-ip>/strava/`**. Config options are documented inline
 in [config.example](config.example) — client credentials, club id(s), optional
 sport-type filter, page cap, output/state paths, and snapshot retention.
 
+> **Multiple clubs:** set `STRAVA_CLUB_IDS="123456,789012"` (comma-separated). Each club gets its own NDJSON store and per-club leaderboard JSON; the combined `activities.json` holds all clubs and the dashboard lets you switch between them.
+
 **My Activities:**
 
 ```sh
@@ -625,6 +634,118 @@ healthsync-activities                # run once now to verify
 The same pages are written to the same URLs — point cron at `healthsync-activities` instead of `strava-my-activities` when Strava API access ends.
 
 > **Skip-import mode.** Both scripts support re-rendering the HTML from the existing local store without making any API calls: set `STRAVA_MY_IMPORT_ENABLED=0` or `HEALTHSYNC_IMPORT_ENABLED=0` in the respective config (or as an environment variable). Useful after editing a dashboard helper script to preview changes without waiting for a full fetch.
+
+## Switching to scrape mode after September 2026
+
+Strava removes the Club Activities API on **2026-09-01**. The scrape source (`STRAVA_SOURCE=scrape`) is a ready-made replacement that uses the same internal feed endpoint Strava's own web app uses. Switch when the API stops responding.
+
+### Step 1 — get a session cookie
+
+1. Log in to [strava.com](https://www.strava.com) in any browser.
+2. Open **DevTools** → **Application** → **Cookies** → `www.strava.com`.
+3. Find `_strava4_session` and copy its **Value** (a long alphanumeric string).
+
+Sessions last approximately **30 days**. When the script says `STRAVA_SESSION_COOKIE has expired`, repeat this step and paste the new value.
+
+### Step 2 — update the config (OpenWrt / router)
+
+```sh
+vi /etc/strava-leaderboard.conf
+```
+
+Add or change these lines (the OAuth lines can stay but are ignored in scrape mode):
+
+```sh
+STRAVA_SOURCE="scrape"
+STRAVA_SESSION_COOKIE="<paste _strava4_session value here>"
+STRAVA_CLUB_IDS="123456,789012"
+```
+
+Run once to verify:
+
+```sh
+strava-leaderboard
+```
+
+A healthy scrape run ends with `done.` and looks like:
+
+```
+2026-09-15 23:50:01 reusing cached Strava CSRF token
+2026-09-15 23:50:01 fetching club 123456 feed (cursor pagination)...
+2026-09-15 23:50:02   page 1: 15 entries
+2026-09-15 23:50:02   page 2: 14 entries
+2026-09-15 23:50:03   page 3: empty, stopping
+2026-09-15 23:50:03 fetched 29 entries from club 123456 (actual dates)
+2026-09-15 23:50:03 club 123456: +5 new (actual dates), 412 total
+2026-09-15 23:50:03 fetching club 789012 feed (cursor pagination)...
+...
+2026-09-15 23:50:05 wrote /www/strava/activities.json and per-club leaderboard JSON (snapshot 20260915)
+2026-09-15 23:50:05 wrote /www/strava/index.html
+2026-09-15 23:50:05 done.
+```
+
+**How API history and scrape history coexist in the store**
+
+The `.ndjson` store is additive. API-mode entries use a content-hash string as their `signature`; scrape-mode entries use the numeric Strava activity ID. They never collide, so both sources live in the same file:
+
+```
+# API entry — content-hash signature, approximate first-seen date:
+{"signature":"jakub|r|morning ride|34300|5400|ride","firstSeen":"2026-06-15",...}
+
+# Scrape entry — Strava activity ID signature, real date:
+{"signature":12345678901,"firstSeen":"2026-08-22",...}
+```
+
+**Overlap at transition time.** The Strava club feed covers roughly the last 3–4 weeks of activity. Those same activities are already in the store from the API's last few runs with content-hash signatures. On the first scrape run the dedup check looks for numeric IDs, not content hashes, so those overlap-period activities get added again with a different signature — roughly 3–4 weeks of duplicate entries.
+
+To avoid duplicates, trim the overlap window from the store **before** the first scrape run:
+
+```sh
+ssh root@192.168.1.1
+# Set CUTOFF to ~4 weeks before your switch date so the feed re-fills that window cleanly
+CUTOFF="2026-08-05"
+for f in /mnt/sda5/strava-leaderboard/activities_*.ndjson; do
+  jq -c "select(.firstSeen < \"$CUTOFF\")" "$f" > /tmp/trimmed.ndjson \
+    && mv /tmp/trimmed.ndjson "$f"
+done
+```
+
+After this one-time trim, the first scrape run repopulates those weeks with real Strava activity IDs and exact dates. All history before the cutoff is untouched.
+
+> **If you skip the trim** the duplication resolves itself within one month — the duplicated activities fall out of the current-month filter and only affect the all-time leaderboard totals briefly. It is cosmetic, not data-destroying.
+
+### Step 3 — deploy updated scripts (binary-only update)
+
+```powershell
+scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard `
+  && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh
+```
+
+No `install.sh` re-run needed unless you changed paths or cron timing.
+
+### Testing scrape mode locally before the cutover (Docker / Podman)
+
+Test against real Strava now — without touching the router's live leaderboard — using the provided PowerShell script. It builds an Alpine container, runs the script in scrape mode, mounts the generated HTML to a temp dir, and serves it on localhost so you can inspect the dashboard.
+
+**Prerequisites:** Podman (or Docker with the `podman` alias), PowerShell.
+
+```powershell
+# From the repo root:
+$env:STRAVA_SESSION_COOKIE = "<paste _strava4_session value>"
+$env:STRAVA_CLUB_IDS       = "123456,789012"
+
+# Run scrape + open dashboard in browser:
+powershell -ExecutionPolicy Bypass -File test\run-scrape-test.ps1 -Serve
+
+# Or just run without opening browser (prints summary to console):
+powershell -ExecutionPolicy Bypass -File test\run-scrape-test.ps1
+```
+
+The `-Serve` flag starts a Python HTTP server on port 8088 (change with `-Port 9090`). The browser opens automatically. Press **Enter** in the terminal to stop the server.
+
+> **What the test does:** builds a minimal `alpine:3.21` image with `curl jq python3`, runs `strava-leaderboard.sh` with `STRAVA_SOURCE=scrape` inside it, writes HTML/JSON to a Windows temp directory (`%TEMP%\strava-scrape-web\`), and serves that directory. The router's live leaderboard is completely unaffected.
+
+---
 
 ## 5. Verify it ran (check the logs)
 
@@ -875,12 +996,7 @@ sh /tmp/strava/install.sh
 
 ## Limitations & notes
 
-- **Dates are approximate.** The club feed carries no real activity dates, so
-  each activity is dated by the **day the script first saw it**, not when it was
-  actually performed. Run daily, that's accurate to within a day or two; an
-  activity that's already older than the ~2-week feed window when you first
-  install will be dated to install day. The year/month filter therefore reflects
-  _first-seen_ day, and history only goes back to when you started running this.
+- **Dates are approximate (api mode only).** In `STRAVA_SOURCE=api` mode the club feed carries no real activity dates, so each activity is dated by the **day the script first saw it**, not when it was actually performed. Run daily, that's accurate to within a day or two; an activity that's already older than the ~2-week feed window when you first install will be dated to install day. In `STRAVA_SOURCE=scrape` mode, real activity dates are available from the feed and are used directly — no approximation needed. When you switch from api to scrape the existing store is preserved; old entries keep their first-seen dates and new ones get real dates going forward.
 - **The store grows over time.** Each club leaderboard store (`activities_<clubid>.ndjson`) is
   append-only and never pruned (only the per-club `snapshots/` are capped
   by `STRAVA_KEEP_SNAPSHOTS`). The _My Activities_ store is instead reconciled
