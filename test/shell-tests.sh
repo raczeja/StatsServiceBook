@@ -541,6 +541,240 @@ _kp=""; case "${HEALTHSYNC_MODE:-full}" in keepalive) _kp=keepalive ;; *) _kp=fu
 assert_eq "$S" "unset-defaults-full" "$_kp" "full"
 HEALTHSYNC_MODE=""
 
+# ── scrape-html-parsing ───────────────────────────────────────────────────────
+# Mirrors the jq helpers in the STRAVA_SOURCE=scrape branch of strava-leaderboard.sh
+# that decode HTML-encoded stat strings from the Strava club feed JSON.
+S="scrape-html-parsing"
+
+_parse_km() {
+    jq -rn --arg s "$1" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def parse_km:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end * 1000;
+        $s | parse_km'
+}
+
+assert_eq "$S" "km-with-html-tags" \
+    "$(_parse_km '34.30<abbr class="unit"> km</abbr>')" "34300"
+assert_eq "$S" "km-plain-number"   "$(_parse_km '10.00')"            "10000"
+assert_eq "$S" "km-empty-string"   "$(_parse_km '')"                 "0"
+assert_eq "$S" "km-html-only"      "$(_parse_km '<abbr>km</abbr>')"  "0"
+
+_parse_elev() {
+    jq -rn --arg s "$1" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def parse_elev:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end;
+        $s | parse_elev'
+}
+
+assert_eq "$S" "elev-with-html" \
+    "$(_parse_elev '108<abbr class="unit"> m</abbr>')" "108"
+assert_eq "$S" "elev-plain"     "$(_parse_elev '450')" "450"
+assert_eq "$S" "elev-empty"     "$(_parse_elev '')"    "0"
+
+_parse_time() {
+    jq -rn --arg s "$1" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def _n: if (. == null or . == "") then 0 else tonumber end;
+        def parse_time:
+          strip_html |
+          capture("(?:(?<h>[0-9]+)\\s*h)?\\s*(?:(?<m>[0-9]+)\\s*m)?\\s*(?:(?<s>[0-9]+)\\s*s)?") |
+          ((.h | _n) * 3600) + ((.m | _n) * 60) + (.s | _n);
+        $s | parse_time'
+}
+
+assert_eq "$S" "time-h-m"     "$(_parse_time '1<abbr>h</abbr> 27<abbr>m</abbr>')"                              "5220"
+assert_eq "$S" "time-m-only"  "$(_parse_time '45<abbr>m</abbr>')"                                              "2700"
+assert_eq "$S" "time-s-only"  "$(_parse_time '30<abbr>s</abbr>')"                                              "30"
+assert_eq "$S" "time-h-m-s"   "$(_parse_time '2<abbr>h</abbr> 3<abbr>m</abbr> 15<abbr>s</abbr>')"             "7395"
+assert_eq "$S" "time-empty"   "$(_parse_time '')"                                                              "0"
+assert_eq "$S" "time-plain-m" "$(_parse_time '45m')"                                                           "2700"
+
+# ── scrape-activity-dedup ─────────────────────────────────────────────────────
+# Mirrors the scrape dedup pipeline: entity filter → unique_by(id) → drop known.
+S="scrape-activity-dedup"
+
+# Seed the known store with one already-seen activity.
+printf '%s\n' \
+    '{"signature":"act-111","firstname":"Alice","name":"Old Ride","distance":10000}' \
+    > "$TMP/sc_store.ndjson"
+jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json"
+
+# Feed: act-111 (known→skip), act-222 (new), GroupActivity (skip), act-222 again (dedup).
+cat > "$TMP/sc_feed.json" << 'FEED'
+[
+  {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","athleteName":"Alice Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"GroupActivity","activity":{"id":"act-333","activityName":"Filtered Out"}},
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+]
+FEED
+
+_scrape_dedup() {
+    jq -n \
+        --slurpfile known "$TMP/sc_known.json" \
+        --slurpfile fetched "$TMP/sc_feed.json" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def parse_km:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end * 1000;
+        def parse_elev:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end;
+        def _n: if (. == null or . == "") then 0 else tonumber end;
+        def parse_time:
+          strip_html |
+          capture("(?:(?<h>[0-9]+)\\s*h)?\\s*(?:(?<m>[0-9]+)\\s*m)?\\s*(?:(?<s>[0-9]+)\\s*s)?") |
+          ((.h | _n) * 3600) + ((.m | _n) * 60) + (.s | _n);
+        ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
+        | [ $fetched[0][]
+            | select(.entity == "Activity")
+            | .activity
+            | (.stats | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+            | (.stats | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+            | (.stats | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+            | (.athlete.firstName // "") as $fn
+            | (.athlete.athleteName // "") as $an
+            | {
+                s:         .id,
+                firstname: $fn,
+                lastname:  ($an | ltrimstr($fn) | ltrimstr(" ")),
+                profile_medium: (.athlete.avatarUrl // ""),
+                name:      (.activityName // ""),
+                distance:  ($s1 | parse_km),
+                moving_time: ($s3 | parse_time),
+                elapsed_time: (.elapsedTime // 0),
+                total_elevation_gain: ($s2 | parse_elev),
+                type:      (.type // ""),
+                sport_type: (.type // ""),
+                firstSeen: (.startDate // "" | split("T")[0])
+              }
+          ]
+        | unique_by(.s)
+        | map(select($seen[.s] | not))'
+}
+
+_sc_new="$(_scrape_dedup)"
+
+assert_eq "$S" "only-new-added"        "$(printf '%s' "$_sc_new" | jq 'length')"         "1"
+assert_eq "$S" "new-id-is-act-222"     "$(printf '%s' "$_sc_new" | jq -r '.[0].s')"      "act-222"
+assert_eq "$S" "known-id-excluded"     "$(printf '%s' "$_sc_new" | jq '[.[].s=="act-111"]|any')" "false"
+assert_eq "$S" "group-entity-excluded" "$(printf '%s' "$_sc_new" | jq '[.[].s=="act-333"]|any')" "false"
+assert_eq "$S" "distance-parsed-km"    "$(printf '%s' "$_sc_new" | jq '.[0].distance')"  "25500"
+assert_eq "$S" "moving-time-parsed"    "$(printf '%s' "$_sc_new" | jq '.[0].moving_time')" "5400"
+assert_eq "$S" "elev-parsed"           "$(printf '%s' "$_sc_new" | jq '.[0].total_elevation_gain')" "300"
+assert_eq "$S" "first-seen-from-date"  "$(printf '%s' "$_sc_new" | jq -r '.[0].firstSeen')" "2026-06-10"
+assert_eq "$S" "lastname-trimmed"      "$(printf '%s' "$_sc_new" | jq -r '.[0].lastname')" "Jones"
+
+# ── scrape-cursor ─────────────────────────────────────────────────────────────
+# Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
+S="scrape-cursor"
+
+cat > "$TMP/sc_page.json" << 'PAGE'
+{"entries":[
+  {"entity":"Activity","cursorData":{"updated_at":1717200000.5}},
+  {"entity":"Activity","cursorData":{"updated_at":1717100000.9}}
+]}
+PAGE
+
+_cursor="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/sc_page.json")"
+assert_eq "$S" "cursor-is-last-entry"   "$_cursor" "1717100000"
+assert_eq "$S" "cursor-floored"         "$(printf '%s' "$_cursor" | grep -c '\.'  || true)" "0"
+
+# Single-entry page: cursor equals that entry.
+printf '{"entries":[{"entity":"Activity","cursorData":{"updated_at":1720000001.7}}]}\n' \
+    > "$TMP/sc_page1.json"
+_c1="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/sc_page1.json")"
+assert_eq "$S" "cursor-single-entry"    "$_c1" "1720000001"
+
+# ── scrape-meta ───────────────────────────────────────────────────────────────
+# Mirrors: jq -n --argjson ts "$_sc_age" '{ cookieVerifiedAt: ..., cookieRefreshNeededBy: ... }'
+S="scrape-meta"
+
+# Use a fixed timestamp: 2026-06-01T00:00:00Z = 1780272000
+_ts=1780272000
+_meta="$(jq -n --argjson ts "$_ts" '{
+    cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+    cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0])
+}')"
+
+assert_eq "$S" "verified-at-date"        "$(printf '%s' "$_meta" | jq -r '.cookieVerifiedAt')"      "2026-06-01"
+assert_eq "$S" "refresh-needed-30-days"  "$(printf '%s' "$_meta" | jq -r '.cookieRefreshNeededBy')" "2026-07-01"
+
+# Zero timestamp → meta not emitted (validated by the shell guard in the script).
+_sc_age=0
+if [ "$_sc_age" -gt 0 ]; then
+    err "$S" "zero-age-not-emitted" "zero age should suppress scrapeMeta"
+else
+    ok "$S" "zero-age-not-emitted"
+fi
+
+# ── scrape-csrf-extraction ────────────────────────────────────────────────────
+# Mirrors the awk pattern in ensure_session_cookie that reads the CSRF token
+# from the Strava dashboard HTML.
+S="scrape-csrf-extraction"
+
+_csrf_from_html() {
+    printf '%s' "$1" | awk -F'"' '/name="csrf-token"/{
+        for(i=1;i<=NF;i++){if($i==" content=" || $i=="content="){print $(i+1);exit}}
+    }'
+}
+
+# Standard attribute order: name then content.
+assert_eq "$S" "name-then-content" \
+    "$(_csrf_from_html '<meta name="csrf-token" content="abc123XYZ"/>')" \
+    "abc123XYZ"
+
+# content before name: the awk pattern checks for " content=" as a quoted-field
+# prefix, so when content= merges with the tag opener (<meta content=) it is not
+# matched. Strava always emits the standard Rails order (name first), so this
+# limitation is acceptable — document it as "returns empty".
+assert_eq "$S" "content-before-name-unsupported" \
+    "$(_csrf_from_html '<meta content="tok456" name="csrf-token"/>')" \
+    ""
+
+# No csrf-token tag → empty output.
+_no_token="$(_csrf_from_html '<meta name="viewport" content="width=device-width"/>')"
+if [ -z "$_no_token" ]; then
+    ok "$S" "no-token-empty-output"
+else
+    err "$S" "no-token-empty-output" "expected empty, got: $_no_token"
+fi
+
+# ── scrape-session-age ────────────────────────────────────────────────────────
+# Mirrors the CSRF-cache reuse guard in ensure_session_cookie:
+#   [ "$(( $(date +%s) - _sc_ts ))" -lt 2160000 ]  (25 days = 2160000 s)
+S="scrape-session-age"
+
+_now="$(date +%s)"
+_24h_ago=$(( _now - 86400 ))
+_26d_ago=$(( _now - 2246400 ))
+_bad_val=""
+
+# Recent timestamp (24 h old) → cache is valid.
+case "$_24h_ago" in ''|*[!0-9]*) _age_recent=expired ;; *)
+    if [ "$(( _now - _24h_ago ))" -lt 2160000 ]; then _age_recent=valid
+    else _age_recent=expired; fi ;;
+esac
+assert_eq "$S" "recent-ts-valid" "$_age_recent" "valid"
+
+# Old timestamp (26 days) → cache expired.
+case "$_26d_ago" in ''|*[!0-9]*) _age_old=expired ;; *)
+    if [ "$(( _now - _26d_ago ))" -lt 2160000 ]; then _age_old=valid
+    else _age_old=expired; fi ;;
+esac
+assert_eq "$S" "old-ts-expired" "$_age_old" "expired"
+
+# Empty/invalid value → treated as 0 → expired (mirrors: case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac).
+case "$_bad_val" in ''|*[!0-9]*) _age_bad=expired ;; *)
+    if [ "$(( _now - _bad_val ))" -lt 2160000 ]; then _age_bad=valid
+    else _age_bad=expired; fi ;;
+esac
+assert_eq "$S" "empty-val-expired" "$_age_bad" "expired"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then

@@ -110,7 +110,7 @@ ensure_drive_token() {
         fi
     fi
     log "refreshing Google Drive token..."
-    curl -fsS https://oauth2.googleapis.com/token \
+    curl_retry -fsS https://oauth2.googleapis.com/token \
         -d "client_id=$GOOGLE_CLIENT_ID" \
         -d "client_secret=$GOOGLE_CLIENT_SECRET" \
         -d "refresh_token=$GOOGLE_REFRESH_TOKEN" \
@@ -130,7 +130,7 @@ ensure_drive_token
 # --- 2. List Drive folder ----------------------------------------------------
 log "listing Drive folder $DRIVE_FOLDER_ID..."
 QUERY="'${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false"
-curl -fsS \
+curl_retry -fsS \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     "https://www.googleapis.com/drive/v3/files?q=${QUERY}&fields=files(id,name,modifiedTime)&pageSize=1000" \
     -o "$TMP/filelist.json" || die "Drive file listing failed"
@@ -150,7 +150,7 @@ drive_file_id() {
 
 drive_download() {
     fid="$1"; dest="$2"
-    curl -fsS -L \
+    curl_retry -fsS -L \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         "https://www.googleapis.com/drive/v3/files/${fid}?alt=media" \
         -o "$dest"

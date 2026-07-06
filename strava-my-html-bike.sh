@@ -283,16 +283,22 @@ function curBike(){
   return null;
 }
 // Distinct gears seen across rides, with km + count, for the bike form dropdown.
-// Collapses aliases: when a Strava opaque gear ID (e.g. "b12345") and a HealthSync
-// name-as-ID (e.g. "Kross Level 6.0 SRAM") both resolve to the same display name,
-// merge them under the canonical key (the one whose key == name).
+// Collapses aliases by pre-computing name→canonical-key from GEARS: when a Strava
+// opaque ID ("b12345") and a HealthSync name-as-ID ("Road Bike") both resolve to
+// the same display name, they land in the same bucket. Name-as-id wins as canonical
+// key when both styles exist (so the Kross HealthSync scenario stays stable).
 function gearOptions(){
   var agg = {};
+  var nameKey = {};
+  Object.keys(GEARS).forEach(function(gid){
+    var nm = (GEARS[gid] && GEARS[gid].name) ? GEARS[gid].name : gid;
+    if (!nameKey[nm] || gid === nm) nameKey[nm] = gid;
+  });
   RIDES.forEach(function(r){
     var g = r.gear || "";
     if (!g) return;
     var name = (GEARS[g] && GEARS[g].name) ? GEARS[g].name : g;
-    var key = (GEARS[name] !== undefined) ? name : g;
+    var key = nameKey[name] || g;
     if (!agg[key]) agg[key] = { km:0, n:0, name:name };
     agg[key].km += r.km; agg[key].n += 1;
   });
