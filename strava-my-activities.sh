@@ -85,7 +85,7 @@ page=1
 # prune within the date window it actually saw.
 reached_end=0
 while [ "$page" -le "$MAX_PAGES" ]; do
-  curl -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
+  curl_retry -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -o "$TMP/page.json" || die "activities fetch failed (page $page)"
 
@@ -299,7 +299,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
     fi
 
     tried=$((tried + 1))
-    code="$(curl -sS -o "$TMP/detail.json" -w '%{http_code}' \
+    code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
       "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
       -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
     case "$code" in

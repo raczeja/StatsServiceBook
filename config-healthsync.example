@@ -92,6 +92,14 @@ HEALTHSYNC_DEFAULT_BIKE="Kross"
 # Switch to "full" (or remove this line) in September when you disable Strava.
 #HEALTHSYNC_MODE="keepalive"
 
+# --- Network retry (optional) -----------------------------------------------
+# On OpenWrt, dnsmasq restarts (e.g. during WAN reconnect) can cause a brief
+# DNS gap. curl_retry in strava-lib.sh retries any network-level failure.
+# STRAVA_CURL_RETRIES:      number of retries after the first attempt (default 3)
+# STRAVA_CURL_RETRY_DELAY:  seconds to wait between retries (default 15)
+#STRAVA_CURL_RETRIES="3"
+#STRAVA_CURL_RETRY_DELAY="15"
+
 # --- Strava history migration -----------------------------------------------
 # HealthSync only keeps ~30 days of exports on Google Drive, so switching cold
 # from Strava would lose all your history. Point this at your existing Strava

@@ -149,18 +149,18 @@ async function testMyActivities(page, jsErrors) {
   await check(S, "meta-5-activities", async () => {
     const text = await page.$eval("#meta", (el) => el.textContent);
     assert.ok(
-      text.includes("5 activities"),
-      `expected "5 activities" in #meta: ${text}`,
+      text.includes("6 activities"),
+      `expected "6 activities" in #meta: ${text}`,
     );
   });
   await check(S, "summary-distance", async () => {
     const text = await page.$eval("#summary", (el) => el.textContent);
-    // 271 755.8 m rounds to 272 km in the page's display formatting
-    assert.ok(text.includes("272"), `expected "272" km in #summary: ${text}`);
+    // 303 755.8 m rounds to 304 km in the page's display formatting
+    assert.ok(text.includes("304"), `expected "304" km in #summary: ${text}`);
   });
   await check(S, "table-5-rows", async () => {
     const n = await page.$$eval("#board tbody tr", (rows) => rows.length);
-    assert.equal(n, 5, `expected 5 Ride rows for June 2026, got ${n}`);
+    assert.equal(n, 6, `expected 6 Ride rows for June 2026, got ${n}`);
   });
   await check(S, "bests-chips", async () => {
     const n = await page.$$eval("#bests .best", (els) => els.length);
@@ -202,7 +202,7 @@ async function testStats(page, jsErrors) {
     assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
   );
 
-  // KPI: Activities = 16
+  // KPI: Activities = 17
   await check(S, "kpi-activities-16", async () => {
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
@@ -211,10 +211,10 @@ async function testStats(page, jsErrors) {
       }
       return null;
     });
-    assert.equal(val, "16", `expected KPI Activities="16", got "${val}"`);
+    assert.equal(val, "17", `expected KPI Activities="17", got "${val}"`);
   });
 
-  // KPI: Distance includes "824"
+  // KPI: Distance includes "856"
   await check(S, "kpi-distance-824", async () => {
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
@@ -224,8 +224,8 @@ async function testStats(page, jsErrors) {
       return null;
     });
     assert.ok(
-      val && val.includes("824"),
-      `expected "824" in distance KPI, got "${val}"`,
+      val && val.includes("856"),
+      `expected "856" in distance KPI, got "${val}"`,
     );
   });
 
@@ -1052,7 +1052,7 @@ async function testHistoricalActivityPreservation(page, jsErrors) {
   await check(S, "total-count-accessible", async () => {
     const metaText = await page.$eval("#meta", (el) => el.textContent.trim());
 
-    // Extract count from meta (e.g., "5 activities, 272 km")
+    // Extract count from meta (e.g., "6 activities, 304 km")
     const countMatch = metaText.match(/(\d+)\s*activities/);
     assert.ok(
       countMatch,

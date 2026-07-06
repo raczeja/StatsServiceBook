@@ -100,3 +100,11 @@ STRAVA_MY_PRUNE_DELETED="1"
 # temporarily blocking outbound requests. The local store and detail files are
 # not touched; only the HTML/JSON output files are regenerated.
 #STRAVA_MY_IMPORT_ENABLED="1"
+
+# --- Network retry (optional) -----------------------------------------------
+# On OpenWrt, dnsmasq restarts (e.g. during WAN reconnect) can cause a brief
+# DNS gap. curl_retry in strava-lib.sh retries any network-level failure.
+# STRAVA_CURL_RETRIES:      number of retries after the first attempt (default 3)
+# STRAVA_CURL_RETRY_DELAY:  seconds to wait between retries (default 15)
+#STRAVA_CURL_RETRIES="3"
+#STRAVA_CURL_RETRY_DELAY="15"

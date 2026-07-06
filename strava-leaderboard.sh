@@ -24,9 +24,20 @@ CONFIG="${STRAVA_CONFIG:-/etc/strava-leaderboard.conf}"
 # shellcheck disable=SC1090
 . "$CONFIG"
 
-: "${STRAVA_CLIENT_ID:?set STRAVA_CLIENT_ID in $CONFIG}"
-: "${STRAVA_CLIENT_SECRET:?set STRAVA_CLIENT_SECRET in $CONFIG}"
-: "${STRAVA_REFRESH_TOKEN:?set STRAVA_REFRESH_TOKEN in $CONFIG}"
+STRAVA_SOURCE="${STRAVA_SOURCE:-api}"
+case "$STRAVA_SOURCE" in
+  api)
+    : "${STRAVA_CLIENT_ID:?set STRAVA_CLIENT_ID in $CONFIG}"
+    : "${STRAVA_CLIENT_SECRET:?set STRAVA_CLIENT_SECRET in $CONFIG}"
+    : "${STRAVA_REFRESH_TOKEN:?set STRAVA_REFRESH_TOKEN in $CONFIG}"
+    ;;
+  scrape)
+    : "${STRAVA_SESSION_COOKIE:?set STRAVA_SESSION_COOKIE in $CONFIG (required for STRAVA_SOURCE=scrape — copy _strava4_session from browser DevTools)}"
+    ;;
+  *)
+    die "STRAVA_SOURCE must be 'api' or 'scrape', got: $STRAVA_SOURCE"
+    ;;
+esac
 # Accept STRAVA_CLUB_IDS (new, comma-separated) or STRAVA_CLUB_ID (old, single).
 STRAVA_CLUB_IDS="${STRAVA_CLUB_IDS:-${STRAVA_CLUB_ID:-}}"
 : "${STRAVA_CLUB_IDS:?set STRAVA_CLUB_IDS in $CONFIG}"
@@ -49,8 +60,11 @@ TOKEN_STATE="$STATE_DIR/token.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
-# --- 1. Ensure a valid access token (see strava-lib.sh) -------------------
-ensure_access_token
+# --- 1. Authenticate (api: OAuth token refresh; scrape: web session login) --
+case "$STRAVA_SOURCE" in
+  api)    ensure_access_token ;;
+  scrape) ensure_session_cookie ;;
+esac
 
 FIRST_SEEN="${STRAVA_FIRST_SEEN_DATE:-$(date '+%Y-%m-%d')}"
 case "$FIRST_SEEN" in
@@ -81,85 +95,214 @@ while IFS= read -r club_id; do
     log "migrated activities.ndjson -> activities_${club_id}.ndjson"
   fi
 
-  # 2. Fetch club details (name, location, member count, …) for the dashboard.
-  if curl -fsS "https://www.strava.com/api/v3/clubs/$club_id" \
-    -H "Authorization: Bearer $ACCESS_TOKEN" \
-    -o "$TMP/club_info_${club_id}.json" 2>/dev/null; then
-    log "club $club_id: $(jq -r '.name // "(unnamed)"' "$TMP/club_info_${club_id}.json")"
-  else
-    log "club $club_id: details fetch failed (will show ID only)"
-    printf '{}' > "$TMP/club_info_${club_id}.json"
-  fi
+  # 2. Fetch club details for the dashboard (api only; scrape has no OAuth token).
+  case "$STRAVA_SOURCE" in
+    api)
+      if curl_retry -fsS "https://www.strava.com/api/v3/clubs/$club_id" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -o "$TMP/club_info_${club_id}.json" 2>/dev/null; then
+        # Persist full club details so scrape mode can reuse them after the API is retired.
+        cp "$TMP/club_info_${club_id}.json" "$STATE_DIR/club_info_${club_id}.json"
+        log "club $club_id: $(jq -r '.name // "(unnamed)"' "$TMP/club_info_${club_id}.json")"
+      else
+        log "club $club_id: details fetch failed (will show ID only)"
+        printf '{}' > "$TMP/club_info_${club_id}.json"
+      fi
+      ;;
+    scrape)
+      # Prefer club details saved by API mode (full: name, city, member_count, profile image).
+      # Fall back to parsing the club name from the public club page HTML.
+      if [ -f "$STATE_DIR/club_info_${club_id}.json" ]; then
+        cp "$STATE_DIR/club_info_${club_id}.json" "$TMP/club_info_${club_id}.json"
+        log "club $club_id: $(jq -r '.name // "(unnamed)"' "$TMP/club_info_${club_id}.json") (scrape mode, cached details)"
+      elif curl_retry -fsS \
+        -b "$STATE_DIR/strava_cookies.txt" \
+        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+        "https://www.strava.com/clubs/$club_id" \
+        -o "$TMP/club_page_${club_id}.html" 2>/dev/null; then
+        _scn=$(awk '/<title>/{
+          gsub(/.*<title>/, ""); gsub(/<\/title>.*/, "")
+          gsub(/ *[|].*$/, ""); gsub(/^[ \t]+|[ \t]+$/, "")
+          if ($0 != "") { print; exit }
+        }' "$TMP/club_page_${club_id}.html")
+        if [ -n "$_scn" ]; then
+          printf '%s\n' "$_scn" | jq -R '{name: .}' > "$TMP/club_info_${club_id}.json"
+        else
+          printf '{}' > "$TMP/club_info_${club_id}.json"
+        fi
+        log "club $club_id: ${_scn:-(unnamed)} (scrape mode, name from page)"
+      else
+        printf '{}' > "$TMP/club_info_${club_id}.json"
+        log "club $club_id (scrape mode, club details unavailable)"
+      fi
+      ;;
+  esac
 
   # 3. Page through the club activities feed
-  log "fetching club $club_id activities (up to $MAX_PAGES pages)..."
+  log "fetching club $club_id activities (up to $MAX_PAGES pages, source: $STRAVA_SOURCE)..."
   : > "$TMP/all.ndjson"
+  _scrape_cursor=""
   page=1
   while [ "$page" -le "$MAX_PAGES" ]; do
-    curl -fsS "https://www.strava.com/api/v3/clubs/$club_id/activities?per_page=$PER_PAGE&page=$page" \
-      -H "Authorization: Bearer $ACCESS_TOKEN" \
-      -o "$TMP/page.json" || die "activities fetch failed (club $club_id page $page)"
-
-    count="$(jq 'length' "$TMP/page.json" 2>/dev/null || echo 0)"
-    [ "$count" -gt 0 ] || { log "  page $page empty, stopping"; break; }
-
-    jq -c '.[]' "$TMP/page.json" >> "$TMP/all.ndjson"
-    log "  page $page: $count activities"
-
-    [ "$count" -lt "$PER_PAGE" ] && { log "  short page, stopping"; break; }
+    case "$STRAVA_SOURCE" in
+      api)
+        curl_retry -fsS \
+          "https://www.strava.com/api/v3/clubs/$club_id/activities?per_page=$PER_PAGE&page=$page" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" \
+          -o "$TMP/page.json" || die "activities fetch failed (club $club_id page $page)"
+        count="$(jq 'length' "$TMP/page.json" 2>/dev/null || echo 0)"
+        [ "$count" -gt 0 ] || { log "  page $page empty, stopping"; break; }
+        jq -c '.[]' "$TMP/page.json" >> "$TMP/all.ndjson"
+        log "  page $page: $count activities"
+        [ "$count" -lt "$PER_PAGE" ] && { log "  short page, stopping"; break; }
+        ;;
+      scrape)
+        _sc_url="https://www.strava.com/clubs/$club_id/feed?feed_type=club&club_id=$club_id"
+        [ -n "$_scrape_cursor" ] && _sc_url="$_sc_url&before=$_scrape_cursor&cursor=$_scrape_cursor"
+        _sc_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
+        curl_retry -fsS \
+          -b "$STATE_DIR/strava_cookies.txt" \
+          -H "accept: application/json, text/plain, */*" \
+          -H "x-requested-with: XMLHttpRequest" \
+          -H "x-csrf-token: $_sc_csrf" \
+          -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+          "$_sc_url" \
+          -o "$TMP/page.json" || die "feed fetch failed (club $club_id page $page)"
+        if ! jq -e '.entries' "$TMP/page.json" >/dev/null 2>&1; then
+          die "feed response not JSON (club $club_id) — session may have expired; delete $STATE_DIR/strava_session_age.txt and retry"
+        fi
+        count="$(jq '.entries | length' "$TMP/page.json")"
+        [ "$count" -gt 0 ] || { log "  page $page empty, stopping"; break; }
+        jq -c '.entries[]' "$TMP/page.json" >> "$TMP/all.ndjson"
+        log "  page $page: $count entries"
+        _scrape_cursor="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/page.json")"
+        ;;
+    esac
     page=$((page + 1))
   done
 
   jq -s '.' "$TMP/all.ndjson" > "$TMP/fetched.json"
-  log "fetched $(jq 'length' "$TMP/fetched.json") activities from club $club_id"
+  log "fetched $(jq 'length' "$TMP/fetched.json") entries from club $club_id"
 
-  # 3. Merge the feed into the per-club persistent activity store
-  # The club feed has no ids and no dates, so we dedupe by a content signature
-  # (athlete name + activity shape) and stamp each newly seen activity with today's
-  # local date as its "first seen" day. Store is append-only NDJSON.
-  #
-  # STRAVA_FIRST_SEEN_DATE (YYYY-MM-DD) overrides the stamp for this run — useful
-  # when bootstrapping the store to attribute activities to the month performed.
+  # 3. Merge fetched activities into the per-club persistent store.
+  # api:    dedup by content signature (feed has no ids/dates); stamp with today.
+  # scrape: dedup by activity id; firstSeen = actual startDate from Strava.
   [ -f "$CLUB_STORE" ] || : > "$CLUB_STORE"
 
-  jq -s '[ .[].signature ]' "$CLUB_STORE" > "$TMP/known.json"
+  if [ -s "$CLUB_STORE" ]; then
+    jq -s '[ .[].signature ]' "$CLUB_STORE" > "$TMP/known.json" \
+      || printf '[]\n' > "$TMP/known.json"
+  else
+    printf '[]\n' > "$TMP/known.json"
+  fi
+  [ -s "$TMP/fetched.json" ] || printf '[]\n' > "$TMP/fetched.json"
 
-  jq -c -n \
-    --slurpfile known "$TMP/known.json" \
-    --slurpfile fetched "$TMP/fetched.json" \
-    --arg today "$FIRST_SEEN" '
-    def sig:
-      [ ((.athlete.firstname // "") | ascii_downcase),
-        ((.athlete.lastname  // "") | ascii_downcase),
-        ((.name // "")              | ascii_downcase),
-        (.distance             // 0 | tostring),
-        (.elapsed_time         // 0 | tostring),
-        ((.sport_type // .type // "") | ascii_downcase)
-      ] | join("|");
-    ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
-    | [ $fetched[0][] | { s: sig, a: . } ]
-    | unique_by(.s)                       # collapse duplicates within this fetch
-    | map(select($seen[.s] | not))        # drop activities already in the store
-    | .[]
-    | {
-        signature:      .s,
-        firstSeen:      $today,
-        firstname:      (.a.athlete.firstname // ""),
-        lastname:       (.a.athlete.lastname  // ""),
-        profile_medium: (.a.athlete.profile_medium // ""),
-        name:           (.a.name // ""),
-        distance:       (.a.distance // 0),
-        moving_time:    (.a.moving_time // 0),
-        elapsed_time:   (.a.elapsed_time // 0),
-        total_elevation_gain: (.a.total_elevation_gain // 0),
-        type:           (.a.type // ""),
-        sport_type:     (.a.sport_type // .a.type // "")
-      }
-  ' > "$TMP/new.ndjson"
+  case "$STRAVA_SOURCE" in
+    api)
+      jq -c -n \
+        --slurpfile known "$TMP/known.json" \
+        --slurpfile fetched "$TMP/fetched.json" \
+        --arg today "$FIRST_SEEN" '
+        def sig:
+          [ ((.athlete.firstname // "") | ascii_downcase),
+            ((.athlete.lastname  // "") | ascii_downcase),
+            ((.name // "")              | ascii_downcase),
+            (.distance             // 0 | tostring),
+            (.elapsed_time         // 0 | tostring),
+            ((.sport_type // .type // "") | ascii_downcase)
+          ] | join("|");
+        ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
+        | [ $fetched[0][] | { s: sig, a: . } ]
+        | unique_by(.s)
+        | map(select($seen[.s] | not))
+        | .[]
+        | {
+            signature:      .s,
+            firstSeen:      $today,
+            firstname:      (.a.athlete.firstname // ""),
+            lastname:       (.a.athlete.lastname  // ""),
+            profile_medium: (.a.athlete.profile_medium // ""),
+            name:           (.a.name // ""),
+            distance:       (.a.distance // 0),
+            moving_time:    (.a.moving_time // 0),
+            elapsed_time:   (.a.elapsed_time // 0),
+            total_elevation_gain: (.a.total_elevation_gain // 0),
+            type:           (.a.type // ""),
+            sport_type:     (.a.sport_type // .a.type // "")
+          }
+      ' > "$TMP/new.ndjson"
+      ;;
+    scrape)
+      # Stats arrive as HTML strings: strip tags, parse numbers.
+      # distance: "34.30<abbr...> km</abbr>" → 34300 m
+      # elev:     "108<abbr...> m</abbr>"    → 108 m
+      # time:     "1<abbr>h</abbr> 27<abbr>m</abbr>" → seconds
+      jq -c -n \
+        --slurpfile known "$TMP/known.json" \
+        --slurpfile fetched "$TMP/fetched.json" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def parse_km:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end * 1000;
+        def parse_elev:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end;
+        def _n: if (. == null or . == "") then 0 else tonumber end;
+        def parse_time:
+          strip_html |
+          capture("(?:(?<h>[0-9]+)\\s*h)?\\s*(?:(?<m>[0-9]+)\\s*m)?\\s*(?:(?<s>[0-9]+)\\s*s)?") |
+          ((.h | _n) * 3600) + ((.m | _n) * 60) + (.s | _n);
+        ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
+        | [ $fetched[0][]
+            | select(.entity == "Activity")
+            | .activity
+            | (.stats | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+            | (.stats | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+            | (.stats | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+            | (.athlete.firstName // "") as $fn
+            | (.athlete.athleteName // "") as $an
+            | {
+                s:         .id,
+                firstname: $fn,
+                lastname:  ($an | ltrimstr($fn) | ltrimstr(" ")),
+                profile_medium: (.athlete.avatarUrl // ""),
+                name:      (.activityName // ""),
+                distance:  ($s1 | parse_km),
+                moving_time: ($s3 | parse_time),
+                elapsed_time: (.elapsedTime // 0),
+                total_elevation_gain: ($s2 | parse_elev),
+                type:      (.type // ""),
+                sport_type: (.type // ""),
+                firstSeen: (.startDate // "" | split("T")[0])
+              }
+          ]
+        | unique_by(.s)
+        | map(select($seen[.s] | not))
+        | .[]
+        | {
+            signature:    .s,
+            firstSeen:    .firstSeen,
+            firstname:    .firstname,
+            lastname:     .lastname,
+            profile_medium: .profile_medium,
+            name:         .name,
+            distance:     .distance,
+            moving_time:  .moving_time,
+            elapsed_time: .elapsed_time,
+            total_elevation_gain: .total_elevation_gain,
+            type:         .type,
+            sport_type:   .sport_type
+          }
+      ' > "$TMP/new.ndjson"
+      ;;
+  esac
 
   ADDED="$(wc -l < "$TMP/new.ndjson" | tr -d ' ')"
   cat "$TMP/new.ndjson" >> "$CLUB_STORE"
-  log "club $club_id: +$ADDED new (firstSeen $FIRST_SEEN), $(wc -l < "$CLUB_STORE" | tr -d ' ') total"
+  case "$STRAVA_SOURCE" in
+    api)    log "club $club_id: +$ADDED new (firstSeen $FIRST_SEEN), $(wc -l < "$CLUB_STORE" | tr -d ' ') total" ;;
+    scrape) log "club $club_id: +$ADDED new (actual dates), $(wc -l < "$CLUB_STORE" | tr -d ' ') total" ;;
+  esac
 
   # 5a. Emit per-club activities temp file (assembled into activities.json below).
   jq -s --arg clubId "$club_id" --arg sport "$SPORT_LC" \
@@ -246,10 +389,26 @@ while IFS= read -r club_id; do
   clubdata_files="$clubdata_files $TMP/clubdata_${club_id}.json"
 done < "$TMP/clubs_manifest.txt"
 
+# Build scrapeMeta: cookie verification date + ~30-day expiry (used by dashboard banner).
+_sc_meta='null'
+if [ "$STRAVA_SOURCE" = "scrape" ]; then
+  _sc_age="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
+  case "$_sc_age" in ''|*[!0-9]*) _sc_age=0 ;; esac
+  if [ "$_sc_age" -gt 0 ]; then
+    _sc_meta="$(jq -n --argjson ts "$_sc_age" '{
+      cookieVerifiedAt:     ($ts            | todate | split("T")[0]),
+      cookieRefreshNeededBy:(($ts + 2592000) | todate | split("T")[0])
+    }')"
+  fi
+fi
+
 # shellcheck disable=SC2086
 jq -s --arg generatedAt "$GENERATED_AT" --arg sport "$SPORT_LC" \
+  --arg source "$STRAVA_SOURCE" --argjson scrapeMeta "$_sc_meta" \
   '{ generatedAt: $generatedAt,
      sport: (if $sport == "" then "all" else $sport end),
+     source: $source,
+     scrapeMeta: $scrapeMeta,
      clubs: . }' \
   $clubdata_files > "$WEB_DIR/activities.json"
 
@@ -288,20 +447,24 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .club-heading a{font-size:.7em;font-weight:normal;color:#fc4c02;margin-left:auto}
   .club-sub{color:#666;font-size:.82rem;margin:0 0 .5rem}
   .club-desc{color:#555;font-size:.82rem;margin:0 0 .75rem;font-style:italic}
+  .ck-banner{padding:.55rem 1rem;border-radius:.4rem;margin:.5rem 0 1rem;font-size:.88rem}
+  .ck-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+  .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
+  .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
 </style>
 </head>
 <body>
 <h1>🏆 Club Leaderboard</h1>
 <div class="nav"><a href="me/">→ My Activities</a></div>
+<div id="ck-banner" style="display:none"></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
 </div>
 <div class="meta" id="meta">Loading…</div>
 <div id="board"></div>
-<div class="meta">
-  StravaStats for OpenWrt · history accumulated daily by cron, dated by when each
-  activity was first seen · <a href="activities.json">activities.json</a><span id="footer-links"></span>
+<div class="meta" id="footer-meta">
+  StravaStats for OpenWrt · <span id="footer-source"></span> · <a href="activities.json">activities.json</a><span id="footer-links"></span>
 </div>
 <script>
 "use strict";
@@ -319,6 +482,29 @@ function fmtTime(s){ return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m";
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 
+function renderCookieBanner(meta){
+  var el = document.getElementById("ck-banner");
+  if(!meta || !meta.cookieRefreshNeededBy){ el.style.display="none"; return; }
+  var daysLeft = Math.ceil((new Date(meta.cookieRefreshNeededBy) - new Date()) / 86400000);
+  var cls, msg;
+  if(daysLeft <= 0){
+    cls = "ck-expired";
+    msg = "&#9888; Session cookie has expired &mdash; paste a fresh <code>_strava4_session</code> value"+
+          " into <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-leaderboard.conf</code>";
+  } else if(daysLeft <= 7){
+    cls = "ck-warn";
+    msg = "&#9888; Session cookie expires in "+daysLeft+" day"+(daysLeft===1?"":"s")+
+          " ("+esc(meta.cookieRefreshNeededBy)+") &mdash; refresh <code>_strava4_session</code> soon";
+  } else {
+    cls = "ck-ok";
+    msg = "&#10003; Scrape mode &mdash; cookie verified "+esc(meta.cookieVerifiedAt)+
+          ", valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)";
+  }
+  el.className = "ck-banner "+cls;
+  el.innerHTML = msg;
+  el.style.display = "";
+}
+
 function fallbackToLatestMonth(acts, year, month) {
   var y = year, m = month;
   for (var i = 0; i < 24; i++) {
@@ -332,6 +518,7 @@ function fallbackToLatestMonth(acts, year, month) {
 }
 
 function init(){
+  renderCookieBanner(DATA.scrapeMeta || null);
   var clubs = DATA.clubs || [];
   var allActs = [];
   clubs.forEach(function(c){ (c.activities||[]).forEach(function(a){ allActs.push(a); }); });
@@ -364,6 +551,10 @@ function init(){
     lks += ' · <a href="leaderboard_'+esc(c.clubId)+'.json">'+label+' all-time JSON</a>';
   });
   footerLinks.innerHTML = lks;
+  var fsrc = document.getElementById("footer-source");
+  if(fsrc) fsrc.textContent = DATA.source === "scrape"
+    ? "scrape mode · real activity dates"
+    : "api mode · dates = first-seen day";
 
   yearSel.onchange = render;
   monthSel.onchange = render;

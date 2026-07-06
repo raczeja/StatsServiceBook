@@ -13,9 +13,27 @@ STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
 
 # One or more numeric club IDs, comma-separated. Taken from the club URL:
 # https://www.strava.com/clubs/<id>  — the number at the end is the club id.
-# To follow multiple clubs put them all here: STRAVA_CLUB_IDS="123456,1280790"
+# To follow multiple clubs put them all here: STRAVA_CLUB_IDS="123456,789012"
 # The old single-value STRAVA_CLUB_ID is still accepted for backward compatibility.
-STRAVA_CLUB_IDS="123456"
+STRAVA_CLUB_IDS="123456,123457"
+
+# --- Data source (choose one) ------------------------------------------------
+# "api"    — default; OAuth-based, uses the Club Activities API.
+#            The Club Activities endpoint is deprecated effective 2026-09-01.
+#            Requires STRAVA_CLIENT_ID/SECRET/REFRESH_TOKEN above.
+# "scrape" — web-session-based; uses the Strava club feed endpoint directly.
+#            Switch to this after September 2026. Real activity dates + IDs.
+#            Requires STRAVA_EMAIL and STRAVA_PASSWORD below; the OAuth vars
+#            above are not used and can be left as placeholders.
+#STRAVA_SOURCE="api"
+
+# Required when STRAVA_SOURCE=scrape:
+# Strava uses OTP/magic-link login — automated password auth is not possible.
+# Instead, copy the _strava4_session cookie value from your already-logged-in
+# browser: DevTools → Application → Cookies → www.strava.com → _strava4_session
+# Sessions last ~30 days. When the script reports "cookie has expired", paste a
+# fresh value here and the next run will re-verify automatically.
+#STRAVA_SESSION_COOKIE="sm7ds67uj17reet9k7k54l0q83gl3oua"
 
 # --- Optional ---------------------------------------------------------------
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
@@ -49,3 +67,11 @@ STRAVA_STATE_DIR="/mnt/sda5/strava-leaderboard"
 
 # How many daily JSON snapshots to retain before pruning the oldest.
 STRAVA_KEEP_SNAPSHOTS="90"
+
+# --- Network retry (optional) -----------------------------------------------
+# On OpenWrt, dnsmasq restarts (e.g. during WAN reconnect) can cause a brief
+# DNS gap. curl_retry in strava-lib.sh retries any network-level failure.
+# STRAVA_CURL_RETRIES:      number of retries after the first attempt (default 3)
+# STRAVA_CURL_RETRY_DELAY:  seconds to wait between retries (default 15)
+#STRAVA_CURL_RETRIES="3"
+#STRAVA_CURL_RETRY_DELAY="15"

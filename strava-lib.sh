@@ -11,6 +11,24 @@
 log() { logger -t strava "$*"; echo "$(date '+%Y-%m-%d %H:%M:%S') $*"; }
 die() { logger -t strava "ERROR: $*"; echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $*" >&2; exit 1; }
 
+# curl_retry — wraps curl with retry on network-level failure.
+# Transient DNS gaps (e.g. router dnsmasq restart) clear within seconds;
+# retrying with a short back-off recovers automatically.
+# Config: STRAVA_CURL_RETRIES (default 3 retries), STRAVA_CURL_RETRY_DELAY (default 15s).
+# Retry messages go to stderr so stdout-capturing callers like
+# code="$(curl_retry ... -w '%{http_code}')" are not contaminated.
+curl_retry() {
+  _cr_n=0
+  while true; do
+    curl "$@" && return 0
+    _cr_n=$((_cr_n + 1))
+    [ "$_cr_n" -le "${STRAVA_CURL_RETRIES:-3}" ] || return 1
+    _cr_wait=$((_cr_n * ${STRAVA_CURL_RETRY_DELAY:-15}))
+    log "curl failed, retry $_cr_n/${STRAVA_CURL_RETRIES:-3} in ${_cr_wait}s..." >&2
+    sleep "$_cr_wait"
+  done
+}
+
 # fetch_weather_temp lat lon date  →  prints integer °C or "" on error/unavailable
 # Sets global _fw_temp_source to "archive" or "forecast" on success.
 # If caller sets _fw_archive_only=1, skips the forecast fallback — used by the
@@ -69,7 +87,7 @@ ensure_access_token() {
   fi
 
   log "access token missing/expiring, refreshing..."
-  curl -fsS https://www.strava.com/oauth/token \
+  curl_retry -fsS https://www.strava.com/oauth/token \
     -d client_id="$STRAVA_CLIENT_ID" \
     -d client_secret="$STRAVA_CLIENT_SECRET" \
     -d grant_type=refresh_token \
@@ -83,4 +101,54 @@ ensure_access_token() {
   cp "$TMP/token.json" "$TOKEN_STATE"
   chmod 600 "$TOKEN_STATE"
   log "access token refreshed (valid ~$(jq -r '.expires_in // "?"' "$TMP/token.json")s)"
+}
+
+# ensure_session_cookie — prepare the Strava web session for the scrape data
+# source. Strava uses OTP/magic-link login, so automated password login is not
+# possible. Instead, the caller supplies the _strava4_session cookie value
+# copied from their browser (DevTools → Application → Cookies → strava.com).
+# This function writes that value to a curl cookie file and fetches the AJAX
+# CSRF token from /dashboard. The CSRF token is cached for 25 days; the cookie
+# file is rewritten every run from STRAVA_SESSION_COOKIE so a config update
+# takes effect immediately.
+# Requires: STRAVA_SESSION_COOKIE, STATE_DIR, TMP
+ensure_session_cookie() {
+  _sc_cookie_file="$STATE_DIR/strava_cookies.txt"
+  _sc_csrf="$STATE_DIR/strava_csrf.txt"
+  _sc_age="$STATE_DIR/strava_session_age.txt"
+
+  # Always (re)write the cookie file — the value in config may have changed.
+  printf '# Netscape HTTP Cookie File\n' > "$_sc_cookie_file"
+  printf '.strava.com\tTRUE\t/\tTRUE\t0\t_strava4_session\t%s\n' \
+    "$STRAVA_SESSION_COOKIE" >> "$_sc_cookie_file"
+  chmod 600 "$_sc_cookie_file"
+
+  # Reuse cached CSRF token if < 25 days old.
+  if [ -f "$_sc_csrf" ] && [ -f "$_sc_age" ]; then
+    _sc_ts="$(cat "$_sc_age" 2>/dev/null || echo 0)"
+    case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
+    if [ "$(( $(date +%s) - _sc_ts ))" -lt 2160000 ]; then
+      log "reusing cached Strava CSRF token"
+      return 0
+    fi
+  fi
+
+  log "fetching Strava CSRF token from dashboard..."
+  curl_retry -fsS \
+    -b "$_sc_cookie_file" \
+    -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+    "https://www.strava.com/dashboard" \
+    -o "$TMP/sc_dashboard.html" \
+    || die "failed to fetch Strava dashboard — check network connectivity"
+
+  _sc_csrf_val="$(awk -F'"' '/name="csrf-token"/{
+    for(i=1;i<=NF;i++){if($i==" content=" || $i=="content="){print $(i+1);exit}}
+  }' "$TMP/sc_dashboard.html")"
+  [ -n "$_sc_csrf_val" ] \
+    || die "could not extract csrf-token — STRAVA_SESSION_COOKIE has expired; copy a fresh _strava4_session value from browser DevTools (Application → Cookies → strava.com) into your config"
+
+  printf '%s\n' "$_sc_csrf_val" > "$_sc_csrf"
+  chmod 600 "$_sc_csrf"
+  printf '%s\n' "$(date +%s)" > "$_sc_age"
+  log "Strava session verified"
 }
