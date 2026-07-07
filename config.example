@@ -34,6 +34,12 @@ STRAVA_CLUB_IDS="123456,123457"
 # Sessions last ~30 days. When the script reports "cookie has expired", paste a
 # fresh value here and the next run will re-verify automatically.
 #STRAVA_SESSION_COOKIE="sm7ds67uj17reet9k7k54l0q83gl3oua"
+#
+# Cookie dry-run (STRAVA_SOURCE=api + STRAVA_SESSION_COOKIE set):
+# You can set STRAVA_SESSION_COOKIE even while still using the API source. The
+# script will verify the cookie on every run and display its status in the
+# dashboard banner — no scraped data is saved. Use this to confirm the session
+# is ready before switching to STRAVA_SOURCE=scrape after September 2026.
 
 # --- Optional ---------------------------------------------------------------
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.

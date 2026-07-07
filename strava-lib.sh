@@ -152,3 +152,59 @@ ensure_session_cookie() {
   printf '%s\n' "$(date +%s)" > "$_sc_age"
   log "Strava session verified"
 }
+
+# check_session_cookie_status — non-fatal cookie probe used by the api+cookie
+# dry-run mode. Sets _sc_check_valid=1 on success, 0 on failure. Returns 0/1.
+# Re-uses the cached CSRF token when fresh (< 25 days); does a live dashboard
+# fetch otherwise. On success the cookie/CSRF/age files are written identically
+# to ensure_session_cookie so the two functions share state safely.
+# Requires: STRAVA_SESSION_COOKIE, STATE_DIR, TMP
+check_session_cookie_status() {
+  _sc_check_valid=0
+  _sc_cookie_file="$STATE_DIR/strava_cookies.txt"
+  _sc_csrf="$STATE_DIR/strava_csrf.txt"
+  _sc_age="$STATE_DIR/strava_session_age.txt"
+
+  # Always (re)write the cookie file from the current config value.
+  printf '# Netscape HTTP Cookie File\n' > "$_sc_cookie_file"
+  printf '.strava.com\tTRUE\t/\tTRUE\t0\t_strava4_session\t%s\n' \
+    "$STRAVA_SESSION_COOKIE" >> "$_sc_cookie_file"
+  chmod 600 "$_sc_cookie_file"
+
+  # Reuse cached CSRF token if < 25 days old.
+  if [ -f "$_sc_csrf" ] && [ -f "$_sc_age" ]; then
+    _sc_ts="$(cat "$_sc_age" 2>/dev/null || echo 0)"
+    case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
+    if [ "$(( $(date +%s) - _sc_ts ))" -lt 2160000 ]; then
+      log "cookie dry-run: CSRF cache fresh ($(( ( $(date +%s) - _sc_ts ) / 86400 ))d old) — session assumed valid"
+      _sc_check_valid=1
+      return 0
+    fi
+  fi
+
+  log "cookie dry-run: verifying session cookie via Strava dashboard..."
+  if ! curl_retry -fsS \
+    -b "$_sc_cookie_file" \
+    -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+    "https://www.strava.com/dashboard" \
+    -o "$TMP/sc_probe.html" 2>/dev/null; then
+    log "cookie dry-run: network error — cannot reach Strava dashboard"
+    return 1
+  fi
+
+  _sc_csrf_val="$(awk -F'"' '/name="csrf-token"/{
+    for(i=1;i<=NF;i++){if($i==" content=" || $i=="content="){print $(i+1);exit}}
+  }' "$TMP/sc_probe.html")"
+
+  if [ -z "$_sc_csrf_val" ]; then
+    log "cookie dry-run: STRAVA_SESSION_COOKIE has expired (no CSRF token found)"
+    return 1
+  fi
+
+  printf '%s\n' "$_sc_csrf_val" > "$_sc_csrf"
+  chmod 600 "$_sc_csrf"
+  printf '%s\n' "$(date +%s)" > "$_sc_age"
+  _sc_check_valid=1
+  log "cookie dry-run: session cookie verified OK"
+  return 0
+}
