@@ -61,8 +61,20 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 # --- 1. Authenticate (api: OAuth token refresh; scrape: web session login) --
+# Cookie dry-run: when STRAVA_SOURCE=api but STRAVA_SESSION_COOKIE is also set,
+# probe the cookie on every run without saving any scraped data. The result
+# appears in scrapeMeta so the dashboard shows cookie health alongside API data —
+# useful to confirm the session is ready before switching to STRAVA_SOURCE=scrape.
+_scrape_dry_run=0
+_sc_check_valid=0
 case "$STRAVA_SOURCE" in
-  api)    ensure_access_token ;;
+  api)
+    ensure_access_token
+    if [ -n "${STRAVA_SESSION_COOKIE:-}" ]; then
+      _scrape_dry_run=1
+      check_session_cookie_status || true
+    fi
+    ;;
   scrape) ensure_session_cookie ;;
 esac
 
@@ -381,6 +393,76 @@ while IFS= read -r club_id; do
   printf '%s\n' "$club_id" >> "$TMP/clubs_manifest.txt"
 done < "$TMP/club_ids.txt"
 
+# --- 4b. Cookie dry-run: probe the club scrape feed (not saved) ---------------
+# Runs when STRAVA_SOURCE=api but STRAVA_SESSION_COOKIE is also set. Exercises
+# the full scrape pipeline — session cookie, CSRF header, feed JSON endpoint,
+# and activity-entry parsing — without touching the persistent store. Verifies
+# the migration path to STRAVA_SOURCE=scrape is working end-to-end.
+_sc_dry_run_feed_ok=0
+_sc_dry_run_meta='null'
+if [ "$_scrape_dry_run" = "1" ]; then
+  if [ "$_sc_check_valid" = "1" ]; then
+    _sc_dry_run_feed_ok=1
+    log "cookie dry-run: probing club scrape feed for all clubs (not saving)..."
+    while IFS= read -r _dr_club; do
+      _dr_club="$(printf '%s' "$_dr_club" | tr -d ' \t')"
+      [ -n "$_dr_club" ] || continue
+      _dr_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
+      _dr_url="https://www.strava.com/clubs/$_dr_club/feed?feed_type=club&club_id=$_dr_club"
+      _dr_cursor=""
+      _dr_page=1
+      _dr_total_acts=0
+      while [ "$_dr_page" -le "$MAX_PAGES" ]; do
+        [ -n "$_dr_cursor" ] && _dr_url="${_dr_url%%\?*}?feed_type=club&club_id=$_dr_club&before=$_dr_cursor&cursor=$_dr_cursor"
+        if ! curl_retry -fsS \
+          -b "$STATE_DIR/strava_cookies.txt" \
+          -H "accept: application/json, text/plain, */*" \
+          -H "x-requested-with: XMLHttpRequest" \
+          -H "x-csrf-token: $_dr_csrf" \
+          -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+          "$_dr_url" \
+          -o "$TMP/dr_feed_${_dr_club}.json" 2>/dev/null; then
+          log "cookie dry-run: club $_dr_club page $_dr_page — network error"
+          _sc_dry_run_feed_ok=0; break
+        fi
+        if ! jq -e '.entries' "$TMP/dr_feed_${_dr_club}.json" >/dev/null 2>&1; then
+          log "cookie dry-run: club $_dr_club page $_dr_page — response not valid JSON (session may have expired)"
+          _sc_dry_run_feed_ok=0; break
+        fi
+        _dr_count="$(jq '.entries | length' "$TMP/dr_feed_${_dr_club}.json")"
+        _dr_acts="$(jq '[.entries[] | select(.entity == "Activity")] | length' "$TMP/dr_feed_${_dr_club}.json")"
+        _dr_total_acts=$((_dr_total_acts + _dr_acts))
+        log "cookie dry-run: club $_dr_club page $_dr_page — $_dr_count entries, $_dr_acts activities (not saved)"
+        [ "$_dr_count" -gt 0 ] || break
+        _dr_cursor="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/dr_feed_${_dr_club}.json")"
+        [ "$_dr_count" -lt "$PER_PAGE" ] && break
+        _dr_page=$((_dr_page + 1))
+      done
+      [ "$_sc_dry_run_feed_ok" = "1" ] && \
+        log "cookie dry-run: club $_dr_club — $_dr_total_acts activities fetched via scrape (not saved)"
+    done < "$TMP/club_ids.txt"
+  fi
+
+  # Build _sc_dry_run_meta now that the probe result is known.
+  if [ "$_sc_check_valid" = "1" ]; then
+    _sc_ts="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
+    case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
+    if [ "$_sc_ts" -gt 0 ]; then
+      _sc_dry_run_meta="$(jq -n --argjson ts "$_sc_ts" --argjson feedOk "$_sc_dry_run_feed_ok" '{
+        cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+        cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0]),
+        dryRun:                true,
+        cookieValid:           true,
+        feedTestOk:            ($feedOk == 1)
+      }')"
+    else
+      _sc_dry_run_meta='{"dryRun":true,"cookieValid":true,"feedTestOk":false}'
+    fi
+  else
+    _sc_dry_run_meta='{"dryRun":true,"cookieValid":false,"feedTestOk":false}'
+  fi
+fi
+
 # --- 5. Emit combined activities.json from per-club data ------------------
 # Collect per-club temp file paths (paths are numeric IDs, no spaces, safe to split).
 clubdata_files=""
@@ -390,6 +472,7 @@ while IFS= read -r club_id; do
 done < "$TMP/clubs_manifest.txt"
 
 # Build scrapeMeta: cookie verification date + ~30-day expiry (used by dashboard banner).
+# In scrape mode: real session data. In api+cookie dry-run: precomputed above.
 _sc_meta='null'
 if [ "$STRAVA_SOURCE" = "scrape" ]; then
   _sc_age="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
@@ -400,6 +483,8 @@ if [ "$STRAVA_SOURCE" = "scrape" ]; then
       cookieRefreshNeededBy:(($ts + 2592000) | todate | split("T")[0])
     }')"
   fi
+elif [ "$_scrape_dry_run" = "1" ]; then
+  _sc_meta="$_sc_dry_run_meta"
 fi
 
 # shellcheck disable=SC2086
@@ -451,18 +536,19 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .ck-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
   .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
   .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
+  .bar{height:5px;background:#fc4c02;border-radius:3px;margin-top:4px;min-width:3px}
 </style>
 </head>
 <body>
 <h1>🏆 Club Leaderboard</h1>
 <div class="nav"><a href="me/">→ My Activities</a></div>
-<div id="ck-banner" style="display:none"></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
 </div>
 <div class="meta" id="meta">Loading…</div>
 <div id="board"></div>
+<div id="ck-banner" style="display:none"></div>
 <div class="meta" id="footer-meta">
   StravaStats for OpenWrt · <span id="footer-source"></span> · <a href="activities.json">activities.json</a><span id="footer-links"></span>
 </div>
@@ -484,21 +570,41 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
 
 function renderCookieBanner(meta){
   var el = document.getElementById("ck-banner");
-  if(!meta || !meta.cookieRefreshNeededBy){ el.style.display="none"; return; }
+  if(!meta){ el.style.display="none"; return; }
+  var dr = meta.dryRun ? true : false;
+  var pfx = dr ? "Cookie dry-run — " : "";
+  if(!meta.cookieRefreshNeededBy){
+    if(dr && meta.cookieValid === false){
+      el.className = "ck-banner ck-expired";
+      el.innerHTML = "&#9888; "+pfx+"<code>STRAVA_SESSION_COOKIE</code> has <strong>expired</strong>"+
+                     " &mdash; paste a fresh <code>_strava4_session</code> value into"+
+                     " <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-leaderboard.conf</code>";
+      el.style.display = "";
+    } else {
+      el.style.display = "none";
+    }
+    return;
+  }
   var daysLeft = Math.ceil((new Date(meta.cookieRefreshNeededBy) - new Date()) / 86400000);
   var cls, msg;
   if(daysLeft <= 0){
     cls = "ck-expired";
-    msg = "&#9888; Session cookie has expired &mdash; paste a fresh <code>_strava4_session</code> value"+
+    msg = "&#9888; "+pfx+"session cookie has expired &mdash; paste a fresh <code>_strava4_session</code> value"+
           " into <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-leaderboard.conf</code>";
   } else if(daysLeft <= 7){
     cls = "ck-warn";
-    msg = "&#9888; Session cookie expires in "+daysLeft+" day"+(daysLeft===1?"":"s")+
+    msg = "&#9888; "+pfx+"session cookie expires in "+daysLeft+" day"+(daysLeft===1?"":"s")+
           " ("+esc(meta.cookieRefreshNeededBy)+") &mdash; refresh <code>_strava4_session</code> soon";
+  } else if(dr && meta.feedTestOk === false){
+    cls = "ck-warn";
+    msg = "&#9888; Cookie dry-run &mdash; cookie valid but feed fetch failed"+
+          " (check network or club ID); valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)";
   } else {
     cls = "ck-ok";
-    msg = "&#10003; Scrape mode &mdash; cookie verified "+esc(meta.cookieVerifiedAt)+
-          ", valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)";
+    var feedNote = dr ? (meta.feedTestOk ? " — feed test OK" : "") : "";
+    msg = "&#10003; "+(dr ? "Cookie dry-run (api mode)" : "Scrape mode")+
+          " &mdash; cookie verified "+esc(meta.cookieVerifiedAt)+
+          ", valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)"+feedNote;
   }
   el.className = "ck-banner "+cls;
   el.innerHTML = msg;
@@ -575,13 +681,15 @@ function renderClubTable(acts){
   var members = Object.keys(map).map(function(k){ return map[k]; })
     .sort(function(x,y){ return y.distance-x.distance; });
   if(members.length===0) return '<p class="empty">No activities for this period.</p>';
+  var maxDist = members[0].distance || 1;
   var html = '<table><thead><tr><th>#</th><th>Athlete</th><th>Distance</th>'+
     '<th>Time</th><th>Elev (m)</th><th>Activities</th><th>Avg km/h</th></tr></thead><tbody>';
   members.forEach(function(m,i){
     var avg = m.moving_time>0 ? (m.distance/m.moving_time*3.6) : 0;
+    var pct = maxDist>0 ? Math.max(3, Math.round(m.distance/maxDist*100)) : 3;
     html += '<tr><td class="num">'+(i+1)+'</td>'+
       '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'</td>'+
-      '<td class="num">'+fmtKm(m.distance)+' km</td>'+
+      '<td class="num">'+fmtKm(m.distance)+' km<div class="bar" style="width:'+pct+'%"></div></td>'+
       '<td class="num">'+fmtTime(m.moving_time)+'</td>'+
       '<td class="num">'+Math.floor(m.elev)+'</td>'+
       '<td class="num">'+m.count+'</td>'+

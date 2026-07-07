@@ -775,6 +775,54 @@ case "$_bad_val" in ''|*[!0-9]*) _age_bad=expired ;; *)
 esac
 assert_eq "$S" "empty-val-expired" "$_age_bad" "expired"
 
+# ── scrape-dry-run-meta ───────────────────────────────────────────────────────
+# Mirrors the _sc_dry_run_meta building logic in strava-leaderboard.sh:
+#   jq -n --argjson ts "$_sc_ts" '{ dryRun: true, cookieValid: true, ... }'
+S="scrape-dry-run-meta"
+
+_ts=1780272000  # 2026-06-01T00:00:00Z
+
+# Valid cookie + feed OK: all fields present.
+_dry_valid="$(jq -n --argjson ts "$_ts" --argjson feedOk 1 '{
+    cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+    cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0]),
+    dryRun:                true,
+    cookieValid:           true,
+    feedTestOk:            ($feedOk == 1)
+}')"
+
+assert_eq "$S" "dry-run-flag"           "$(printf '%s' "$_dry_valid" | jq '.dryRun')"                   "true"
+assert_eq "$S" "cookie-valid-flag"      "$(printf '%s' "$_dry_valid" | jq '.cookieValid')"              "true"
+assert_eq "$S" "feed-test-ok"           "$(printf '%s' "$_dry_valid" | jq '.feedTestOk')"               "true"
+assert_eq "$S" "verified-at"            "$(printf '%s' "$_dry_valid" | jq -r '.cookieVerifiedAt')"      "2026-06-01"
+assert_eq "$S" "refresh-needed-by"      "$(printf '%s' "$_dry_valid" | jq -r '.cookieRefreshNeededBy')" "2026-07-01"
+
+# Valid cookie + feed FAILED.
+_dry_feed_fail="$(jq -n --argjson ts "$_ts" --argjson feedOk 0 '{
+    cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+    cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0]),
+    dryRun:                true,
+    cookieValid:           true,
+    feedTestOk:            ($feedOk == 1)
+}')"
+assert_eq "$S" "feed-test-failed"       "$(printf '%s' "$_dry_feed_fail" | jq '.feedTestOk')"  "false"
+assert_eq "$S" "feed-fail-cookie-valid" "$(printf '%s' "$_dry_feed_fail" | jq '.cookieValid')" "true"
+
+# Expired cookie: dryRun=true, cookieValid=false, feedTestOk=false, no dates.
+_dry_expired='{"dryRun":true,"cookieValid":false,"feedTestOk":false}'
+assert_eq "$S" "expired-dry-run-flag"   "$(printf '%s' "$_dry_expired" | jq '.dryRun')"        "true"
+assert_eq "$S" "expired-valid-false"    "$(printf '%s' "$_dry_expired" | jq '.cookieValid')"   "false"
+assert_eq "$S" "expired-feed-false"     "$(printf '%s' "$_dry_expired" | jq '.feedTestOk')"    "false"
+assert_eq "$S" "expired-no-dates"       "$(printf '%s' "$_dry_expired" | jq 'has("cookieVerifiedAt")')" "false"
+
+# scrape mode (no dryRun field): dryRun and feedTestOk should be absent.
+_scrape_meta="$(jq -n --argjson ts "$_ts" '{
+    cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+    cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0])
+}')"
+assert_eq "$S" "scrape-mode-no-dryrun"     "$(printf '%s' "$_scrape_meta" | jq 'has("dryRun")')"     "false"
+assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq 'has("feedTestOk")')" "false"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
