@@ -696,23 +696,18 @@ The `.ndjson` store is additive. API-mode entries use a content-hash string as t
 {"signature":12345678901,"firstSeen":"2026-08-22",...}
 ```
 
-**Overlap at transition time.** The Strava club feed covers roughly the last 3–4 weeks of activity. Those same activities are already in the store from the API's last few runs with content-hash signatures. On the first scrape run the dedup check looks for numeric IDs, not content hashes, so those overlap-period activities get added again with a different signature — roughly 3–4 weeks of duplicate entries.
+**Overlap at transition time.** The Strava club feed covers roughly the last 3–4 weeks of activity. Those same activities are already in the store from the API's last few runs with content-hash signatures. On the first scrape run the dedup check looks for numeric IDs, not content hashes, so those overlap-period activities would be added again with a different signature — roughly 3–4 weeks of duplicate entries.
 
-To avoid duplicates, trim the overlap window from the store **before** the first scrape run:
+To avoid this, set `STRAVA_SCRAPE_START_DATE` in `/etc/strava-leaderboard.conf` **before** the first scrape run:
 
 ```sh
-ssh root@192.168.1.1
-# Set CUTOFF to ~4 weeks before your switch date so the feed re-fills that window cleanly
-CUTOFF="2026-08-05"
-for f in /mnt/sda5/strava-leaderboard/activities_*.ndjson; do
-  jq -c "select(.firstSeen < \"$CUTOFF\")" "$f" > /tmp/trimmed.ndjson \
-    && mv /tmp/trimmed.ndjson "$f"
-done
+# ~4 weeks before your switch date — the feed re-fills that window with real IDs and dates
+STRAVA_SCRAPE_START_DATE="2026-09-01"
 ```
 
-After this one-time trim, the first scrape run repopulates those weeks with real Strava activity IDs and exact dates. All history before the cutoff is untouched.
+The script silently ignores any scraped activity whose actual start date is before this value. Once the overlap window has passed and you are confident the store is clean, you can comment the line out — it has no effect on future activities.
 
-> **If you skip the trim** the duplication resolves itself within one month — the duplicated activities fall out of the current-month filter and only affect the all-time leaderboard totals briefly. It is cosmetic, not data-destroying.
+> **If you skip this** the duplication resolves itself within one month — the duplicated activities fall out of the current-month filter and only affect the all-time leaderboard totals briefly. It is cosmetic, not data-destroying.
 
 ### Step 3 — deploy updated scripts (binary-only update)
 
