@@ -62,6 +62,9 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   table.ridetbl tr:nth-child(even) td{background:#fafafa}
   #err{color:#b00;padding:.5rem 0}
   tr.warn td{background:#fffde6}
+  .svc-bar{height:4px;border-radius:2px;background:#eee;margin:.35rem 0 .1rem;overflow:hidden}
+  .svc-bar-fill{height:100%;border-radius:2px;transition:width .2s}
+  .svc-pct{font-size:.7rem;color:#888}
   /* modal */
   #ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50}
   #modal{background:#fff;max-width:460px;margin:6vh auto;border-radius:.6rem;padding:1.1rem 1.25rem;box-shadow:0 8px 30px rgba(0,0,0,.3)}
@@ -713,6 +716,16 @@ function render(){
       var refKm = sinceSvc !== null ? Math.max(0, sinceSvc) : Math.max(0, ridden);
       var refH  = sinceSvcSec !== null ? sinceSvcSec / 3600 : riddenSec / 3600;
       var isWarn = Boolean((p.alertKm && refKm >= +p.alertKm) || (p.alertH && refH >= +p.alertH));
+      var hasThresh = (p.alertKm && +p.alertKm > 0) || (p.alertH && +p.alertH > 0);
+      var pctKm2 = (p.alertKm && +p.alertKm > 0) ? (refKm / +p.alertKm * 100) : 0;
+      var pctH2  = (p.alertH  && +p.alertH  > 0) ? (refH  / +p.alertH  * 100) : 0;
+      var pct    = Math.max(pctKm2, pctH2);
+      var barClr = pct >= 100 ? '#b00' : pct >= 80 ? '#fc4c02' : '#4caf50';
+      var barFill = Math.min(100, pct).toFixed(1);
+      var barHtml = hasThresh
+        ? '<div class="svc-bar"><div class="svc-bar-fill" style="width:'+barFill+'%;background:'+barClr+'"></div></div>'+
+          '<span class="svc-pct">'+Math.round(pct)+'%</span>'
+        : '';
       var dnd = ' draggable="true"'+
         ' ondragstart="dragStart(event,\''+p.id+'\',this)"'+
         ' ondragend="dragEnd(this)"'+
@@ -724,7 +737,7 @@ function render(){
         '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
-        '<td class="num">'+sinceCell+(last?'<div class="muted">'+sinceSvcTimeCell+'</div>':'')+'</td>'+
+        '<td class="num">'+sinceCell+(last?'<div class="muted">'+sinceSvcTimeCell+'</div>':'')+barHtml+'</td>'+
         '<td style="white-space:nowrap">'+
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
