@@ -614,9 +614,11 @@ cat > "$TMP/sc_feed.json" << 'FEED'
 FEED
 
 _scrape_dedup() {
+    # optional $1: cutoff date YYYY-MM-DD (empty = no cutoff)
     jq -n \
         --slurpfile known "$TMP/sc_known.json" \
-        --slurpfile fetched "$TMP/sc_feed.json" '
+        --slurpfile fetched "$TMP/sc_feed.json" \
+        --arg cutoff "${1:-}" '
         def strip_html: gsub("<[^>]*>"; "");
         def parse_km:
           strip_html | gsub("[^0-9.]"; "") |
@@ -654,7 +656,7 @@ _scrape_dedup() {
               }
           ]
         | unique_by(.s)
-        | map(select($seen[.s] | not))'
+        | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff)))'
 }
 
 _sc_new="$(_scrape_dedup)"
@@ -668,6 +670,43 @@ assert_eq "$S" "moving-time-parsed"    "$(printf '%s' "$_sc_new" | jq '.[0].movi
 assert_eq "$S" "elev-parsed"           "$(printf '%s' "$_sc_new" | jq '.[0].total_elevation_gain')" "300"
 assert_eq "$S" "first-seen-from-date"  "$(printf '%s' "$_sc_new" | jq -r '.[0].firstSeen')" "2026-06-10"
 assert_eq "$S" "lastname-trimmed"      "$(printf '%s' "$_sc_new" | jq -r '.[0].lastname')" "Jones"
+
+# ── scrape-start-date ─────────────────────────────────────────────────────────
+# Mirrors the STRAVA_SCRAPE_START_DATE cutoff: activities before the date are
+# silently dropped even if they are otherwise new (not in the known store).
+S="scrape-start-date"
+
+# Empty known store (both acts below are "new").
+printf '[]\n' > "$TMP/sc_known.json"
+
+# Feed: act-old (2026-06-01) and act-recent (2026-06-20), both unknown.
+cat > "$TMP/sc_feed.json" << 'FEED'
+[
+  {"entity":"Activity","activity":{"id":"act-old","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","athleteName":"Alice Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-recent","activityName":"Recent Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-20T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+]
+FEED
+
+# No cutoff → both activities included.
+_sd_none="$(_scrape_dedup "")"
+assert_eq "$S" "no-cutoff-both-included"   "$(printf '%s' "$_sd_none" | jq 'length')" "2"
+
+# Cutoff 2026-06-10 → only act-recent (2026-06-20) passes; act-old (2026-06-01) dropped.
+_sd_cut="$(_scrape_dedup "2026-06-10")"
+assert_eq "$S" "cutoff-drops-old"          "$(printf '%s' "$_sd_cut" | jq 'length')"          "1"
+assert_eq "$S" "cutoff-keeps-recent"       "$(printf '%s' "$_sd_cut" | jq -r '.[0].s')"        "act-recent"
+assert_eq "$S" "cutoff-old-excluded"       "$(printf '%s' "$_sd_cut" | jq '[.[].s=="act-old"]|any')" "false"
+
+# Cutoff on exact date → inclusive (>= not >).
+_sd_exact="$(_scrape_dedup "2026-06-20")"
+assert_eq "$S" "cutoff-exact-date-included" "$(printf '%s' "$_sd_exact" | jq -r '.[0].s')" "act-recent"
+
+# Cutoff after both dates → nothing passes.
+_sd_all="$(_scrape_dedup "2026-07-01")"
+assert_eq "$S" "cutoff-excludes-all"       "$(printf '%s' "$_sd_all" | jq 'length')" "0"
+
+# Restore the known store for the cursor / meta tests that follow.
+jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json" 2>/dev/null || printf '[]\n' > "$TMP/sc_known.json"
 
 # ── scrape-cursor ─────────────────────────────────────────────────────────────
 # Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
