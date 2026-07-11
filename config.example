@@ -42,6 +42,13 @@ STRAVA_CLUB_IDS="123456,123457"
 # is ready before switching to STRAVA_SOURCE=scrape after September 2026.
 
 # --- Optional ---------------------------------------------------------------
+# Ignore scraped activities whose actual start date is before this date (YYYY-MM-DD).
+# Only applies when STRAVA_SOURCE=scrape. Use this when switching from API mode to
+# avoid duplicating the overlap window: set it to ~4 weeks before the switch date so
+# the feed re-fills that window cleanly without importing old API-era entries again.
+# Comment it out (or leave empty) once the overlap period has passed.
+#STRAVA_SCRAPE_START_DATE="2026-09-01"
+
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
 STRAVA_SPORT_TYPE=""
 

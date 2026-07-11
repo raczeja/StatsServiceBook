@@ -83,6 +83,13 @@ case "$FIRST_SEEN" in
   [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
   *) die "STRAVA_FIRST_SEEN_DATE must be YYYY-MM-DD, got: $FIRST_SEEN" ;;
 esac
+SCRAPE_START_DATE="${STRAVA_SCRAPE_START_DATE:-}"
+if [ -n "$SCRAPE_START_DATE" ]; then
+  case "$SCRAPE_START_DATE" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) die "STRAVA_SCRAPE_START_DATE must be YYYY-MM-DD, got: $SCRAPE_START_DATE" ;;
+  esac
+fi
 GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 SPORT_LC="$(printf '%s' "$SPORT_TYPE" | tr '[:upper:]' '[:lower:]')"
 STAMP="$(date '+%Y%m%d')"
@@ -251,7 +258,8 @@ while IFS= read -r club_id; do
       # time:     "1<abbr>h</abbr> 27<abbr>m</abbr>" → seconds
       jq -c -n \
         --slurpfile known "$TMP/known.json" \
-        --slurpfile fetched "$TMP/fetched.json" '
+        --slurpfile fetched "$TMP/fetched.json" \
+        --arg cutoff "$SCRAPE_START_DATE" '
         def strip_html: gsub("<[^>]*>"; "");
         def parse_km:
           strip_html | gsub("[^0-9.]"; "") |
@@ -289,7 +297,7 @@ while IFS= read -r club_id; do
               }
           ]
         | unique_by(.s)
-        | map(select($seen[.s] | not))
+        | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff)))
         | .[]
         | {
             signature:    .s,
