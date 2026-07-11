@@ -31,7 +31,8 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   #map{height:340px;border-radius:.4rem;box-shadow:0 1px 3px rgba(0,0,0,.08);margin:.5rem 0 1rem;background:#e8e8e8}
   .box{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:.5rem .75rem;border-radius:.4rem;margin:.5rem 0 1rem}
   .box h3{margin:0 0 .35rem;font-size:.85rem;color:#444;font-weight:600}
-  svg.splits{max-width:100%;height:200px;display:block;margin:0 auto}
+  svg.splits{height:200px;display:block}
+  .chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .note{color:#666;font-size:.85rem;padding:.25rem 0}
   #err{color:#b00;padding:1rem 0}
   #chart-tip{display:none;position:fixed;background:rgba(30,30,30,.93);color:#fff;padding:.45rem .7rem;border-radius:.4rem;font-size:.8rem;pointer-events:none;z-index:1000;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.3)}
@@ -69,11 +70,11 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   </div>
   <div class="box" id="elev-box" style="display:none">
     <h3>Elevation profile</h3>
-    <svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="chart-scroll"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
   </div>
   <div class="box" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
-    <svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="chart-scroll"><svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg></div>
   </div>
   <div class="box" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
@@ -81,7 +82,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   </div>
   <div class="box" id="splits-box">
     <h3 id="splits-title">Splits</h3>
-    <svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="chart-scroll"><svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg></div>
   </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -634,9 +635,6 @@ function renderSplits(d){
   var W = pad*2 + n*barW, H = 200, chartH = H - labelH;
   var svg = document.getElementById("svg-splits");
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-  // Render at natural pixel size (CSS max-width:100% scales it down uniformly
-  // when there are many splits). Without this the SVG would stretch to fill the
-  // card, ballooning bars and distorting labels for short, few-split activities.
   svg.style.width = W + "px";
 
   TIP_DATA = [];
