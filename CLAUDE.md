@@ -83,6 +83,28 @@ them on a Windows dev box. To validate changes:
   ```
   102 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
   Requires Podman, Node.js ≥ 18, and Microsoft Edge.
+- **Screenshots of all pages** (saves PNGs to `test/screenshots/`):
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\test\make-screenshots.ps1
+  ```
+- **Manual / interactive Podman** (keep container running to browse at `http://localhost:8080`):
+  ```powershell
+  # Build the image
+  podman build -f test/Containerfile -t stravame-test .
+
+  # Start the container
+  podman run -d --name stravame -p 8080:8080 stravame-test
+
+  # View logs
+  podman logs stravame
+
+  # Run shell unit tests inside the container
+  podman exec stravame sh /opt/shell-tests.sh
+
+  # Stop and remove when done
+  podman stop stravame && podman rm stravame
+  ```
+  Pages: `http://localhost:8080/strava/me/` (dashboard), `/activity.html`, `/bike.html`, `/stats.html`, `http://localhost:8080/strava/` (club leaderboard).
 - **Real testing on the router** via scp + ssh, then a manual
   `strava-leaderboard` run whose output must end in `done.` (see README §5).
 
