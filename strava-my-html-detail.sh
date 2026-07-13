@@ -70,11 +70,17 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   </div>
   <div class="box" id="elev-box" style="display:none">
     <h3>Elevation profile</h3>
-    <div class="chart-scroll"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-elev-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
   </div>
   <div class="box" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
-    <div class="chart-scroll"><svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-hr-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
   </div>
   <div class="box" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
@@ -277,7 +283,9 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
   }
   var base = (unit === "bpm") ? Math.max(40, minV - Math.max(10, Math.round((maxV - minV) * 0.15))) : minV;
   var range = (maxV - base) || 1;
-  var px = 52, barW = 30;          // px wider to fit larger y-axis labels
+  var YAX_W = 52, barW = 30;
+  var yaxisSvg = document.getElementById(svgId + "-yaxis");
+  var px = yaxisSvg ? 0 : YAX_W;  // no left margin when y-axis lives in a separate fixed SVG
   var labelH = xLabels ? 20 : 0;
   var W = xLabels ? (px + n * barW + 16) : Math.max(n * 2, 360);
   var H = 200, ch = H - 18 - labelH;
@@ -290,15 +298,30 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
   var fill = path + "L" + (W - 16) + "," + ch + "L" + px + "," + ch + "Z";
 
   // Three horizontal grid lines: at base, mid, and max.
+  // When a separate y-axis SVG exists, labels go there; grid lines remain in the main SVG.
   var gridLines = "";
+  var yaxisHtml = "";
   var gridVals = [base, base + range * 0.5, base + range];
   for (i = 0; i < gridVals.length; i++) {
     var gy = (ch - ((gridVals[i] - base) / range) * (ch - 24)).toFixed(1);
     var lbl = Math.round(gridVals[i]) + " " + unit;
     gridLines +=
       '<line x1="' + px + '" y1="' + gy + '" x2="' + (W - 16) + '" y2="' + gy +
-      '" stroke="#e0e0e0" stroke-width="1"/>' +
-      '<text x="' + (px - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="#666">' + lbl + '</text>';
+      '" stroke="#e0e0e0" stroke-width="1"/>';
+    if (yaxisSvg) {
+      yaxisHtml +=
+        '<text x="' + (YAX_W - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="#666">' + lbl + '</text>' +
+        '<line x1="' + (YAX_W - 3) + '" y1="' + gy + '" x2="' + YAX_W + '" y2="' + gy + '" stroke="#ccc" stroke-width="1"/>';
+    } else {
+      gridLines +=
+        '<text x="' + (px - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="#666">' + lbl + '</text>';
+    }
+  }
+  if (yaxisSvg) {
+    yaxisSvg.setAttribute("viewBox", "0 0 " + YAX_W + " " + H);
+    yaxisSvg.setAttribute("width", YAX_W);
+    yaxisSvg.setAttribute("height", H);
+    yaxisSvg.innerHTML = yaxisHtml;
   }
 
   var html = gridLines +
