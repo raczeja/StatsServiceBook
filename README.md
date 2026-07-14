@@ -134,12 +134,12 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   pace/speed, elevation, **VAM** climb rate, climb per km, heart rate, cadence,
   power including **normalized power + variability index**, work in kJ, calories,
   relative effort, temperature, gear), an interactive **route map**
-  (Leaflet + OpenStreetMap), and a **per-km splits** bar chart. Cycling-specific
-  metrics (VAM, power, work) appear
-  only when the activity carries that data. The map needs
-  internet **in the viewing browser** (Leaflet + tiles load from a CDN); the
-  rest of the page works offline. A "Raw JSON" link and "Open on Strava" link
-  are still provided.
+  (Leaflet + OpenStreetMap), a **per-km splits** bar chart, an **elevation**
+  profile chart, a **heart rate** chart, and a **cadence** chart — each shown
+  only when the activity carries that data. Cycling-specific metrics (VAM, power,
+  work) appear only when present. The map needs internet **in the viewing
+  browser** (Leaflet + tiles load from a CDN); the rest of the page works
+  offline. A "Raw JSON" link and "Open on Strava" link are still provided.
 - **Personal stats summary (My Activities).** A separate page at
   `http://<router-ip>/strava/me/stats.html` (linked from the My Activities
   header) with sport/year filters and: aggregate KPI cards (distance, time,
@@ -156,9 +156,36 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   downloads those files, parses them with `curl` + `jq` + `grep`, and produces the
   exact same `activities.json` and HTML pages as `strava-my-activities.sh`. GPX
   files are cached locally and rendered in-browser via Leaflet polyline (same as
-  the Strava encoded-polyline path). Switching is as simple as changing which script cron runs.
+  the Strava encoded-polyline path). **Cadence** is extracted from TCX files
+  (`<AverageCadence>` / `AvgRunCadence`) or, when no TCX is present, from GPX
+  trackpoint extensions (`<gpxtpx:cad>`) — it populates the cadence chart on the
+  activity detail page. Switching is as simple as changing which script cron runs.
   Strava activity IDs are numeric; HealthSync IDs are date-based strings like
   `2026-06-22-20-01-ride` — all pages handle both transparently.
+
+- **Magene FIT file support (HealthSync mode).** Place `Magene_MODEL_YYYY-MM-DD_ID_*.fit`
+  files (exported from a Magene device) in the same Google Drive folder as your
+  HealthSync exports. On each run `healthsync-activities.sh` downloads new FIT
+  files, converts them to GPX via the free [GPS Visualizer](https://www.gpsvisualizer.com/)
+  API (no account required), caches the GPX locally, and emits the same store
+  record as a regular HealthSync activity — a Ride with an ID like
+  `magene-2026-07-12-50671559`. Distance, elevation, cadence, max speed, and
+  weather temperature are computed from the GPX. The default bike is set by
+  `HEALTHSYNC_DEFAULT_BIKE` in the config. Magene activities appear in the
+  dashboard, stats, and activity detail (elevation + cadence chart) identically
+  to HealthSync activities. Only active in `HEALTHSYNC_MODE=full` (the default).
+
+- **Drive token expiry and re-authorization.** Google OAuth refresh tokens for
+  apps in **Testing** mode expire after 7 days of inactivity. When a token
+  refresh fails, `healthsync-activities.sh` writes `drive-status.json` with
+  `{"ok":false}` to the web dir and the My Activities dashboard shows a yellow
+  **"Google Drive access expired"** banner with a **"Re-authorize Drive"** link.
+  Clicking the link opens `/cgi-bin/drive-auth` — a tiny CGI (installed
+  automatically by `healthsync-activities.sh`) that walks through the OAuth
+  **device authorization flow**: it displays a short code and a URL; you open the
+  URL on any device, enter the code, and the CGI polls until a new refresh token
+  arrives. The new token is written back to the config file automatically — no
+  SSH session needed. The banner clears on the next successful run.
 
 - **Bike service tracker (My Activities).** A separate page at
   `http://<router-ip>/strava/me/bike.html` (linked from the My Activities footer)
@@ -330,6 +357,54 @@ docker run --rm -p 8080:8080 \
 Re-run step **2** daily. The script only downloads files not yet in the local store — incremental runs are fast.
 
 > **Skip-import flag:** set `HEALTHSYNC_IMPORT_ENABLED=0` (in the config or as an env var) to skip the Google Drive download and just re-render the HTML from the existing local store. Useful for testing HTML changes without re-fetching. The equivalent for the Strava script is `STRAVA_MY_IMPORT_ENABLED=0`.
+
+#### Quick test with real credentials (Podman, Windows)
+
+`test/run-healthsync-podman.ps1` wraps the full cycle in one command: it runs `healthsync-activities.sh` inside Alpine, then serves the output on localhost. Run all commands from the **repo root**.
+
+**Prerequisites:** Podman installed and running (`podman machine start` on Windows).
+
+**First run** — downloads from your Google Drive folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File test\run-healthsync-podman.ps1 `
+    -Config .\config-healthsync.conf
+```
+
+The script opens your browser at `http://localhost:8088/strava/me/` when the pages are ready. Press **Enter** to stop and clean up.
+
+**With Strava history import** — seeds existing Strava rides so they appear alongside HealthSync activities:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File test\run-healthsync-podman.ps1 `
+    -Config .\config-healthsync.conf `
+    -StravaStore C:\path\to\strava-my-activities\state\activities.ndjson
+```
+
+**Keep output and re-render later** — useful when tweaking HTML without re-downloading from Drive:
+
+```powershell
+# First run: keep the temp state dir so you can reuse it
+powershell -ExecutionPolicy Bypass -File test\run-healthsync-podman.ps1 `
+    -Config .\config-healthsync.conf -KeepOutput
+
+# Subsequent runs: re-render HTML from the kept state, no Drive download
+powershell -ExecutionPolicy Bypass -File test\run-healthsync-podman.ps1 `
+    -Config .\config-healthsync.conf `
+    -StateDir C:\Users\<you>\AppData\Local\Temp\healthsync-run-<timestamp>\state `
+    -SkipImport
+```
+
+The exact `-StateDir` path is printed when `-KeepOutput` is used.
+
+**What to check:**
+- Script prints `activities.json: N activities` — confirms Drive download worked
+- `drive-status.json: ok` — Google OAuth token is valid
+- Browser opens at `http://localhost:8088/strava/me/` — verify dashboard, activity detail (cadence/elevation/HR charts), stats, bike tracker
+
+**If the Drive token has expired** the script automatically starts an OAuth re-authorization flow in your browser and updates `config-healthsync.conf` with the new refresh token.
+
+> **Note:** the script uses a wrapper config that sources your credentials and forces container-local paths, so the path variables in `config-healthsync.conf` are ignored inside the container — output always goes to a temp dir and is cleaned up on exit unless you pass `-KeepOutput`.
 
 ---
 
@@ -988,6 +1063,9 @@ sh /tmp/strava/install.sh
 | Detail backfill skip list     | `$STRAVA_MY_STATE_DIR/detail-skip.txt`                                    |
 | My activities token state     | `$STRAVA_MY_STATE_DIR/token.json` (chmod 600)                             |
 | My activities log             | `/var/log/strava-my-activities.log`                                       |
+| HealthSync Drive auth status  | `$HEALTHSYNC_WEB_DIR/drive-status.json` (`ok:true` / `ok:false`)          |
+| HealthSync re-auth CGI        | `http://<router-ip>/cgi-bin/drive-auth` (device authorization flow)       |
+| HealthSync log                | `/var/log/healthsync-activities.log`                                      |
 
 ## Limitations & notes
 

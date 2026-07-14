@@ -225,8 +225,8 @@ while IFS= read -r club_id; do
         def sig:
           [ ((.athlete.firstname // "") | ascii_downcase),
             ((.athlete.lastname  // "") | ascii_downcase),
-            ((.name // "")              | ascii_downcase),
             (.distance             // 0 | tostring),
+            (.moving_time          // 0 | tostring),
             (.elapsed_time         // 0 | tostring),
             ((.sport_type // .type // "") | ascii_downcase)
           ] | join("|");
@@ -545,6 +545,14 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
   .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
   .bar{height:5px;background:#fc4c02;border-radius:3px;margin-top:4px;min-width:3px}
+  .person-row{cursor:pointer}
+  .person-row:hover td{background:#fff0eb}
+  .expand-btn{float:right;font-size:.8rem;opacity:.6}
+  .detail-row td{padding:0;background:#f5f5f5}
+  .detail-table{border-collapse:collapse;width:100%;font-size:.83rem}
+  .detail-table th{background:#e8e8e8;color:#444;font-weight:600;padding:.3rem .6rem}
+  .detail-table td{padding:.3rem .6rem;border-bottom:1px solid #e8e8e8}
+  .detail-table td.num{text-align:right}
 </style>
 </head>
 <body>
@@ -675,16 +683,22 @@ function init(){
   render();
 }
 
-function renderClubTable(acts){
+function toggleDetail(id){
+  var el = document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none' ? '' : 'none';
+}
+
+function renderClubTable(acts, tablePrefix){
   var map = {};
   acts.forEach(function(a){
     var k = a.firstname+"|"+a.lastname+"|"+(a.profile_medium||"");
     var e = map[k];
-    if(!e){ e=map[k]={firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0}; }
+    if(!e){ e=map[k]={firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0,items:[]}; }
     e.distance+=a.distance||0;
     e.moving_time+=a.moving_time||0;
     e.elev+=a.total_elevation_gain||0;
     e.count++;
+    e.items.push(a);
   });
   var members = Object.keys(map).map(function(k){ return map[k]; })
     .sort(function(x,y){ return y.distance-x.distance; });
@@ -695,13 +709,29 @@ function renderClubTable(acts){
   members.forEach(function(m,i){
     var avg = m.moving_time>0 ? (m.distance/m.moving_time*3.6) : 0;
     var pct = maxDist>0 ? Math.max(3, Math.round(m.distance/maxDist*100)) : 3;
-    html += '<tr><td class="num">'+(i+1)+'</td>'+
-      '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'</td>'+
+    var did = tablePrefix+'-d'+i;
+    html += '<tr class="person-row" onclick="toggleDetail(\''+did+'\')" title="Click to show activities">'+
+      '<td class="num">'+(i+1)+'</td>'+
+      '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'<span class="expand-btn">▾</span></td>'+
       '<td class="num">'+fmtKm(m.distance)+' km<div class="bar" style="width:'+pct+'%"></div></td>'+
       '<td class="num">'+fmtTime(m.moving_time)+'</td>'+
       '<td class="num">'+Math.floor(m.elev)+'</td>'+
       '<td class="num">'+m.count+'</td>'+
       '<td class="num">'+avg.toFixed(1)+'</td></tr>';
+    html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="7">';
+    html += '<table class="detail-table"><thead><tr>'+
+      '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th>'+
+      '</tr></thead><tbody>';
+    m.items.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); })
+      .forEach(function(a){
+        html += '<tr>'+
+          '<td>'+esc(a.date||'')+'</td>'+
+          '<td>'+esc(a.sport_type||'')+'</td>'+
+          '<td class="num">'+fmtKm(a.distance||0)+' km</td>'+
+          '<td class="num">'+fmtTime(a.moving_time||0)+'</td>'+
+          '<td class="num">'+Math.floor(a.total_elevation_gain||0)+'</td></tr>';
+      });
+    html += '</tbody></table></td></tr>';
   });
   html += '</tbody></table>';
   return html;
@@ -717,7 +747,7 @@ function render(){
   var totalDist = 0, totalActs = 0;
   var html = "";
 
-  clubs.forEach(function(club){
+  clubs.forEach(function(club, i){
     var acts = (club.activities||[]).filter(function(a){
       if(!a.date) return false;
       if(+a.date.slice(0,4)!==year) return false;
@@ -741,7 +771,7 @@ function render(){
     if(info.sport_type) sub.push(esc(info.sport_type));
     if(sub.length) html += '<p class="club-sub">'+sub.join(' · ')+'</p>';
     if(info.description) html += '<p class="club-desc">'+esc(info.description)+'</p>';
-    html += renderClubTable(acts);
+    html += renderClubTable(acts, esc(club.clubId||String(i)));
     html += '</section>';
   });
 

@@ -110,12 +110,16 @@ ensure_drive_token() {
         fi
     fi
     log "refreshing Google Drive token..."
-    curl_retry -fsS https://oauth2.googleapis.com/token \
+    if ! curl_retry -fsS https://oauth2.googleapis.com/token \
         -d "client_id=$GOOGLE_CLIENT_ID" \
         -d "client_secret=$GOOGLE_CLIENT_SECRET" \
         -d "refresh_token=$GOOGLE_REFRESH_TOKEN" \
         -d "grant_type=refresh_token" \
-        -o "$TMP/token.json" || die "Drive token refresh failed"
+        -o "$TMP/token.json"; then
+        printf '{"ok":false,"error":"Drive token refresh failed","ts":%s}\n' "$(date +%s)" \
+            > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+        die "Drive token refresh failed"
+    fi
     ACCESS_TOKEN="$(jq -r '.access_token // empty' "$TMP/token.json")"
     [ -n "$ACCESS_TOKEN" ] || die "no access_token in Drive response: $(cat "$TMP/token.json")"
     expires_in="$(jq -r '.expires_in // 3600' "$TMP/token.json")"
@@ -253,7 +257,7 @@ while IFS= read -r base; do
     # TCX: HR + calories; also distance/time when no CSV was available.
     # Use "${base}.tcx" so both old-format and new-format names resolve correctly.
     tcx_name="${base}.tcx"
-    avg_hr="null"; max_hr="null"; calories="null"; avg_watts_v="null"; kj_v="null"
+    avg_hr="null"; max_hr="null"; calories="null"; avg_watts_v="null"; kj_v="null"; avg_cad_v="null"
     tcx_id="$(drive_file_id "$tcx_name")"
     if [ -n "$tcx_id" ] && drive_download "$tcx_id" "$TMP/activity.tcx" 2>/dev/null; then
         _v="$(grep -o 'AverageHeartRateBpm><Value>[0-9]*</Value>' \
@@ -288,6 +292,27 @@ while IFS= read -r base; do
             kj_v="$(jq -n --argjson w "$avg_watts_v" --argjson t "$csv_active" \
                 '$w * $t / 1000 | round')"
         fi
+        # Cadence from TCX: lap-level summary first, then average of trackpoints.
+        # Cycling uses <AverageCadence>; running uses namespace-prefixed AvgRunCadence/RunCadence.
+        _cad="$(grep -o '<AverageCadence>[0-9]*</AverageCadence>' "$TMP/activity.tcx" \
+            | head -1 | grep -o '[0-9]*</AverageCadence>' | grep -o '^[0-9]*' || true)"
+        if [ -z "$_cad" ]; then
+            _cad="$(grep -o 'AvgRunCadence>[0-9]*' "$TMP/activity.tcx" \
+                | head -1 | grep -o '[0-9]*$' || true)"
+        fi
+        if [ -z "$_cad" ]; then
+            _cad="$(grep -o '<Cadence>[0-9]*</Cadence>' "$TMP/activity.tcx" \
+                | grep -o '[0-9]*</Cadence>' | grep -o '^[0-9]*' \
+                | jq -Rn '[inputs | tonumber] | if length>0 then (add/length | round) else empty end' \
+                2>/dev/null || true)"
+        fi
+        if [ -z "$_cad" ]; then
+            _cad="$(grep -o 'RunCadence>[0-9]*' "$TMP/activity.tcx" \
+                | grep -o '[0-9]*$' \
+                | jq -Rn '[inputs | tonumber] | if length>0 then (add/length | round) else empty end' \
+                2>/dev/null || true)"
+        fi
+        [ -n "$_cad" ] && avg_cad_v="$_cad"
     fi
     # kJ ≈ kcal (Strava convention; ~25% cycling efficiency makes them numerically equal)
     if [ "$kj_v" = "null" ] && [ "$calories" != "null" ]; then
@@ -320,6 +345,14 @@ while IFS= read -r base; do
             | jq -Rn '[inputs | tonumber] | if length>0 then max else 0 end' \
             2>/dev/null || echo 0)"
         max_speed_v="${_mspd:-0}"
+        # Cadence from GPX trackpoint extensions (<gpxtpx:cad>) — fallback when TCX absent.
+        if [ "$avg_cad_v" = "null" ]; then
+            _cad="$(grep -o ':cad>[0-9]*' "$gpx_local" \
+                | grep -o '[0-9]*$' \
+                | jq -Rn '[inputs | tonumber] | if length>0 then (add/length | round) else null end' \
+                2>/dev/null || echo null)"
+            [ "$_cad" != "null" ] && avg_cad_v="$_cad"
+        fi
     fi
 
     case "$sport_type" in
@@ -366,19 +399,186 @@ while IFS= read -r base; do
         --argjson avg_temp     "$_w_temp" \
         --argjson temp_src     "$_w_temp_src" \
         --argjson kj           "$kj_v" \
+        --argjson avg_cad      "$avg_cad_v" \
         '{id:$id, date:$date, start_date:$start_date, start_date_local:$start_date,
           name:$name, sport_type:$sport_type, gear_id:$gear_id,
           distance:$distance,
           moving_time:($moving_time|tonumber), elapsed_time:($elapsed_time|tonumber),
           total_elevation_gain:$elevation, average_speed:$avg_speed, max_speed:$max_speed,
           average_heartrate:$avg_hr, max_heartrate:$max_hr,
-          average_cadence:null, average_watts:$avg_watts, kilojoules:$kj,
+          average_cadence:$avg_cad, average_watts:$avg_watts, kilojoules:$kj,
           average_temp:$avg_temp, temp_source:$temp_src, suffer_score:null,
           calories:$calories, gpx_file:$gpx_file}' >> "$STORE"
 
     printf '%s\n' "$act_id" >> "$TMP/known_ids.txt"
     ADDED=$((ADDED + 1))
 done < "$TMP/activity_bases.txt"
+
+# --- 3b. Magene FIT files (HEALTHSYNC_MODE=full only) -------------------------
+# Detect Magene_MODEL_YYYY-MM-DD_ID_*.fit files placed manually in Drive.
+# Convert FIT → GPX via GPS Visualizer (two-step curl), cache the GPX, and
+# produce the same store record format as HealthSync activities.
+if [ "${HEALTHSYNC_MODE:-full}" = "full" ]; then
+    jq -r '.files[].name | select(test("^Magene_[^_]+_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]+"))' \
+        "$TMP/filelist.json" 2>/dev/null | sort -u > "$TMP/magene_files.txt" \
+        || : > "$TMP/magene_files.txt"
+
+    while IFS= read -r _mf; do
+        [ -n "$_mf" ] || continue
+        _mmodel="$(printf '%s' "$_mf" | cut -d'_' -f2)"
+        _mdate="$(printf '%s' "$_mf" | cut -d'_' -f3)"
+        _muid="$(printf '%s' "$_mf" | cut -d'_' -f4)"
+        _mact_id="magene-${_mdate}-${_muid}"
+
+        if grep -qxF "$_mact_id" "$TMP/known_ids.txt" 2>/dev/null; then
+            log "skipping known Magene: $_mact_id"
+            continue
+        fi
+        log "new Magene FIT: $_mf → $_mact_id"
+
+        _mfid="$(drive_file_id "$_mf")"
+        [ -n "$_mfid" ] || { log "Magene: not found in Drive listing: $_mf"; continue; }
+        drive_download "$_mfid" "$TMP/magene.fit" \
+            || { log "Magene: download failed: $_mf"; continue; }
+
+        log "Magene: converting FIT to GPX via GPS Visualizer..."
+        curl -s --max-time 120 \
+            -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+            -H "Referer: https://www.gpsvisualizer.com/convert_input" \
+            -F "convert_format=gpx" \
+            -F "uploaded_file_1=@${TMP}/magene.fit" \
+            -F "submitted=Convert" \
+            "https://www.gpsvisualizer.com/convert?output" \
+            -o "$TMP/gv_resp.html" 2>/dev/null \
+            || { log "Magene: GPS Visualizer POST failed"; continue; }
+
+        _mgpxpath="$(grep -o 'href="/[a-z_-]*/convert/[^"]*\.gpx"' "$TMP/gv_resp.html" \
+            | head -1 | cut -d'"' -f2 || true)"
+        [ -n "$_mgpxpath" ] \
+            || { log "Magene: no GPX link in GPS Visualizer response"; continue; }
+
+        curl -s --max-time 60 \
+            -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+            "https://www.gpsvisualizer.com${_mgpxpath}" \
+            -o "$TMP/magene.gpx" 2>/dev/null \
+            || { log "Magene: GPX download from GPS Visualizer failed"; continue; }
+
+        _mgpx_safe="magene_${_mdate}_${_muid}.gpx"
+        _mgpx_local="$GPX_DIR/$_mgpx_safe"
+        cp "$TMP/magene.gpx" "$_mgpx_local"
+
+        _melev="$(grep -o '<ele>[0-9.]*</ele>' "$_mgpx_local" \
+            | tr -d '<el>/' \
+            | jq -Rn '[inputs | tonumber] as $e |
+                reduce range(1; $e|length) as $i (
+                    0; . + (if $e[$i] > $e[$i-1] then $e[$i] - $e[$i-1] else 0 end)
+                ) | round' 2>/dev/null || echo 0)"
+
+        _mmspd="$(grep -o ':speed>[0-9.]*' "$_mgpx_local" \
+            | grep -o '[0-9.]*' \
+            | jq -Rn '[inputs | tonumber] | if length > 0 then max else 0 end' \
+            2>/dev/null || echo 0)"
+
+        _mcad="$(grep -o ':cad>[0-9]*' "$_mgpx_local" \
+            | grep -o '[0-9]*' \
+            | jq -Rn '[inputs | tonumber] | if length > 0 then (add / length | round) else null end' \
+            2>/dev/null || echo null)"
+
+        _mt1="$(grep -o '<time>[0-9T:Z.-]*</time>' "$_mgpx_local" | head -1 \
+            | cut -d'>' -f2 | cut -d'<' -f1 || true)"
+        _mt2="$(grep -o '<time>[0-9T:Z.-]*</time>' "$_mgpx_local" | tail -1 \
+            | cut -d'>' -f2 | cut -d'<' -f1 || true)"
+        _melapsed=0
+        _mstart="${_mdate}T00:00:00Z"
+        if [ -n "$_mt1" ] && [ -n "$_mt2" ]; then
+            _mstart="$_mt1"
+            _mh1="$(printf '%s' "$_mt1" | cut -dT -f2 | cut -d: -f1 | tr -dc '0-9')"
+            _mm1="$(printf '%s' "$_mt1" | cut -dT -f2 | cut -d: -f2 | tr -dc '0-9')"
+            _ms1="$(printf '%s' "$_mt1" | cut -dT -f2 | cut -d: -f3 | cut -d. -f1 | tr -dc '0-9')"
+            _mh2="$(printf '%s' "$_mt2" | cut -dT -f2 | cut -d: -f1 | tr -dc '0-9')"
+            _mm2="$(printf '%s' "$_mt2" | cut -dT -f2 | cut -d: -f2 | tr -dc '0-9')"
+            _ms2="$(printf '%s' "$_mt2" | cut -dT -f2 | cut -d: -f3 | cut -d. -f1 | tr -dc '0-9')"
+            _mh1="${_mh1#0}"; _mh1="${_mh1:-0}"
+            _mm1="${_mm1#0}"; _mm1="${_mm1:-0}"
+            _ms1="${_ms1#0}"; _ms1="${_ms1:-0}"
+            _mh2="${_mh2#0}"; _mh2="${_mh2:-0}"
+            _mm2="${_mm2#0}"; _mm2="${_mm2:-0}"
+            _ms2="${_ms2#0}"; _ms2="${_ms2:-0}"
+            _melapsed="$(( _mh2*3600 + _mm2*60 + _ms2 - (_mh1*3600 + _mm1*60 + _ms1) ))"
+        fi
+
+        _mdist="$(grep '<trkpt' "$_mgpx_local" \
+            | grep -o 'lat="[^"]*" lon="[^"]*"' \
+            | tr -d 'laton="' \
+            | jq -Rn '
+                [inputs | split(" ") | {lat:(.[0]|tonumber), lon:(.[1]|tonumber)}] as $p |
+                def deg: . * 3.14159265358979 / 180;
+                reduce range(1; $p|length) as $i (0;
+                    ($p[$i-1].lat | deg) as $a1 |
+                    ($p[$i].lat   | deg) as $a2 |
+                    ($p[$i].lon - $p[$i-1].lon | deg) as $dl |
+                    (($a1|sin)*($a2|sin) + ($a1|cos)*($a2|cos)*($dl|cos)) as $c |
+                    . + (6371000 * (if $c >= 1 then 0
+                                   elif $c <= -1 then 3.14159265
+                                   else ($c|acos) end))
+                ) | round' 2>/dev/null || echo 0)"
+
+        _mavg="$(jq -n \
+            --argjson d "${_mdist:-0}" \
+            --argjson t "$_melapsed" \
+            'if $t > 0 then $d / $t else 0 end')"
+
+        _mgearf="\"${DEFAULT_BIKE_NAME:-}\""
+        _mgpxref="\"gpx/$_mgpx_safe\""
+
+        _mwtemp="null"
+        _mwsrc="null"
+        _mwlat="$(grep '<trkpt' "$_mgpx_local" | head -1 \
+            | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -1 || true)"
+        _mwlon="$(grep '<trkpt' "$_mgpx_local" | head -1 \
+            | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -1 || true)"
+        [ -z "$_mwlat" ] && _mwlat="${WEATHER_LAT:-}"
+        [ -z "$_mwlon" ] && _mwlon="${WEATHER_LON:-}"
+        if [ -n "$_mwlat" ] && [ -n "$_mwlon" ]; then
+            _fw_temp_source=""
+            _mwt="$(fetch_weather_temp "$_mwlat" "$_mwlon" "$_mdate" || true)"
+            if [ -n "$_mwt" ]; then
+                _mwtemp="$_mwt"
+                _mwsrc="\"$_fw_temp_source\""
+            fi
+        fi
+
+        jq -nc \
+            --arg     id           "$_mact_id" \
+            --arg     date         "$_mdate" \
+            --arg     start_date   "$_mstart" \
+            --arg     name         "Magene ${_mmodel}" \
+            --argjson distance     "${_mdist:-0}" \
+            --argjson moving_time  "$_melapsed" \
+            --argjson elapsed_time "$_melapsed" \
+            --argjson elevation    "${_melev:-0}" \
+            --argjson avg_speed    "$_mavg" \
+            --argjson max_speed    "${_mmspd:-0}" \
+            --argjson avg_cad      "$_mcad" \
+            --argjson avg_temp     "$_mwtemp" \
+            --argjson temp_src     "$_mwsrc" \
+            --argjson gear_id      "$_mgearf" \
+            --argjson gpx_file     "$_mgpxref" \
+            '{id:$id, date:$date, start_date:$start_date, start_date_local:$start_date,
+              name:$name, sport_type:"Ride", gear_id:$gear_id,
+              distance:$distance,
+              moving_time:($moving_time|tonumber), elapsed_time:($elapsed_time|tonumber),
+              total_elevation_gain:$elevation, average_speed:$avg_speed, max_speed:$max_speed,
+              average_heartrate:null, max_heartrate:null,
+              average_cadence:$avg_cad, average_watts:null, kilojoules:null,
+              average_temp:$avg_temp, temp_source:$temp_src, suffer_score:null,
+              calories:null, gpx_file:$gpx_file}' >> "$STORE"
+
+        printf '%s\n' "$_mact_id" >> "$TMP/known_ids.txt"
+        ADDED=$((ADDED + 1))
+        log "added Magene: $_mact_id (${_mdist:-0}m, ${_melapsed}s)"
+    done < "$TMP/magene_files.txt"
+fi
 
 TOTAL="$(wc -l < "$STORE" | tr -d ' ')"
 log "store: +$ADDED new, $TOTAL total"
@@ -542,4 +742,137 @@ log "wrote $WEB_DIR/activities.json ($TOTAL activities)"
 
 log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/bike.html, $WEB_DIR/stats.html"
 fi
+
+# --- 7. Drive auth status + re-authorization CGI ----------------------------
+# Write success status so the dashboard banner stays hidden on healthy runs.
+[ "$IMPORT_ENABLED" != "0" ] && \
+    printf '{"ok":true}\n' > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+
+# Generate the drive-auth CGI (device authorization flow). Idempotent.
+# Users visit /cgi-bin/drive-auth to get a new refresh token when the old one
+# expires (apps in Google "Testing" status expire after 7 days of inactivity).
+{
+    printf '#!/bin/sh\n'
+    printf 'CONFIG="%s"\n' "$CONFIG"
+    printf 'STATE_DIR="%s"\n' "$STATE_DIR"
+    printf 'WEB_DIR="%s"\n' "$WEB_DIR"
+    cat <<'CGI'
+# shellcheck disable=SC1090
+. "$CONFIG" 2>/dev/null || {
+    printf 'Content-Type: text/html\r\n\r\n'
+    printf '<!doctype html><html><body><p>Cannot read config: %s</p></body></html>\n' "$CONFIG"
+    exit 0
+}
+
+DC_FILE="$STATE_DIR/drive-device-code.json"
+
+if [ "${QUERY_STRING:-}" = "poll" ]; then
+    printf 'Content-Type: application/json\r\nCache-Control: no-cache\r\n\r\n'
+    if [ ! -f "$DC_FILE" ]; then
+        printf '{"status":"error","msg":"no_pending_auth"}\n'; exit 0
+    fi
+    dc="$(jq -r '.device_code // empty' "$DC_FILE" 2>/dev/null || true)"
+    if [ -z "$dc" ]; then
+        rm -f "$DC_FILE"; printf '{"status":"error","msg":"bad_state"}\n'; exit 0
+    fi
+    r="$(curl -fsS --max-time 15 https://oauth2.googleapis.com/token \
+        -d "client_id=$GOOGLE_CLIENT_ID" -d "client_secret=$GOOGLE_CLIENT_SECRET" \
+        -d "device_code=$dc" \
+        -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" 2>/dev/null || true)"
+    err="$(printf '%s' "$r" | jq -r '.error // empty' 2>/dev/null || true)"
+    rt="$(printf '%s' "$r" | jq -r '.refresh_token // empty' 2>/dev/null || true)"
+    if [ -n "$rt" ]; then
+        tmp="$(mktemp)"
+        sed "s|^GOOGLE_REFRESH_TOKEN=.*|GOOGLE_REFRESH_TOKEN=\"$rt\"|" "$CONFIG" > "$tmp" \
+            && mv "$tmp" "$CONFIG" && chmod 600 "$CONFIG"
+        printf '{"ok":true}\n' > "$WEB_DIR/drive-status.json"
+        rm -f "$DC_FILE"
+        printf '{"status":"ok"}\n'
+    elif [ "$err" = "authorization_pending" ] || [ "$err" = "slow_down" ]; then
+        printf '{"status":"pending"}\n'
+    elif [ "$err" = "expired_token" ]; then
+        rm -f "$DC_FILE"; printf '{"status":"expired"}\n'
+    else
+        e="$(printf '%s' "$err" | sed 's/["\]/\\&/g')"
+        printf '{"status":"error","msg":"%s"}\n' "$e"
+    fi
+    exit 0
+fi
+
+# Start device authorization flow
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+dc_resp="$(curl -fsS --max-time 15 https://accounts.google.com/o/oauth2/device/code \
+    -d "client_id=$GOOGLE_CLIENT_ID" \
+    -d "scope=https://www.googleapis.com/auth/drive.readonly" 2>/dev/null || true)"
+user_code="$(printf '%s' "$dc_resp" | jq -r '.user_code // empty' 2>/dev/null || true)"
+verify_url="$(printf '%s' "$dc_resp" | jq -r '.verification_url // empty' 2>/dev/null || true)"
+expires_in="$(printf '%s' "$dc_resp" | jq -r '.expires_in // 300' 2>/dev/null || echo 300)"
+
+printf 'Content-Type: text/html\r\nCache-Control: no-cache\r\n\r\n'
+
+if [ -z "$user_code" ]; then
+    printf '<!doctype html><html lang="en"><body><h2>Authorization Error</h2>'
+    printf '<p>Could not request a device code from Google. Check GOOGLE_CLIENT_ID in config.</p>'
+    printf '</body></html>\n'
+    exit 0
+fi
+
+printf '%s\n' "$dc_resp" > "$DC_FILE"
+
+cat <<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Authorize Google Drive</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;max-width:520px;margin:3rem auto;padding:0 1.5rem;color:#222}
+h1{font-size:1.35rem;margin:0 0 .75rem}
+.code{display:block;font-size:2.2rem;font-weight:700;letter-spacing:.25em;background:#f5f5f5;border:2px solid #ddd;border-radius:.5rem;padding:.6rem 1rem;margin:.5rem 0 1rem;font-family:monospace;text-align:center}
+.openBtn{display:inline-block;background:#4285f4;color:#fff;padding:.5rem 1.2rem;border-radius:.4rem;text-decoration:none;font-weight:600;font-size:.95rem}
+.openBtn:hover{background:#3367d6}
+.note{color:#666;font-size:.88rem;margin:1rem 0}
+#status{font-size:.9rem;margin:1rem 0;min-height:1.2em;color:#555}
+.ok{color:#2a7d2e;font-weight:600;font-size:1rem}
+</style>
+</head>
+<body>
+<h1>Re-authorize Google Drive</h1>
+HTML
+printf '<p>1. Open <a href="%s" target="_blank" class="openBtn">Google Device Auth</a></p>\n' "$verify_url"
+printf '<p>2. Enter this code when prompted:</p>\n<code class="code">%s</code>\n' "$user_code"
+printf '<p class="note">Code expires in <span id="timer">%s</span>s &mdash; this page polls automatically.</p>\n' "$expires_in"
+printf '<div id="status">Waiting for authorization...</div>\n'
+cat <<'HTML'
+<script>
+var exp=parseInt(document.getElementById("timer").textContent,10)||300;
+var tiv=setInterval(function(){
+  exp--;document.getElementById("timer").textContent=exp;
+  if(exp<=0){clearInterval(tiv);clearInterval(piv);document.getElementById("status").textContent="Code expired. Reload to start over.";}
+},1000);
+function poll(){
+  fetch("drive-auth?poll",{cache:"no-store"})
+    .then(function(r){return r.ok?r.json():{status:"error"};})
+    .then(function(d){
+      if(d.status==="ok"){
+        clearInterval(tiv);clearInterval(piv);
+        document.getElementById("status").innerHTML='<span class="ok">&#10003; Authorized! Redirecting to dashboard...</span>';
+        setTimeout(function(){window.location="/strava/me/";},1500);
+      }else if(d.status==="expired"){
+        clearInterval(tiv);clearInterval(piv);
+        document.getElementById("status").textContent="Code expired. Reload to start over.";
+      }
+    })
+    .catch(function(){});
+}
+var piv=setInterval(poll,5000);
+</script>
+</body>
+</html>
+HTML
+CGI
+} > "$CGI_DIR/drive-auth"
+chmod 0755 "$CGI_DIR/drive-auth"
+log "wrote $CGI_DIR/drive-auth"
 log "done."

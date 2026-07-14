@@ -82,6 +82,13 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
+  <div class="box" id="cad-box" style="display:none">
+    <h3>Cadence</h3>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-cad-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-cad" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
+  </div>
   <div class="box" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
     <div id="hr-zone-content"></div>
@@ -381,6 +388,17 @@ function renderHrFromSplits(splits) {
   drawLineSvg("svg-hr", hrs, "#e91e63", "bpm", labels);
 }
 
+function renderCadFromSplits(splits) {
+  var cads = [], labels = [], i, cad;
+  for (i = 0; i < splits.length; i++) {
+    cad = splits[i].average_cadence;
+    if (cad > 0) { cads.push(cad); labels.push(String(i + 1)); }
+  }
+  if (!cads.length) return;
+  document.getElementById("cad-box").style.display = "";
+  drawLineSvg("svg-cad", cads, "#8e24aa", "rpm", labels);
+}
+
 // h:mm:ss / m:ss for zone time display; "0 s" for zero.
 function fmtHMS(s) {
   s = Math.round(s);
@@ -552,8 +570,8 @@ function renderGpxMap(gpxUrl){
     });
 }
 
-// --- GPX elevation + heart rate charts (healthsync activities) ---------------
-// Fetches the GPX once and populates elev-box, hr-box, and hr-zone-box when data is present.
+// --- GPX elevation + heart rate + cadence charts (healthsync activities) -----
+// Fetches the GPX once and populates elev-box, hr-box, hr-zone-box, and cad-box when data is present.
 function renderGpxCharts(gpxUrl, maxHR, movingTime) {
   fetch(gpxUrl)
     .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
@@ -594,6 +612,22 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime) {
         var gpxZonePts = [];
         for (i = 0; i < allH.length; i++) gpxZonePts.push({bpm: allH[i], secs: secsPerPt});
         renderHrZones(gpxZonePts, maxHR);
+      }
+
+      // Cadence from track-point extensions (<gpxtpx:cad>, <cad>, <cadence>)
+      var allC = [], cadEls, rpm;
+      for (i = 0; i < trkpts.length; i++) {
+        cadEls = trkpts[i].getElementsByTagNameNS("*", "cad");
+        if (!cadEls.length) cadEls = trkpts[i].getElementsByTagNameNS("*", "cadence");
+        rpm = cadEls.length ? (parseFloat(cadEls[0].textContent) || 0) : 0;
+        if (rpm > 0) allC.push(rpm);
+      }
+      if (allC.length) {
+        step = Math.max(1, Math.floor(allC.length / 300));
+        var sc = [];
+        for (i = 0; i < allC.length; i += step) sc.push(allC[i]);
+        document.getElementById("cad-box").style.display = "";
+        drawLineSvg("svg-cad", sc, "#8e24aa", "rpm");
       }
     })
     .catch(function(e){
@@ -676,6 +710,7 @@ function renderSplits(d){
       + 'Time: ' + fmtTime(s.moving_time || s.elapsed_time || 0);
     if (s.elevation_difference != null) tip += '<br>Elev: ' + (s.elevation_difference>=0?'+':'') + Math.round(s.elevation_difference) + ' m';
     if (s.average_heartrate) tip += '<br>HR: ' + Math.round(s.average_heartrate) + ' bpm';
+    if (s.average_cadence) tip += '<br>Cadence: ' + Math.round(s.average_cadence) + ' rpm';
     TIP_DATA.push(tip);
 
     html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="#fc4c02" rx="2"'
@@ -685,9 +720,10 @@ function renderSplits(d){
   }
   svg.innerHTML = html;
 
-  // Elevation profile and heart rate charts from splits data (when available).
+  // Elevation, heart rate, and cadence charts from splits data (when available).
   renderElevFromSplits(splits);
   renderHrFromSplits(splits);
+  renderCadFromSplits(splits);
   // Heart rate zones estimated from per-km split averages.
   var hrZonePts = [], zi;
   for (zi = 0; zi < splits.length; zi++) {
