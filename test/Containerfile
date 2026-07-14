@@ -29,6 +29,8 @@ COPY test/healthsync-20260622.json /opt/healthsync-20260622.json
 COPY test/healthsync-sample.gpx  /opt/healthsync-sample.gpx
 COPY test/healthsync-bike.json   /opt/healthsync-bike.json
 COPY test/healthsync-bike.gpx    /opt/healthsync-bike.gpx
+COPY test/magene-sample.json     /opt/magene-sample.json
+COPY test/magene-sample.gpx      /opt/magene-sample.gpx
 COPY test/run.sh /opt/run.sh
 COPY test/shell-tests.sh /opt/shell-tests.sh
 RUN chmod 0755 /opt/run.sh /opt/shell-tests.sh

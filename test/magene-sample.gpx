@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPS Visualizer"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <trk>
+    <name>Magene C606 2026-07-12</name>
+    <trkseg>
+      <trkpt lat="51.8900" lon="16.4500"><ele>80.0</ele><time>2026-07-12T07:59:57Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>5.2</gpxtpx:speed><gpxtpx:cad>82</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="51.9400" lon="16.5200"><ele>90.0</ele><time>2026-07-12T09:00:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>6.5</gpxtpx:speed><gpxtpx:cad>84</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="51.9800" lon="16.6100"><ele>108.0</ele><time>2026-07-12T10:00:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>7.8</gpxtpx:speed><gpxtpx:cad>86</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.0200" lon="16.6900"><ele>128.0</ele><time>2026-07-12T11:00:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>9.0</gpxtpx:speed><gpxtpx:cad>88</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="51.9600" lon="16.7500"><ele>110.0</ele><time>2026-07-12T12:00:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>6.2</gpxtpx:speed><gpxtpx:cad>85</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="51.9100" lon="16.6200"><ele>90.0</ele><time>2026-07-12T12:40:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>4.8</gpxtpx:speed><gpxtpx:cad>84</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="51.8900" lon="16.4500"><ele>80.0</ele><time>2026-07-12T13:11:05Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:speed>3.1</gpxtpx:speed><gpxtpx:cad>79</gpxtpx:cad></gpxtpx:TrackPointExtension></extensions></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

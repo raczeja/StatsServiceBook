@@ -46,11 +46,16 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   #chart-tip{display:none;position:fixed;background:rgba(30,30,30,.93);color:#fff;padding:.45rem .7rem;border-radius:.4rem;font-size:.8rem;pointer-events:none;z-index:100;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.3)}
   #chart-tip strong{display:block;margin-bottom:.15rem;font-size:.85rem}
   #pbar{position:fixed;top:0;left:0;width:0;height:3px;background:#fc4c02;z-index:9999;pointer-events:none}
+  #drive-banner{display:none;background:#fff3cd;border:1px solid #ffc107;color:#664d03;border-radius:.4rem;padding:.6rem 1rem;margin:.5rem 0 .75rem;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+  #drive-banner.visible{display:flex}
+  #drive-banner a{background:#fc4c02;color:#fff;padding:.3rem .7rem;border-radius:.35rem;text-decoration:none;font-size:.85rem;white-space:nowrap}
+  #drive-banner a:hover{background:#d94202}
 </style>
 </head>
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
+<div id="drive-banner"><span>Google Drive access expired &mdash; activities may be out of date.</span> <a href="/cgi-bin/drive-auth">Re-authorize Drive</a></div>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a></h1></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
@@ -668,6 +673,14 @@ fetch("activities.json", { cache:"no-store" })
     metaEl.textContent = "Failed to load activities.json ("+err.message+
       "). Open this page via the router's web server, not from a file.";
   });
+fetch("drive-status.json", { cache:"no-store" })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(d){
+    if (d && d.ok===false){
+      var b=document.getElementById("drive-banner"); if(b) b.classList.add("visible");
+    }
+  })
+  .catch(function(){});
 </script>
 </body>
 </html>
