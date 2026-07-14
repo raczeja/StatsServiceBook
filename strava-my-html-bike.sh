@@ -722,9 +722,15 @@ function render(){
       var pct    = Math.max(pctKm2, pctH2);
       var barClr = pct >= 100 ? '#b00' : pct >= 80 ? '#fc4c02' : '#4caf50';
       var barFill = Math.min(100, pct).toFixed(1);
+      var tipParts = [];
+      if (p.alertKm && +p.alertKm > 0) tipParts.push(fmtKm(refKm)+' km / '+p.alertKm+' km');
+      if (p.alertH  && +p.alertH  > 0) tipParts.push((refH<0?0:refH).toFixed(1)+' h / '+p.alertH+' h');
+      var barTip = (last ? 'Since last service: ' : 'Since install: ') + tipParts.join('; ');
+      if (p.alertKm && +p.alertKm > 0 && p.alertH && +p.alertH > 0)
+        barTip += ' (' + (pctKm2 >= pctH2 ? 'km-driven' : 'time-driven') + ')';
       var barHtml = hasThresh
-        ? '<div class="svc-bar"><div class="svc-bar-fill" style="width:'+barFill+'%;background:'+barClr+'"></div></div>'+
-          '<span class="svc-pct">'+Math.round(pct)+'%</span>'
+        ? '<div class="svc-bar" title="'+esc(barTip)+'"><div class="svc-bar-fill" style="width:'+barFill+'%;background:'+barClr+'"></div></div>'+
+          '<span class="svc-pct" title="'+esc(barTip)+'">'+Math.round(pct)+'%</span>'
         : '';
       var dnd = ' draggable="true"'+
         ' ondragstart="dragStart(event,\''+p.id+'\',this)"'+
