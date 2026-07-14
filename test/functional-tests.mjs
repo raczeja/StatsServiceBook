@@ -23,6 +23,7 @@ const URLS = {
   activity: `${BASE}/activity.html?id=18784255013`,
   activityHealthsyncRun: `${BASE}/activity.html?id=2026-06-22-15-07-running`,
   activityHealthsyncCycling: `${BASE}/activity.html?id=2026-06-22-10-30-cycling`,
+  activityMagene: `${BASE}/activity.html?id=magene-2026-07-12-50671559`,
   bike: `${BASE}/bike.html`,
 };
 
@@ -104,24 +105,57 @@ async function testClubDashboard(page, jsErrors) {
     assert.ok(!text.includes("Loading"), `#meta still says Loading: ${text}`);
   });
   await check(S, "table-has-rows", async () => {
-    const n = await page.$$eval("#board tbody tr", (rows) => rows.length);
-    assert.ok(n >= 1, `expected >= 1 row, got ${n}`);
+    const n = await page.$$eval("#board .person-row", (rows) => rows.length);
+    assert.ok(n >= 1, `expected >= 1 person row, got ${n}`);
   });
-  // club-activities.sample.json: 4 athletes, each gets one leaderboard row
+  // club-activities.sample.json: 4 athletes → 4 person-rows + 4 hidden detail-rows
   await check(S, "4-athlete-rows", async () => {
-    const n = await page.$$eval("#board tbody tr", (rows) => rows.length);
-    assert.equal(n, 4, `expected 4 athlete rows, got ${n}`);
+    const n = await page.$$eval("#board .person-row", (rows) => rows.length);
+    assert.equal(n, 4, `expected 4 person-rows, got ${n}`);
+  });
+  await check(S, "4-detail-rows-hidden", async () => {
+    const n = await page.$$eval(
+      "#board .detail-row",
+      (rows) => rows.filter((r) => r.style.display === "none").length,
+    );
+    assert.equal(n, 4, `expected 4 hidden detail-rows, got ${n}`);
   });
   // Alex R has the highest km in June 2026 (150.4 km across 3 rides) → rank 1
   await check(S, "first-place-Alex", async () => {
     const name = await page.$eval(
-      "#board tbody tr:first-child td:nth-child(2)",
+      "#board .person-row:first-of-type td:nth-child(2)",
       (el) => el.textContent.trim(),
     );
     assert.ok(
       name.startsWith("Alex"),
       `expected first place "Alex…", got "${name}"`,
     );
+  });
+  // Click the first person-row → its detail-row should become visible
+  await check(S, "drill-down-toggle", async () => {
+    await page.click("#board .person-row:first-child");
+    const visible = await page.$eval(
+      "#board .detail-row",
+      (el) => el.style.display !== "none",
+    );
+    assert.ok(visible, "detail-row should be visible after clicking person-row");
+    // click again → collapses
+    await page.click("#board .person-row:first-child");
+    const hidden = await page.$eval(
+      "#board .detail-row",
+      (el) => el.style.display === "none",
+    );
+    assert.ok(hidden, "detail-row should be hidden after second click");
+  });
+  // Detail table has activity rows (Alex has 3 rides, so detail-table has 3 data rows)
+  await check(S, "drill-down-activity-rows", async () => {
+    await page.click("#board .person-row:first-child");
+    const n = await page.$eval(
+      "#board .detail-row .detail-table tbody",
+      (tbody) => tbody.querySelectorAll("tr").length,
+    );
+    assert.equal(n, 3, `expected 3 detail activity rows for Alex, got ${n}`);
+    await page.click("#board .person-row:first-child");
   });
 }
 
@@ -134,7 +168,13 @@ async function testMyActivities(page, jsErrors) {
     } catch (_) {}
   });
   await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
-  // Default filter: year=2026, month=6 (June), sport=Ride → 5 rides, 271.8 km
+  // generatedAt is 2026-07-14 so default month is July; select June which has the full test dataset
+  await page.evaluate(() => {
+    const sel = document.getElementById("month");
+    sel.value = "6";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  // Default filter: year=2026, month=6 (June), sport=Ride → 6 rides, 304 km
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
     await page.waitForFunction(
@@ -178,6 +218,17 @@ async function testMyActivities(page, jsErrors) {
     const n = await page.$$eval("#board tbody td select", (els) => els.length);
     assert.ok(n >= 5, `expected >= 5 bike selects for Ride rows, got ${n}`);
   });
+  await check(S, "drive-banner-hidden", async () => {
+    // drive-status.json says ok:true in the test container → banner must be hidden
+    const visible = await page
+      .$eval("#drive-banner", (el) => el.classList.contains("visible"))
+      .catch(() => false);
+    assert.equal(
+      visible,
+      false,
+      "drive-auth banner should be hidden when drive-status.json says ok:true",
+    );
+  });
 }
 
 async function testStats(page, jsErrors) {
@@ -211,10 +262,10 @@ async function testStats(page, jsErrors) {
       }
       return null;
     });
-    assert.equal(val, "17", `expected KPI Activities="17", got "${val}"`);
+    assert.equal(val, "18", `expected KPI Activities="18", got "${val}"`);
   });
 
-  // KPI: Distance includes "856"
+  // KPI: Distance includes "941" (856.7 km existing + 84.6 km Magene = 941.3 km)
   await check(S, "kpi-distance-824", async () => {
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
@@ -224,8 +275,8 @@ async function testStats(page, jsErrors) {
       return null;
     });
     assert.ok(
-      val && val.includes("856"),
-      `expected "856" in distance KPI, got "${val}"`,
+      val && val.includes("941"),
+      `expected "941" in distance KPI, got "${val}"`,
     );
   });
 
@@ -415,6 +466,15 @@ async function testActivityDetail(page, jsErrors) {
     });
     assert.ok(tipVisible, "#chart-tip should become visible on mousemove over #svg-elev");
   });
+  // Cadence chart — rendered from splits_metric[i].average_cadence
+  await check(S, "cad-box-visible", async () => {
+    const display = await page.$eval("#cad-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#cad-box has display:none — cadence chart not rendered`);
+  });
+  await check(S, "svg-cad-rendered", async () => {
+    const n = await page.$$eval("#svg-cad path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-cad (fill + line), got ${n}`);
+  });
   // Splits box must stay visible for Strava activities
   await check(S, "splits-box-visible", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
@@ -542,6 +602,23 @@ async function testActivityDetailHealthsyncRun(page, jsErrors) {
       return document.getElementById("chart-tip").style.display === "block";
     });
     assert.ok(tipVisible, "#chart-tip should become visible on mousemove over #svg-elev");
+  });
+  // Cadence chart — parsed from GPX <gpxtpx:cad> extensions
+  await check(S, "cad-box-visible", async () => {
+    const display = await page.$eval("#cad-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#cad-box has display:none — cadence chart not rendered from GPX`);
+  });
+  await check(S, "svg-cad-rendered", async () => {
+    const n = await page.$$eval("#svg-cad path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-cad (fill + line), got ${n}`);
+  });
+  // Cadence card — average_cadence from detail JSON (parsed from GPX :cad> during ingestion)
+  await check(S, "cadence-card-shown", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("85") && text.toLowerCase().includes("cadence"),
+      `expected cadence card with value 85 in .cards: ${text.slice(0, 300)}`,
+    );
   });
   // No km splits for HealthSync activities — splits-box must be hidden
   await check(S, "splits-box-hidden", async () => {
@@ -675,6 +752,100 @@ async function testActivityDetailHealthsyncCycling(page, jsErrors) {
   await check(S, "splits-box-hidden", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
     assert.equal(display, "none", `#splits-box should be hidden for HealthSync activity, got "${display}"`);
+  });
+}
+
+async function testActivityDetailMagene(page, jsErrors) {
+  const S = "activity-detail-magene";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+  await page.goto(URLS.activityMagene, {
+    waitUntil: "networkidle0",
+    timeout: 20000,
+  });
+  // magene-sample.json: "Magene C606", 84600 m, 303 m elevation, no HR
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "no-js-errors", () => {
+    const real = jsErrors.filter(
+      (e) =>
+        !e.message?.toLowerCase().includes("leaflet") &&
+        !e.message?.toLowerCase().includes("unpkg.com"),
+    );
+    assert.equal(real.length, 0, real.map((e) => e.message).join("; "));
+  });
+  await check(S, "no-error-shown", async () => {
+    const text = await page.$eval("#err", (el) => el.textContent.trim());
+    assert.equal(text, "", `#err is not empty: "${text}"`);
+  });
+  await check(S, "content-visible", async () => {
+    const display = await page.$eval("#content", (el) => el.style.display);
+    assert.ok(display !== "none", `#content has display:none`);
+  });
+  await check(S, "title-magene", async () => {
+    const text = await page.$eval("#name", (el) => el.textContent.trim());
+    assert.ok(
+      text.includes("Magene"),
+      `expected "Magene" in #name, got "${text}"`,
+    );
+  });
+  await check(S, "cards-populated", async () => {
+    const n = await page.$$eval(".cards .card", (els) => els.length);
+    assert.ok(n >= 4, `expected >= 4 stat cards, got ${n}`);
+  });
+  await check(S, "distance-84km", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    // 84600 m = 84.6 km
+    assert.ok(
+      text.includes("84.6") || text.includes("84.5"),
+      `expected ~84.6 km in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  await check(S, "elevation-303m", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("303"),
+      `expected "303" m in .cards: ${text.slice(0, 200)}`,
+    );
+  });
+  // Elevation profile — parsed from GPX <ele> tags
+  await check(S, "elev-box-visible", async () => {
+    const display = await page.$eval("#elev-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#elev-box has display:none`);
+  });
+  await check(S, "svg-elev-rendered", async () => {
+    const n = await page.$$eval("#svg-elev path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`);
+  });
+  // Heart rate chart — Magene has no HR data, so hr-box must be hidden
+  await check(S, "hr-box-hidden", async () => {
+    const display = await page.$eval("#hr-box", (el) => el.style.display);
+    assert.equal(display, "none", `#hr-box should be hidden for Magene (no HR), got "${display}"`);
+  });
+  // HR zone table must also be hidden
+  await check(S, "hr-zone-box-hidden", async () => {
+    const display = await page.$eval("#hr-zone-box", (el) => el.style.display);
+    assert.equal(display, "none", `#hr-zone-box should be hidden for Magene (no HR), got "${display}"`);
+  });
+  await check(S, "elev-chart-has-tooltip-data", async () => {
+    const n = await page.evaluate(() =>
+      (window.LINE_TIPS && window.LINE_TIPS["svg-elev"] && window.LINE_TIPS["svg-elev"].length) || 0
+    );
+    assert.ok(n > 0, `expected LINE_TIPS['svg-elev'] to have entries, got ${n}`);
+  });
+  // No km splits — Magene activities are not Strava activities
+  await check(S, "splits-box-hidden", async () => {
+    const display = await page.$eval("#splits-box", (el) => el.style.display);
+    assert.equal(display, "none", `#splits-box should be hidden for Magene activity, got "${display}"`);
   });
 }
 
@@ -876,6 +1047,14 @@ async function testSyncSourceMerging(page, jsErrors) {
       { timeout: 10000 },
     );
   } catch (_) {}
+
+  // generatedAt is 2026-07-14; select June 2026 where both Strava (numeric) and HealthSync (date-based) IDs coexist
+  await page.evaluate(() => {
+    const sel = document.getElementById("month");
+    sel.value = "6";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
 
   // Test 1: Both Strava (numeric) and HealthSync (string) activities coexist
   await check(S, "strava-and-healthsync-mixed", async () => {
@@ -1549,6 +1728,12 @@ async function testFocusRow(page, jsErrors) {
     try { sessionStorage.clear(); } catch (_) {}
   });
   await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  // generatedAt is 2026-07-14 so default month is July (1 activity, no best chips); select June
+  await page.evaluate(() => {
+    const sel = document.getElementById("month");
+    sel.value = "6";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   try {
     await page.waitForSelector("#bests .best", { timeout: 10000 });
     await page.waitForFunction(
@@ -1943,6 +2128,14 @@ async function testBikeOdoIncludesManualAssignments(page, jsErrors) {
     );
   } catch (_) {}
 
+  // generatedAt is 2026-07-14; select June 2026 where activity id=4 (Gravel Grind) lives
+  await page.evaluate(() => {
+    const sel = document.getElementById("month");
+    sel.value = "6";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
   // Set sport=Ride so all rows are rides and the odo covers the same set.
   await page.evaluate(() => {
     const sel = document.getElementById("sport");
@@ -2040,6 +2233,12 @@ async function testDashboardBestChips(page, jsErrors) {
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
   await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  // generatedAt is 2026-07-14 so default month is July (1 activity, no best chips); select June
+  await page.evaluate(() => {
+    const sel = document.getElementById("month");
+    sel.value = "6";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   try {
     await page.waitForSelector("#bests .best", { timeout: 10000 });
     await page.waitForFunction(
@@ -2450,6 +2649,9 @@ async function main() {
 
     console.log("\n--- Activity Detail (HealthSync Cycling) ---");
     await testActivityDetailHealthsyncCycling(page, jsErrors);
+
+    console.log("\n--- Activity Detail (Magene C606 — no HR) ---");
+    await testActivityDetailMagene(page, jsErrors);
 
     console.log("\n--- Strava Link (numeric vs HealthSync ID) ---");
     await testStravaLink(page, jsErrors);

@@ -23,21 +23,20 @@
 # STEP D — Add yourself as a test user
 #   OAuth consent screen → Test users → + Add Users → your Gmail → Save
 #
-# STEP E — Get the refresh token (device flow, requires curl + jq)
-#   CLIENT_ID="your-client-id"
-#   CLIENT_SECRET="your-client-secret"
-#   curl -s https://accounts.google.com/o/oauth2/device/code \
-#     -d "client_id=$CLIENT_ID" \
-#     -d "scope=https://www.googleapis.com/auth/drive.readonly" | tee /tmp/dc.json | jq .
-#   # Open "verification_url" in browser, enter "user_code", click Allow, then:
-#   curl -s https://oauth2.googleapis.com/token \
-#     -d "client_id=$CLIENT_ID" -d "client_secret=$CLIENT_SECRET" \
-#     -d "device_code=$(jq -r .device_code /tmp/dc.json)" \
-#     -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" | jq .
-#   # Copy "refresh_token" → GOOGLE_REFRESH_TOKEN below.
+# STEP E — Get the refresh token (on Windows, run-healthsync-podman.ps1 handles
+#           this automatically when the token expires; it opens the browser and
+#           writes the new token back to this file. On Linux/Mac, use the OAuth
+#           Playground: https://developers.google.com/oauthplayground
+#             1. Gear icon → check "Use your own OAuth credentials"
+#             2. Enter your CLIENT_ID and CLIENT_SECRET
+#             3. In the left pane expand "Drive API v3", select
+#                https://www.googleapis.com/auth/drive.readonly, click Authorize
+#             4. Click "Exchange authorization code for tokens"
+#             5. Copy the "Refresh token" value → GOOGLE_REFRESH_TOKEN below.
 #
-# NOTE: Refresh tokens from apps in "Testing" status expire after 7 days of
-# inactivity. Re-run the auth step if the script fails with "invalid_grant".
+# NOTE: Refresh tokens from apps in "Testing" status expire after 7 days.
+# Re-run the auth step (or just re-run run-healthsync-podman.ps1 on Windows)
+# if the script fails with "Drive token refresh failed".
 # To get non-expiring tokens: OAuth consent screen → Publish App.
 
 GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"

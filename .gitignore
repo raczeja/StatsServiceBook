@@ -5,3 +5,7 @@ config-healthsync
 strava-leaderboard.conf
 
 test/router-state/
+test/merge/
+test/node_modules/
+test/package.json
+test/package-lock.json

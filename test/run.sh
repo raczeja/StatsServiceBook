@@ -47,7 +47,17 @@ BIKE_ASSIGN=/data/bike-assignments.json
 } > /www/cgi-bin/bike-assign
 chmod 0755 /www/cgi-bin/bike-assign
 
+# drive-auth CGI stub (no real Google credentials in the test container).
+{
+  echo '#!/bin/sh'
+  echo 'printf "Content-Type: text/html\r\nCache-Control: no-cache\r\n\r\n"'
+  echo 'printf "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Authorize Google Drive</title></head><body><h1>Re-authorize Google Drive</h1><p>Test stub.</p></body></html>\n"'
+} > /www/cgi-bin/drive-auth
+chmod 0755 /www/cgi-bin/drive-auth
+
 cp /opt/activities.sample.json "$WEB/activities.json"
+# Drive auth status: ok=true so the re-auth banner stays hidden in tests.
+printf '{"ok":true}\n' > "$WEB/drive-status.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
 
 # Sample per-activity detail JSON (served at details/<id>.json, linked from the dashboard).
@@ -60,6 +70,10 @@ cp /opt/healthsync-sample.gpx "$WEB/gpx/healthsync-sample.gpx"
 # HealthSync bike/cycling sample: detail JSON + GPX for testing gear_id assignment.
 cp /opt/healthsync-bike.json "$WEB/details/2026-06-22-10-30-cycling.json"
 cp /opt/healthsync-bike.gpx "$WEB/gpx/2026.06.22_10.30-CYCLING.gpx"
+
+# Magene C606 sample: detail JSON + GPX (GPS Visualizer-converted, no HR).
+cp /opt/magene-sample.json "$WEB/details/magene-2026-07-12-50671559.json"
+cp /opt/magene-sample.gpx  "$WEB/gpx/magene_2026-07-12_50671559.gpx"
 
 # Seed the bike-service store with sample parts/services so the page has data on
 # first load. Only seed if absent: once the CGI has written real edits we don't clobber them.

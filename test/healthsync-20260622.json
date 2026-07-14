@@ -14,7 +14,7 @@
   "max_speed": 3.8,
   "average_heartrate": 148,
   "max_heartrate": 172,
-  "average_cadence": null,
+  "average_cadence": 85,
   "average_watts": null,
   "kilojoules": null,
   "average_temp": 24,
