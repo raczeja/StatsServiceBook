@@ -113,14 +113,24 @@ if [ "$ME_WEB" != "/www/strava/me" ]; then
 fi
 
 # /www/strava also holds the 'me' entry, so keep it a real dir and symlink only
-# the three files the leaderboard generates into the relocated web dir.
+# the files the leaderboard generates into the relocated web dir.
 if [ "$LB_WEB" != "/www/strava" ]; then
-  echo "==> linking /www/strava/{activities,leaderboard}.json + index.html -> $LB_WEB"
+  LB_CLUB_IDS="$(conf_val "$CONF" STRAVA_CLUB_IDS "$(conf_val "$CONF" STRAVA_CLUB_ID "")")"
+  echo "==> linking /www/strava/{activities.json,index.html,leaderboard_<club>.json} -> $LB_WEB"
   mkdir -p /www/strava "$LB_WEB"
-  for f in activities.json index.html leaderboard.json; do
+  for f in activities.json index.html; do
     [ -e "/www/strava/$f" ] && [ ! -L "/www/strava/$f" ] && rm -f "/www/strava/$f"
     ln -sfn "$LB_WEB/$f" "/www/strava/$f"
   done
+  old_IFS="$IFS"; IFS=","
+  for club_id in $LB_CLUB_IDS; do
+    club_id="$(printf '%s' "$club_id" | tr -d ' \t')"
+    [ -n "$club_id" ] || continue
+    f="leaderboard_${club_id}.json"
+    [ -e "/www/strava/$f" ] && [ ! -L "/www/strava/$f" ] && rm -f "/www/strava/$f"
+    ln -sfn "$LB_WEB/$f" "/www/strava/$f"
+  done
+  IFS="$old_IFS"
 fi
 
 # HealthSync state dir — must exist before the first run (may be on a USB mount).
@@ -128,12 +138,22 @@ echo "==> ensuring HealthSync state dir: $HS_STATE"
 mkdir -p "$HS_STATE"
 
 # HealthSync shares the served path /www/strava/me with My Activities.
-# If it's relocated, create the same bridge symlink.
+# Two cases when HS_WEB is relocated:
+#   Coexistence (ME_WEB is still the default real dir): Strava owns /www/strava/me,
+#   so only symlink drive-status.json there so the Strava dashboard can show the
+#   Google Drive token status without clobbering Strava's files.
+#   HealthSync-primary (ME_WEB also relocated): safe to create the full directory
+#   symlink /www/strava/me → HS_WEB so uhttpd serves HealthSync's output.
 if [ "$HS_WEB" != "/www/strava/me" ]; then
-  echo "==> linking /www/strava/me -> $HS_WEB (relocated HealthSync web dir)"
   mkdir -p /www/strava "$HS_WEB"
-  [ -e /www/strava/me ] && [ ! -L /www/strava/me ] && rm -rf /www/strava/me
-  ln -sfn "$HS_WEB" /www/strava/me
+  if [ "$ME_WEB" = "/www/strava/me" ]; then
+    echo "==> coexistence: linking /www/strava/me/drive-status.json -> $HS_WEB/drive-status.json"
+    ln -sf "$HS_WEB/drive-status.json" /www/strava/me/drive-status.json
+  else
+    echo "==> linking /www/strava/me -> $HS_WEB (relocated HealthSync web dir)"
+    [ -e /www/strava/me ] && [ ! -L /www/strava/me ] && rm -rf /www/strava/me
+    ln -sfn "$HS_WEB" /www/strava/me
+  fi
 fi
 
 # --- Ensure uhttpd serves the bike-service CGI --------------------------------

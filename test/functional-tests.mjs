@@ -157,6 +157,26 @@ async function testClubDashboard(page, jsErrors) {
     assert.equal(n, 3, `expected 3 detail activity rows for Alex, got ${n}`);
     await page.click("#board .person-row:first-child");
   });
+  // Each club's "all-time JSON" footer link must resolve to a real file.
+  // This catches the install.sh bug where leaderboard.json was symlinked instead
+  // of leaderboard_<clubId>.json.
+  await check(S, "leaderboard-json-links-accessible", async () => {
+    const hrefs = await page.$$eval(
+      '#footer-links a[href*="leaderboard_"]',
+      (links) => links.map((a) => a.href),
+    );
+    assert.ok(
+      hrefs.length >= 1,
+      `expected >= 1 leaderboard JSON link in footer, got ${hrefs.length}`,
+    );
+    for (const href of hrefs) {
+      const status = await page.evaluate(
+        async (url) => (await fetch(url)).status,
+        href,
+      );
+      assert.equal(status, 200, `leaderboard JSON at ${href} returned ${status}`);
+    }
+  });
 }
 
 async function testMyActivities(page, jsErrors) {
@@ -227,6 +247,20 @@ async function testMyActivities(page, jsErrors) {
       visible,
       false,
       "drive-auth banner should be hidden when drive-status.json says ok:true",
+    );
+  });
+  await check(S, "drive-token-connected", async () => {
+    // drive-status.json has ok:true + expires_at → token status line must show "connected"
+    await page.waitForFunction(
+      () => document.getElementById("drive-token")?.textContent.includes("Google Drive"),
+      { timeout: 5000 },
+    ).catch(() => {});
+    const text = await page
+      .$eval("#drive-token", (el) => el.textContent)
+      .catch(() => "");
+    assert.ok(
+      text.includes("Google Drive: connected"),
+      `expected "Google Drive: connected" in #drive-token: "${text}"`,
     );
   });
 }

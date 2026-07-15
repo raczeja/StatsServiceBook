@@ -46,6 +46,11 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   #map-spin-bar::after{content:'';display:block;height:100%;width:40%;background:#fc4c02;
     animation:map-shimmer 1.2s ease-in-out infinite}
   @keyframes map-shimmer{0%{transform:translateX(-150%)}100%{transform:translateX(400%)}}
+  #map-expand-btn{position:absolute;top:.4rem;right:.4rem;z-index:600;background:rgba(255,255,255,.9);border:1px solid #ccc;border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  #map-expand-btn:hover{background:#fff;border-color:#999}
+  #map-box.fs-map{position:fixed;inset:0;z-index:9000;margin:0;padding:0;background:#000;border-radius:0}
+  #map-box.fs-map #map{height:100%;border-radius:0;margin:0;box-shadow:none}
+  #map-box.fs-map #map-expand-btn{top:.6rem;right:.6rem}
   .hr-zone-table{width:100%;border-collapse:collapse;font-size:.85rem}
   .hr-zone-table td{padding:.25rem .4rem;vertical-align:middle}
   .hr-zone-table tr:nth-child(odd){background:#f7f7f7}
@@ -55,7 +60,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
-<div class="crumbs"><a href="index.html">&larr; All activities</a></div>
+<div class="crumbs"><a href="index.html">&larr; All activities</a> &middot; <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
 <div id="err"></div>
 <div id="content" style="display:none">
   <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 id="name" style="margin:0"></h1></div>
@@ -67,6 +72,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   <div id="map-box">
     <div id="map"></div>
     <div id="map-spin">Loading map…<div id="map-spin-bar"></div></div>
+    <button id="map-expand-btn" onclick="toggleMapFullscreen()" title="Expand map">&#x26F6; Expand</button>
   </div>
   <div class="box" id="elev-box" style="display:none">
     <h3>Elevation profile</h3>
@@ -102,7 +108,24 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 "use strict";
+fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0;
+var leafletMap=null,leafletLine=null;
+function toggleMapFullscreen(){
+  var box=document.getElementById("map-box");
+  var btn=document.getElementById("map-expand-btn");
+  var fs=box.classList.toggle("fs-map");
+  btn.innerHTML=fs?"&#x2715; Close":"&#x26F6; Expand";
+  if(leafletMap){
+    setTimeout(function(){
+      leafletMap.invalidateSize();
+      if(leafletLine) leafletMap.fitBounds(leafletLine.getBounds(),{padding:[20,20]});
+    },50);
+  }
+}
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){var box=document.getElementById("map-box");if(box.classList.contains("fs-map"))toggleMapFullscreen();}
+});
 function progressStart(){
   if(!_pbar)_pbar=document.getElementById("pbar");
   clearInterval(_pbarTick);_pbarPct=0;
@@ -550,8 +573,10 @@ function renderGpxMap(gpxUrl){
       if (!pts.length) { hideMapSpin(); box.innerHTML = '<div class="note">GPX has no track points.</div>'; return; }
       try {
         var map = L.map("map");
+        leafletMap = map;
         var tileLayer = makeTileLayer(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
+        leafletLine = line;
         map.fitBounds(line.getBounds(), { padding: [20, 20] });
         L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
         L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
@@ -654,8 +679,10 @@ function renderMap(d){
   if (!pts.length) { box.innerHTML = '<div class="note">Route could not be decoded.</div>'; return; }
   try {
     var map = L.map("map");
+    leafletMap = map;
     var tileLayer = makeTileLayer(map);
     var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: .9 }).addTo(map);
+    leafletLine = line;
     map.fitBounds(line.getBounds(), { padding: [20, 20] });
     L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
     L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
