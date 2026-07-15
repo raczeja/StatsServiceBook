@@ -141,8 +141,15 @@ curl_retry -fsS \
 file_count="$(jq '.files | length' "$TMP/filelist.json")"
 log "found $file_count files in Drive folder"
 
-# keepalive mode: token refresh + folder check only
-case "${HEALTHSYNC_MODE:-full}" in keepalive) log "keepalive done."; exit 0 ;; esac
+# keepalive mode: token refresh + folder check only; write token status for dashboard
+case "${HEALTHSYNC_MODE:-full}" in keepalive)
+    _exp="$(jq -r '.expires_at // 0' "$TOKEN_STATE" 2>/dev/null || echo 0)"
+    _tok="$(jq -r '.token_type // "Bearer"' "$TOKEN_STATE" 2>/dev/null || echo Bearer)"
+    printf '{"ok":true,"expires_at":%s,"token_type":"%s","lastSync":%s,"mode":"keepalive"}\n' \
+        "$_exp" "$_tok" "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+    log "keepalive done."; exit 0
+    ;;
+esac
 
 # Build name→id lookup (tab-separated, sorted for grep -F)
 jq -r '.files[] | "\(.name)\t\(.id)"' "$TMP/filelist.json" | sort > "$TMP/name_to_id.tsv"
@@ -744,9 +751,13 @@ log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/bike.html, $WEB
 fi
 
 # --- 7. Drive auth status + re-authorization CGI ----------------------------
-# Write success status so the dashboard banner stays hidden on healthy runs.
-[ "$IMPORT_ENABLED" != "0" ] && \
-    printf '{"ok":true}\n' > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+# Write success status (with token expiry + sync time) so the dashboard can show Drive info.
+if [ "$IMPORT_ENABLED" != "0" ]; then
+    _exp="$(jq -r '.expires_at // 0' "$TOKEN_STATE" 2>/dev/null || echo 0)"
+    _tok="$(jq -r '.token_type // "Bearer"' "$TOKEN_STATE" 2>/dev/null || echo Bearer)"
+    printf '{"ok":true,"expires_at":%s,"token_type":"%s","lastSync":%s,"mode":"full"}\n' \
+        "$_exp" "$_tok" "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+fi
 
 # Generate the drive-auth CGI (device authorization flow). Idempotent.
 # Users visit /cgi-bin/drive-auth to get a new refresh token when the old one

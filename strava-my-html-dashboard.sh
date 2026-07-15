@@ -50,6 +50,8 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   #drive-banner.visible{display:flex}
   #drive-banner a{background:#fc4c02;color:#fff;padding:.3rem .7rem;border-radius:.35rem;text-decoration:none;font-size:.85rem;white-space:nowrap}
   #drive-banner a:hover{background:#d94202}
+  #drive-token{font-size:.75rem;color:#888;text-align:center;margin:.15rem 0}
+  #drive-token.ok{color:#5a9a6a}#drive-token.err{color:#c0392b}
 </style>
 </head>
 <body>
@@ -76,10 +78,13 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   StravaStats for OpenWrt &middot; individual activities updated daily by cron &middot;
   <a href="bike.html">🔧 Bike service</a> &middot;
   <a href="stats.html">📊 My Stats</a> &middot;
-  <a href="activities.json">activities.json</a>
+  <a href="activities.json">activities.json</a> &middot;
+  <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a>
 </div>
+<div id="drive-token"></div>
 <script>
 "use strict";
+fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0;
 function progressStart(){
   if(!_pbar)_pbar=document.getElementById("pbar");
@@ -676,8 +681,26 @@ fetch("activities.json", { cache:"no-store" })
 fetch("drive-status.json", { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(d){
-    if (d && d.ok===false){
-      var b=document.getElementById("drive-banner"); if(b) b.classList.add("visible");
+    if (!d) return;
+    var b=document.getElementById("drive-banner");
+    var t=document.getElementById("drive-token");
+    if (d.ok===false){
+      if(b) b.classList.add("visible");
+      if(t){ t.className="err"; t.textContent="Google Drive: connection error — "+(d.error||"unknown"); }
+    } else {
+      var parts=["Google Drive: connected"];
+      if(d.expires_at){
+        var secs=d.expires_at - Math.floor(Date.now()/1000);
+        if(secs>0){ var h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60); parts.push("token valid for "+(h>0?h+"h ":"")+m+"m"); }
+        else { parts.push("token expired"); }
+      }
+      if(d.lastSync){
+        var age=Math.floor(Date.now()/1000)-d.lastSync;
+        var ageStr=age<120?"just now":age<3600?Math.floor(age/60)+"m ago":age<86400?Math.floor(age/3600)+"h ago":Math.floor(age/86400)+"d ago";
+        parts.push("last sync: "+ageStr);
+      }
+      if(d.mode) parts.push("mode: "+d.mode);
+      if(t){ t.className="ok"; t.textContent=parts.join(" · "); }
     }
   })
   .catch(function(){});

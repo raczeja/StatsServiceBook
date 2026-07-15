@@ -93,11 +93,13 @@ cat > "$WEB_DIR/stats.html" <<'HTML'
 
 <div class="meta" style="margin-top:1.5rem">
   StravaStats for OpenWrt &middot; <a href="index.html">My Activities</a> &middot;
-  <a href="bike.html">🔧 Bike service</a> &middot; <a href="activities.json">activities.json</a>
+  <a href="bike.html">🔧 Bike service</a> &middot; <a href="activities.json">activities.json</a> &middot;
+  <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a>
 </div>
 
 <script>
 "use strict";
+fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0;
 function progressStart(){
   if(!_pbar)_pbar=document.getElementById("pbar");
