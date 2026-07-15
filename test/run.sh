@@ -56,9 +56,17 @@ chmod 0755 /www/cgi-bin/bike-assign
 chmod 0755 /www/cgi-bin/drive-auth
 
 cp /opt/activities.sample.json "$WEB/activities.json"
-# Drive auth status: ok=true so the re-auth banner stays hidden in tests.
-printf '{"ok":true}\n' > "$WEB/drive-status.json"
+# Drive auth status: ok=true with token info so the dashboard can render the status line.
+printf '{"ok":true,"expires_at":%s,"token_type":"Bearer","lastSync":%s,"mode":"full"}\n' \
+    "$(($(date +%s) + 7200))" "$(date +%s)" > "$WEB/drive-status.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
+
+# Minimal per-club leaderboard JSON — mirrors what strava-leaderboard writes to
+# $WEB_DIR/leaderboard_<clubId>.json; install.sh symlinks that into /www/strava/.
+# Without this file the footer link returns 404, which install.sh's symlink bug
+# (leaderboard.json vs leaderboard_<id>.json) previously masked.
+printf '{"generatedAt":"2026-01-01T00:00:00Z","sportType":null,"totals":{"member_count":0,"distance":0,"moving_time":0,"elevation_gain":0,"activity_count":0},"members":[]}\n' \
+  > "$CLUB_WEB/leaderboard_123456.json"
 
 # Sample per-activity detail JSON (served at details/<id>.json, linked from the dashboard).
 cp /opt/18784255013.json "$WEB/details/18784255013.json"
