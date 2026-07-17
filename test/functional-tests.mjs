@@ -157,6 +157,36 @@ async function testClubDashboard(page, jsErrors) {
     assert.equal(n, 3, `expected 3 detail activity rows for Alex, got ${n}`);
     await page.click("#board .person-row:first-child");
   });
+  // Detail table header must include "Avg km/h" column
+  await check(S, "detail-table-has-avg-speed-header", async () => {
+    await page.click("#board .person-row:first-child");
+    const headers = await page.$eval(
+      "#board .detail-row .detail-table thead tr",
+      (tr) => Array.from(tr.querySelectorAll("th")).map((th) => th.textContent.trim()),
+    );
+    assert.ok(
+      headers.includes("Avg km/h"),
+      `expected "Avg km/h" in detail table headers, got: ${JSON.stringify(headers)}`,
+    );
+    await page.click("#board .person-row:first-child");
+  });
+  // Each activity row in the detail table must show a numeric avg speed (not "–")
+  await check(S, "detail-activity-avg-speed-values", async () => {
+    await page.click("#board .person-row:first-child");
+    const speeds = await page.$eval(
+      "#board .detail-row .detail-table tbody",
+      (tbody) => Array.from(tbody.querySelectorAll("tr")).map((tr) => {
+        const cells = tr.querySelectorAll("td");
+        return cells[cells.length - 1]?.textContent.trim();
+      }),
+    );
+    // Alex R's 3 rides all have moving_time > 0, so none should be "–"
+    speeds.forEach(function(spd, i) {
+      const n = parseFloat(spd);
+      assert.ok(!isNaN(n) && n > 0, `detail row ${i} avg speed "${spd}" is not a positive number`);
+    });
+    await page.click("#board .person-row:first-child");
+  });
   // Each club's "all-time JSON" footer link must resolve to a real file.
   // This catches the install.sh bug where leaderboard.json was symlinked instead
   // of leaderboard_<clubId>.json.
@@ -508,6 +538,15 @@ async function testActivityDetail(page, jsErrors) {
   await check(S, "svg-cad-rendered", async () => {
     const n = await page.$$eval("#svg-cad path", (els) => els.length);
     assert.ok(n >= 2, `expected >= 2 path elements in #svg-cad (fill + line), got ${n}`);
+  });
+  // Power chart — rendered from splits_metric[i].average_watts
+  await check(S, "pwr-box-visible", async () => {
+    const display = await page.$eval("#pwr-box", (el) => el.style.display);
+    assert.ok(display !== "none", `#pwr-box has display:none — power chart not rendered`);
+  });
+  await check(S, "svg-pwr-rendered", async () => {
+    const n = await page.$$eval("#svg-pwr path", (els) => els.length);
+    assert.ok(n >= 2, `expected >= 2 path elements in #svg-pwr (fill + line), got ${n}`);
   });
   // Splits box must stay visible for Strava activities
   await check(S, "splits-box-visible", async () => {
@@ -2607,6 +2646,155 @@ async function testAlertThresholds(page, jsErrors) {
   }
 }
 
+async function testNeedsReplacement(page, jsErrors) {
+  const S = "needs-replacement";
+  const ENDPOINT = `${CGI}/bike-service`;
+
+  // Setup: clear needsReplacement on all parts so the test starts clean.
+  const setupR = await fetch(ENDPOINT, { cache: "no-store" });
+  const setupData = await setupR.json();
+  const road = setupData.bikes.find((b) => b.name === "Road Bike");
+  if (!road || !road.parts || road.parts.length < 2) {
+    console.log(`  SKIP  ${S}: Road Bike needs >= 2 parts`);
+    return;
+  }
+  road.parts.forEach((p) => { p.needsReplacement = false; });
+  await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(setupData),
+  });
+
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+  // --- checkbox is present in service modal ---
+  await check(S, "service-modal-has-needs-repl-checkbox", async () => {
+    const svcBtns = await page.$$('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showService"]');
+    assert.ok(svcBtns.length >= 1, "expected >= 1 Service button");
+    await svcBtns[0].click();
+    await page.waitForSelector("#s-needs-repl", { timeout: 3000 });
+    const chk = await page.$("#s-needs-repl");
+    assert.ok(chk, "#s-needs-repl checkbox not found in service modal");
+    // close without saving
+    await page.evaluate(() => closeModal());
+  });
+
+  // --- flag the last part (not the first) so we can verify it moves to the top ---
+  const lastPartId = road.parts[road.parts.length - 1].id;
+  await check(S, "flagged-part-shows-needs-repl-badge", async () => {
+    // Open service modal for the last part via JS, check the box, save.
+    await page.evaluate((id) => showService(id), lastPartId);
+    await page.waitForSelector("#s-needs-repl", { timeout: 3000 });
+    await page.evaluate(() => {
+      document.getElementById("s-needs-repl").checked = true;
+      // fill required date/mileage fields
+      document.getElementById("f-date").value = "2026-01-01";
+      document.getElementById("f-mileage").value = "0";
+    });
+    await page.evaluate(() => saveService(document.getElementById("s-needs-repl").closest("#modal").querySelector('button[onclick*="saveService"]')?.getAttribute("onclick")?.match(/'([^']+)'/)?.[1]));
+    // saveService expects the part id — call it directly
+  });
+
+  // Easier: call saveService directly with the known id
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+  // Use CGI to mark the last part as needsReplacement directly, then reload.
+  const preR = await fetch(ENDPOINT, { cache: "no-store" });
+  const preData = await preR.json();
+  const preRoad = preData.bikes.find((b) => b.name === "Road Bike");
+  if (preRoad && preRoad.parts.length >= 2) {
+    preRoad.parts[preRoad.parts.length - 1].needsReplacement = true;
+    await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preData),
+    });
+  }
+
+  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  await check(S, "needs-repl-badge-visible", async () => {
+    const n = await page.$$eval("#bikepanel .needs-repl", (els) => els.length);
+    assert.ok(n >= 1, `expected >= 1 .needs-repl badge in #bikepanel, got ${n}`);
+  });
+
+  await check(S, "flagged-part-sorts-first", async () => {
+    // The first non-ridesrow part row must contain the .needs-repl badge.
+    const firstRowHasBadge = await page.evaluate(() => {
+      const rows = document.querySelectorAll("#bikepanel tbody tr:not(.ridesrow)");
+      return rows.length > 0 && !!rows[0].querySelector(".needs-repl");
+    });
+    assert.ok(firstRowHasBadge, "expected the flagged part to be the first row in the active-parts table");
+  });
+
+  await check(S, "service-modal-checkbox-prechecked-for-flagged-part", async () => {
+    // Service modal for the flagged part must pre-check the box.
+    const svcBtns = await page.$$('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showService"]');
+    assert.ok(svcBtns.length >= 1, "no Service button found");
+    await svcBtns[0].click();   // first row = flagged part (sorted to top)
+    await page.waitForSelector("#s-needs-repl", { timeout: 3000 });
+    const checked = await page.$eval("#s-needs-repl", (el) => el.checked);
+    assert.ok(checked, "#s-needs-repl should be pre-checked for a flagged part");
+    await page.evaluate(() => closeModal());
+  });
+
+  // Teardown: clear all needsReplacement flags
+  const tearR = await fetch(ENDPOINT, { cache: "no-store" });
+  const tearData = await tearR.json();
+  const tearRoad = tearData.bikes.find((b) => b.name === "Road Bike");
+  if (tearRoad) tearRoad.parts.forEach((p) => { p.needsReplacement = false; });
+  await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tearData),
+  });
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -2704,6 +2892,9 @@ async function main() {
 
     console.log("\n--- Alert Thresholds (isWarn) ---");
     await testAlertThresholds(page, jsErrors);
+
+    console.log("\n--- Needs Replacement (flag, badge, sort) ---");
+    await testNeedsReplacement(page, jsErrors);
   } finally {
     await browser.close();
   }

@@ -55,7 +55,8 @@
       "average_speed": 4.52,
       "elevation_difference": 22.0,
       "average_heartrate": 134.0,
-      "average_cadence": 80.0
+      "average_cadence": 80.0,
+      "average_watts": 175.0
     },
     {
       "distance": 1000.0,
@@ -64,7 +65,8 @@
       "average_speed": 4.31,
       "elevation_difference": 14.0,
       "average_heartrate": 136.0,
-      "average_cadence": 81.0
+      "average_cadence": 81.0,
+      "average_watts": 182.0
     },
     {
       "distance": 1000.0,
@@ -73,7 +75,8 @@
       "average_speed": 4.2,
       "elevation_difference": 8.0,
       "average_heartrate": 138.0,
-      "average_cadence": 82.0
+      "average_cadence": 82.0,
+      "average_watts": 178.0
     },
     {
       "distance": 1000.0,
@@ -82,7 +85,8 @@
       "average_speed": 4.35,
       "elevation_difference": 6.0,
       "average_heartrate": 141.0,
-      "average_cadence": 83.0
+      "average_cadence": 83.0,
+      "average_watts": 191.0
     },
     {
       "distance": 1000.0,
@@ -91,7 +95,8 @@
       "average_speed": 4.07,
       "elevation_difference": -4.0,
       "average_heartrate": 143.0,
-      "average_cadence": 82.0
+      "average_cadence": 82.0,
+      "average_watts": 168.0
     },
     {
       "distance": 1000.0,
@@ -100,7 +105,8 @@
       "average_speed": 4.1,
       "elevation_difference": 2.0,
       "average_heartrate": 144.0,
-      "average_cadence": 83.0
+      "average_cadence": 83.0,
+      "average_watts": 196.0
     },
     {
       "distance": 1000.0,
@@ -109,7 +115,8 @@
       "average_speed": 4.03,
       "elevation_difference": 11.0,
       "average_heartrate": 146.0,
-      "average_cadence": 84.0
+      "average_cadence": 84.0,
+      "average_watts": 204.0
     },
     {
       "distance": 1000.0,
@@ -118,7 +125,8 @@
       "average_speed": 4.24,
       "elevation_difference": 25.0,
       "average_heartrate": 149.0,
-      "average_cadence": 83.0
+      "average_cadence": 83.0,
+      "average_watts": 198.0
     }
   ]
 }
