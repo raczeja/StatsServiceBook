@@ -720,16 +720,18 @@ function renderClubTable(acts, tablePrefix){
       '<td class="num">'+avg.toFixed(1)+'</td></tr>';
     html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="7">';
     html += '<table class="detail-table"><thead><tr>'+
-      '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th>'+
+      '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th><th>Avg km/h</th>'+
       '</tr></thead><tbody>';
     m.items.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); })
       .forEach(function(a){
+        var aspd = (a.moving_time||0)>0 ? ((a.distance||0)/(a.moving_time)*3.6).toFixed(1) : '–';
         html += '<tr>'+
           '<td>'+esc(a.date||'')+'</td>'+
           '<td>'+esc(a.sport_type||'')+'</td>'+
           '<td class="num">'+fmtKm(a.distance||0)+' km</td>'+
           '<td class="num">'+fmtTime(a.moving_time||0)+'</td>'+
-          '<td class="num">'+Math.floor(a.total_elevation_gain||0)+'</td></tr>';
+          '<td class="num">'+Math.floor(a.total_elevation_gain||0)+'</td>'+
+          '<td class="num">'+aspd+'</td></tr>';
       });
     html += '</tbody></table></td></tr>';
   });

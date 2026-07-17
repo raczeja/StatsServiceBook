@@ -65,6 +65,7 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   .svc-bar{height:4px;border-radius:2px;background:#eee;margin:.35rem 0 .1rem;overflow:hidden}
   .svc-bar-fill{height:100%;border-radius:2px;transition:width .2s}
   .svc-pct{font-size:.7rem;color:#888}
+  .needs-repl{display:inline-block;background:#b00;color:#fff;font-size:.68rem;font-weight:700;padding:.05rem .35rem;border-radius:.3rem;margin-left:.4rem;vertical-align:middle;white-space:nowrap}
   /* modal */
   #ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50}
   #modal{background:#fff;max-width:460px;margin:6vh auto;border-radius:.6rem;padding:1.1rem 1.25rem;box-shadow:0 8px 30px rgba(0,0,0,.3)}
@@ -77,7 +78,8 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   #modal .actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
   #modal .hint{font-size:.75rem;color:#999;margin-top:.15rem}
   .chk{display:flex;align-items:center;gap:.45rem;margin-top:.7rem}
-  .chk input{width:auto}
+  #modal .chk input{width:auto}
+  .chk label{display:inline;margin:0}
   tr[draggable]{cursor:grab}
   tr[draggable]:active{cursor:grabbing}
   tr.dragging{opacity:.35}
@@ -553,6 +555,8 @@ window.showService = function(id){
       '<input id="f-mileage" type="number" step="0.1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Note (optional)</label><textarea id="s-note" placeholder="e.g. cleaned &amp; lubed, checked wear"></textarea>'+
+    '<div class="chk"><input type="checkbox" id="s-needs-repl"'+(p.needsReplacement?' checked':'')+'>'+
+      '<label style="margin:0">Needs replacement</label></div>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveService(\''+id+'\')">Save service</button></div>'
   );
@@ -567,6 +571,7 @@ window.saveService = function(id){
     note: document.getElementById("s-note").value
   });
   p.services.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  p.needsReplacement = document.getElementById("s-needs-repl").checked;
   closeModal(); persist();
 };
 
@@ -630,6 +635,7 @@ window.saveReplace = function(id){
   p.status = "archived";
   p.archivedDate = date;
   p.archivedMileage = mi;
+  p.needsReplacement = false;
   if (note) p.archiveNote = note;
   if (document.getElementById("r-new").checked){
     var nm = document.getElementById("r-newname").value.trim() || p.name;
@@ -685,6 +691,8 @@ function render(){
   // Parts without any threshold: sort by install date descending (newest install first).
   // The two groups are kept separate — alerted parts always precede unalerted ones.
   active = active.slice().sort(function(x,y){
+    var rx=!!x.needsReplacement, ry=!!y.needsReplacement;
+    if(rx!==ry) return rx?-1:1;
     var ha=x.alertKm!=null||x.alertH!=null, hb=y.alertKm!=null||y.alertH!=null;
     if(ha!==hb) return ha?-1:1;
     if(ha){ var pa=partPct(b,x),pb=partPct(b,y); return pb-pa; }
@@ -714,6 +722,7 @@ function render(){
         ? '<b>'+(sinceSvcSec/3600).toFixed(1)+'</b> h'
         : '<span class="muted">—</span>';
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
+      var replBadge = p.needsReplacement ? '<span class="needs-repl">Needs replacement</span>' : '';
       var refKm = sinceSvc !== null ? Math.max(0, sinceSvc) : Math.max(0, ridden);
       var refH  = sinceSvcSec !== null ? sinceSvcSec / 3600 : riddenSec / 3600;
       var isWarn = Boolean((p.alertKm && refKm >= +p.alertKm) || (p.alertH && refH >= +p.alertH));
@@ -740,7 +749,7 @@ function render(){
         ' ondragleave="dragLeave(this)"'+
         ' ondragover="dragOver(event)"'+
         ' ondrop="drop(event,\''+p.id+'\',this)"';
-      html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
+      html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+replBadge+noteLine+'</td>'+
         '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+

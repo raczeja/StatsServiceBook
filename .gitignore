@@ -9,3 +9,4 @@ test/merge/
 test/node_modules/
 test/package.json
 test/package-lock.json
+test/dysk/
