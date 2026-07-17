@@ -80,6 +80,18 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
 | :------------------------------------------------------: | :------------------------------------------------: |
 | ![Activity detail](test/screenshots/activity-detail.png) | ![Bike service](test/screenshots/bike-service.png) |
 
+|                  Add bike                   |                   Edit bike                   |
+| :-----------------------------------------: | :-------------------------------------------: |
+| ![Add bike](test/screenshots/bike-modal-add-bike.png) | ![Edit bike](test/screenshots/bike-modal-edit-bike.png) |
+
+|                   Add part                   |                   Edit part                   |
+| :------------------------------------------: | :-------------------------------------------: |
+| ![Add part](test/screenshots/bike-modal-add-part.png) | ![Edit part](test/screenshots/bike-modal-edit-part.png) |
+
+|                   Service part (with Needs replacement checkbox)                   |                   Replace part                   |
+| :---------------------------------------------------------------------------------: | :----------------------------------------------: |
+| ![Service part](test/screenshots/bike-modal-service-part.png) | ![Replace part](test/screenshots/bike-modal-replace-part.png) |
+
 > Screenshots generated from sample data via `powershell -File test/make-screenshots.ps1`.
 
 ## Features

@@ -17,12 +17,13 @@
           "status": "new",
           "alertKm": 500,
           "alertH": null,
+          "needsReplacement": true,
           "services": [
             {
               "id": "s-1",
               "date": "2025-11-30",
               "mileage": 161,
-              "note": "waxed"
+              "note": "waxed — wear at 0.75%, replacement due"
             }
           ]
         },

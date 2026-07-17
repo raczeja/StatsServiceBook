@@ -95,6 +95,13 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-cad" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
+  <div class="box" id="pwr-box" style="display:none">
+    <h3>Power</h3>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-pwr-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-pwr" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
+  </div>
   <div class="box" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
     <div id="hr-zone-content"></div>
@@ -291,8 +298,16 @@ function renderCards(d){
   if (d.max_watts)         html += card("Max power", Math.round(d.max_watts) + " W");
   if (d.kilojoules)        html += card("Work", Math.round(d.kilojoules) + " kJ");
   if (d.calories)          html += card("Calories", Math.round(d.calories));
-  if (d.suffer_score != null) html += card("Relative effort", Math.round(d.suffer_score));
-  if (d.average_temp != null) html += card("Temp", Math.round(d.average_temp) + " °C");
+  if (d.suffer_score != null) html += cardTip("Relative effort", Math.round(d.suffer_score), "Strava’s Relative Effort — measures workout intensity based on time spent in each heart rate zone. Higher values indicate a harder or longer effort.");
+  if (d.average_temp != null) {
+    var _ts = d.temp_source;
+    var _ttip = _ts === "archive"
+      ? "Weather archive — historical weather data from Open-Meteo for the activity location and time."
+      : _ts === "forecast"
+      ? "Weather forecast — estimated from a near-future forecast because the activity was too recent for archive data; upgraded automatically once archive data is available."
+      : "Temperature from your device sensor, or estimated from local weather data by Strava.";
+    html += cardTip("Temp", Math.round(d.average_temp) + " °C", _ttip);
+  }
   if (d.gear && d.gear.name) html += card("Gear", esc(d.gear.name));
   if (d.device_name)       html += card("Device", esc(d.device_name));
   document.getElementById("cards").innerHTML = html;
@@ -420,6 +435,17 @@ function renderCadFromSplits(splits) {
   if (!cads.length) return;
   document.getElementById("cad-box").style.display = "";
   drawLineSvg("svg-cad", cads, "#8e24aa", "rpm", labels);
+}
+
+function renderPowerFromSplits(splits) {
+  var watts = [], labels = [], i, w;
+  for (i = 0; i < splits.length; i++) {
+    w = splits[i].average_watts;
+    if (w > 0) { watts.push(w); labels.push(String(i + 1)); }
+  }
+  if (!watts.length) return;
+  document.getElementById("pwr-box").style.display = "";
+  drawLineSvg("svg-pwr", watts, "#f57c00", "W", labels);
 }
 
 // h:mm:ss / m:ss for zone time display; "0 s" for zero.
@@ -738,6 +764,7 @@ function renderSplits(d){
     if (s.elevation_difference != null) tip += '<br>Elev: ' + (s.elevation_difference>=0?'+':'') + Math.round(s.elevation_difference) + ' m';
     if (s.average_heartrate) tip += '<br>HR: ' + Math.round(s.average_heartrate) + ' bpm';
     if (s.average_cadence) tip += '<br>Cadence: ' + Math.round(s.average_cadence) + ' rpm';
+    if (s.average_watts) tip += '<br>Power: ' + Math.round(s.average_watts) + ' W';
     TIP_DATA.push(tip);
 
     html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="#fc4c02" rx="2"'
@@ -747,10 +774,11 @@ function renderSplits(d){
   }
   svg.innerHTML = html;
 
-  // Elevation, heart rate, and cadence charts from splits data (when available).
+  // Elevation, heart rate, cadence, and power charts from splits data (when available).
   renderElevFromSplits(splits);
   renderHrFromSplits(splits);
   renderCadFromSplits(splits);
+  renderPowerFromSplits(splits);
   // Heart rate zones estimated from per-km split averages.
   var hrZonePts = [], zi;
   for (zi = 0; zi < splits.length; zi++) {
@@ -867,9 +895,12 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
     progressDone();
     var d = res[0], meta = res[1];
     if (meta && meta.athleteAge) ATHLETE_AGE = meta.athleteAge;
-    if (d.average_temp == null && meta && meta.activities) {
+    if (meta && meta.activities) {
       var act = meta.activities.find(function(a){ return String(a.id) === String(id); });
-      if (act && act.average_temp != null) d.average_temp = act.average_temp;
+      if (act) {
+        if (d.average_temp == null && act.average_temp != null) d.average_temp = act.average_temp;
+        if (d.temp_source == null && act.temp_source != null) d.temp_source = act.temp_source;
+      }
     }
     render(d, id);
   }).catch(function(err){ fail(err.message); });

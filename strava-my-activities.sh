@@ -207,8 +207,12 @@ fi
 # Coordinates come from the cached detail JSON's start_latlng, with WEATHER_LAT/
 # WEATHER_LON as a fallback for activities whose detail hasn't downloaded yet.
 [ -f "$WEATHER_CACHE" ] || printf '{}' > "$WEATHER_CACHE"
+# Write uncached-pending list to a file so the while loop stays in the current
+# shell (pipe subshell would lose _w_fetched/_w_nocoord counters).
 jq -c 'select(.average_temp == null) | {id: (.id|tostring), date}' "$STORE" \
-| while IFS= read -r _entry; do
+    > "$TMP/weather_pending.ndjson"
+_w_fetched=0 _w_nocoord=0 _w_apifail=0
+while IFS= read -r _entry; do
     _wid=$(printf '%s' "$_entry" | jq -r '.id')
     _wd=$(printf '%s' "$_entry" | jq -r '.date')
     jq -e --arg id "$_wid" '.[$id] != null' "$WEATHER_CACHE" >/dev/null 2>&1 && continue
@@ -219,13 +223,20 @@ jq -c 'select(.average_temp == null) | {id: (.id|tostring), date}' "$STORE" \
     fi
     [ -z "$_wlat" ] && _wlat="${WEATHER_LAT:-}"
     [ -z "$_wlon" ] && _wlon="${WEATHER_LON:-}"
-    [ -n "$_wlat" ] && [ -n "$_wlon" ] || continue
+    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then
+        _w_nocoord=$((_w_nocoord + 1))
+        continue
+    fi
     _wt=$(fetch_weather_temp "$_wlat" "$_wlon" "$_wd" || true)
-    [ -n "$_wt" ] || continue
+    if [ -z "$_wt" ]; then
+        _w_apifail=$((_w_apifail + 1))
+        continue
+    fi
     jq --arg id "$_wid" --argjson t "$_wt" '.[$id] = $t' "$WEATHER_CACHE" \
         > "$WEATHER_CACHE.tmp" && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
-done
-log "weather: cache has $(jq 'length' "$WEATHER_CACHE") entries"
+    _w_fetched=$((_w_fetched + 1))
+done < "$TMP/weather_pending.ndjson"
+log "weather: +$_w_fetched fetched, $_w_nocoord no-coords, $_w_apifail api-fail, $(jq 'length' "$WEATHER_CACHE") total cached"
 
 # --- 3a. Reconcile detail files with the synced store ----------------------
 # Deleted activities: drop their cached detail JSON (it is web-served) and any
