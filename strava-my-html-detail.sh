@@ -28,6 +28,10 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   .card{flex:1;min-width:120px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:.5rem .75rem;border-radius:.4rem}
   .card .k{color:#888;font-size:.72rem;text-transform:uppercase;letter-spacing:.03em}
   .card .v{font-size:1.15rem;font-weight:600;font-variant-numeric:tabular-nums;margin-top:.15rem}
+  .wx-src{display:inline-block;font-size:.6rem;font-weight:600;letter-spacing:.04em;padding:.1em .4em;border-radius:.25rem;vertical-align:middle;margin-left:.3em;text-transform:uppercase}
+  .wx-arch{background:#dbeafe;color:#1d4ed8}
+  .wx-fcst{background:#fef9c3;color:#854d0e}
+  .wx-dev{background:#dcfce7;color:#166534}
   #map{height:340px;border-radius:.4rem;box-shadow:0 1px 3px rgba(0,0,0,.08);margin:.5rem 0 1rem;background:#e8e8e8}
   .box{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:.5rem .75rem;border-radius:.4rem;margin:.5rem 0 1rem}
   .box h3{margin:0 0 .35rem;font-size:.85rem;color:#444;font-weight:600}
@@ -299,14 +303,36 @@ function renderCards(d){
   if (d.kilojoules)        html += card("Work", Math.round(d.kilojoules) + " kJ");
   if (d.calories)          html += card("Calories", Math.round(d.calories));
   if (d.suffer_score != null) html += cardTip("Relative effort", Math.round(d.suffer_score), "Strava’s Relative Effort — measures workout intensity based on time spent in each heart rate zone. Higher values indicate a harder or longer effort.");
-  if (d.average_temp != null) {
+  if (d.average_temp != null || d.wind_speed != null) {
     var _ts = d.temp_source;
-    var _ttip = _ts === "archive"
-      ? "Weather archive — historical weather data from Open-Meteo for the activity location and time."
-      : _ts === "forecast"
-      ? "Weather forecast — estimated from a near-future forecast because the activity was too recent for archive data; upgraded automatically once archive data is available."
-      : "Temperature from your device sensor, or estimated from local weather data by Strava.";
-    html += cardTip("Temp", Math.round(d.average_temp) + " °C", _ttip);
+    var _srcLabel = _ts === "archive"   ? '<span class="wx-src wx-arch" title="Weather archive — historical data from Open-Meteo for the activity location and time.">hist</span>'
+                  : _ts === "forecast"  ? '<span class="wx-src wx-fcst" title="Weather forecast — near-future estimate, upgraded to archive after ~7 days.">fcst</span>'
+                  : d.average_temp != null ? '<span class="wx-src wx-dev" title="Temperature from your Garmin/device sensor or Strava\'s weather estimate.">device</span>'
+                  : '';
+    var _wIcon = '';
+    if (d.weathercode != null) {
+      var wc = d.weathercode;
+      _wIcon = wc === 0                          ? '☀️'
+             : wc <= 2                           ? '🌤️'
+             : wc === 3                          ? '☁️'
+             : (wc === 45 || wc === 48)          ? '🌫️'
+             : (wc >= 51 && wc <= 57)            ? '🌦️'
+             : (wc >= 61 && wc <= 67)            ? '🌧️'
+             : (wc >= 71 && wc <= 77)            ? '🌨️'
+             : (wc >= 80 && wc <= 82)            ? '🌦️'
+             : (wc >= 85 && wc <= 86)            ? '🌨️'
+             : (wc >= 95 && wc <= 99)            ? '⛈️'
+             : '🌡️';
+    }
+    var _windArrow = '';
+    if (d.wind_dir != null) {
+      var dirs = ['↑','↗','→','↘','↓','↙','←','↖'];
+      _windArrow = dirs[Math.round(((d.wind_dir % 360) + 360) % 360 / 45) % 8];
+    }
+    var _tempVal = d.average_temp != null ? (_wIcon ? _wIcon + ' ' : '') + Math.round(d.average_temp) + ' °C' + (d.apparent_temp != null && Math.round(d.apparent_temp) !== Math.round(d.average_temp) ? ' <span style="color:#888;font-size:.8rem">feels ' + Math.round(d.apparent_temp) + '°</span>' : '') + ' ' + _srcLabel : '';
+    var _windVal = d.wind_speed != null ? _windArrow + ' ' + Math.round(d.wind_speed) + ' km/h' + (d.precipitation != null && d.precipitation > 0 ? ' <span style="color:#888;font-size:.8rem">💧' + (+d.precipitation).toFixed(1) + ' mm</span>' : '') : '';
+    if (_tempVal) html += '<div class="card"><div class="k">Temp</div><div class="v">' + _tempVal + '</div></div>';
+    if (_windVal) html += '<div class="card"><div class="k">Wind</div><div class="v">' + _windVal + '</div></div>';
   }
   if (d.gear && d.gear.name) html += card("Gear", esc(d.gear.name));
   if (d.device_name)       html += card("Device", esc(d.device_name));
@@ -332,7 +358,7 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
   var yaxisSvg = document.getElementById(svgId + "-yaxis");
   var px = yaxisSvg ? 0 : YAX_W;  // no left margin when y-axis lives in a separate fixed SVG
   var labelH = xLabels ? 20 : 0;
-  var W = xLabels ? (px + n * barW + 16) : Math.max(n * 2, 360);
+  var W = xLabels ? (px + n * barW + 16) : Math.max(n * 3, 900);
   var H = 200, ch = H - 18 - labelH;
   var path = "", x, y;
   for (i = 0; i < n; i++) {
@@ -635,7 +661,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime) {
       if (eles.length) {
         var allE = [];
         for (i = 0; i < eles.length; i++) allE.push(parseFloat(eles[i].textContent) || 0);
-        step = Math.max(1, Math.floor(allE.length / 300));
+        step = Math.max(1, Math.floor(allE.length / 600));
         var se = [];
         for (i = 0; i < allE.length; i += step) se.push(allE[i]);
         document.getElementById("elev-box").style.display = "";
@@ -653,7 +679,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime) {
         if (bpm > 0) allH.push(bpm);
       }
       if (allH.length) {
-        step = Math.max(1, Math.floor(allH.length / 300));
+        step = Math.max(1, Math.floor(allH.length / 600));
         var sh = [];
         for (i = 0; i < allH.length; i += step) sh.push(allH[i]);
         document.getElementById("hr-box").style.display = "";
@@ -674,7 +700,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime) {
         if (rpm > 0) allC.push(rpm);
       }
       if (allC.length) {
-        step = Math.max(1, Math.floor(allC.length / 300));
+        step = Math.max(1, Math.floor(allC.length / 600));
         var sc = [];
         for (i = 0; i < allC.length; i += step) sc.push(allC[i]);
         document.getElementById("cad-box").style.display = "";
@@ -898,8 +924,13 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
     if (meta && meta.activities) {
       var act = meta.activities.find(function(a){ return String(a.id) === String(id); });
       if (act) {
-        if (d.average_temp == null && act.average_temp != null) d.average_temp = act.average_temp;
-        if (d.temp_source == null && act.temp_source != null) d.temp_source = act.temp_source;
+        if (d.average_temp  == null && act.average_temp  != null) d.average_temp  = act.average_temp;
+        if (d.temp_source   == null && act.temp_source   != null) d.temp_source   = act.temp_source;
+        if (d.apparent_temp == null && act.apparent_temp != null) d.apparent_temp = act.apparent_temp;
+        if (d.wind_speed    == null && act.wind_speed    != null) d.wind_speed    = act.wind_speed;
+        if (d.wind_dir      == null && act.wind_dir      != null) d.wind_dir      = act.wind_dir;
+        if (d.weathercode   == null && act.weathercode   != null) d.weathercode   = act.weathercode;
+        if (d.precipitation == null && act.precipitation != null) d.precipitation = act.precipitation;
       }
     }
     render(d, id);

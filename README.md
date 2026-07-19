@@ -145,13 +145,25 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   `<id>.json`. It shows core-stat cards (distance, time, stopped time,
   pace/speed, elevation, **VAM** climb rate, climb per km, heart rate, cadence,
   power including **normalized power + variability index**, work in kJ, calories,
-  relative effort, temperature, gear), an interactive **route map**
-  (Leaflet + OpenStreetMap), a **per-km splits** bar chart, an **elevation**
-  profile chart, a **heart rate** chart, and a **cadence** chart — each shown
-  only when the activity carries that data. Cycling-specific metrics (VAM, power,
-  work) appear only when present. The map needs internet **in the viewing
-  browser** (Leaflet + tiles load from a CDN); the rest of the page works
-  offline. A "Raw JSON" link and "Open on Strava" link are still provided.
+  relative effort, **temperature** with weather icon + feels-like + source badge
+  (hist / fcst / device), **wind** speed with direction arrow and precipitation,
+  gear), an interactive **route map** (Leaflet + OpenStreetMap), a **per-km
+  splits** bar chart, an **elevation** profile chart, a **heart rate** chart,
+  and a **cadence** chart — each shown only when the activity carries that data.
+  Cycling-specific metrics (VAM, power, work) appear only when present. The map
+  needs internet **in the viewing browser** (Leaflet + tiles load from a CDN);
+  the rest of the page works offline. A "Raw JSON" link and "Open on Strava"
+  link are still provided.
+
+  **Weather data (all sources).** Temperature, apparent temperature (feels-like),
+  wind speed and direction, WMO weather code (rendered as an emoji icon), and
+  precipitation are fetched from [Open-Meteo](https://open-meteo.com/) for each
+  activity's date and GPS start location. The archive API is tried first (ERA5,
+  covers dates up to ~5 days ago); the forecast API is the fallback for very
+  recent activities. Both Strava activities (via the weather cache) and
+  HealthSync / Magene activities (during ingestion) receive these fields.
+  Device-sensor temperature from Strava is preserved as-is and receives a
+  "device" badge; Open-Meteo values get a "hist" or "fcst" badge.
 - **Personal stats summary (My Activities).** A separate page at
   `http://<router-ip>/strava/me/stats.html` (linked from the My Activities
   header) with sport/year filters and: aggregate KPI cards (distance, time,
@@ -175,17 +187,31 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   Strava activity IDs are numeric; HealthSync IDs are date-based strings like
   `2026-06-22-20-01-ride` — all pages handle both transparently.
 
-- **Magene FIT file support (HealthSync mode).** Place `Magene_MODEL_YYYY-MM-DD_ID_*.fit`
-  files (exported from a Magene device) in the same Google Drive folder as your
-  HealthSync exports. On each run `healthsync-activities.sh` downloads new FIT
-  files, converts them to GPX via the free [GPS Visualizer](https://www.gpsvisualizer.com/)
-  API (no account required), caches the GPX locally, and emits the same store
-  record as a regular HealthSync activity — a Ride with an ID like
-  `magene-2026-07-12-50671559`. Distance, elevation, cadence, max speed, and
-  weather temperature are computed from the GPX. The default bike is set by
-  `HEALTHSYNC_DEFAULT_BIKE` in the config. Magene activities appear in the
-  dashboard, stats, and activity detail (elevation + cadence chart) identically
-  to HealthSync activities. Only active in `HEALTHSYNC_MODE=full` (the default).
+- **Magene FIT file support + dual-source detection (HealthSync mode).** Place
+  `Magene_MODEL_YYYY-MM-DD_ID_*.fit` files (exported from a Magene device) in
+  the same Google Drive folder as your HealthSync exports. On each run
+  `healthsync-activities.sh` downloads new FIT files, converts them to GPX via
+  the free [GPS Visualizer](https://www.gpsvisualizer.com/) API (no account
+  required), and caches the GPX locally.
+
+  **Dual-source detection.** If a Magene FIT file covers the same ride as a
+  HealthSync watch export (TCX/GPX) — start times match within ±10 min and end
+  times match within ±5 min — the two records are **merged** rather than
+  creating a separate Magene activity. The watch record keeps its heart-rate
+  data (which the Magene doesn't have), and gains the Magene's
+  wheel-sensor–accurate distance, speed, cadence, and elevation. The merged
+  record carries a `dual_source:true` flag and a `magene_id` back-reference.
+
+  **FIT odometer (wheel-sensor distance).** For a standalone Magene activity
+  (no matching watch record), distance is extracted directly from the FIT
+  binary's odometer field — wheel-sensor accuracy, typically more precise than
+  GPS Haversine. Falls back to Haversine if the FIT doesn't contain usable
+  odometer data.
+
+  The default bike is set by `HEALTHSYNC_DEFAULT_BIKE` in the config. Magene
+  activities appear in the dashboard, stats, and activity detail (elevation +
+  cadence chart) identically to HealthSync activities. Only active in
+  `HEALTHSYNC_MODE=full` (the default).
 
 - **Drive token expiry and re-authorization.** Google OAuth refresh tokens for
   apps in **Testing** mode expire after 7 days of inactivity. When a token
@@ -213,8 +239,8 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   **Parts & service history.** Each part records the date it was fitted and the
   bike's mileage at that moment. You can **service** a part (logs a date + current
   mileage + free-text note) and **replace** it: the old part moves to an
-  **Archived** section with its final mileage, and optionally a successor is fitted
-  on the same day.
+  **Archived** section with its final mileage and a calendar duration ("1 year
+  5 months 2 weeks"), and optionally a successor is fitted on the same day.
 
   **Service alerts.** Each part can have an optional **km threshold** and/or
   **hours threshold** (riding time since the last service or install). Once a part
@@ -369,6 +395,21 @@ docker run --rm -p 8080:8080 \
 Re-run step **2** daily. The script only downloads files not yet in the local store — incremental runs are fast.
 
 > **Skip-import flag:** set `HEALTHSYNC_IMPORT_ENABLED=0` (in the config or as an env var) to skip the Google Drive download and just re-render the HTML from the existing local store. Useful for testing HTML changes without re-fetching. The equivalent for the Strava script is `STRAVA_MY_IMPORT_ENABLED=0`.
+
+#### Quick test with local files, no Google credentials (Podman, Windows)
+
+`test/run-healthsync-local.ps1` lets you test HealthSync and Magene dual-source processing against **local exported files** — no Google Drive credentials required. Point it at a folder containing your exported HealthSync CSV/TCX/GPX files and any Magene FIT files (or pre-converted GPX files to skip GPS Visualizer):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File test\run-healthsync-local.ps1 `
+    -LocalFilesDir C:\path\to\exported\files
+```
+
+The script runs `healthsync-activities.sh` in `LOCAL_DRIVE_DIR` mode (reads files from the local folder instead of Drive), then opens the dashboard at `http://localhost:8089/strava/me/`. Press **Enter** to stop and clean up.
+
+Accepts `-Port`, `-StateDir`, `-SkipImport`, `-KeepOutput`, `-NoBrowser`. Use `-KeepOutput` to keep the state directory between runs, then `-StateDir + -SkipImport` for re-render-only iterations.
+
+---
 
 #### Quick test with real credentials (Podman, Windows)
 
@@ -1120,6 +1161,7 @@ sh /tmp/strava/install.sh
 | [strava-my-html-bike.sh](strava-my-html-bike.sh)           | Renders `bike.html` + installs the bike-service CGI                                                                                     |
 | [strava-lib.sh](strava-lib.sh)                             | Shared library: `log()`, `die()`, `ensure_access_token()`                                                                               |
 | [config-my.example](config-my.example)                     | Config template → `/etc/strava-my-activities.conf`                                                                                      |
-| [healthsync-activities.sh](healthsync-activities.sh)       | HealthSync / Google Drive: download CSV+GPX+TCX → parse → emit `activities.json` → render same HTML pages (Strava-API-free replacement) |
+| [healthsync-activities.sh](healthsync-activities.sh)       | HealthSync / Google Drive: download CSV+GPX+TCX → parse → dual-source Magene merge → emit `activities.json` → render same HTML pages (Strava-API-free replacement) |
 | [config-healthsync.example](config-healthsync.example)     | Config template → `/etc/healthsync-activities.conf` (Google OAuth + Drive folder ID)                                                    |
 | [install.sh](install.sh)                                   | Installs deps, both data-source scripts, all helpers, all configs, and cron entries                                                     |
+| [test/run-healthsync-local.ps1](test/run-healthsync-local.ps1) | PowerShell driver: runs `healthsync-activities.sh` with local exported files (no Google credentials) via Podman. Accepts `-LocalFilesDir`, `-Port`, `-StateDir`, `-SkipImport`, `-KeepOutput`, `-NoBrowser`. |

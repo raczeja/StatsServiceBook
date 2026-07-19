@@ -161,6 +161,25 @@ function fmtSpan(first,last){
   if(m) parts.push(m+" month"+(m>1?"s":""));
   return parts.join(" ");
 }
+// Exact calendar duration between two YYYY-MM-DD strings → "1 year 2 months 3 weeks 4 days".
+function fmtDuration(from, to){
+  if(!from||!to) return "";
+  var a=new Date(from), b=new Date(to);
+  if(isNaN(a.getTime())||isNaN(b.getTime())||b<a) return "";
+  var totalDays=Math.round((b-a)/86400000);
+  var years=Math.floor(totalDays/365);
+  var rem=totalDays-years*365;
+  var months=Math.floor(rem/30);
+  rem=rem-months*30;
+  var weeks=Math.floor(rem/7);
+  var days=rem%7;
+  var parts=[];
+  if(years)  parts.push(years+" year"+(years>1?"s":""));
+  if(months) parts.push(months+" month"+(months>1?"s":""));
+  if(weeks)  parts.push(weeks+" week"+(weeks>1?"s":""));
+  if(days||(parts.length===0)) parts.push(days+" day"+(days!==1?"s":""));
+  return parts.join(" ");
+}
 function err(msg){ document.getElementById("err").textContent = msg || ""; }
 
 // ---- mileage math (client-side, from activities.json) ---------------------
@@ -780,8 +799,9 @@ function render(){
         : '<span class="muted">none</span>';
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
       var arcNote = p.archiveNote ? '<div class="muted">'+esc(p.archiveNote)+'</div>' : '';
+      var dur = fmtDuration(p.installedDate, p.archivedDate);
       html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
-        '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+arcNote+'</td>'+
+        '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+(dur?'<div class="muted">'+esc(dur)+'</div>':'')+arcNote+'</td>'+
         '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div></td>'+
         '<td class="svc">'+svcTxt+'</td></tr>';
       html += '<tr class="ridesrow archived"><td colspan="4">'+ridesBlock(partRides(b, p))+'</td></tr>';

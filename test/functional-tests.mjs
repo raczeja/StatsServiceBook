@@ -553,6 +553,37 @@ async function testActivityDetail(page, jsErrors) {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
     assert.ok(display !== "none", `#splits-box unexpectedly hidden for Strava activity`);
   });
+  // Weather cards — 18784255013.json has temp_source=archive, apparent_temp=27, wind_speed=15, wind_dir=270
+  await check(S, "weather-temp-source-badge-shown", async () => {
+    const badge = await page.$(".cards .wx-src");
+    assert.ok(badge, "expected .wx-src source badge in temp card, got none");
+  });
+  await check(S, "weather-temp-archive-badge", async () => {
+    const hasBadge = await page.evaluate(() => !!document.querySelector(".wx-arch"));
+    assert.ok(hasBadge, 'expected .wx-arch badge (archive source) in temp card');
+  });
+  await check(S, "weather-temp-feels-like-shown", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("feels") && text.includes("27"),
+      `expected "feels 27" in .cards weather section: ${text.slice(0, 300)}`,
+    );
+  });
+  await check(S, "weather-wind-card-shown", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.toLowerCase().includes("wind") && text.includes("15"),
+      `expected Wind card with "15 km/h" in .cards: ${text.slice(0, 300)}`,
+    );
+  });
+  await check(S, "weather-wind-direction-arrow", async () => {
+    // wind_dir=270 (west) → ← arrow
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("←"),
+      `expected west arrow "←" in Wind card (wind_dir=270), got: ${text.slice(0, 300)}`,
+    );
+  });
 }
 
 async function testActivityDetailHealthsyncRun(page, jsErrors) {
@@ -1014,6 +1045,23 @@ async function testBikeService(page, jsErrors) {
       (rows) => rows.length,
     );
     assert.ok(n >= 1, `expected >= 1 part row in Road Bike panel, got ${n}`);
+  });
+  // Archived parts — Road Bike has "Old Chain" archived from 2024-03-15 to 2025-09-01.
+  // fmtDuration should produce a non-empty "N year(s) M month(s)…" string.
+  await check(S, "archived-part-shows-duration", async () => {
+    const archiveRows = await page.$$eval(
+      "#bikepanel tr.archived:not(.ridesrow)",
+      (rows) => rows.length,
+    );
+    assert.ok(archiveRows >= 1, `expected >= 1 archived part row, got ${archiveRows}`);
+    const durText = await page.$eval(
+      "#bikepanel tr.archived:not(.ridesrow) td:nth-child(2) .muted",
+      (el) => el.textContent.trim(),
+    );
+    assert.ok(
+      /year|month|week|day/.test(durText),
+      `expected duration text (year/month/week/day) in archived part, got: "${durText}"`,
+    );
   });
 }
 
