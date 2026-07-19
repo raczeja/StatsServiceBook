@@ -217,13 +217,14 @@ _get_coords() {
         _wlat=$(jq -r '.start_latlng[0] // ""' "$DETAIL_DIR/$1.json" 2>/dev/null || true)
         _wlon=$(jq -r '.start_latlng[1] // ""' "$DETAIL_DIR/$1.json" 2>/dev/null || true)
     fi
-    [ -z "$_wlat" ] && _wlat="${WEATHER_LAT:-}"
-    [ -z "$_wlon" ] && _wlon="${WEATHER_LON:-}"
+    if [ -z "$_wlat" ]; then _wlat="${WEATHER_LAT:-}"; fi
+    if [ -z "$_wlon" ]; then _wlon="${WEATHER_LON:-}"; fi
 }
 
 # Pass 1: backfill temperature for null-temp activities.
 jq -c 'select(.average_temp == null) | {id: (.id|tostring), date}' "$STORE" \
     > "$TMP/weather_pending.ndjson"
+log "weather: Pass 1 — backfilling null-temp activities ($(jq -s 'length' "$TMP/weather_pending.ndjson") pending)..."
 _w_fetched=0 _w_nocoord=0 _w_apifail=0
 while IFS= read -r _entry; do
     _wid=$(printf '%s' "$_entry" | jq -r '.id')
@@ -258,13 +259,14 @@ log "weather: +$_w_fetched fetched, $_w_nocoord no-coords, $_w_apifail api-fail,
 # (no temp backfill — keeps Strava's value; fetches wind/weathercode/apparent_temp).
 jq -c 'select(.average_temp != null) | {id: (.id|tostring), date}' "$STORE" \
     > "$TMP/weather_enrich.ndjson"
+log "weather: Pass 2 — enriching Strava-temp activities ($(jq -s 'length' "$TMP/weather_enrich.ndjson") pending)..."
 _we_fetched=0
 while IFS= read -r _entry; do
     _wid=$(printf '%s' "$_entry" | jq -r '.id')
     _wd=$(printf '%s' "$_entry" | jq -r '.date')
     jq -e --arg id "$_wid" '.[$id] != null' "$WEATHER_CACHE" >/dev/null 2>&1 && continue
     _get_coords "$_wid"
-    [ -z "$_wlat" ] || [ -z "$_wlon" ] && continue
+    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then continue; fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
     fetch_weather_temp "$_wlat" "$_wlon" "$_wd" >/dev/null 2>&1 || true
     [ -n "$_fw_wind_speed" ] || continue
@@ -278,7 +280,7 @@ while IFS= read -r _entry; do
         > "$WEATHER_CACHE.tmp" && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
     _we_fetched=$((_we_fetched + 1))
 done < "$TMP/weather_enrich.ndjson"
-[ "$_we_fetched" -gt 0 ] && log "weather: enriched $_we_fetched Strava-temp activities with wind/weathercode"
+if [ "$_we_fetched" -gt 0 ]; then log "weather: enriched $_we_fetched Strava-temp activities with wind/weathercode"; fi
 
 # --- 3a. Reconcile detail files with the synced store ----------------------
 # Deleted activities: drop their cached detail JSON (it is web-served) and any
@@ -509,6 +511,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
 
 log "wrote $WEB_DIR/activities.json ($TOTAL_STORED activities)"
 
+log "html: rendering pages..."
 # --- 5. Render the static HTML dashboard (see strava-my-html-dashboard.sh) -
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-my-html-dashboard.sh"
