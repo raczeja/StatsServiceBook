@@ -862,6 +862,122 @@ _scrape_meta="$(jq -n --argjson ts "$_ts" '{
 assert_eq "$S" "scrape-mode-no-dryrun"     "$(printf '%s' "$_scrape_meta" | jq 'has("dryRun")')"     "false"
 assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq 'has("feedTestOk")')" "false"
 
+# ── set-eu-get-coords ────────────────────────────────────────────────────────
+# Regression: _get_coords returned exit 1 when coords were found, because
+# its last lines used '[ -z "$x" ] && x=fallback' — when $x is set, the
+# AND-OR exits 1, and BusyBox sh set -eu kills the caller. Fix: if/fi form.
+# Child scripts call _get_coords as a bare command (no || protection) so the
+# old buggy form would kill the child and the test would report failure.
+S="set-eu-get-coords"
+
+_GC="$TMP/gc"
+mkdir -p "$_GC/details"
+printf '{"start_latlng":[51.89,16.45]}' > "$_GC/details/99999.json"
+
+cat > "$_GC/t_found.sh" << EOF
+#!/bin/sh
+set -eu
+DETAIL_DIR="$_GC/details"
+_get_coords() {
+    _wlat="" _wlon=""
+    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
+        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+    fi
+    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
+    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
+}
+_get_coords 99999
+[ "\$_wlat" = "51.89" ] && [ "\$_wlon" = "16.45" ]
+EOF
+if sh "$_GC/t_found.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + sets coords from detail JSON"
+else
+    err "$S" "exits 0 + sets coords from detail JSON" \
+        "returned non-zero — if/fi fallback lines may have regressed to &&"
+fi
+
+cat > "$_GC/t_missing.sh" << EOF
+#!/bin/sh
+set -eu
+DETAIL_DIR="$_GC/details"
+_get_coords() {
+    _wlat="" _wlon=""
+    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
+        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+    fi
+    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
+    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
+}
+_get_coords 00000
+test -z "\$_wlat" && test -z "\$_wlon"
+EOF
+if sh "$_GC/t_missing.sh" 2>/dev/null; then
+    ok "$S" "exits 0 with empty coords when no detail file and no WEATHER_LAT/LON"
+else
+    err "$S" "exits 0 with empty coords when no detail file and no WEATHER_LAT/LON" \
+        "returned non-zero"
+fi
+
+cat > "$_GC/t_fallback.sh" << EOF
+#!/bin/sh
+set -eu
+DETAIL_DIR="$_GC/details"
+WEATHER_LAT="52.00"; WEATHER_LON="21.00"
+_get_coords() {
+    _wlat="" _wlon=""
+    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
+        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
+    fi
+    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
+    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
+}
+_get_coords 00000
+[ "\$_wlat" = "52.00" ] && [ "\$_wlon" = "21.00" ]
+EOF
+if sh "$_GC/t_fallback.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail file"
+else
+    err "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail file" \
+        "returned non-zero or coords did not match fallback values"
+fi
+
+# ── set-eu-weather-conditionals ───────────────────────────────────────────────
+# Regression: '[ n -gt 0 ] && log "..."' exits 1 under BusyBox set -eu when
+# n=0 (AND-OR result 1 kills the script). Same for the Pass 2 continue guard.
+# Fix: if/fi form always exits 0 regardless of the condition.
+S="set-eu-weather-conditionals"
+
+cat > "$TMP/t_count_guard.sh" << 'EOF'
+#!/bin/sh
+set -eu
+_we_fetched=0
+if [ "$_we_fetched" -gt 0 ]; then echo "enriched"; fi
+echo "done"
+EOF
+if sh "$TMP/t_count_guard.sh" 2>/dev/null | grep -q "done"; then
+    ok "$S" "if/fi count guard: exits 0 and reaches done when count is zero"
+else
+    err "$S" "if/fi count guard: exits 0 and reaches done when count is zero" \
+        "script did not reach 'done' — guard may have regressed to && form"
+fi
+
+cat > "$TMP/t_p2guard.sh" << 'EOF'
+#!/bin/sh
+set -eu
+_wlat="51.89"; _wlon="16.45"
+if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then exit 1; fi
+echo "passed"
+EOF
+if sh "$TMP/t_p2guard.sh" 2>/dev/null | grep -q "passed"; then
+    ok "$S" "if/fi Pass 2 guard: exits 0 and passes through when both coords are set"
+else
+    err "$S" "if/fi Pass 2 guard: exits 0 and passes through when both coords are set" \
+        "script did not reach 'passed'"
+fi
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
