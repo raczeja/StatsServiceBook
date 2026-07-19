@@ -30,29 +30,39 @@ curl_retry() {
 }
 
 # fetch_weather_temp lat lon date  →  prints integer °C or "" on error/unavailable
-# Sets global _fw_temp_source to "archive" or "forecast" on success.
+# On success sets globals: _fw_temp_source ("archive"/"forecast"),
+# _fw_apparent_temp (feels-like °C integer), _fw_wind_speed (km/h integer),
+# _fw_wind_dir (dominant direction degrees), _fw_weathercode (WMO code),
+# _fw_precipitation (mm).
 # If caller sets _fw_archive_only=1, skips the forecast fallback — used by the
 # upgrade path so a still-missing archive value doesn't overwrite a forecast temp.
 # Tries Open-Meteo archive first (ERA5, data since 1940, ~5 day lag), then falls
 # back to the forecast API (covers recent dates up to 92 days back) when the
 # archive returns no value for very recent activities.
+_fw_parse_weather() {
+  # Parse all daily weather fields from a cached Open-Meteo JSON response ($1).
+  # Populates _fw_t and the five extra globals.
+  _fw_t=$(printf '%s' "$1" | jq -r '.daily.temperature_2m_mean[0] // empty | round' 2>/dev/null || true)
+  [ -n "$_fw_t" ] || return 1
+  _fw_apparent_temp=$(printf '%s' "$1" | jq -r '.daily.apparent_temperature_mean[0] // empty | round' 2>/dev/null || true)
+  _fw_wind_speed=$(printf '%s' "$1" | jq -r '.daily.windspeed_10m_max[0] // empty | round' 2>/dev/null || true)
+  _fw_wind_dir=$(printf '%s' "$1" | jq -r '.daily.winddirection_10m_dominant[0] // empty | round' 2>/dev/null || true)
+  _fw_weathercode=$(printf '%s' "$1" | jq -r '.daily.weathercode[0] // empty' 2>/dev/null || true)
+  _fw_precipitation=$(printf '%s' "$1" | jq -r '.daily.precipitation_sum[0] // empty' 2>/dev/null || true)
+}
+_fw_vars="temperature_2m_mean,apparent_temperature_mean,windspeed_10m_max,winddirection_10m_dominant,weathercode,precipitation_sum"
 fetch_weather_temp() {
   [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ] || return 1
   _fw_temp_source="" _fw_t=""
+  _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
   _fw_resp=$(curl -fsS --max-time 15 \
-    "https://archive-api.open-meteo.com/v1/archive?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=temperature_2m_mean&timezone=auto" \
-    2>/dev/null) && \
-    _fw_t=$(printf '%s' "$_fw_resp" \
-      | jq -r '.daily.temperature_2m_mean[0] // empty | round' 2>/dev/null || true)
-  if [ -n "$_fw_t" ]; then
-    _fw_temp_source="archive"
-  elif [ "${_fw_archive_only:-0}" != "1" ]; then
+    "https://archive-api.open-meteo.com/v1/archive?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
+    2>/dev/null) && _fw_parse_weather "$_fw_resp" && _fw_temp_source="archive" || true
+  if [ -z "$_fw_t" ] && [ "${_fw_archive_only:-0}" != "1" ]; then
     _fw_resp=$(curl -fsS --max-time 15 \
-      "https://api.open-meteo.com/v1/forecast?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=temperature_2m_mean&timezone=auto" \
+      "https://api.open-meteo.com/v1/forecast?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
       2>/dev/null) || return 1
-    _fw_t=$(printf '%s' "$_fw_resp" \
-      | jq -r '.daily.temperature_2m_mean[0] // empty | round' 2>/dev/null || true)
-    [ -n "$_fw_t" ] && _fw_temp_source="forecast"
+    _fw_parse_weather "$_fw_resp" && _fw_temp_source="forecast" || true
   fi
   [ -n "$_fw_t" ] || return 1
   printf '%s\n' "$_fw_t"

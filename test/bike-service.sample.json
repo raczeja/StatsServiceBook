@@ -11,7 +11,7 @@
         {
           "id": "p-chain",
           "name": "Chain",
-          "note": "11-speed, waxed — re-wax every 500 km",
+          "note": "11-speed, waxed \u00e2\u20ac\u201d re-wax every 500 km",
           "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
@@ -23,7 +23,7 @@
               "id": "s-1",
               "date": "2025-11-30",
               "mileage": 161,
-              "note": "waxed — wear at 0.75%, replacement due"
+              "note": "waxed \u00e2\u20ac\u201d wear at 0.75%, replacement due"
             }
           ]
         },
@@ -83,6 +83,21 @@
           "status": "new",
           "alertKm": 8000,
           "alertH": null,
+          "services": []
+        },
+        {
+          "id": "p-old-chain",
+          "name": "Old Chain",
+          "note": "11-speed, waxed",
+          "installedDate": "2024-03-15",
+          "installedMileage": 0,
+          "archivedDate": "2025-09-01",
+          "archivedMileage": 4800,
+          "archiveNote": "worn out, replaced",
+          "status": "archived",
+          "alertKm": 2000,
+          "alertH": null,
+          "needsReplacement": false,
           "services": []
         }
       ]
