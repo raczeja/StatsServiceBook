@@ -66,7 +66,9 @@ TOKEN_STATE="$STATE_DIR/token.json"
 STORE="$STATE_DIR/activities.ndjson"
 WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+LOCKFILE="${TMPDIR:-/tmp}/strava-my-activities.lock"
+mkdir "$LOCKFILE" 2>/dev/null || { log "another instance is already running ($LOCKFILE); exiting"; exit 0; }
+trap 'rm -rf "$TMP" "$LOCKFILE"' EXIT
 
 if [ "$IMPORT_ENABLED" != "0" ]; then
 
@@ -201,86 +203,7 @@ else
   log "store: +$ADDED new, ~$CHANGED updated, -$DELETED removed, $TOTAL_STORED total"
 fi
 
-# Weather backfill: for null-temp activities not yet in the cache, look up
-# Open-Meteo. The cache ($WEATHER_CACHE) persists across runs so each activity
-# is only queried once even though the Strava store is rebuilt every run.
-# Cache format: { "id": { t, s, at, ws, wd, wc, pr } } (objects).
-# Legacy entries stored as plain numbers are treated as temperature-only.
-# Coordinates come from the cached detail JSON's start_latlng, with WEATHER_LAT/
-# WEATHER_LON as a fallback for activities whose detail hasn't downloaded yet.
-[ -f "$WEATHER_CACHE" ] || printf '{}' > "$WEATHER_CACHE"
-
-_get_coords() {
-    # _get_coords id  — sets _wlat/_wlon from detail JSON or config fallback
-    _wlat="" _wlon=""
-    if [ -f "$DETAIL_DIR/$1.json" ]; then
-        _wlat=$(jq -r '.start_latlng[0] // ""' "$DETAIL_DIR/$1.json" 2>/dev/null || true)
-        _wlon=$(jq -r '.start_latlng[1] // ""' "$DETAIL_DIR/$1.json" 2>/dev/null || true)
-    fi
-    if [ -z "$_wlat" ]; then _wlat="${WEATHER_LAT:-}"; fi
-    if [ -z "$_wlon" ]; then _wlon="${WEATHER_LON:-}"; fi
-}
-
-# Pass 1: backfill temperature for null-temp activities.
-jq -c 'select(.average_temp == null) | {id: (.id|tostring), date}' "$STORE" \
-    > "$TMP/weather_pending.ndjson"
-log "weather: Pass 1 — backfilling null-temp activities ($(jq -s 'length' "$TMP/weather_pending.ndjson") pending)..."
-_w_fetched=0 _w_nocoord=0 _w_apifail=0
-while IFS= read -r _entry; do
-    _wid=$(printf '%s' "$_entry" | jq -r '.id')
-    _wd=$(printf '%s' "$_entry" | jq -r '.date')
-    jq -e --arg id "$_wid" '.[$id] != null' "$WEATHER_CACHE" >/dev/null 2>&1 && continue
-    _get_coords "$_wid"
-    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then
-        _w_nocoord=$((_w_nocoord + 1))
-        continue
-    fi
-    _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
-    _wt=$(fetch_weather_temp "$_wlat" "$_wlon" "$_wd" || true)
-    if [ -z "$_wt" ]; then
-        _w_apifail=$((_w_apifail + 1))
-        continue
-    fi
-    jq --arg id "$_wid" \
-       --argjson t  "$_wt" \
-       --arg     s  "$_fw_temp_source" \
-       --argjson at "${_fw_apparent_temp:-null}" \
-       --argjson ws "${_fw_wind_speed:-null}" \
-       --argjson wd "${_fw_wind_dir:-null}" \
-       --argjson wc "${_fw_weathercode:-null}" \
-       --argjson pr "${_fw_precipitation:-null}" \
-       '.[$id] = {t:$t,s:$s,at:$at,ws:$ws,wd:$wd,wc:$wc,pr:$pr}' "$WEATHER_CACHE" \
-        > "$WEATHER_CACHE.tmp" && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
-    _w_fetched=$((_w_fetched + 1))
-done < "$TMP/weather_pending.ndjson"
-log "weather: +$_w_fetched fetched, $_w_nocoord no-coords, $_w_apifail api-fail, $(jq 'length' "$WEATHER_CACHE") total cached"
-
-# Pass 2: enrich activities that have Strava's own temp but no cache entry yet
-# (no temp backfill — keeps Strava's value; fetches wind/weathercode/apparent_temp).
-jq -c 'select(.average_temp != null) | {id: (.id|tostring), date}' "$STORE" \
-    > "$TMP/weather_enrich.ndjson"
-log "weather: Pass 2 — enriching Strava-temp activities ($(jq -s 'length' "$TMP/weather_enrich.ndjson") pending)..."
-_we_fetched=0
-while IFS= read -r _entry; do
-    _wid=$(printf '%s' "$_entry" | jq -r '.id')
-    _wd=$(printf '%s' "$_entry" | jq -r '.date')
-    jq -e --arg id "$_wid" '.[$id] != null' "$WEATHER_CACHE" >/dev/null 2>&1 && continue
-    _get_coords "$_wid"
-    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then continue; fi
-    _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
-    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" >/dev/null 2>&1 || true
-    [ -n "$_fw_wind_speed" ] || continue
-    jq --arg id "$_wid" \
-       --argjson at "${_fw_apparent_temp:-null}" \
-       --argjson ws "${_fw_wind_speed:-null}" \
-       --argjson wd "${_fw_wind_dir:-null}" \
-       --argjson wc "${_fw_weathercode:-null}" \
-       --argjson pr "${_fw_precipitation:-null}" \
-       '.[$id] = {at:$at,ws:$ws,wd:$wd,wc:$wc,pr:$pr}' "$WEATHER_CACHE" \
-        > "$WEATHER_CACHE.tmp" && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
-    _we_fetched=$((_we_fetched + 1))
-done < "$TMP/weather_enrich.ndjson"
-if [ "$_we_fetched" -gt 0 ]; then log "weather: enriched $_we_fetched Strava-temp activities with wind/weathercode"; fi
+run_weather_backfill "$STORE" "$WEATHER_CACHE" "$TMP" "$DETAIL_DIR" "$WEB_DIR"
 
 # --- 3a. Reconcile detail files with the synced store ----------------------
 # Deleted activities: drop their cached detail JSON (it is web-served) and any

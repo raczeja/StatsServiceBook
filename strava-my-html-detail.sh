@@ -418,7 +418,9 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
   html += '<rect x="' + px + '" y="0" width="' + (W - px - 16) + '" height="' + H + '"'
         + ' fill="transparent" style="cursor:crosshair"'
         + ' onmousemove="lineChartHover(event,\'' + svgId + '\')"'
-        + ' onmouseout="hideTip()"/>';
+        + ' onmouseout="hideTip()"'
+        + ' ontouchmove="lineChartHover({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},\'' + svgId + '\')"'
+        + ' ontouchend="hideTip()"/>';
 
   var svg = document.getElementById(svgId);
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
@@ -794,7 +796,9 @@ function renderSplits(d){
     TIP_DATA.push(tip);
 
     html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="#fc4c02" rx="2"'
-      + ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()" style="cursor:pointer"/>';
+      + ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()"'
+      + ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+i+')" ontouchend="setTimeout(hideTip,1500)"'
+      + ' style="cursor:pointer"/>';
     html += '<text x="'+(x+barW/2)+'" y="'+(chartH-barH-4)+'" text-anchor="middle" font-size="8.5" fill="#444">'+label+'</text>';
     html += '<text x="'+(x+barW/2)+'" y="'+(H-3)+'" text-anchor="middle" font-size="9" fill="#888">'+(i+1)+'</text>';
   }

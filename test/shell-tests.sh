@@ -862,86 +862,109 @@ _scrape_meta="$(jq -n --argjson ts "$_ts" '{
 assert_eq "$S" "scrape-mode-no-dryrun"     "$(printf '%s' "$_scrape_meta" | jq 'has("dryRun")')"     "false"
 assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq 'has("feedTestOk")')" "false"
 
-# ── set-eu-get-coords ────────────────────────────────────────────────────────
-# Regression: _get_coords returned exit 1 when coords were found, because
-# its last lines used '[ -z "$x" ] && x=fallback' — when $x is set, the
-# AND-OR exits 1, and BusyBox sh set -eu kills the caller. Fix: if/fi form.
-# Child scripts call _get_coords as a bare command (no || protection) so the
-# old buggy form would kill the child and the test would report failure.
-S="set-eu-get-coords"
+# ── set-eu-rw-coords ─────────────────────────────────────────────────────────
+# _rw_coords id gpx_file detail_dir web_dir (from strava-lib.sh) must exit 0
+# in all paths under BusyBox set -eu and must correctly prefer detail JSON,
+# then GPX first-trkpt, then WEATHER_LAT/WEATHER_LON fallback.
+S="set-eu-rw-coords"
 
-_GC="$TMP/gc"
-mkdir -p "$_GC/details"
-printf '{"start_latlng":[51.89,16.45]}' > "$_GC/details/99999.json"
+_RC="$TMP/rc"
+mkdir -p "$_RC/details" "$_RC/web/gpx"
+printf '{"start_latlng":[51.89,16.45]}' > "$_RC/details/99999.json"
+cat > "$_RC/web/gpx/act.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.06" lon="19.94"><ele>200</ele></trkpt>
+    <trkpt lat="50.07" lon="19.95"><ele>210</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
 
-cat > "$_GC/t_found.sh" << EOF
+# Shared function body written once into a sourced helper.
+cat > "$_RC/rw_coords.sh" << 'EOF'
+_rw_coords() {
+  _wlat="" _wlon=""
+  if [ -f "$3/$1.json" ]; then
+    _wlat=$(jq -r '.start_latlng[0] // ""' "$3/$1.json" 2>/dev/null || true)
+    _wlon=$(jq -r '.start_latlng[1] // ""' "$3/$1.json" 2>/dev/null || true)
+  fi
+  if [ -z "$_wlat" ] && [ -n "$2" ] && [ -f "$4/$2" ]; then
+    _wlat=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+    _wlon=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+  fi
+  if [ -z "$_wlat" ]; then _wlat="${WEATHER_LAT:-}"; fi
+  if [ -z "$_wlon" ]; then _wlon="${WEATHER_LON:-}"; fi
+}
+EOF
+
+cat > "$_RC/t_detail.sh" << EOF
 #!/bin/sh
 set -eu
-DETAIL_DIR="$_GC/details"
-_get_coords() {
-    _wlat="" _wlon=""
-    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
-        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-    fi
-    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
-    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
-}
-_get_coords 99999
+. "$_RC/rw_coords.sh"
+_rw_coords 99999 "" "$_RC/details" "$_RC/web/gpx"
 [ "\$_wlat" = "51.89" ] && [ "\$_wlon" = "16.45" ]
 EOF
-if sh "$_GC/t_found.sh" 2>/dev/null; then
-    ok "$S" "exits 0 + sets coords from detail JSON"
+if sh "$_RC/t_detail.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + reads coords from detail JSON"
 else
-    err "$S" "exits 0 + sets coords from detail JSON" \
-        "returned non-zero — if/fi fallback lines may have regressed to &&"
+    err "$S" "exits 0 + reads coords from detail JSON" "returned non-zero"
 fi
 
-cat > "$_GC/t_missing.sh" << EOF
+cat > "$_RC/t_gpx.sh" << EOF
 #!/bin/sh
 set -eu
-DETAIL_DIR="$_GC/details"
-_get_coords() {
-    _wlat="" _wlon=""
-    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
-        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-    fi
-    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
-    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
-}
-_get_coords 00000
+. "$_RC/rw_coords.sh"
+_rw_coords 00000 "gpx/act.gpx" "$_RC/details" "$_RC/web"
+[ "\$_wlat" = "50.06" ] && [ "\$_wlon" = "19.94" ]
+EOF
+if sh "$_RC/t_gpx.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + reads coords from GPX when no detail JSON"
+else
+    err "$S" "exits 0 + reads coords from GPX when no detail JSON" "returned non-zero"
+fi
+
+cat > "$_RC/t_missing.sh" << EOF
+#!/bin/sh
+set -eu
+. "$_RC/rw_coords.sh"
+_rw_coords 00000 "" "$_RC/details" "$_RC/web/gpx"
 test -z "\$_wlat" && test -z "\$_wlon"
 EOF
-if sh "$_GC/t_missing.sh" 2>/dev/null; then
-    ok "$S" "exits 0 with empty coords when no detail file and no WEATHER_LAT/LON"
+if sh "$_RC/t_missing.sh" 2>/dev/null; then
+    ok "$S" "exits 0 with empty coords when no detail file, no GPX, no fallback"
 else
-    err "$S" "exits 0 with empty coords when no detail file and no WEATHER_LAT/LON" \
+    err "$S" "exits 0 with empty coords when no detail file, no GPX, no fallback" \
         "returned non-zero"
 fi
 
-cat > "$_GC/t_fallback.sh" << EOF
+cat > "$_RC/t_fallback.sh" << EOF
 #!/bin/sh
 set -eu
-DETAIL_DIR="$_GC/details"
 WEATHER_LAT="52.00"; WEATHER_LON="21.00"
-_get_coords() {
-    _wlat="" _wlon=""
-    if [ -f "\$DETAIL_DIR/\$1.json" ]; then
-        _wlat=\$(jq -r '.start_latlng[0] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-        _wlon=\$(jq -r '.start_latlng[1] // ""' "\$DETAIL_DIR/\$1.json" 2>/dev/null || true)
-    fi
-    if [ -z "\$_wlat" ]; then _wlat="\${WEATHER_LAT:-}"; fi
-    if [ -z "\$_wlon" ]; then _wlon="\${WEATHER_LON:-}"; fi
-}
-_get_coords 00000
+. "$_RC/rw_coords.sh"
+_rw_coords 00000 "" "$_RC/details" "$_RC/web/gpx"
 [ "\$_wlat" = "52.00" ] && [ "\$_wlon" = "21.00" ]
 EOF
-if sh "$_GC/t_fallback.sh" 2>/dev/null; then
-    ok "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail file"
+if sh "$_RC/t_fallback.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail/GPX"
 else
-    err "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail file" \
+    err "$S" "exits 0 + uses WEATHER_LAT/LON fallback when no detail/GPX" \
         "returned non-zero or coords did not match fallback values"
+fi
+
+cat > "$_RC/t_detail_wins.sh" << EOF
+#!/bin/sh
+set -eu
+WEATHER_LAT="52.00"; WEATHER_LON="21.00"
+. "$_RC/rw_coords.sh"
+_rw_coords 99999 "gpx/act.gpx" "$_RC/details" "$_RC/web"
+[ "\$_wlat" = "51.89" ] && [ "\$_wlon" = "16.45" ]
+EOF
+if sh "$_RC/t_detail_wins.sh" 2>/dev/null; then
+    ok "$S" "detail JSON preferred over GPX when both available"
+else
+    err "$S" "detail JSON preferred over GPX when both available" "returned non-zero"
 fi
 
 # ── set-eu-weather-conditionals ───────────────────────────────────────────────
@@ -977,6 +1000,173 @@ else
     err "$S" "if/fi Pass 2 guard: exits 0 and passes through when both coords are set" \
         "script did not reach 'passed'"
 fi
+
+# ── weather-pass-uncached-count ───────────────────────────────────────────────
+# Pass 1 guard: skip only when object exists AND t != null (temp was fetched).
+# Pass 2 guard: skip only when object exists AND ws != null (extended fetched).
+# Both treat legacy plain-number entries and objects with null fields as uncached.
+S="weather-pass-uncached-count"
+
+printf '{"id":"1","date":"2024-01-01"}\n{"id":"2","date":"2024-01-02"}\n{"id":"3","date":"2024-01-03"}\n' \
+    > "$TMP/wpc_pending.ndjson"
+# Pass 1 guard: IDs 1+2 have t != null → excluded; ID 3 absent → counted = 1.
+printf '{"1":{"t":10,"s":"archive","at":12,"ws":5,"wd":180,"wc":0,"pr":0},"2":{"t":15,"s":"archive","at":16,"ws":8,"wd":90,"wc":2,"pr":0.5}}' \
+    > "$TMP/wpc_cache.json"
+_wpc_result=$(jq -s --slurpfile c "$TMP/wpc_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "object-with-t excluded, absent entry counted" "$_wpc_result" "1"
+
+# Pass 1 guard: all three have t → all excluded → count 0.
+printf '{"1":{"t":10,"s":"archive"},"2":{"t":15,"s":"archive"},"3":{"t":20,"s":"forecast"}}' \
+    > "$TMP/wpc_full_cache.json"
+_wpc_full=$(jq -s --slurpfile c "$TMP/wpc_full_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "all-object-with-t cache → uncached count is 0" "$_wpc_full" "0"
+
+# Pass 1 guard: ID 2 is plain-number legacy → counted.
+printf '{"1":{"t":10,"s":"archive"},"2":28,"3":{"t":20,"s":"archive"}}' \
+    > "$TMP/wpc_legacy_cache.json"
+_wpc_legacy=$(jq -s --slurpfile c "$TMP/wpc_legacy_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "plain-number legacy entry counts as uncached" "$_wpc_legacy" "1"
+
+# Pass 1 guard: object with t == null treated as uncached (re-fetch needed).
+printf '{"1":{"t":10,"s":"archive"},"2":{"t":null,"s":null,"at":null,"ws":null},"3":{"t":20,"s":"archive"}}' \
+    > "$TMP/wpc_nullt_cache.json"
+_wpc_nullt=$(jq -s --slurpfile c "$TMP/wpc_nullt_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == ""))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "object-with-null-t counts as uncached" "$_wpc_nullt" "1"
+
+# Pass 1 guard: object with empty-string source treated as uncached (old-code bug).
+# Old code wrote s:"" when _fw_temp_source variable was unset; these must be re-fetched
+# so the source gets recorded correctly and extended fields get populated.
+printf '{"1":{"t":10,"s":"archive"},"2":{"t":25,"s":"","at":null,"ws":null},"3":{"t":20,"s":"archive"}}' \
+    > "$TMP/wpc_emptys_cache.json"
+_wpc_emptys=$(jq -s --slurpfile c "$TMP/wpc_emptys_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == ""))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "object-with-empty-source counts as uncached" "$_wpc_emptys" "1"
+
+# Pass 2 guard: object with ws != null → skip; object with ws == null → re-fetch.
+printf '{"1":{"at":12,"ws":5,"wd":180,"wc":0,"pr":0},"2":{"at":null,"ws":null,"wd":null,"wc":null,"pr":null},"3":{"at":14,"ws":8,"wd":90,"wc":2,"pr":0}}' \
+    > "$TMP/wpc_p2_cache.json"
+_wpc_p2=$(jq -s --slurpfile c "$TMP/wpc_p2_cache.json" \
+    '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].ws == null))] | length' \
+    "$TMP/wpc_pending.ndjson")
+assert_eq "$S" "Pass2: null-ws object counts as uncached" "$_wpc_p2" "1"
+
+# ── weather-pass3-forecast-upgrade ───────────────────────────────────────────
+# Pass 3 filter selects cache entries with s=="forecast" where the activity
+# date is more than 7 days ago (604800 seconds). Activities newer than that
+# or with s=="archive" must not be selected.
+S="weather-pass3-forecast-upgrade"
+
+# Store: three activities.
+printf '%s\n' \
+    '{"id":"old","date":"2020-01-01","gpx_file":null}' \
+    '{"id":"recent","date":"3000-01-01","gpx_file":null}' \
+    '{"id":"arch","date":"2020-01-01","gpx_file":null}' \
+    > "$TMP/p3_store.ndjson"
+# Cache: old=forecast, recent=forecast (but future date), arch=archive.
+printf '{"old":{"t":5,"s":"forecast"},"recent":{"t":8,"s":"forecast"},"arch":{"t":12,"s":"archive"}}' \
+    > "$TMP/p3_cache.json"
+
+_p3=$(jq -c --slurpfile c "$TMP/p3_cache.json" '
+    (.id|tostring) as $id |
+    select(($c[0][$id].s) == "forecast" and
+           .date <= (now - 604800 | strftime("%Y-%m-%d"))) |
+    .id' "$TMP/p3_store.ndjson" | tr '\n' ',' | tr -d '"')
+assert_eq "$S" "old-forecast selected"        "$(printf '%s' "$_p3" | grep -c 'old'  || true)" "1"
+assert_eq "$S" "recent-forecast not selected" "$(printf '%s' "$_p3" | grep -c 'recent' || true)" "0"
+assert_eq "$S" "archive not selected"         "$(printf '%s' "$_p3" | grep -c 'arch'   || true)" "0"
+
+# ── healthsync-cache-seeding ──────────────────────────────────────────────────
+# Before calling run_weather_backfill, healthsync seeds the cache from store
+# records that already have full weather (avg_temp != null AND wind_speed != null).
+# Records with only temp (no wind) are NOT seeded — Pass 2 will enrich them.
+# Existing cache entries win over newly seeded ones (so prior upgrades survive).
+S="healthsync-cache-seeding"
+
+printf '%s\n' \
+    '{"id":"a1","average_temp":20,"temp_source":"archive","apparent_temp":19,"wind_speed":10,"wind_dir":180,"weathercode":0,"precipitation":0}' \
+    '{"id":"a2","average_temp":25,"temp_source":"forecast","apparent_temp":24,"wind_speed":8,"wind_dir":90,"weathercode":1,"precipitation":0.2}' \
+    '{"id":"a3","average_temp":15,"temp_source":"archive","apparent_temp":null,"wind_speed":null,"wind_dir":null,"weathercode":null,"precipitation":null}' \
+    '{"id":"a4","average_temp":null}' \
+    > "$TMP/hs_store.ndjson"
+printf '{"a2":{"t":26,"s":"archive","at":25,"ws":9,"wd":90,"wc":1,"pr":0.1}}' \
+    > "$TMP/hs_cache_before.json"
+
+jq -sc 'map(select(.average_temp != null and .wind_speed != null) |
+    {(.id|tostring): {t:.average_temp, s:(.temp_source // "device"),
+                      at:.apparent_temp, ws:.wind_speed, wd:.wind_dir,
+                      wc:.weathercode,  pr:.precipitation}}) |
+    add // {}' "$TMP/hs_store.ndjson" > "$TMP/hs_from_store.json"
+jq -s '.[0] + .[1]' "$TMP/hs_from_store.json" "$TMP/hs_cache_before.json" \
+    > "$TMP/hs_cache_after.json"
+
+# a1 should be seeded from store.
+assert_eq "$S" "a1 seeded from store" \
+    "$(jq -r '.a1.t' "$TMP/hs_cache_after.json")" "20"
+assert_eq "$S" "a1 source set" \
+    "$(jq -r '.a1.s' "$TMP/hs_cache_after.json")" "archive"
+# a2 existed in cache with upgraded archive data — cache wins.
+assert_eq "$S" "a2 cache wins over store" \
+    "$(jq -r '.a2.s' "$TMP/hs_cache_after.json")" "archive"
+assert_eq "$S" "a2 cache temp preserved" \
+    "$(jq -r '.a2.t' "$TMP/hs_cache_after.json")" "26"
+# a3 has temp but no wind_speed → not seeded (wind_speed == null).
+assert_eq "$S" "a3 not seeded (no wind_speed)" \
+    "$(jq 'has("a3")' "$TMP/hs_cache_after.json")" "false"
+# a4 has null temp → not seeded.
+assert_eq "$S" "a4 not seeded (null temp)" \
+    "$(jq 'has("a4")' "$TMP/hs_cache_after.json")" "false"
+
+# ── healthsync-store-apply ───────────────────────────────────────────────────
+# After run_weather_backfill, the cache is applied back to store records.
+# Three cases: null-temp fill, forecast→archive upgrade, extended-field enrichment.
+S="healthsync-store-apply"
+
+printf '%s\n' \
+    '{"id":"n1","average_temp":null,"wind_speed":null}' \
+    '{"id":"n2","average_temp":18,"temp_source":"forecast","wind_speed":5}' \
+    '{"id":"n3","average_temp":22,"temp_source":"archive","wind_speed":null}' \
+    '{"id":"n4","average_temp":25,"temp_source":"archive","wind_speed":12}' \
+    > "$TMP/sa_store.ndjson"
+printf '{"n1":{"t":10,"s":"archive","at":9,"ws":7,"wd":270,"wc":3,"pr":1.5},"n2":{"t":19,"s":"archive","at":18,"ws":6,"wd":180,"wc":1,"pr":0},"n3":{"at":21,"ws":8,"wd":90,"wc":0,"pr":0},"n4":{"t":25,"s":"archive","at":24,"ws":11,"wd":0,"wc":0,"pr":0}}' \
+    > "$TMP/sa_cache.json"
+
+jq -c --slurpfile wc "$TMP/sa_cache.json" '
+  . as $r |
+  ($wc[0][.id|tostring]) as $c |
+  if ($c | type) != "object" then .
+  elif $r.average_temp == null and ($c.t != null) then
+    . + {average_temp:$c.t, temp_source:$c.s,
+         apparent_temp:($c.at//null), wind_speed:($c.ws//null),
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  elif $r.temp_source == "forecast" and $c.s == "archive" and ($c.t != null) then
+    . + {average_temp:$c.t, temp_source:"archive",
+         apparent_temp:($c.at//null), wind_speed:($c.ws//null),
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  elif $r.wind_speed == null and ($c.ws != null) then
+    . + {apparent_temp:($c.at//null), wind_speed:$c.ws,
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  else . end
+' "$TMP/sa_store.ndjson" > "$TMP/sa_out.ndjson"
+
+_sa() { jq -r "select(.id==\"$1\") | $2" "$TMP/sa_out.ndjson"; }
+
+assert_eq "$S" "n1 null-temp filled"         "$(_sa n1 .average_temp)"  "10"
+assert_eq "$S" "n1 temp_source set"          "$(_sa n1 .temp_source)"   "archive"
+assert_eq "$S" "n1 wind_speed filled"        "$(_sa n1 .wind_speed)"    "7"
+assert_eq "$S" "n2 forecast upgraded"        "$(_sa n2 .temp_source)"   "archive"
+assert_eq "$S" "n2 temp upgraded to 19"      "$(_sa n2 .average_temp)"  "19"
+assert_eq "$S" "n3 extended fields added"    "$(_sa n3 .wind_speed)"    "8"
+assert_eq "$S" "n3 temp unchanged"           "$(_sa n3 .average_temp)"  "22"
+assert_eq "$S" "n4 already full unchanged"   "$(_sa n4 .wind_speed)"    "12"
 
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
