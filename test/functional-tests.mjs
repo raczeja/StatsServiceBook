@@ -1761,6 +1761,36 @@ async function testStatsSportFilter(page, jsErrors) {
     assert.equal(sport, "Ride", `expected default sport "Ride", got "${sport}"`);
   });
 
+  // KPI: Activities card subtitle shows "18 / N days" (18 active days for Ride 2026)
+  await check(S, "kpi-activities-days-subtitle", async () => {
+    const val = await page.evaluate(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Activities"))
+          return k.querySelector(".s")?.textContent.trim() || null;
+      }
+      return null;
+    });
+    assert.ok(val && /^18 \/ \d+ days$/.test(val),
+      `expected Activities subtitle to match "18 / N days", got "${val}"`);
+  });
+
+  // KPI: Activities card tooltip mentions active days on hover
+  await check(S, "kpi-activities-tooltip", async () => {
+    const cardHandle = await page.evaluateHandle(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Activities")) return k;
+      }
+      return null;
+    });
+    assert.ok(cardHandle, "Activities KPI card not found");
+    await cardHandle.hover();
+    await page.evaluate(() => new Promise(function(r){ setTimeout(r, 100); }));
+    const tipText = await page.$eval("#tip", function(el){ return el.textContent; });
+    assert.ok(tipText && tipText.includes("active days"),
+      `expected tooltip to mention "active days", got "${tipText}"`);
+    await page.mouse.move(0, 0);
+  });
+
   // Switch to Run and verify KPI Activities changes
   await check(S, "switch-to-run-updates-kpis", async () => {
     const rideCounts = await page.evaluate(() => {

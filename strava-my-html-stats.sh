@@ -300,7 +300,9 @@ function drawBars(svgId, bars, viewW, viewH){
     return '<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+bh+'"'+
            ' fill="'+fill+'" rx="1"'+
            ' onmouseenter="showTip(event,'+esc(JSON.stringify(tipTxt))+')"'+
-           ' onmousemove="moveTip(event)" onmouseleave="hideTip()" style="cursor:default"/>'+
+           ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
+           ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+esc(JSON.stringify(tipTxt))+')"'+
+           ' ontouchend="setTimeout(hideTip,1500)" style="cursor:default"/>'+
       (bh>14?'<text x="'+(x+bw/2)+'" y="'+(y-2)+'"'+
              ' text-anchor="middle" font-size="8.5" fill="#555">'+fmtKmD(b.val||0)+'</text>':'')+
       '<text x="'+(x+bw/2)+'" y="'+(viewH-3)+'"'+
@@ -328,17 +330,45 @@ function render(){
 
   // --- KPI cards ---
   var a = agg(fyAll), apw = avgPerWeek(fyAll, selYear||yrStr);
+  var _daySet={};
+  fyAll.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
+  var nDays = Object.keys(_daySet).length;
+  var _pDays = (function(){
+    var now = new Date(), curY = now.getFullYear();
+    if(isAll){
+      var ds = ALL_ACTS.map(function(x){return x.date;}).filter(Boolean).sort();
+      if(!ds.length) return 0;
+      var d1 = new Date(ds[0].slice(0,4)+"-01-01T12:00:00");
+      return Math.round((now-d1)/86400000)+1;
+    }
+    var yr = +selYear;
+    if(yr===curY){
+      var jan1 = new Date(curY+"-01-01T12:00:00");
+      return Math.round((now-jan1)/86400000)+1;
+    }
+    return (yr%4===0&&(yr%100!==0||yr%400===0))?366:365;
+  })();
   document.getElementById("kpis").innerHTML = [
     {k:"Distance",        v:fmtKm(a.distM)+" km"},
     {k:"Moving time",     v:fmtH(a.secs)},
     {k:"Elevation",       v:fmtInt(Math.round(a.elev))+" m"},
-    {k:"Activities",      v:fmtInt(a.n)},
+    {k:"Activities",      v:fmtInt(a.n), s:nDays+" / "+_pDays+" days",
+     tip:nDays+" active days out of "+_pDays+" calendar days in period"},
     {k:"Avg km / week",   v:fmtKmD(apw)+" km"},
     {k:"Avg km / activity",v:a.n?fmtKmD(a.distM/1000/a.n)+" km":"—"},
     {k:"Avg speed",       v:fmtSpd(a.distM,a.secs)}
   ].map(function(kp){
-    return '<div class="kpi"><div class="k">'+esc(kp.k)+'</div>'+
-           '<div class="v">'+kp.v+'</div></div>';
+    var ta = kp.tip
+      ? ' onmouseenter="showTip(event,'+esc(JSON.stringify(kp.tip))+')"'+
+        ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
+        ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+esc(JSON.stringify(kp.tip))+')"'+
+        ' ontouchend="setTimeout(hideTip,1500)"'
+      : '';
+    return '<div class="kpi"'+ta+'>'+
+           '<div class="k">'+esc(kp.k)+'</div>'+
+           '<div class="v">'+kp.v+'</div>'+
+           (kp.s?'<div class="s">'+esc(kp.s)+'</div>':'')+
+           '</div>';
   }).join("");
 
   // --- Year overview table ---
