@@ -47,6 +47,7 @@ command -v jq   >/dev/null 2>&1 || die "jq not installed (opkg install jq)"
 GPX_DIR="$WEB_DIR/gpx"
 DETAIL_DIR="$WEB_DIR/details"
 STORE="$STATE_DIR/activities.ndjson"
+WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TOKEN_STATE="$STATE_DIR/gdrive-token.json"
 GEARS_CACHE="$STATE_DIR/gears-strava-cache.json"
 
@@ -788,54 +789,42 @@ fi
 TOTAL="$(wc -l < "$STORE" | tr -d ' ')"
 log "store: +$ADDED new, $TOTAL total"
 
-# Backfill average_temp for records with null temp (archive + forecast fallback),
-# and upgrade forecast temps to archive once archive data becomes available
-# (~7 days after the activity date). Only null-temp and forecast-sourced records
-# are touched; archive temps and pre-existing records without temp_source are left.
-_bf_count=0
-: > "$TMP/store_patched.ndjson"
-while IFS= read -r _line; do
-    _bf_case=$(printf '%s' "$_line" | jq -r \
-        'if .average_temp == null then "null"
-         elif (.temp_source == "forecast" and .date <= (now - 604800 | strftime("%Y-%m-%d"))) then "upgrade"
-         else "" end' 2>/dev/null || true)
-    if [ -n "$_bf_case" ]; then
-        _d=$(printf '%s' "$_line" | jq -r '.date')
-        _gf=$(printf '%s' "$_line" | jq -r '.gpx_file // ""')
-        _bl="" _blon=""
-        if [ -n "$_gf" ] && [ -f "$WEB_DIR/$_gf" ]; then
-            _bl=$(grep '<trkpt' "$WEB_DIR/$_gf" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
-            _blon=$(grep '<trkpt' "$WEB_DIR/$_gf" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
-        fi
-        [ -z "$_bl" ] && _bl="${WEATHER_LAT:-}"
-        [ -z "$_blon" ] && _blon="${WEATHER_LON:-}"
-        if [ -n "$_bl" ] && [ -n "$_blon" ]; then
-            _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
-            [ "$_bf_case" = "upgrade" ] && _fw_archive_only=1
-            _t2=$(fetch_weather_temp "$_bl" "$_blon" "$_d" || true)
-            _fw_archive_only=0
-            if [ -n "$_t2" ]; then
-                _line=$(printf '%s' "$_line" | jq \
-                    --argjson t   "$_t2" \
-                    --arg     src "$_fw_temp_source" \
-                    --argjson at  "${_fw_apparent_temp:-null}" \
-                    --argjson ws  "${_fw_wind_speed:-null}" \
-                    --argjson wd  "${_fw_wind_dir:-null}" \
-                    --argjson wc  "${_fw_weathercode:-null}" \
-                    --argjson pr  "${_fw_precipitation:-null}" \
-                    '.average_temp = $t | .temp_source = $src |
-                     .apparent_temp = $at | .wind_speed = $ws | .wind_dir = $wd |
-                     .weathercode = $wc | .precipitation = $pr')
-                _bf_count=$((_bf_count + 1))
-            fi
-        fi
-    fi
-    printf '%s\n' "$_line"
-done < "$STORE" > "$TMP/store_patched.ndjson"
-mv "$TMP/store_patched.ndjson" "$STORE"
-if [ "$_bf_count" -gt 0 ]; then
-    log "weather: backfilled/upgraded temp for $_bf_count activities"
-    ADDED=$((ADDED + _bf_count))
+# Seed weather cache from store records that already have full weather data,
+# then run the shared backfill (null-temp, enrichment, forecast→archive upgrade),
+# then apply any cache changes back to store records.
+log "weather: seeding cache from store..."
+[ -f "$WEATHER_CACHE" ] || printf '{}' > "$WEATHER_CACHE"
+jq -sc 'map(select(.average_temp != null and .wind_speed != null) |
+    {(.id|tostring): {t:.average_temp, s:(.temp_source // "device"),
+                      at:.apparent_temp, ws:.wind_speed, wd:.wind_dir,
+                      wc:.weathercode,  pr:.precipitation}}) |
+    add // {}' "$STORE" > "$TMP/wc_from_store.json"
+jq -s '.[0] + .[1]' "$TMP/wc_from_store.json" "$WEATHER_CACHE" > "$WEATHER_CACHE.tmp" \
+    && mv "$WEATHER_CACHE.tmp" "$WEATHER_CACHE"
+
+run_weather_backfill "$STORE" "$WEATHER_CACHE" "$TMP" "$DETAIL_DIR" "$WEB_DIR"
+
+jq -c --slurpfile wc "$WEATHER_CACHE" '
+  . as $r |
+  ($wc[0][.id|tostring]) as $c |
+  if ($c | type) != "object" then .
+  elif $r.average_temp == null and ($c.t != null) then
+    . + {average_temp:$c.t, temp_source:$c.s,
+         apparent_temp:($c.at//null), wind_speed:($c.ws//null),
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  elif $r.temp_source == "forecast" and $c.s == "archive" and ($c.t != null) then
+    . + {average_temp:$c.t, temp_source:"archive",
+         apparent_temp:($c.at//null), wind_speed:($c.ws//null),
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  elif $r.wind_speed == null and ($c.ws != null) then
+    . + {apparent_temp:($c.at//null), wind_speed:$c.ws,
+         wind_dir:($c.wd//null), weathercode:($c.wc//null), precipitation:($c.pr//null)}
+  else . end
+' "$STORE" > "$TMP/store_weather.ndjson" \
+    && mv "$TMP/store_weather.ndjson" "$STORE"
+if [ "${_rw_changed:-0}" -gt 0 ]; then
+    log "weather: backfilled/upgraded ${_rw_changed} activities"
+    ADDED=$((ADDED + _rw_changed))
 fi
 
 # --- 4. Write per-activity detail files -------------------------------------

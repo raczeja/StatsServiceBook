@@ -57,6 +57,14 @@ scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
   && ssh root@192.168.1.1 strava-my-activities
 ```
 
+For the HealthSync script (also push `strava-lib.sh` — it holds the shared weather backfill):
+
+```powershell
+scp healthsync-activities.sh root@192.168.1.1:/usr/bin/healthsync-activities `
+  && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
+  && ssh root@192.168.1.1 healthsync-activities
+```
+
 For the club leaderboard script:
 
 ```powershell

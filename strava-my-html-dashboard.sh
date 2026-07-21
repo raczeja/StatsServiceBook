@@ -349,7 +349,9 @@ function drawBars(svgId, vals, selMonth, decimals, avg, tooltipData) {
     var labelY = chartH - barH - 3;
     if (barH > 0) {
       var tipAttrs = tooltipData && tooltipData[i]
-        ? ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()" style="cursor:pointer"'
+        ? ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()"'+
+          ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+i+')" ontouchend="setTimeout(hideTip,1500)"'+
+          ' style="cursor:pointer"'
         : '';
       html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="#fc4c02" opacity="'+opacity+'" rx="2"'+tipAttrs+'/>';
       if (label && barH > 12) {
