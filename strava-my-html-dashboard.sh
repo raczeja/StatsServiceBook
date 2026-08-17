@@ -51,13 +51,13 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   #drive-banner a{background:#fc4c02;color:#fff;padding:.3rem .7rem;border-radius:.35rem;text-decoration:none;font-size:.85rem;white-space:nowrap}
   #drive-banner a:hover{background:#d94202}
   #drive-token{font-size:.75rem;color:#888;text-align:center;margin:.15rem 0}
-  #drive-token.ok{color:#5a9a6a}#drive-token.err{color:#c0392b}
+  #drive-token.ok{color:#5a9a6a}#drive-token.stale{color:#b07800}#drive-token.err{color:#c0392b}
 </style>
 </head>
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
-<div id="drive-banner"><span>Google Drive access expired &mdash; activities may be out of date.</span> <a href="/cgi-bin/drive-auth">Re-authorize Drive</a></div>
+<div id="drive-banner"><span id="drive-banner-msg">Google Drive check failed.</span> <a href="/cgi-bin/drive-auth">Re-authorize</a></div>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a></h1></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
@@ -685,24 +685,22 @@ fetch("drive-status.json", { cache:"no-store" })
   .then(function(d){
     if (!d) return;
     var b=document.getElementById("drive-banner");
+    var bm=document.getElementById("drive-banner-msg");
     var t=document.getElementById("drive-token");
+    var ts=d.checked_at||d.lastSync;
+    var age=ts?Math.floor(Date.now()/1000)-ts:null;
+    var ageStr=age===null?"never":age<120?"just now":age<3600?Math.floor(age/60)+"m ago":age<86400?Math.floor(age/3600)+"h ago":Math.floor(age/86400)+"d ago";
     if (d.ok===false){
+      var errMsg=d.error||"unknown error";
       if(b) b.classList.add("visible");
-      if(t){ t.className="err"; t.textContent="Google Drive: connection error — "+(d.error||"unknown"); }
+      if(bm) bm.textContent="Google Drive check failed: "+errMsg+".";
+      if(t){ t.className="err"; t.textContent="Drive: "+errMsg+" · checked "+ageStr; }
     } else {
-      var parts=["Google Drive: connected"];
-      if(d.expires_at){
-        var secs=d.expires_at - Math.floor(Date.now()/1000);
-        if(secs>0){ var h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60); parts.push("token valid for "+(h>0?h+"h ":"")+m+"m"); }
-        else { parts.push("token expired"); }
-      }
-      if(d.lastSync){
-        var age=Math.floor(Date.now()/1000)-d.lastSync;
-        var ageStr=age<120?"just now":age<3600?Math.floor(age/60)+"m ago":age<86400?Math.floor(age/3600)+"h ago":Math.floor(age/86400)+"d ago";
-        parts.push("last sync: "+ageStr);
-      }
-      if(d.mode) parts.push("mode: "+d.mode);
-      if(t){ t.className="ok"; t.textContent=parts.join(" · "); }
+      var stale=age!==null && age>86400;
+      var parts=[stale?"Drive: last check "+ageStr+" — may be outdated":"Drive: reachable"];
+      if(d.file_count!=null) parts.push(d.file_count+" files");
+      if(!stale) parts.push("checked "+ageStr);
+      if(t){ t.className=stale?"stale":"ok"; t.textContent=parts.join(" · "); }
     }
   })
   .catch(function(){});

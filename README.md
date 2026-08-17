@@ -218,12 +218,12 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   refresh fails, `healthsync-activities.sh` writes `drive-status.json` with
   `{"ok":false}` to the web dir and the My Activities dashboard shows a yellow
   **"Google Drive access expired"** banner with a **"Re-authorize Drive"** link.
-  Clicking the link opens `/cgi-bin/drive-auth` — a tiny CGI (installed
-  automatically by `healthsync-activities.sh`) that walks through the OAuth
-  **device authorization flow**: it displays a short code and a URL; you open the
-  URL on any device, enter the code, and the CGI polls until a new refresh token
-  arrives. The new token is written back to the config file automatically — no
-  SSH session needed. The banner clears on the next successful run.
+  To re-authorize: open [OAuth Playground](https://developers.google.com/oauthplayground),
+  repeat Step E from [config-healthsync.example](config-healthsync.example) to get
+  a new refresh token, then SSH into the router and update `GOOGLE_REFRESH_TOKEN`
+  in `/etc/healthsync-activities.conf`. The banner clears on the next successful run.
+  (Google no longer supports the device authorization flow for Drive scopes, so the
+  `/cgi-bin/drive-auth` CGI link is non-functional — use the OAuth Playground path above.)
 
 - **Bike service tracker (My Activities).** A separate page at
   `http://<router-ip>/strava/me/bike.html` (linked from the My Activities footer)
@@ -368,7 +368,7 @@ cp config-healthsync.example healthsync.conf
 
 Edit `healthsync.conf` and set:
 
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — create a Desktop-app OAuth client in [Google Cloud Console](https://console.cloud.google.com/) (Drive API enabled, yourself as test user), then follow the device-flow steps in [config-healthsync.example](config-healthsync.example) to get a refresh token
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` — create a **Web application** OAuth client in [Google Cloud Console](https://console.cloud.google.com/) (Drive API enabled, yourself as test user, add `https://developers.google.com/oauthplayground` as an authorized redirect URI), then use [OAuth Playground](https://developers.google.com/oauthplayground) with your own credentials to get a refresh token — full step-by-step in [config-healthsync.example](config-healthsync.example)
 - `DRIVE_FOLDER_ID` — the ID of the Drive folder where healthsync.app exports files
 - `HEALTHSYNC_STATE_DIR="/state"` — change from the OpenWrt default
 - `HEALTHSYNC_BIKE_DATA="/state/bike-service.json"`
@@ -455,7 +455,7 @@ The exact `-StateDir` path is printed when `-KeepOutput` is used.
 - `drive-status.json: ok` — Google OAuth token is valid
 - Browser opens at `http://localhost:8088/strava/me/` — verify dashboard, activity detail (cadence/elevation/HR charts), stats, bike tracker
 
-**If the Drive token has expired** the script automatically starts an OAuth re-authorization flow in your browser and updates `config-healthsync.conf` with the new refresh token.
+**If the Drive token has expired** get a new refresh token via [OAuth Playground](https://developers.google.com/oauthplayground) (Step E in [config-healthsync.example](config-healthsync.example)) and update `GOOGLE_REFRESH_TOKEN` in your config file before re-running.
 
 > **Note:** the script uses a wrapper config that sources your credentials and forces container-local paths, so the path variables in `config-healthsync.conf` are ignored inside the container — output always goes to a temp dir and is cleaned up on exit unless you pass `-KeepOutput`.
 
@@ -751,7 +751,7 @@ saving CGI is installed). The bike page is at **`http://<router-ip>/strava/me/bi
 
 **HealthSync / Google Drive (Strava-API-free alternative):**
 
-Before editing the config, get a Google Drive refresh token using the quick browser flow documented at the top of [config-healthsync.example](config-healthsync.example): open the pre-filled authorization URL, click Allow, copy the `code` from the redirect, and exchange it with one `curl` command. No Google Cloud project required.
+Before editing the config, get a Google Drive refresh token via [OAuth Playground](https://developers.google.com/oauthplayground). You need a **Web application** OAuth client in Google Cloud Console with `https://developers.google.com/oauthplayground` as an authorized redirect URI. Full step-by-step in [config-healthsync.example](config-healthsync.example).
 
 ```sh
 vi /etc/healthsync-activities.conf   # fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
@@ -1117,7 +1117,7 @@ sh /tmp/strava/install.sh
 | My activities token state     | `$STRAVA_MY_STATE_DIR/token.json` (chmod 600)                             |
 | My activities log             | `/var/log/strava-my-activities.log`                                       |
 | HealthSync Drive auth status  | `$HEALTHSYNC_WEB_DIR/drive-status.json` (`ok:true` / `ok:false`)          |
-| HealthSync re-auth CGI        | `http://<router-ip>/cgi-bin/drive-auth` (device authorization flow)       |
+| HealthSync re-auth CGI        | `http://<router-ip>/cgi-bin/drive-auth` (non-functional — device flow blocked for Drive scopes; use OAuth Playground + SSH instead) |
 | HealthSync log                | `/var/log/healthsync-activities.log`                                      |
 
 ## Limitations & notes

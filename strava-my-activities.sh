@@ -22,6 +22,13 @@ CONFIG="${STRAVA_MY_CONFIG:-/etc/strava-my-activities.conf}"
 # shellcheck disable=SC1090
 . "$CONFIG"
 
+# Optionally source the HealthSync config to pick up Google Drive credentials
+# (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN / DRIVE_FOLDER_ID)
+# so the Drive connectivity check works without duplicating secrets.
+DRIVE_CHECK_CONFIG="${DRIVE_CHECK_CONFIG:-/etc/healthsync-activities.conf}"
+# shellcheck disable=SC1090
+[ -f "$DRIVE_CHECK_CONFIG" ] && . "$DRIVE_CHECK_CONFIG" || true
+
 : "${STRAVA_CLIENT_ID:?set STRAVA_CLIENT_ID in $CONFIG}"
 : "${STRAVA_CLIENT_SECRET:?set STRAVA_CLIENT_SECRET in $CONFIG}"
 : "${STRAVA_REFRESH_TOKEN:?set STRAVA_REFRESH_TOKEN in $CONFIG}"
@@ -452,4 +459,54 @@ log "html: rendering pages..."
 . "$STRAVA_LIBDIR/strava-my-html-stats.sh"
 
 log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/stats.html and $WEB_DIR/activities.json"
+
+# --- 7. Google Drive connectivity check (optional) ----------------------------
+# Refreshes the Google OAuth token and lists the Drive folder to verify access.
+# Only runs when GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN /
+# DRIVE_FOLDER_ID are set in the config. No files are downloaded.
+_gci="${GOOGLE_CLIENT_ID:-}"
+_gcs="${GOOGLE_CLIENT_SECRET:-}"
+_grt="${GOOGLE_REFRESH_TOKEN:-}"
+_dfi="${DRIVE_FOLDER_ID:-}"
+if [ -n "$_gci" ] && [ -n "$_gcs" ] && [ -n "$_grt" ] && [ -n "$_dfi" ]; then
+    log "drive check: refreshing token..."
+    _dr="$TMP/drive_tok.json"
+    if ! curl_retry -fsS https://oauth2.googleapis.com/token \
+        -d "client_id=$_gci" -d "client_secret=$_gcs" \
+        -d "refresh_token=$_grt" -d "grant_type=refresh_token" \
+        -o "$_dr"; then
+        log "drive check: token refresh failed"
+        printf '{"ok":false,"error":"token refresh failed","checked_at":%s}\n' \
+            "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+    else
+        _acc="$(jq -r '.access_token // empty' "$_dr" 2>/dev/null || true)"
+        _exp_in="$(jq -r '.expires_in // 3600' "$_dr" 2>/dev/null || echo 3600)"
+        _exp_at="$(( $(date +%s) + _exp_in ))"
+        if [ -z "$_acc" ]; then
+            log "drive check: no access_token in response"
+            printf '{"ok":false,"error":"no access token in refresh response","checked_at":%s}\n' \
+                "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+        else
+            log "drive check: listing Drive folder..."
+            _lf="$TMP/drive_list.json"
+            _q="'${_dfi}'+in+parents+and+trashed=false"
+            if ! curl_retry -fsS \
+                -H "Authorization: Bearer $_acc" \
+                "https://www.googleapis.com/drive/v3/files?q=${_q}&fields=files(id,name)&pageSize=1000" \
+                -o "$_lf"; then
+                log "drive check: file listing failed"
+                printf '{"ok":false,"error":"Drive file listing failed","checked_at":%s,"expires_at":%s}\n' \
+                    "$(date +%s)" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+            else
+                _cnt="$(jq '.files | length' "$_lf" 2>/dev/null || echo 0)"
+                log "drive check: ok ($_cnt files visible)"
+                printf '{"ok":true,"checked_at":%s,"file_count":%s,"expires_at":%s}\n' \
+                    "$(date +%s)" "$_cnt" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+            fi
+        fi
+    fi
+else
+    log "drive check: GOOGLE_CLIENT_ID/REFRESH_TOKEN/DRIVE_FOLDER_ID not set, skipping"
+fi
+
 log "done."

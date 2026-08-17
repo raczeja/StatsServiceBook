@@ -15,29 +15,36 @@
 #   Fill in app name, support email, developer contact → Save and Continue
 #   Publishing status: leave as "Testing"
 #
-# STEP C — Create a Desktop app OAuth 2.0 credential
+# STEP C — Create a Web application OAuth 2.0 credential
 #   APIs & Services → Credentials → + Create Credentials → OAuth client ID
-#   Application type: Desktop app  ← MUST be Desktop app, not Web application
+#   Application type: Web application
+#   Under "Authorized redirect URIs" add: https://developers.google.com/oauthplayground
 #   Copy Client ID and Client Secret → paste into GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
 #
 # STEP D — Add yourself as a test user
 #   OAuth consent screen → Test users → + Add Users → your Gmail → Save
 #
-# STEP E — Get the refresh token (on Windows, run-healthsync-podman.ps1 handles
-#           this automatically when the token expires; it opens the browser and
-#           writes the new token back to this file. On Linux/Mac, use the OAuth
-#           Playground: https://developers.google.com/oauthplayground
-#             1. Gear icon → check "Use your own OAuth credentials"
-#             2. Enter your CLIENT_ID and CLIENT_SECRET
-#             3. In the left pane expand "Drive API v3", select
-#                https://www.googleapis.com/auth/drive.readonly, click Authorize
-#             4. Click "Exchange authorization code for tokens"
-#             5. Copy the "Refresh token" value → GOOGLE_REFRESH_TOKEN below.
+# STEP E — Get the refresh token via OAuth Playground
+#   Open https://developers.google.com/oauthplayground
+#     1. Gear icon (top-right) → check "Use your own OAuth credentials"
+#     2. Enter the CLIENT_ID and CLIENT_SECRET from Step C
+#     3. In the left pane expand "Drive API v3", select
+#        https://www.googleapis.com/auth/drive.readonly → click "Authorize APIs"
+#     4. Sign in with your Google account (the test user added in Step D)
+#     5. Click "Exchange authorization code for tokens"
+#     6. Copy the "Refresh token" value → paste into GOOGLE_REFRESH_TOKEN below
 #
-# NOTE: Refresh tokens from apps in "Testing" status expire after 7 days.
-# Re-run the auth step (or just re-run run-healthsync-podman.ps1 on Windows)
+# NOTE: Refresh tokens from apps in "Testing" status expire after 7 days of
+# inactivity. Repeat Step E and update GOOGLE_REFRESH_TOKEN in this file
 # if the script fails with "Drive token refresh failed".
 # To get non-expiring tokens: OAuth consent screen → Publish App.
+#
+# RE-AUTHORIZATION ON THE ROUTER: Google no longer supports the device
+# authorization flow for Drive scopes, so the router's /cgi-bin/drive-auth
+# CGI cannot complete a re-auth by itself. When the token expires, repeat
+# Step E on your PC to get a new refresh token, then update the config:
+#   ssh root@<router-ip> "sed -i 's/GOOGLE_REFRESH_TOKEN=.*/GOOGLE_REFRESH_TOKEN=\"<new_token>\"/' /etc/healthsync-activities.conf"
+# Or just edit /etc/healthsync-activities.conf manually over SSH.
 
 GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET"
