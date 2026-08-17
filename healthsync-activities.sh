@@ -1014,7 +1014,7 @@ fi
 
 # Start device authorization flow
 mkdir -p "$STATE_DIR" 2>/dev/null || true
-dc_resp="$(curl -fsS --max-time 15 https://accounts.google.com/o/oauth2/device/code \
+dc_resp="$(curl -fsS --max-time 15 https://oauth2.googleapis.com/device/code \
     -d "client_id=$GOOGLE_CLIENT_ID" \
     -d "scope=https://www.googleapis.com/auth/drive.readonly" 2>/dev/null || true)"
 user_code="$(printf '%s' "$dc_resp" | jq -r '.user_code // empty' 2>/dev/null || true)"

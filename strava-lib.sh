@@ -318,17 +318,6 @@ check_session_cookie_status() {
     "$STRAVA_SESSION_COOKIE" >> "$_sc_cookie_file"
   chmod 600 "$_sc_cookie_file"
 
-  # Reuse cached CSRF token if < 25 days old.
-  if [ -f "$_sc_csrf" ] && [ -f "$_sc_age" ]; then
-    _sc_ts="$(cat "$_sc_age" 2>/dev/null || echo 0)"
-    case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
-    if [ "$(( $(date +%s) - _sc_ts ))" -lt 2160000 ]; then
-      log "cookie dry-run: CSRF cache fresh ($(( ( $(date +%s) - _sc_ts ) / 86400 ))d old) — session assumed valid"
-      _sc_check_valid=1
-      return 0
-    fi
-  fi
-
   log "cookie dry-run: verifying session cookie via Strava dashboard..."
   if ! curl_retry -fsS \
     -b "$_sc_cookie_file" \
