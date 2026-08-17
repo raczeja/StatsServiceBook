@@ -409,65 +409,64 @@ done < "$TMP/club_ids.txt"
 _sc_dry_run_feed_ok=0
 _sc_dry_run_meta='null'
 if [ "$_scrape_dry_run" = "1" ]; then
-  if [ "$_sc_check_valid" = "1" ]; then
-    _sc_dry_run_feed_ok=1
-    log "cookie dry-run: probing club scrape feed for all clubs (not saving)..."
-    while IFS= read -r _dr_club; do
-      _dr_club="$(printf '%s' "$_dr_club" | tr -d ' \t')"
-      [ -n "$_dr_club" ] || continue
-      _dr_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
-      _dr_url="https://www.strava.com/clubs/$_dr_club/feed?feed_type=club&club_id=$_dr_club"
-      _dr_cursor=""
-      _dr_page=1
-      _dr_total_acts=0
-      while [ "$_dr_page" -le "$MAX_PAGES" ]; do
-        [ -n "$_dr_cursor" ] && _dr_url="${_dr_url%%\?*}?feed_type=club&club_id=$_dr_club&before=$_dr_cursor&cursor=$_dr_cursor"
-        if ! curl_retry -fsS \
-          -b "$STATE_DIR/strava_cookies.txt" \
-          -H "accept: application/json, text/plain, */*" \
-          -H "x-requested-with: XMLHttpRequest" \
-          -H "x-csrf-token: $_dr_csrf" \
-          -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
-          "$_dr_url" \
-          -o "$TMP/dr_feed_${_dr_club}.json" 2>/dev/null; then
-          log "cookie dry-run: club $_dr_club page $_dr_page — network error"
-          _sc_dry_run_feed_ok=0; break
-        fi
-        if ! jq -e '.entries' "$TMP/dr_feed_${_dr_club}.json" >/dev/null 2>&1; then
-          log "cookie dry-run: club $_dr_club page $_dr_page — response not valid JSON (session may have expired)"
-          _sc_dry_run_feed_ok=0; break
-        fi
-        _dr_count="$(jq '.entries | length' "$TMP/dr_feed_${_dr_club}.json")"
-        _dr_acts="$(jq '[.entries[] | select(.entity == "Activity")] | length' "$TMP/dr_feed_${_dr_club}.json")"
-        _dr_total_acts=$((_dr_total_acts + _dr_acts))
-        log "cookie dry-run: club $_dr_club page $_dr_page — $_dr_count entries, $_dr_acts activities (not saved)"
-        [ "$_dr_count" -gt 0 ] || break
-        _dr_cursor="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/dr_feed_${_dr_club}.json")"
-        [ "$_dr_count" -lt "$PER_PAGE" ] && break
-        _dr_page=$((_dr_page + 1))
-      done
-      [ "$_sc_dry_run_feed_ok" = "1" ] && \
-        log "cookie dry-run: club $_dr_club — $_dr_total_acts activities fetched via scrape (not saved)"
-    done < "$TMP/club_ids.txt"
-  fi
+  # Always probe the feed regardless of cookie validity — report both results.
+  _sc_dry_run_feed_ok=1
+  log "cookie dry-run: probing club scrape feed for all clubs (not saving)..."
+  while IFS= read -r _dr_club; do
+    _dr_club="$(printf '%s' "$_dr_club" | tr -d ' \t')"
+    [ -n "$_dr_club" ] || continue
+    _dr_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
+    _dr_url="https://www.strava.com/clubs/$_dr_club/feed?feed_type=club&club_id=$_dr_club"
+    _dr_cursor=""
+    _dr_page=1
+    _dr_total_acts=0
+    while [ "$_dr_page" -le "$MAX_PAGES" ]; do
+      [ -n "$_dr_cursor" ] && _dr_url="${_dr_url%%\?*}?feed_type=club&club_id=$_dr_club&before=$_dr_cursor&cursor=$_dr_cursor"
+      if ! curl_retry -fsS \
+        -b "$STATE_DIR/strava_cookies.txt" \
+        -H "accept: application/json, text/plain, */*" \
+        -H "x-requested-with: XMLHttpRequest" \
+        -H "x-csrf-token: $_dr_csrf" \
+        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+        "$_dr_url" \
+        -o "$TMP/dr_feed_${_dr_club}.json" 2>/dev/null; then
+        log "cookie dry-run: club $_dr_club page $_dr_page — network error"
+        _sc_dry_run_feed_ok=0; break
+      fi
+      if ! jq -e '.entries' "$TMP/dr_feed_${_dr_club}.json" >/dev/null 2>&1; then
+        log "cookie dry-run: club $_dr_club page $_dr_page — response not valid JSON (session may have expired)"
+        _sc_dry_run_feed_ok=0; break
+      fi
+      _dr_count="$(jq '.entries | length' "$TMP/dr_feed_${_dr_club}.json")"
+      _dr_acts="$(jq '[.entries[] | select(.entity == "Activity")] | length' "$TMP/dr_feed_${_dr_club}.json")"
+      _dr_total_acts=$((_dr_total_acts + _dr_acts))
+      log "cookie dry-run: club $_dr_club page $_dr_page — $_dr_count entries, $_dr_acts activities (not saved)"
+      [ "$_dr_count" -gt 0 ] || break
+      _dr_cursor="$(jq -r '(.entries[-1].cursorData.updated_at | floor | tostring)' "$TMP/dr_feed_${_dr_club}.json")"
+      [ "$_dr_count" -lt "$PER_PAGE" ] && break
+      _dr_page=$((_dr_page + 1))
+    done
+    [ "$_sc_dry_run_feed_ok" = "1" ] && \
+      log "cookie dry-run: club $_dr_club — $_dr_total_acts activities fetched via scrape (not saved)"
+  done < "$TMP/club_ids.txt"
 
-  # Build _sc_dry_run_meta now that the probe result is known.
-  if [ "$_sc_check_valid" = "1" ]; then
-    _sc_ts="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
-    case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
-    if [ "$_sc_ts" -gt 0 ]; then
-      _sc_dry_run_meta="$(jq -n --argjson ts "$_sc_ts" --argjson feedOk "$_sc_dry_run_feed_ok" '{
-        cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
-        cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0]),
-        dryRun:                true,
-        cookieValid:           true,
-        feedTestOk:            ($feedOk == 1)
-      }')"
-    else
-      _sc_dry_run_meta='{"dryRun":true,"cookieValid":true,"feedTestOk":false}'
-    fi
+  # Build _sc_dry_run_meta reflecting both the cookie check and feed probe results.
+  _sc_ts="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
+  case "$_sc_ts" in ''|*[!0-9]*) _sc_ts=0 ;; esac
+  if [ "$_sc_ts" -gt 0 ]; then
+    _sc_dry_run_meta="$(jq -n --argjson ts "$_sc_ts" --argjson cookieOk "$_sc_check_valid" --argjson feedOk "$_sc_dry_run_feed_ok" '{
+      cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+      cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0]),
+      dryRun:                true,
+      cookieValid:           ($cookieOk == 1),
+      feedTestOk:            ($feedOk == 1)
+    }')"
   else
-    _sc_dry_run_meta='{"dryRun":true,"cookieValid":false,"feedTestOk":false}'
+    _sc_dry_run_meta="$(jq -n --argjson cookieOk "$_sc_check_valid" --argjson feedOk "$_sc_dry_run_feed_ok" '{
+      dryRun:      true,
+      cookieValid: ($cookieOk == 1),
+      feedTestOk:  ($feedOk == 1)
+    }')"
   fi
 fi
 

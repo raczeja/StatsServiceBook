@@ -280,17 +280,21 @@ async function testMyActivities(page, jsErrors) {
     );
   });
   await check(S, "drive-token-connected", async () => {
-    // drive-status.json has ok:true + expires_at → token status line must show "connected"
+    // drive-status.json has ok:true + file_count + expires_at → status line must show "Drive: reachable"
     await page.waitForFunction(
-      () => document.getElementById("drive-token")?.textContent.includes("Google Drive"),
+      () => document.getElementById("drive-token")?.textContent.includes("Drive:"),
       { timeout: 5000 },
     ).catch(() => {});
     const text = await page
       .$eval("#drive-token", (el) => el.textContent)
       .catch(() => "");
     assert.ok(
-      text.includes("Google Drive: connected"),
-      `expected "Google Drive: connected" in #drive-token: "${text}"`,
+      text.includes("Drive: reachable"),
+      `expected "Drive: reachable" in #drive-token: "${text}"`,
+    );
+    assert.ok(
+      text.includes("42 files"),
+      `expected "42 files" in #drive-token: "${text}"`,
     );
   });
 }

@@ -101,6 +101,23 @@ STRAVA_MY_PRUNE_DELETED="1"
 # not touched; only the HTML/JSON output files are regenerated.
 #STRAVA_MY_IMPORT_ENABLED="1"
 
+# --- Google Drive connectivity check (optional) -----------------------------
+# Each run refreshes the Google OAuth token and lists the Drive folder, then
+# writes drive-status.json so the dashboard shows a live Drive health indicator.
+# No files are downloaded — this is a connectivity check only.
+#
+# By default the script sources /etc/healthsync-activities.conf (if it exists)
+# to pick up GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN /
+# DRIVE_FOLDER_ID automatically — no duplication needed when both scripts are
+# installed. Override the path here only if your HealthSync config lives elsewhere.
+#DRIVE_CHECK_CONFIG="/etc/healthsync-activities.conf"
+#
+# If you don't use HealthSync, set the four vars directly instead:
+#GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+#GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET"
+#GOOGLE_REFRESH_TOKEN="YOUR_GOOGLE_REFRESH_TOKEN"
+#DRIVE_FOLDER_ID="YOUR_DRIVE_FOLDER_ID"
+
 # --- Network retry (optional) -----------------------------------------------
 # On OpenWrt, dnsmasq restarts (e.g. during WAN reconnect) can cause a brief
 # DNS gap. curl_retry in strava-lib.sh retries any network-level failure.

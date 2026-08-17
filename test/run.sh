@@ -57,8 +57,8 @@ chmod 0755 /www/cgi-bin/drive-auth
 
 cp /opt/activities.sample.json "$WEB/activities.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
-printf '{"ok":true,"expires_at":%s,"token_type":"Bearer","lastSync":%s,"mode":"full"}\n' \
-    "$(($(date +%s) + 7200))" "$(date +%s)" > "$WEB/drive-status.json"
+printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
+    "$(date +%s)" "$(($(date +%s) + 7200))" > "$WEB/drive-status.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
 
 # Minimal per-club leaderboard JSON — mirrors what strava-leaderboard writes to
