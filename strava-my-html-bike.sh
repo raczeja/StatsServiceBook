@@ -618,15 +618,30 @@ function findPart(id){
 }
 
 // ---- part: service --------------------------------------------------------
+window.updateSvcDesc = function(sel){
+  var opt=sel&&sel.options[sel.selectedIndex];
+  var desc=opt?opt.getAttribute('data-desc')||'':'';
+  var el=document.getElementById('s-type-desc');
+  if(el){ el.textContent=desc; el.style.display=desc?'':'none'; }
+};
 window.showService = function(id){
   var b = curBike(), p = findPart(id); if(!b||!p) return;
   var date = todayStr();
   var types=p.serviceTypes||[];
-  var typeHtml=types.length>1
-    ?'<label>Service type</label><select id="s-type">'+
-      types.map(function(st){return '<option value="'+esc(st.id)+'">'+esc(st.name)+'</option>';}).join('')+
-      '</select>'
-    :(types.length===1?'<input type="hidden" id="s-type" value="'+esc(types[0].id)+'">':'');
+  var firstDesc=types.length?types[0].desc||'':'';
+  var typeHtml;
+  if(types.length>1){
+    typeHtml='<label>Service type</label>'+
+      '<select id="s-type" onchange="updateSvcDesc(this)">'+
+      types.map(function(st){return '<option value="'+esc(st.id)+'" data-desc="'+esc(st.desc||'')+'">'+esc(st.name)+'</option>';}).join('')+
+      '</select>'+
+      '<div id="s-type-desc" class="hint" style="margin:.15rem 0 .35rem'+(firstDesc?'':';display:none')+'">'+esc(firstDesc)+'</div>';
+  } else if(types.length===1){
+    typeHtml='<input type="hidden" id="s-type" value="'+esc(types[0].id)+'">'+
+      (firstDesc?'<div id="s-type-desc" class="hint" style="margin:.15rem 0 .35rem">'+esc(firstDesc)+'</div>':'');
+  } else {
+    typeHtml='';
+  }
   openModal(
     '<h3>Service: '+esc(p.name)+'</h3>'+
     typeHtml+
