@@ -71,14 +71,14 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   .needs-repl{display:inline-block;background:#b00;color:#fff;font-size:.68rem;font-weight:700;padding:.05rem .35rem;border-radius:.3rem;margin-left:.4rem;vertical-align:middle;white-space:nowrap}
   /* modal */
   #ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50}
-  #modal{background:#fff;max-width:460px;margin:6vh auto;border-radius:.6rem;padding:1.1rem 1.25rem;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+  #modal{background:#fff;max-width:460px;margin:6vh auto;border-radius:.6rem;padding:1.1rem 1.25rem;box-shadow:0 8px 30px rgba(0,0,0,.3);max-height:85vh;overflow-y:auto}
   #modal h3{margin:0 0 .6rem}
   #modal label{display:block;font-size:.82rem;color:#555;margin:.55rem 0 .15rem}
   #modal input,#modal select,#modal textarea{font:inherit;width:100%;box-sizing:border-box;padding:.4rem .5rem;border:1px solid #ccc;border-radius:.4rem;background:#fff;color:#222}
   #modal textarea{resize:vertical;min-height:2.4rem}
   #modal .row{display:flex;gap:.6rem}
   #modal .row>div{flex:1}
-  #modal .actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
+  #modal .actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem;position:sticky;bottom:0;background:#fff;padding:.45rem 0 .1rem}
   #modal .hint{font-size:.75rem;color:#999;margin-top:.15rem}
   .chk{display:flex;align-items:center;gap:.45rem;margin-top:.7rem}
   #modal .chk input{width:auto}
