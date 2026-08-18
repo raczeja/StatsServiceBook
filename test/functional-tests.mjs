@@ -2891,6 +2891,73 @@ async function testNeedsReplacement(page, jsErrors) {
   });
 }
 
+async function testServiceTypeDescription(page, jsErrors) {
+  const S = "service-type-description";
+  const ENDPOINT = `${CGI}/bike-service`;
+
+  // Setup: write a known description onto the first service type of Road Bike's first part.
+  const setupR = await fetch(ENDPOINT, { cache: "no-store" });
+  const setupData = await setupR.json();
+  const road = setupData.bikes.find((b) => b.name === "Road Bike");
+  if (!road || !road.parts || !road.parts.length ||
+      !road.parts[0].serviceTypes || !road.parts[0].serviceTypes.length) {
+    console.log(`  SKIP  ${S}: Road Bike has no serviceTypes to test`);
+    return;
+  }
+  const testPart = road.parts[0];
+  const testDesc = `desc-${Date.now()}`;
+  const origDesc = testPart.serviceTypes[0].desc;
+  testPart.serviceTypes[0].desc = testDesc;
+  await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(setupData),
+  });
+
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => {
+    const t = Array.from(document.querySelectorAll(".bikes .tab:not(.add)"))
+      .find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+  await check(S, "service-modal-shows-type-description", async () => {
+    await page.evaluate((pid) => showService(pid), testPart.id);
+    await page.waitForSelector("#ovl", { timeout: 3000 });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const descEl = await page.$("#s-type-desc");
+    assert.ok(descEl, "#s-type-desc not present in service modal");
+    const text = await page.$eval("#s-type-desc", (el) => el.textContent.trim());
+    assert.strictEqual(text, testDesc,
+      `service modal description mismatch: expected "${testDesc}", got "${text}"`);
+    await page.evaluate(() => closeModal());
+  });
+
+  // Teardown
+  const restoreR = await fetch(ENDPOINT, { cache: "no-store" });
+  const restoreData = await restoreR.json();
+  const restoreRoad = restoreData.bikes.find((b) => b.name === "Road Bike");
+  if (restoreRoad && restoreRoad.parts.length > 0 &&
+      restoreRoad.parts[0].serviceTypes && restoreRoad.parts[0].serviceTypes.length > 0) {
+    restoreRoad.parts[0].serviceTypes[0].desc = origDesc;
+    await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(restoreData),
+    });
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -2991,6 +3058,9 @@ async function main() {
 
     console.log("\n--- Needs Replacement (flag, badge, sort) ---");
     await testNeedsReplacement(page, jsErrors);
+
+    console.log("\n--- Service Type Description (modal hint) ---");
+    await testServiceTypeDescription(page, jsErrors);
   } finally {
     await browser.close();
   }
