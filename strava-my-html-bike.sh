@@ -65,6 +65,9 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   .svc-bar{height:4px;border-radius:2px;background:#eee;margin:.35rem 0 .1rem;overflow:hidden}
   .svc-bar-fill{height:100%;border-radius:2px;transition:width .2s}
   .svc-pct{font-size:.7rem;color:#888}
+  .svc-type-row{margin:.2rem 0}
+  .svc-type-label{font-size:.72rem;color:#888;font-weight:600;margin-bottom:.1rem}
+  .st-block{border:1px solid #eee;border-radius:.35rem;padding:.45rem .55rem;margin:.3rem 0;background:#fafafa}
   .needs-repl{display:inline-block;background:#b00;color:#fff;font-size:.68rem;font-weight:700;padding:.05rem .35rem;border-radius:.3rem;margin-left:.4rem;vertical-align:middle;white-space:nowrap}
   /* modal */
   #ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50}
@@ -291,17 +294,29 @@ function servicesBlock(services){
     '<details class="rides"><summary>'+asc.length+' services</summary>'+
     '<table class="ridetbl"><tbody>'+rows+'</tbody></table></details>';
 }
-// Percent of the alert threshold used since last service (or install).
-// Returns 0 when no alert thresholds are configured (used only for sorting).
-function partPct(bike,p){
-  var svc=(p.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
+// Per-service-type % of alert threshold used since last service of that type (or install).
+function stPct(bike,p,st){
+  var svc=(st.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   var last=svc.length?svc[svc.length-1]:null;
   var fromDate=last?last.date:(p.installedDate||"");
   var refKm=Math.max(0,rideMileageSince(bike,fromDate));
   var refH=rideTimeSince(bike,fromDate)/3600;
-  var pctKm=(p.alertKm&&+p.alertKm>0)?(refKm/+p.alertKm*100):0;
-  var pctH=(p.alertH&&+p.alertH>0)?(refH/+p.alertH*100):0;
+  var pctKm=(st.alertKm&&+st.alertKm>0)?(refKm/+st.alertKm*100):0;
+  var pctH=(st.alertH&&+st.alertH>0)?(refH/+st.alertH*100):0;
   return Math.max(pctKm,pctH);
+}
+// Worst % across all service types; 0 when no thresholds configured (used for sorting).
+function partPct(bike,p){
+  var types=p.serviceTypes||[];
+  var max=0;
+  types.forEach(function(st){ max=Math.max(max,stPct(bike,p,st)); });
+  return max;
+}
+// One-time migration: old flat services/alertKm/alertH → serviceTypes array.
+function migratePart(p){
+  if(p.serviceTypes) return;
+  p.serviceTypes=[{id:uid("st-"),name:"Service",services:p.services||[],alertKm:p.alertKm!=null?p.alertKm:null,alertH:p.alertH!=null?p.alertH:null}];
+  delete p.services; delete p.alertKm; delete p.alertH;
 }
 function curBike(){
   for (var i=0;i<MODEL.bikes.length;i++) if (MODEL.bikes[i].id === selBike) return MODEL.bikes[i];
@@ -373,6 +388,7 @@ function loadAll(){
       // The CGI accepts any {bikes:[...]} shape; guard against a stored/edited
       // bike that lacks a parts array so render()'s b.parts.filter never throws.
       MODEL.bikes.forEach(function(b){ if (!Array.isArray(b.parts)) b.parts = []; });
+      MODEL.bikes.forEach(function(b){ b.parts.forEach(migratePart); });
       // Auto-seed a bike for every Strava gear discovered in activities that isn't
       // already mapped to a bike, so your bikes show up without manual "Add bike".
       // Once seeded the bike (and its parts/service history) is persisted, so it
@@ -507,10 +523,37 @@ window.deleteBike = function(id){
 window.selectBike = function(id){ selBike = id; render(); };
 
 // ---- part: add / edit -----------------------------------------------------
+function stBlockHtml(i,stId,name,km,h,desc){
+  return '<input type="hidden" class="st-id" value="'+esc(stId||'')+'">'+
+    '<div style="display:flex;align-items:center;gap:.4rem">'+
+    '<input class="st-name" style="flex:1;font:inherit;border:1px solid #ccc;border-radius:.4rem;padding:.35rem .5rem;background:#fff;color:#222" placeholder="e.g. Clean &amp; Lube" value="'+esc(name||'')+'">'+
+    '<button class="btn sm danger" onclick="removeSvcType('+i+')" title="Remove">✕</button></div>'+
+    '<input class="st-desc" style="width:100%;box-sizing:border-box;font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:.4rem;padding:.28rem .5rem;margin-top:.3rem;background:#fff;color:#222" placeholder="Description / tooltip (optional)" value="'+esc(desc||'')+'">'+
+    '<div class="row" style="margin-top:.35rem">'+
+    '<div><label>Alert after km (optional)</label><input class="st-km" type="number" step="1" min="0" placeholder="e.g. 500" value="'+(km!=null&&km!==''?km:'')+'"></div>'+
+    '<div><label>Alert after hours (optional)</label><input class="st-h" type="number" step="0.1" min="0" placeholder="e.g. 20" value="'+(h!=null&&h!==''?h:'')+'"></div></div>';
+}
+window.addSvcType = function(){
+  var list=document.getElementById("st-list"); if(!list) return;
+  var i=list.children.length;
+  var div=document.createElement("div");
+  div.className="st-block"; div.id="st-"+i;
+  div.innerHTML=stBlockHtml(i,uid("st-"),"",null,null,"");
+  list.appendChild(div);
+};
+window.removeSvcType = function(i){
+  var list=document.getElementById("st-list"); if(!list) return;
+  if(list.querySelectorAll(".st-block").length<=1){ alert("A part must have at least one service type."); return; }
+  var el=document.getElementById("st-"+i); if(el) el.remove();
+};
 function partForm(part){
   var b = curBike(); if (!b) return;
   var date = part ? part.installedDate : todayStr();
   var mi   = part ? part.installedMileage : Math.round(bikeMileage(b, date)*10)/10;
+  var types=(part&&part.serviceTypes&&part.serviceTypes.length)?part.serviceTypes:[{id:uid("st-"),name:"Service",alertKm:null,alertH:null}];
+  var stHtml=types.map(function(st,i){
+    return '<div class="st-block" id="st-'+i+'">'+stBlockHtml(i,st.id,st.name,st.alertKm,st.alertH,st.desc)+'</div>';
+  }).join("");
   openModal(
     '<h3>'+(part?'Edit part':'Add part')+'</h3>'+
     '<label>Name</label><input id="p-name" value="'+esc(part?part.name:"")+'" placeholder="e.g. Chain, Rear tyre, Brake pads">'+
@@ -520,10 +563,9 @@ function partForm(part){
     '<div><label>Mileage at install (km)</label>'+
       '<input id="f-mileage" type="number" step="0.1" value="'+mi+'">'+
       '<div class="hint">auto-filled from the date; editable</div></div></div>'+
-    '<div class="row"><div><label>Alert after km since last service/install (optional)</label>'+
-      '<input id="p-alertkm" type="number" step="1" min="0" placeholder="e.g. 2000" value="'+(part&&part.alertKm!=null?part.alertKm:"")+'"></div>'+
-    '<div><label>Alert after hours since last service/install (optional)</label>'+
-      '<input id="p-alerth" type="number" step="0.1" min="0" placeholder="e.g. 100" value="'+(part&&part.alertH!=null?part.alertH:"")+'"></div></div>'+
+    '<div style="font-size:.82rem;font-weight:600;color:#555;margin:.7rem 0 .2rem">Service types</div>'+
+    '<div id="st-list">'+stHtml+'</div>'+
+    '<button class="btn sm" onclick="addSvcType()" style="margin:.3rem 0">＋ Add service type</button>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="savePart('+(part?'\''+part.id+'\'':'null')+')">Save</button></div>'
   );
@@ -537,16 +579,29 @@ window.savePart = function(id){
   var note = document.getElementById("p-note").value;
   var date = document.getElementById("f-date").value || todayStr();
   var mi   = +document.getElementById("f-mileage").value || 0;
-  var alertKmRaw = document.getElementById("p-alertkm").value;
-  var alertHRaw  = document.getElementById("p-alerth").value;
-  var alertKm = alertKmRaw !== "" ? (+alertKmRaw || null) : null;
-  var alertH  = alertHRaw  !== "" ? (+alertHRaw  || null) : null;
+  var existingPart = id ? findPart(id) : null;
+  var stBlocks = document.getElementById("st-list").querySelectorAll(".st-block");
+  var serviceTypes = [];
+  stBlocks.forEach(function(el){
+    var stid=(el.querySelector(".st-id")||{value:""}).value||uid("st-");
+    var sname=el.querySelector(".st-name").value.trim()||"Service";
+    var sdesc=(el.querySelector(".st-desc")||{value:""}).value.trim()||"";
+    var skm=el.querySelector(".st-km").value;
+    var sh=el.querySelector(".st-h").value;
+    var existing=null;
+    if(existingPart) existingPart.serviceTypes.forEach(function(st){ if(st.id===stid) existing=st; });
+    serviceTypes.push({id:stid,name:sname,desc:sdesc||undefined,
+      alertKm:skm!==""?(+skm||null):null,
+      alertH:sh!==""?(+sh||null):null,
+      services:existing?existing.services:[]});
+  });
+  if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
   if (id){
     var p = findPart(id);
-    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.alertKm=alertKm; p.alertH=alertH; }
+    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.serviceTypes=serviceTypes; }
   } else {
     b.parts.push({ id:uid("p-"), name:name, note:note, installedDate:date,
-      installedMileage:mi, status:"new", services:[], alertKm:alertKm, alertH:alertH });
+      installedMileage:mi, status:"new", needsReplacement:false, serviceTypes:serviceTypes });
   }
   closeModal(); persist();
 };
@@ -566,8 +621,15 @@ function findPart(id){
 window.showService = function(id){
   var b = curBike(), p = findPart(id); if(!b||!p) return;
   var date = todayStr();
+  var types=p.serviceTypes||[];
+  var typeHtml=types.length>1
+    ?'<label>Service type</label><select id="s-type">'+
+      types.map(function(st){return '<option value="'+esc(st.id)+'">'+esc(st.name)+'</option>';}).join('')+
+      '</select>'
+    :(types.length===1?'<input type="hidden" id="s-type" value="'+esc(types[0].id)+'">':'');
   openModal(
     '<h3>Service: '+esc(p.name)+'</h3>'+
+    typeHtml+
     '<div class="row"><div><label>Date</label>'+
       '<input id="f-date" type="date" value="'+esc(date)+'" onchange="recalc()"></div>'+
     '<div><label>Mileage (km)</label>'+
@@ -582,14 +644,20 @@ window.showService = function(id){
 };
 window.saveService = function(id){
   var p = findPart(id); if(!p) return;
-  if (!p.services) p.services = [];
-  p.services.push({
+  var stidEl=document.getElementById("s-type");
+  var stid=stidEl?stidEl.value:"";
+  var st=null;
+  if(p.serviceTypes) p.serviceTypes.forEach(function(x){ if(x.id===stid) st=x; });
+  if(!st&&p.serviceTypes&&p.serviceTypes.length) st=p.serviceTypes[0];
+  if(!st) return;
+  if(!st.services) st.services=[];
+  st.services.push({
     id: uid("s-"),
     date: document.getElementById("f-date").value || todayStr(),
     mileage: +document.getElementById("f-mileage").value || 0,
     note: document.getElementById("s-note").value
   });
-  p.services.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  st.services.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   p.needsReplacement = document.getElementById("s-needs-repl").checked;
   closeModal(); persist();
 };
@@ -712,7 +780,8 @@ function render(){
   active = active.slice().sort(function(x,y){
     var rx=!!x.needsReplacement, ry=!!y.needsReplacement;
     if(rx!==ry) return rx?-1:1;
-    var ha=x.alertKm!=null||x.alertH!=null, hb=y.alertKm!=null||y.alertH!=null;
+    var ha=(x.serviceTypes||[]).some(function(st){return (st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);});
+    var hb=(y.serviceTypes||[]).some(function(st){return (st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);});
     if(ha!==hb) return ha?-1:1;
     if(ha){ var pa=partPct(b,x),pb=partPct(b,y); return pb-pa; }
     var da=x.installedDate||"",db=y.installedDate||"";
@@ -729,38 +798,39 @@ function render(){
     active.forEach(function(p){
       var ridden = rideMileageSince(b, p.installedDate);
       var riddenSec = rideTimeSince(b, p.installedDate);
-      var svc = (p.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
-      var last = svc.length ? svc[svc.length-1] : null;
-      var lastCell = servicesBlock(svc);
-      var sinceSvc = last ? rideMileageSince(b, last.date) : null;
-      var sinceCell = last
-        ? '<b>'+fmtKm(sinceSvc<0?0:sinceSvc)+'</b> km'
-        : '<span class="muted">—</span>';
-      var sinceSvcSec = last ? rideTimeSince(b, last.date) : null;
-      var sinceSvcTimeCell = sinceSvcSec !== null
-        ? '<b>'+(sinceSvcSec/3600).toFixed(1)+'</b> h'
-        : '<span class="muted">—</span>';
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
       var replBadge = p.needsReplacement ? '<span class="needs-repl">Needs replacement</span>' : '';
-      var refKm = sinceSvc !== null ? Math.max(0, sinceSvc) : Math.max(0, ridden);
-      var refH  = sinceSvcSec !== null ? sinceSvcSec / 3600 : riddenSec / 3600;
-      var isWarn = Boolean((p.alertKm && refKm >= +p.alertKm) || (p.alertH && refH >= +p.alertH));
-      var hasThresh = (p.alertKm && +p.alertKm > 0) || (p.alertH && +p.alertH > 0);
-      var pctKm2 = (p.alertKm && +p.alertKm > 0) ? (refKm / +p.alertKm * 100) : 0;
-      var pctH2  = (p.alertH  && +p.alertH  > 0) ? (refH  / +p.alertH  * 100) : 0;
-      var pct    = Math.max(pctKm2, pctH2);
-      var barClr = pct >= 100 ? '#b00' : pct >= 80 ? '#fc4c02' : '#4caf50';
-      var barFill = Math.min(100, pct).toFixed(1);
-      var tipParts = [];
-      if (p.alertKm && +p.alertKm > 0) tipParts.push(fmtKm(refKm)+' km / '+p.alertKm+' km');
-      if (p.alertH  && +p.alertH  > 0) tipParts.push((refH<0?0:refH).toFixed(1)+' h / '+p.alertH+' h');
-      var barTip = (last ? 'Since last service: ' : 'Since install: ') + tipParts.join('; ');
-      if (p.alertKm && +p.alertKm > 0 && p.alertH && +p.alertH > 0)
-        barTip += ' (' + (pctKm2 >= pctH2 ? 'km-driven' : 'time-driven') + ')';
-      var barHtml = hasThresh
-        ? '<div class="svc-bar" title="'+esc(barTip)+'"><div class="svc-bar-fill" style="width:'+barFill+'%;background:'+barClr+'"></div></div>'+
-          '<span class="svc-pct" title="'+esc(barTip)+'">'+Math.round(pct)+'%</span>'
-        : '';
+      var types = p.serviceTypes || [];
+      var multiType = types.length > 1;
+      var isWarn = Boolean(p.needsReplacement);
+      var lastCell = "", sinceCell = "";
+      types.forEach(function(st){
+        var svc=(st.services||[]).slice().sort(function(a,c){return a.date<c.date?-1:1;});
+        var last=svc.length?svc[svc.length-1]:null;
+        var fromDate=last?last.date:(p.installedDate||"");
+        var sinceKm=Math.max(0,rideMileageSince(b,fromDate));
+        var sinceH=Math.max(0,rideTimeSince(b,fromDate)/3600);
+        var pctKm=(st.alertKm&&+st.alertKm>0)?(sinceKm/+st.alertKm*100):0;
+        var pctH=(st.alertH&&+st.alertH>0)?(sinceH/+st.alertH*100):0;
+        var pct=Math.max(pctKm,pctH);
+        var hasThresh=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);
+        if(pct>=100) isWarn=true;
+        var barClr=pct>=100?'#b00':pct>=80?'#fc4c02':'#4caf50';
+        var label=(multiType||st.desc)?'<div class="svc-type-label"'+(st.desc?' title="'+esc(st.desc)+'"':'')+'>'+esc(st.name)+'</div>':'';
+        lastCell+='<div class="svc-type-row">'+label+servicesBlock(svc)+'</div>';
+        var tipParts=[];
+        if(st.alertKm&&+st.alertKm>0) tipParts.push(fmtKm(sinceKm)+' km / '+st.alertKm+' km');
+        if(st.alertH&&+st.alertH>0) tipParts.push(sinceH.toFixed(1)+' h / '+st.alertH+' h');
+        var barTip=(last?'Since last service: ':'Since install: ')+tipParts.join('; ');
+        var bar=hasThresh
+          ?'<div class="svc-bar" title="'+esc(barTip)+'"><div class="svc-bar-fill" style="width:'+Math.min(100,pct).toFixed(1)+'%;background:'+barClr+'"></div></div>'+
+           '<span class="svc-pct" title="'+esc(barTip)+'">'+Math.round(pct)+'%</span>'
+          :'';
+        sinceCell+='<div class="svc-type-row">'+label+
+          (last?'<b>'+fmtKm(sinceKm)+'</b> km<div class="muted">'+sinceH.toFixed(1)+' h</div>':'<span class="muted">—</span>')+
+          bar+'</div>';
+      });
+      if(!types.length){lastCell='<span class="muted">never</span>';sinceCell='<span class="muted">—</span>';}
       var dnd = ' draggable="true"'+
         ' ondragstart="dragStart(event,\''+p.id+'\',this)"'+
         ' ondragend="dragEnd(this)"'+
@@ -772,7 +842,7 @@ function render(){
         '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
-        '<td class="num">'+sinceCell+(last?'<div class="muted">'+sinceSvcTimeCell+'</div>':'')+barHtml+'</td>'+
+        '<td>'+sinceCell+'</td>'+
         '<td style="white-space:nowrap">'+
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
@@ -793,9 +863,11 @@ function render(){
     archived.sort(function(a,c){ return (c.archivedDate||"") < (a.archivedDate||"") ? -1 : 1; });
     archived.forEach(function(p){
       var life = (+p.archivedMileage||0) - (+p.installedMileage||0);
-      var svc = (p.services||[]);
-      var svcTxt = svc.length
-        ? svc.map(function(s){ return esc(s.date)+' ('+fmtKm(s.mileage)+' km'+(s.note?': '+esc(s.note):'')+')'; }).join('<br>')
+      var allSvc=[];
+      (p.serviceTypes||[]).forEach(function(st){ allSvc=allSvc.concat(st.services||[]); });
+      allSvc.sort(function(a,c){return a.date<c.date?-1:1;});
+      var svcTxt = allSvc.length
+        ? allSvc.map(function(s){ return esc(s.date)+' ('+fmtKm(s.mileage)+' km'+(s.note?': '+esc(s.note):'')+')'; }).join('<br>')
         : '<span class="muted">none</span>';
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
       var arcNote = p.archiveNote ? '<div class="muted">'+esc(p.archiveNote)+'</div>' : '';
