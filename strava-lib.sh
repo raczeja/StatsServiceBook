@@ -101,17 +101,23 @@ run_weather_backfill() {
       "$_rw_store" > "$_rw_tmp/rw1.ndjson"
   _rw_p1_total=$(jq -s 'length' "$_rw_tmp/rw1.ndjson")
   _rw_p1_unc=$(jq -s --slurpfile c "$_rw_cache" \
-      '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == ""))] | length' "$_rw_tmp/rw1.ndjson")
+      '[.[] | select(.id as $i | ((($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == "")) and ($c[0][$i].s != "no-coord"))] | length' "$_rw_tmp/rw1.ndjson")
   log "weather: Pass 1 — $_rw_p1_unc to fetch of $_rw_p1_total null-temp..."
   _rw_p1_fetched=0 _rw_p1_nocoord=0 _rw_p1_fail=0 _rw_p1_tried=0
   while IFS= read -r _rwe; do
     _wid=$(printf '%s' "$_rwe"  | jq -r '.id')
     _wd=$(printf '%s' "$_rwe"   | jq -r '.date')
     _wgpx=$(printf '%s' "$_rwe" | jq -r '.gpx')
-    jq -e --arg i "$_wid" '(.[$i]|type)=="object" and (.[$i].t != null) and (.[$i].s != "")' "$_rw_cache" >/dev/null 2>&1 && continue
+    jq -e --arg i "$_wid" '(.[$i]|type)=="object" and ((.[$i].t != null and .[$i].s != "") or .[$i].s == "no-coord")' "$_rw_cache" >/dev/null 2>&1 && continue
     _rw_p1_tried=$((_rw_p1_tried+1))
     _rw_coords "$_wid" "$_wgpx" "$_rw_ddir" "$_rw_wdir"
-    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then _rw_p1_nocoord=$((_rw_p1_nocoord+1)); continue; fi
+    if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then
+      _rw_p1_nocoord=$((_rw_p1_nocoord+1))
+      jq --arg id "$_wid" '.[$id]={"t":null,"s":"no-coord"}' "$_rw_cache" > "$_rw_cache.tmp" \
+        && jq -e . "$_rw_cache.tmp" >/dev/null 2>&1 \
+        && mv "$_rw_cache.tmp" "$_rw_cache"
+      continue
+    fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
     fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>/dev/null || true
     _wt=$(cat "$_rw_tmp/fw_out.txt" 2>/dev/null || true)
