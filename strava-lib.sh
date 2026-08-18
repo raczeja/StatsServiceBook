@@ -104,7 +104,7 @@ run_weather_backfill() {
       '[.[] | select(.id as $i | ((($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == "")) and ($c[0][$i].s != "no-coord"))] | length' "$_rw_tmp/rw1.ndjson")
   log "weather: Pass 1 — $_rw_p1_unc to fetch of $_rw_p1_total null-temp..."
   _rw_p1_fetched=0 _rw_p1_nocoord=0 _rw_p1_fail=0 _rw_p1_tried=0
-  while IFS= read -r _rwe; do
+  while [ "$_rw_p1_unc" -gt 0 ] && IFS= read -r _rwe; do
     _wid=$(printf '%s' "$_rwe"  | jq -r '.id')
     _wd=$(printf '%s' "$_rwe"   | jq -r '.date')
     _wgpx=$(printf '%s' "$_rwe" | jq -r '.gpx')
@@ -147,7 +147,7 @@ run_weather_backfill() {
       '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].ws == null))] | length' "$_rw_tmp/rw2.ndjson")
   log "weather: Pass 2 — $_rw_p2_unc to enrich of $_rw_p2_total has-temp..."
   _rw_p2_fetched=0
-  while IFS= read -r _rwe; do
+  while [ "$_rw_p2_unc" -gt 0 ] && IFS= read -r _rwe; do
     _wid=$(printf '%s' "$_rwe"  | jq -r '.id')
     _wd=$(printf '%s' "$_rwe"   | jq -r '.date')
     _wgpx=$(printf '%s' "$_rwe" | jq -r '.gpx')
