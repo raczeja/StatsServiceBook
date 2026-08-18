@@ -2668,8 +2668,17 @@ async function testAlertThresholds(page, jsErrors) {
     console.log(`  SKIP  ${S}: Road Bike has no parts to test`);
     return;
   }
-  const originalAlertKm = road.parts[0].alertKm;
-  road.parts[0].alertKm = 1;
+  // Parts may be in the old flat format (alertKm on the part) or the new
+  // serviceTypes format (alertKm inside serviceTypes[0]). Handle both.
+  const firstPart = road.parts[0];
+  let originalAlertKm;
+  if (firstPart.serviceTypes && firstPart.serviceTypes.length > 0) {
+    originalAlertKm = firstPart.serviceTypes[0].alertKm;
+    firstPart.serviceTypes[0].alertKm = 1;
+  } else {
+    originalAlertKm = firstPart.alertKm;
+    firstPart.alertKm = 1;
+  }
   await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2719,7 +2728,12 @@ async function testAlertThresholds(page, jsErrors) {
   const restoreData = await restoreR.json();
   const restoreRoad = restoreData.bikes.find((b) => b.name === "Road Bike");
   if (restoreRoad && restoreRoad.parts && restoreRoad.parts.length > 0) {
-    restoreRoad.parts[0].alertKm = originalAlertKm;
+    const rp = restoreRoad.parts[0];
+    if (rp.serviceTypes && rp.serviceTypes.length > 0) {
+      rp.serviceTypes[0].alertKm = originalAlertKm;
+    } else {
+      rp.alertKm = originalAlertKm;
+    }
     await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

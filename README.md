@@ -18,7 +18,7 @@ it with no extra daemon and almost no RAM.
 | **My Activities**    | `/strava/me/`              | All your activities in a sortable table with year/month/sport filters, bests strip, and monthly bar charts |
 | **Activity detail**  | `/strava/me/activity.html` | Per-activity stats cards, interactive route map (Leaflet + OSM), and per-km splits chart                   |
 | **Personal stats**   | `/strava/me/stats.html`    | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, and day-of-week chart           |
-| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: add parts, record service dates, track mileage auto-computed from your rides     |
+| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: add parts with multiple named service types (each with its own km/hour threshold and history), track mileage auto-computed from your rides     |
 
 Everything runs on the router or docker container. The browser fetches a static JSON file and renders all charts and filters client-side — no server-side processing after the nightly cron.
 
@@ -242,11 +242,15 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   **Archived** section with its final mileage and a calendar duration ("1 year
   5 months 2 weeks"), and optionally a successor is fitted on the same day.
 
-  **Service alerts.** Each part can have an optional **km threshold** and/or
-  **hours threshold** (riding time since the last service or install). Once a part
-  exceeds its threshold its row is **highlighted in yellow** as a visual reminder
-  that it is due for service. For example: chain → 2 000 km, tyres → 5 000 km,
-  brake pads → 3 000 km. Thresholds are per-part and editable at any time.
+  **Multiple service types per part.** Each part can have one or more named
+  service types — for example a chain can have a "Clean & Lube" type (every
+  500 km) and a "Replace" type (every 2 000 km). Each type has its own optional
+  **km threshold** and/or **hours threshold** (riding time since the last service
+  or install of that type) and its own independent service history. The table
+  shows a progress bar and percentage for every type on the part. Once any type
+  exceeds 100 % its row is **highlighted in yellow**. The worst percentage across
+  all types drives the sort order. Existing data (single-threshold parts) is
+  migrated automatically to a single "Service" type on first load.
 
   **Multiple bikes.** Track as many bikes as you like; each is a separate tab.
   The initial bike name is configurable via `STRAVA_MY_DEFAULT_BIKE_NAME` and is
