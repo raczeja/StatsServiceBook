@@ -950,13 +950,62 @@ To change the times, edit the entries directly:
 
 ```sh
 crontab -e
-# 50 23 * * *  /usr/bin/strava-leaderboard    >> /var/log/strava-leaderboard.log 2>&1
-# 55 23 * * *  /usr/bin/strava-my-activities  >> /var/log/strava-my-activities.log 2>&1
+# 50 23 * * *  /usr/bin/strava-cron-guard strava-leaderboard   >> /var/log/strava-leaderboard.log 2>&1
+# 55 23 * * *  /usr/bin/strava-cron-guard strava-my-activities >> /var/log/strava-my-activities.log 2>&1
+# 0  8  1 * *  /usr/bin/strava-email-monthly                   >> /var/log/strava-email-monthly.log 2>&1
 ```
 
 …or reinstall with custom times:
 `CRON_TIME="0 6 * * *" CRON_TIME_ME="5 6 * * *" sh install.sh`, or
 `TZ_POSIX="" sh install.sh` to leave the router's timezone untouched.
+
+## Email notifications
+
+Two optional email features are built in; both are **no-ops** when not configured.
+All settings go in `/etc/strava-leaderboard.conf`.
+
+### Monthly leaderboard email
+
+On the 1st of each month at 08:00, `/usr/bin/strava-email-monthly` sends a
+plain-text leaderboard for the previous month (one section per club) to every
+address in `STRAVA_EMAIL_TO`. Each address receives a separate email.
+
+```sh
+# /etc/strava-leaderboard.conf
+STRAVA_EMAIL_SMTP="smtps://smtp.gmail.com:465"
+STRAVA_EMAIL_USER="your.address@gmail.com:xxxx-xxxx-xxxx-xxxx"  # Gmail App Password
+STRAVA_EMAIL_FROM="your.address@gmail.com"   # must match the Gmail account; can omit (auto-derived)
+STRAVA_EMAIL_TO="alice@example.com,bob@example.com,charlie@example.com"
+```
+
+**Gmail setup:** generate an App Password at
+<https://myaccount.google.com/apppasswords> (requires 2-Step Verification).
+The `From:` address must match the authenticated Gmail account — Gmail rejects
+mail whose `From:` differs from the logged-in user.
+
+**Test without waiting for the 1st:**
+
+```sh
+STRAVA_EMAIL_TEST_MONTH=2026-07 /usr/bin/strava-email-monthly
+```
+
+Data note: leaderboard dates are *first-seen* dates in API mode (approximate)
+and real activity dates in scrape mode. The monthly filter uses whatever date
+is stored in the NDJSON activity store.
+
+### Cron error alerts
+
+All three nightly scripts are wrapped by `/usr/bin/strava-cron-guard`. When any
+of them exits non-zero, the guard sends an alert to every address in
+`STRAVA_EMAIL_ALERTS_TO`, with the script name, exit code, and the last 50 lines
+of output in the email body. Uses the same SMTP settings as above.
+
+```sh
+STRAVA_EMAIL_ALERTS_TO="admin@example.com,ops@example.com"
+```
+
+**Test:** `strava-cron-guard false` — runs `/usr/bin/false` (exits 1) and
+triggers the alert if SMTP is configured.
 
 ## Switching from Strava to HealthSync (keeping full history)
 
@@ -1049,6 +1098,8 @@ cat >> /etc/sysupgrade.conf << 'EOF'
 /usr/bin/strava-leaderboard
 /usr/bin/strava-my-activities
 /usr/bin/healthsync-activities
+/usr/bin/strava-cron-guard
+/usr/bin/strava-email-monthly
 /usr/bin/strava-lib.sh
 /usr/bin/strava-my-html-dashboard.sh
 /usr/bin/strava-my-html-detail.sh

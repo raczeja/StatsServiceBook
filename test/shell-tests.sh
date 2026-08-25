@@ -1168,6 +1168,207 @@ assert_eq "$S" "n3 extended fields added"    "$(_sa n3 .wind_speed)"    "8"
 assert_eq "$S" "n3 temp unchanged"           "$(_sa n3 .average_temp)"  "22"
 assert_eq "$S" "n4 already full unchanged"   "$(_sa n4 .wind_speed)"    "12"
 
+# ── cron-guard-exit-code ─────────────────────────────────────────────────────
+# Mirrors the exit-code capture pattern in strava-cron-guard.sh:
+#   set +e; "$SCRIPT" >"$CAPTURE" 2>&1; EXIT_CODE=$?; set -e
+S="cron-guard-exit-code"
+
+GUARD_CAP="$(mktemp)"
+# shellcheck disable=SC2064
+trap "rm -rf '$TMP' '$GUARD_CAP'" EXIT
+
+set +e; sh -c 'exit 0' >"$GUARD_CAP" 2>&1; _gc=$?; set -e
+assert_eq "$S" "success-exits-0"  "$_gc" "0"
+
+set +e; sh -c 'exit 1' >"$GUARD_CAP" 2>&1; _gc=$?; set -e
+assert_eq "$S" "failure-exits-1"  "$_gc" "1"
+
+set +e; sh -c 'exit 42' >"$GUARD_CAP" 2>&1; _gc=$?; set -e
+assert_eq "$S" "failure-exits-42" "$_gc" "42"
+
+set +e; sh -c 'printf captured; exit 2' >"$GUARD_CAP" 2>&1; _gc=$?; set -e
+if grep -q "captured" "$GUARD_CAP"; then ok "$S" "output-captured-to-file"
+else err "$S" "output-captured-to-file" "output not written to capture file"; fi
+assert_eq "$S" "output-preserved-exit-code" "$_gc" "2"
+
+rm -f "$GUARD_CAP"
+
+# ── cron-guard-address-extraction ────────────────────────────────────────────
+# Mirrors STRAVA_EMAIL_FROM="${STRAVA_EMAIL_FROM:-${STRAVA_EMAIL_USER%%:*}}"
+S="cron-guard-address-extraction"
+
+_u1="alice@example.com:my-app-password"
+assert_eq "$S" "strips-password"  "${_u1%%:*}" "alice@example.com"
+
+_u2="bob@gmail.com:xxxx-yyyy-zzzz"
+assert_eq "$S" "gmail-stripped"   "${_u2%%:*}" "bob@gmail.com"
+
+# Explicit STRAVA_EMAIL_FROM overrides extraction.
+_STRAVA_EMAIL_FROM="custom@example.com"; _STRAVA_EMAIL_USER="alice@example.com:pass"
+_ef="${_STRAVA_EMAIL_FROM:-${_STRAVA_EMAIL_USER%%:*}}"
+assert_eq "$S" "explicit-from-wins" "$_ef" "custom@example.com"
+
+_STRAVA_EMAIL_FROM=""
+_ef="${_STRAVA_EMAIL_FROM:-${_STRAVA_EMAIL_USER%%:*}}"
+assert_eq "$S" "empty-from-derived" "$_ef" "alice@example.com"
+
+# ── cron-guard-comma-split ────────────────────────────────────────────────────
+# Mirrors the IFS=, for loop that iterates over STRAVA_EMAIL_ALERTS_TO.
+S="cron-guard-comma-split"
+
+_ALERTS="alice@example.com,bob@example.com,charlie@example.com"
+_count=0
+old_IFS="$IFS"; IFS=","
+for _a in $_ALERTS; do
+    _a="$(printf '%s' "$_a" | tr -d ' \t')"
+    [ -n "$_a" ] || continue
+    _count=$((_count + 1))
+done
+IFS="$old_IFS"
+assert_eq "$S" "three-addresses-iterated" "$_count" "3"
+
+_ALERTS_WS=" alice@example.com , bob@example.com "
+_count2=0
+old_IFS="$IFS"; IFS=","
+for _a in $_ALERTS_WS; do
+    _a="$(printf '%s' "$_a" | tr -d ' \t')"
+    [ -n "$_a" ] || continue
+    _count2=$((_count2 + 1))
+done
+IFS="$old_IFS"
+assert_eq "$S" "spaces-trimmed-iterated" "$_count2" "2"
+
+_ALERTS_SINGLE="admin@example.com"
+_count3=0
+old_IFS="$IFS"; IFS=","
+for _a in $_ALERTS_SINGLE; do
+    _a="$(printf '%s' "$_a" | tr -d ' \t')"
+    [ -n "$_a" ] || continue
+    _count3=$((_count3 + 1))
+done
+IFS="$old_IFS"
+assert_eq "$S" "single-address-iterated" "$_count3" "1"
+
+# ── monthly-email-prev-month ──────────────────────────────────────────────────
+# Mirrors the previous-month arithmetic in strava-email-monthly.sh.
+S="monthly-email-prev-month"
+
+_prev_month() {
+    _pm_year="$1"; _pm_month="$2"
+    if [ "$_pm_month" -eq 1 ]; then
+        _pm_py=$((_pm_year - 1)); _pm_pm=12
+    else
+        _pm_py=$_pm_year; _pm_pm=$((_pm_month - 1))
+    fi
+    printf '%04d-%02d' "$_pm_py" "$_pm_pm"
+}
+
+assert_eq "$S" "jan-wraps-to-dec"   "$(_prev_month 2026 1)"  "2025-12"
+assert_eq "$S" "feb-to-jan"         "$(_prev_month 2026 2)"  "2026-01"
+assert_eq "$S" "mar-to-feb"         "$(_prev_month 2026 3)"  "2026-02"
+assert_eq "$S" "dec-to-nov"         "$(_prev_month 2026 12)" "2026-11"
+assert_eq "$S" "year-boundary-2000" "$(_prev_month 2000 1)"  "1999-12"
+assert_eq "$S" "normal-aug"         "$(_prev_month 2026 8)"  "2026-07"
+
+# ── monthly-email-month-name ──────────────────────────────────────────────────
+# Mirrors the case block that converts YYYY-MM to "Month YYYY" label.
+S="monthly-email-month-name"
+
+_month_name() {
+    case "${1#*-}" in
+        01) printf "January"   ;; 02) printf "February"  ;;
+        03) printf "March"     ;; 04) printf "April"     ;;
+        05) printf "May"       ;; 06) printf "June"      ;;
+        07) printf "July"      ;; 08) printf "August"    ;;
+        09) printf "September" ;; 10) printf "October"   ;;
+        11) printf "November"  ;; 12) printf "December"  ;;
+        *)  printf "%s" "$1" ;;
+    esac
+}
+
+assert_eq "$S" "jan"  "$(_month_name 2026-01)" "January"
+assert_eq "$S" "jul"  "$(_month_name 2026-07)" "July"
+assert_eq "$S" "dec"  "$(_month_name 2026-12)" "December"
+assert_eq "$S" "nov"  "$(_month_name 2025-11)" "November"
+
+# ── monthly-email-ndjson-filter ───────────────────────────────────────────────
+# Mirrors the jq pipeline in strava-email-monthly.sh that reads the per-club
+# NDJSON store, filters to the target month, and aggregates per-athlete totals.
+S="monthly-email-ndjson-filter"
+
+printf '%s\n' \
+    '{"firstSeen":"2026-06-15","firstname":"Alice","lastname":"Smith","distance":25000,"moving_time":3600,"total_elevation_gain":200}' \
+    '{"firstSeen":"2026-06-22","firstname":"Bob","lastname":"Jones","distance":15000,"moving_time":2700,"total_elevation_gain":100}' \
+    '{"firstSeen":"2026-07-01","firstname":"Alice","lastname":"Smith","distance":30000,"moving_time":4000,"total_elevation_gain":250}' \
+    '{"firstSeen":"2026-06-10","firstname":"Alice","lastname":"Smith","distance":20000,"moving_time":3200,"total_elevation_gain":150}' \
+    > "$TMP/mo_june.ndjson"
+
+_june_count="$(jq -rn --arg m "2026-06" \
+    '[inputs | select(.firstSeen | startswith($m))] | length' \
+    "$TMP/mo_june.ndjson")"
+assert_eq "$S" "june-filter-count-3"   "$_june_count" "3"
+
+_july_count="$(jq -rn --arg m "2026-07" \
+    '[inputs | select(.firstSeen | startswith($m))] | length' \
+    "$TMP/mo_june.ndjson")"
+assert_eq "$S" "july-filter-count-1"   "$_july_count" "1"
+
+_may_count="$(jq -rn --arg m "2026-05" \
+    '[inputs | select(.firstSeen | startswith($m))] | length' \
+    "$TMP/mo_june.ndjson")"
+assert_eq "$S" "empty-month-count-0"   "$_may_count" "0"
+
+# Alice has two June entries; Bob has one — Alice should rank first.
+_top="$(jq -rn --arg m "2026-06" '
+    [inputs | select(.firstSeen | startswith($m))]
+    | group_by("\(.firstname)|\(.lastname)")
+    | map({
+        name: "\(.[0].firstname) \(.[0].lastname)",
+        dist: ([.[].distance] | add),
+        time_s: ([.[].moving_time] | add),
+        elev: ([.[].total_elevation_gain] | add | round)
+      })
+    | sort_by(-.dist)
+    | .[0].name' "$TMP/mo_june.ndjson")"
+assert_eq "$S" "alice-ranked-first"    "$_top" "Alice Smith"
+
+_alice_dist="$(jq -rn --arg m "2026-06" '
+    [inputs | select(.firstSeen | startswith($m))]
+    | group_by("\(.firstname)|\(.lastname)")
+    | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: ([.[].distance] | add)})
+    | sort_by(-.dist) | .[0].dist' "$TMP/mo_june.ndjson")"
+assert_eq "$S" "alice-june-dist-45000" "$_alice_dist" "45000"
+
+_athlete_count="$(jq -rn --arg m "2026-06" '
+    [inputs | select(.firstSeen | startswith($m))]
+    | group_by("\(.firstname)|\(.lastname)") | length' "$TMP/mo_june.ndjson")"
+assert_eq "$S" "two-athletes-grouped"  "$_athlete_count" "2"
+
+# Distance km conversion and rounding: 25000 m → 25.0 km
+_dist_km="$(jq -rn --arg m "2026-06" '
+    [inputs | select(.firstSeen | startswith($m))]
+    | group_by("\(.firstname)|\(.lastname)")
+    | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: ([.[].distance] | add)})
+    | sort_by(-.dist)
+    | .[1].dist / 1000' "$TMP/mo_june.ndjson")"
+assert_eq "$S" "bob-dist-km-15"        "$_dist_km" "15"
+
+# ── monthly-email-graceful-noop ───────────────────────────────────────────────
+# Mirrors the guard at the top of strava-email-monthly.sh that silently skips
+# when SMTP is not configured.
+S="monthly-email-graceful-noop"
+
+_check_email_cfg() {
+    if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then printf "skipped"
+    else printf "proceed"; fi
+}
+
+assert_eq "$S" "all-empty-skips"   "$(_check_email_cfg "" "" "")"                    "skipped"
+assert_eq "$S" "no-smtp-skips"     "$(_check_email_cfg "" "u@e:p" "a@b")"            "skipped"
+assert_eq "$S" "no-user-skips"     "$(_check_email_cfg "smtps://s" "" "a@b")"        "skipped"
+assert_eq "$S" "no-to-skips"       "$(_check_email_cfg "smtps://s" "u:p" "")"        "skipped"
+assert_eq "$S" "all-set-proceeds"  "$(_check_email_cfg "smtps://s" "u:p" "a@b")"     "proceed"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then

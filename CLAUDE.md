@@ -72,6 +72,14 @@ scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard `
   && ssh root@192.168.1.1 strava-leaderboard
 ```
 
+For the email / cron-guard scripts (push both together; no manual run needed — they are triggered by cron or by failure):
+
+```powershell
+scp strava-cron-guard.sh root@192.168.1.1:/usr/bin/strava-cron-guard `
+  && scp strava-email-monthly.sh root@192.168.1.1:/usr/bin/strava-email-monthly `
+  && ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-cron-guard /usr/bin/strava-email-monthly"
+```
+
 Full reinstall (first time or after `install.sh` changes):
 
 ```sh
@@ -125,7 +133,7 @@ them on a Windows dev box. To validate changes:
 - **Pure POSIX sh / BusyBox** — no bashisms. No arrays, no `[[ ]]`, no
   `local` (BusyBox `sh` does support `local`, but stay conservative), no
   process substitution. Stick to `[ ]`, `case`, `printf`, here-docs.
-- **Only `curl` + `jq`** as external deps. Don't introduce `awk`/`sed`/`python`
+- **Only `curl` + `jq` + `msmtp`** as external deps. Don't introduce `awk`/`sed`/`python`
   dependencies for logic that `jq` can do — `jq` is already required and does
   the aggregation.
 - **Low RAM / flash.** Prefer streaming/NDJSON over loading everything. The club
