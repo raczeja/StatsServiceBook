@@ -11,9 +11,12 @@ BIN_ME="/usr/bin/strava-my-activities"
 CONF_ME="/etc/strava-my-activities.conf"
 BIN_HS="/usr/bin/healthsync-activities"
 CONF_HS="/etc/healthsync-activities.conf"
-CRON_TIME="${CRON_TIME:-50 23 * * *}"      # leaderboard: daily at 23:50 local time
-CRON_TIME_ME="${CRON_TIME_ME:-55 23 * * *}" # my-activities: daily at 23:55 local time
-CRON_TIME_HS="${CRON_TIME_HS:-55 23 * * *}" # healthsync:    daily at 23:55 local time (replaces my-activities when Strava API ends)
+BIN_GUARD="/usr/bin/strava-cron-guard"
+BIN_EMAIL="/usr/bin/strava-email-monthly"
+CRON_TIME="${CRON_TIME:-50 23 * * *}"         # leaderboard:  daily at 23:50 local time
+CRON_TIME_ME="${CRON_TIME_ME:-55 23 * * *}"   # my-activities: daily at 23:55 local time
+CRON_TIME_HS="${CRON_TIME_HS:-55 23 * * *}"   # healthsync:    daily at 23:55 (replaces my-activities when Strava API ends)
+CRON_TIME_EMAIL="${CRON_TIME_EMAIL:-0 8 1 * *}" # monthly email: 1st of each month at 08:00
 # POSIX TZ for Europe/Warsaw incl. DST (CET/CEST). Override with TZ_POSIX="" to skip.
 TZ_POSIX="${TZ_POSIX:-CET-1CEST,M3.5.0,M10.5.0/3}"
 
@@ -25,14 +28,14 @@ if [ -n "$TZ_POSIX" ]; then
   /etc/init.d/system reload
 fi
 
-echo "==> installing dependencies (curl, jq, ca-bundle)"
+echo "==> installing dependencies (curl, jq, ca-bundle, msmtp)"
 # OpenWrt 24.10+/snapshots use apk; older releases use opkg.
 if command -v apk >/dev/null 2>&1; then
   apk update
-  apk add curl jq ca-bundle
+  apk add curl jq ca-bundle msmtp
 elif command -v opkg >/dev/null 2>&1; then
   opkg update
-  opkg install curl jq ca-bundle
+  opkg install curl jq ca-bundle msmtp
 else
   echo "ERROR: neither apk nor opkg found — install curl, jq, ca-bundle manually" >&2
   exit 1
@@ -49,6 +52,12 @@ if [ ! -f "$CONF" ]; then
 else
   echo "==> $CONF already exists — leaving it untouched"
 fi
+
+echo "==> installing $BIN_GUARD and $BIN_EMAIL"
+cp "$SRC_DIR/strava-cron-guard.sh"    "$BIN_GUARD"
+chmod 0755 "$BIN_GUARD"
+cp "$SRC_DIR/strava-email-monthly.sh" "$BIN_EMAIL"
+chmod 0755 "$BIN_EMAIL"
 
 echo "==> installing shared library and HTML helpers"
 cp "$SRC_DIR/strava-lib.sh"               /usr/bin/strava-lib.sh
@@ -173,15 +182,22 @@ if command -v uci >/dev/null 2>&1 && uci -q get uhttpd.main >/dev/null 2>&1; the
   fi
 fi
 
-echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_TIME_ME', healthsync '$CRON_TIME_HS'"
-CRON_LINE="$CRON_TIME $BIN >> /var/log/strava-leaderboard.log 2>&1"
-CRON_LINE_ME="$CRON_TIME_ME $BIN_ME >> /var/log/strava-my-activities.log 2>&1"
-CRON_LINE_HS="$CRON_TIME_HS $BIN_HS >> /var/log/healthsync-activities.log 2>&1"
+echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_TIME_ME', healthsync '$CRON_TIME_HS', monthly-email '$CRON_TIME_EMAIL'"
+CRON_LINE="$CRON_TIME $BIN_GUARD strava-leaderboard >> /var/log/strava-leaderboard.log 2>&1"
+CRON_LINE_ME="$CRON_TIME_ME $BIN_GUARD strava-my-activities >> /var/log/strava-my-activities.log 2>&1"
+CRON_LINE_HS="$CRON_TIME_HS $BIN_GUARD healthsync-activities >> /var/log/healthsync-activities.log 2>&1"
+CRON_LINE_EMAIL="$CRON_TIME_EMAIL $BIN_EMAIL >> /var/log/strava-email-monthly.log 2>&1"
 {
-  crontab -l 2>/dev/null | grep -v 'strava-leaderboard' | grep -v 'strava-my-activities' | grep -v 'healthsync-activities' || true
+  crontab -l 2>/dev/null \
+    | grep -v 'strava-leaderboard' \
+    | grep -v 'strava-my-activities' \
+    | grep -v 'healthsync-activities' \
+    | grep -v 'strava-email-monthly' \
+    || true
   echo "$CRON_LINE"
   echo "$CRON_LINE_ME"
   echo "$CRON_LINE_HS"
+  echo "$CRON_LINE_EMAIL"
 } | crontab -
 /etc/init.d/cron enable
 /etc/init.d/cron restart
@@ -207,9 +223,16 @@ cat <<EOF
     3) When Strava API access ends, remove the my-activities cron line:
          crontab -l | grep -v 'strava-my-activities' | crontab -
 
+    Email (optional — configure in $CONF):
+      STRAVA_EMAIL_SMTP / STRAVA_EMAIL_USER / STRAVA_EMAIL_FROM
+      STRAVA_EMAIL_TO        — monthly leaderboard recipients (comma-separated)
+      STRAVA_EMAIL_ALERTS_TO — cron error alert recipients   (comma-separated)
+      Test monthly email:  STRAVA_EMAIL_TEST_MONTH=YYYY-MM $BIN_EMAIL
+
     Logs:
       /var/log/strava-leaderboard.log    (in RAM; cleared on reboot)
       /var/log/strava-my-activities.log  (in RAM; cleared on reboot)
       /var/log/healthsync-activities.log (in RAM; cleared on reboot)
+      /var/log/strava-email-monthly.log  (in RAM; cleared on reboot)
     Cron:    crontab -l
 EOF
