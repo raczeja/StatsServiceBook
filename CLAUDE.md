@@ -77,7 +77,8 @@ For the email / cron-guard scripts (push both together; no manual run needed —
 ```powershell
 scp strava-cron-guard.sh root@192.168.1.1:/usr/bin/strava-cron-guard `
   && scp strava-email-monthly.sh root@192.168.1.1:/usr/bin/strava-email-monthly `
-  && ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-cron-guard /usr/bin/strava-email-monthly"
+  && scp strava-email-monthly.sh root@192.168.1.1:/usr/bin/strava-email-weekly `
+  && ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-cron-guard /usr/bin/strava-email-monthly /usr/bin/strava-email-weekly"
 ```
 
 Full reinstall (first time or after `install.sh` changes):

@@ -112,18 +112,21 @@ ensure_drive_token() {
         fi
     fi
     log "refreshing Google Drive token..."
-    if ! curl_retry -fsS https://oauth2.googleapis.com/token \
+    # Use -sS without -f so the error body (e.g. invalid_grant) is written to token.json.
+    curl_retry -sS https://oauth2.googleapis.com/token \
         -d "client_id=$GOOGLE_CLIENT_ID" \
         -d "client_secret=$GOOGLE_CLIENT_SECRET" \
         -d "refresh_token=$GOOGLE_REFRESH_TOKEN" \
         -d "grant_type=refresh_token" \
-        -o "$TMP/token.json"; then
-        printf '{"ok":false,"error":"Drive token refresh failed","ts":%s}\n' "$(date +%s)" \
-            > "$WEB_DIR/drive-status.json" 2>/dev/null || true
-        die "Drive token refresh failed"
+        -o "$TMP/token.json" 2>/dev/null || true
+    ACCESS_TOKEN="$(jq -r '.access_token // empty' "$TMP/token.json" 2>/dev/null || true)"
+    if [ -z "$ACCESS_TOKEN" ]; then
+        _gerr="$(jq -r '.error // empty' "$TMP/token.json" 2>/dev/null || true)"
+        log "Drive token refresh failed${_gerr:+ (Google: $_gerr)}"
+        printf '{"ok":false,"error":"Drive token refresh failed","google_error":"%s","ts":%s}\n' \
+            "$_gerr" "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+        return 1
     fi
-    ACCESS_TOKEN="$(jq -r '.access_token // empty' "$TMP/token.json")"
-    [ -n "$ACCESS_TOKEN" ] || die "no access_token in Drive response: $(cat "$TMP/token.json")"
     expires_in="$(jq -r '.expires_in // 3600' "$TMP/token.json")"
     jq --argjson exp "$((now + expires_in))" '. + {expires_at: $exp}' \
         "$TMP/token.json" > "$TOKEN_STATE"
@@ -131,7 +134,9 @@ ensure_drive_token() {
     log "Drive token refreshed (valid ~${expires_in}s)"
 }
 
-ensure_drive_token
+if ! ensure_drive_token; then
+    IMPORT_ENABLED=0
+fi
 
 # --- 2. List Drive folder (or local test dir when LOCAL_DRIVE_DIR is set) -----
 if [ -n "${LOCAL_DRIVE_DIR:-}" ]; then
@@ -1014,9 +1019,10 @@ fi
 
 # Start device authorization flow
 mkdir -p "$STATE_DIR" 2>/dev/null || true
-dc_resp="$(curl -fsS --max-time 15 https://oauth2.googleapis.com/device/code \
+# Use -sS (not -f) so the error response body is captured and can be shown to the user.
+dc_resp="$(curl -sS --max-time 15 https://oauth2.googleapis.com/device/code \
     -d "client_id=$GOOGLE_CLIENT_ID" \
-    -d "scope=https://www.googleapis.com/auth/drive.readonly" 2>/dev/null || true)"
+    -d "scope=https://www.googleapis.com/auth/drive.readonly" 2>&1 || true)"
 user_code="$(printf '%s' "$dc_resp" | jq -r '.user_code // empty' 2>/dev/null || true)"
 verify_url="$(printf '%s' "$dc_resp" | jq -r '.verification_url // empty' 2>/dev/null || true)"
 expires_in="$(printf '%s' "$dc_resp" | jq -r '.expires_in // 300' 2>/dev/null || echo 300)"
@@ -1024,8 +1030,11 @@ expires_in="$(printf '%s' "$dc_resp" | jq -r '.expires_in // 300' 2>/dev/null ||
 printf 'Content-Type: text/html\r\nCache-Control: no-cache\r\n\r\n'
 
 if [ -z "$user_code" ]; then
+    _dc_err="$(printf '%s' "$dc_resp" | jq -r '.error_description // .error // empty' 2>/dev/null || true)"
     printf '<!doctype html><html lang="en"><body><h2>Authorization Error</h2>'
-    printf '<p>Could not request a device code from Google. Check GOOGLE_CLIENT_ID in config.</p>'
+    printf '<p>Could not get a device code from Google.</p>'
+    [ -n "$_dc_err" ] && printf '<p>Google says: <code>%s</code></p>' "$_dc_err"
+    printf '<p>Check <code>GOOGLE_CLIENT_ID</code> in <code>%s</code>. The OAuth client type must be <strong>TVs and Limited Input devices</strong> in Google Cloud Console (Credentials page).</p>' "$CONFIG"
     printf '</body></html>\n'
     exit 0
 fi

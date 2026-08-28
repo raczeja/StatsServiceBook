@@ -90,17 +90,21 @@ STRAVA_KEEP_SNAPSHOTS="90"
 #STRAVA_CURL_RETRY_DELAY="15"
 
 # --- Email (optional) --------------------------------------------------------
-# When configured, two email features are enabled:
+# When configured, three email features are enabled:
 #
 #   1. Monthly leaderboard email — sent on the 1st of each month (by
 #      /usr/bin/strava-email-monthly) summarising the previous month's stats
 #      for all clubs. Sent separately to each address in STRAVA_EMAIL_TO.
 #
-#   2. Cron error alerts — sent by /usr/bin/strava-cron-guard when any of the
+#   2. Weekly leaderboard email — sent every Monday (by
+#      /usr/bin/strava-email-weekly) with the current month's running stats
+#      for all clubs. Sent separately to each address in STRAVA_EMAIL_WEEKLY_TO.
+#
+#   3. Cron error alerts — sent by /usr/bin/strava-cron-guard when any of the
 #      three nightly scripts (strava-leaderboard, strava-my-activities,
 #      healthsync-activities) exits non-zero. Sent to STRAVA_EMAIL_ALERTS_TO.
 #
-# Both features are silently skipped when these vars are absent, so it is safe
+# All features are silently skipped when these vars are absent, so it is safe
 # to deploy without configuring email first.
 #
 # Email is sent via msmtp (installed by install.sh). The SMTP URL is parsed
@@ -131,6 +135,11 @@ STRAVA_KEEP_SNAPSHOTS="90"
 # Monthly leaderboard recipients — comma-separated, no spaces.
 # Each address receives a separate email.
 #STRAVA_EMAIL_TO="alice@example.com,bob@example.com"
+
+# Weekly leaderboard recipients — comma-separated, no spaces.
+# Sent every Monday with the current month's running leaderboard.
+# Each address receives a separate email.
+#STRAVA_EMAIL_WEEKLY_TO="alice@example.com,bob@example.com"
 
 # Cron error alert recipients — comma-separated, no spaces.
 # Receives an alert with the exit code and last 50 lines of output when any

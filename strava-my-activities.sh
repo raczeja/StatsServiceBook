@@ -471,38 +471,36 @@ _dfi="${DRIVE_FOLDER_ID:-}"
 if [ -n "$_gci" ] && [ -n "$_gcs" ] && [ -n "$_grt" ] && [ -n "$_dfi" ]; then
     log "drive check: refreshing token..."
     _dr="$TMP/drive_tok.json"
-    if ! curl_retry -fsS https://oauth2.googleapis.com/token \
+    # Use -sS without -f so the error response body (e.g. {"error":"invalid_grant"})
+    # is written to $_dr and can be logged. Network failures still exit non-zero.
+    curl_retry -sS https://oauth2.googleapis.com/token \
         -d "client_id=$_gci" -d "client_secret=$_gcs" \
         -d "refresh_token=$_grt" -d "grant_type=refresh_token" \
-        -o "$_dr"; then
-        log "drive check: token refresh failed"
-        printf '{"ok":false,"error":"token refresh failed","checked_at":%s}\n' \
-            "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+        -o "$_dr" 2>/dev/null || true
+    _acc="$(jq -r '.access_token // empty' "$_dr" 2>/dev/null || true)"
+    _gerr="$(jq -r '.error // empty' "$_dr" 2>/dev/null || true)"
+    if [ -z "$_acc" ]; then
+        log "drive check: token refresh failed${_gerr:+ (Google: $_gerr)}"
+        printf '{"ok":false,"error":"token refresh failed","google_error":"%s","checked_at":%s}\n' \
+            "$_gerr" "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
     else
-        _acc="$(jq -r '.access_token // empty' "$_dr" 2>/dev/null || true)"
         _exp_in="$(jq -r '.expires_in // 3600' "$_dr" 2>/dev/null || echo 3600)"
         _exp_at="$(( $(date +%s) + _exp_in ))"
-        if [ -z "$_acc" ]; then
-            log "drive check: no access_token in response"
-            printf '{"ok":false,"error":"no access token in refresh response","checked_at":%s}\n' \
-                "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
+        log "drive check: listing Drive folder..."
+        _lf="$TMP/drive_list.json"
+        _q="'${_dfi}'+in+parents+and+trashed=false"
+        if ! curl_retry -fsS \
+            -H "Authorization: Bearer $_acc" \
+            "https://www.googleapis.com/drive/v3/files?q=${_q}&fields=files(id,name)&pageSize=1000" \
+            -o "$_lf"; then
+            log "drive check: file listing failed"
+            printf '{"ok":false,"error":"Drive file listing failed","checked_at":%s,"expires_at":%s}\n' \
+                "$(date +%s)" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
         else
-            log "drive check: listing Drive folder..."
-            _lf="$TMP/drive_list.json"
-            _q="'${_dfi}'+in+parents+and+trashed=false"
-            if ! curl_retry -fsS \
-                -H "Authorization: Bearer $_acc" \
-                "https://www.googleapis.com/drive/v3/files?q=${_q}&fields=files(id,name)&pageSize=1000" \
-                -o "$_lf"; then
-                log "drive check: file listing failed"
-                printf '{"ok":false,"error":"Drive file listing failed","checked_at":%s,"expires_at":%s}\n' \
-                    "$(date +%s)" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
-            else
-                _cnt="$(jq '.files | length' "$_lf" 2>/dev/null || echo 0)"
-                log "drive check: ok ($_cnt files visible)"
-                printf '{"ok":true,"checked_at":%s,"file_count":%s,"expires_at":%s}\n' \
-                    "$(date +%s)" "$_cnt" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
-            fi
+            _cnt="$(jq '.files | length' "$_lf" 2>/dev/null || echo 0)"
+            log "drive check: ok ($_cnt files visible)"
+            printf '{"ok":true,"checked_at":%s,"file_count":%s,"expires_at":%s}\n' \
+                "$(date +%s)" "$_cnt" "$_exp_at" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
         fi
     fi
 else
