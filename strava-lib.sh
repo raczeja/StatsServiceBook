@@ -21,10 +21,13 @@ curl_retry() {
   _cr_n=0
   while true; do
     curl "$@" && return 0
+    _cr_exit=$?
+    # Exit 22 = HTTP 4xx/5xx (curl -f). Permanent server-side error; retrying won't help.
+    [ "$_cr_exit" -eq 22 ] && return 22
     _cr_n=$((_cr_n + 1))
-    [ "$_cr_n" -le "${STRAVA_CURL_RETRIES:-3}" ] || return 1
+    [ "$_cr_n" -le "${STRAVA_CURL_RETRIES:-3}" ] || return "$_cr_exit"
     _cr_wait=$((_cr_n * ${STRAVA_CURL_RETRY_DELAY:-15}))
-    log "curl failed, retry $_cr_n/${STRAVA_CURL_RETRIES:-3} in ${_cr_wait}s..." >&2
+    log "curl failed (exit $_cr_exit), retry $_cr_n/${STRAVA_CURL_RETRIES:-3} in ${_cr_wait}s..." >&2
     sleep "$_cr_wait"
   done
 }
