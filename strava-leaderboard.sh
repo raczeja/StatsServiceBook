@@ -582,6 +582,13 @@ function fmtKm(m){ return (m/1000).toFixed(1); }
 function fmtTime(s){ return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m"; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+function getLastWeekRange(){
+  var n=new Date(), dow=n.getDay(), dsm=dow===0?6:dow-1;
+  var mon=new Date(n.getTime()-dsm*86400000); mon.setHours(0,0,0,0);
+  var lm=new Date(mon.getTime()-7*86400000), ls=new Date(mon.getTime()-86400000);
+  function fmt(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  return {from:fmt(lm),to:fmt(ls)};
+}
 
 function renderCookieBanner(meta){
   var el = document.getElementById("ck-banner");
@@ -687,28 +694,36 @@ function toggleDetail(id){
   if(el) el.style.display = el.style.display==='none' ? '' : 'none';
 }
 
-function renderClubTable(acts, tablePrefix){
+function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   var map = {};
   acts.forEach(function(a){
     var k = a.firstname+"|"+a.lastname+"|"+(a.profile_medium||"");
     var e = map[k];
-    if(!e){ e=map[k]={firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0,items:[]}; }
+    if(!e){ e=map[k]={_key:k,firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0,items:[]}; }
     e.distance+=a.distance||0;
     e.moving_time+=a.moving_time||0;
     e.elev+=a.total_elevation_gain||0;
     e.count++;
     e.items.push(a);
   });
+  var lwMap = {};
+  (allActs||[]).forEach(function(a){
+    if(a.date && lastWeek && a.date>=lastWeek.from && a.date<=lastWeek.to){
+      var k=a.firstname+"|"+a.lastname+"|"+(a.profile_medium||"");
+      lwMap[k]=(lwMap[k]||0)+(a.distance||0);
+    }
+  });
   var members = Object.keys(map).map(function(k){ return map[k]; })
     .sort(function(x,y){ return y.distance-x.distance; });
   if(members.length===0) return '<p class="empty">No activities for this period.</p>';
   var maxDist = members[0].distance || 1;
   var html = '<table><thead><tr><th>#</th><th>Athlete</th><th>Distance</th>'+
-    '<th>Time</th><th>Elev (m)</th><th>Activities</th><th>Avg km/h</th></tr></thead><tbody>';
+    '<th>Time</th><th>Elev (m)</th><th>Activities</th><th>Avg km/h</th><th>Last week</th></tr></thead><tbody>';
   members.forEach(function(m,i){
     var avg = m.moving_time>0 ? (m.distance/m.moving_time*3.6) : 0;
     var pct = maxDist>0 ? Math.max(3, Math.round(m.distance/maxDist*100)) : 3;
     var did = tablePrefix+'-d'+i;
+    var lw = lwMap[m._key]||0;
     html += '<tr class="person-row" onclick="toggleDetail(\''+did+'\')" title="Click to show activities">'+
       '<td class="num">'+(i+1)+'</td>'+
       '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'<span class="expand-btn">▾</span></td>'+
@@ -716,12 +731,13 @@ function renderClubTable(acts, tablePrefix){
       '<td class="num">'+fmtTime(m.moving_time)+'</td>'+
       '<td class="num">'+Math.floor(m.elev)+'</td>'+
       '<td class="num">'+m.count+'</td>'+
-      '<td class="num">'+avg.toFixed(1)+'</td></tr>';
-    html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="7">';
+      '<td class="num">'+avg.toFixed(1)+'</td>'+
+      '<td class="num">'+fmtKm(lw)+' km</td></tr>';
+    html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="8">';
     html += '<table class="detail-table"><thead><tr>'+
       '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th><th>Avg km/h</th>'+
       '</tr></thead><tbody>';
-    m.items.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); })
+    m.items.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); })
       .forEach(function(a){
         var aspd = (a.moving_time||0)>0 ? ((a.distance||0)/(a.moving_time)*3.6).toFixed(1) : '–';
         html += '<tr>'+
@@ -744,6 +760,7 @@ function render(){
   var label = month==="all" ? String(year) : MONTHS[+month-1]+" "+year;
   var clubs = DATA.clubs || [];
   var sport = DATA.sport || "all";
+  var lastWeek = getLastWeekRange();
 
   var totalDist = 0, totalActs = 0;
   var html = "";
@@ -772,7 +789,7 @@ function render(){
     if(info.sport_type) sub.push(esc(info.sport_type));
     if(sub.length) html += '<p class="club-sub">'+sub.join(' · ')+'</p>';
     if(info.description) html += '<p class="club-desc">'+esc(info.description)+'</p>';
-    html += renderClubTable(acts, esc(club.clubId||String(i)));
+    html += renderClubTable(acts, esc(club.clubId||String(i)), club.activities||[], lastWeek);
     html += '</section>';
   });
 

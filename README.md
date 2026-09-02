@@ -1102,6 +1102,7 @@ cat >> /etc/sysupgrade.conf << 'EOF'
 /usr/bin/healthsync-activities
 /usr/bin/strava-cron-guard
 /usr/bin/strava-email-monthly
+/usr/bin/strava-email-weekly
 /usr/bin/strava-lib.sh
 /usr/bin/strava-my-html-dashboard.sh
 /usr/bin/strava-my-html-detail.sh
