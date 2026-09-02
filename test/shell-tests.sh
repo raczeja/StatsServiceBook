@@ -1270,6 +1270,22 @@ assert_eq "$S" "dec-to-nov"         "$(_prev_month 2026 12)" "2026-11"
 assert_eq "$S" "year-boundary-2000" "$(_prev_month 2000 1)"  "1999-12"
 assert_eq "$S" "normal-aug"         "$(_prev_month 2026 8)"  "2026-07"
 
+# Zero-padded inputs from `date +%m` must not be treated as octal (08/09
+# are invalid octal and cause an arithmetic syntax error in BusyBox sh).
+# The production script strips them with: month=$(expr "$(date +%m)" + 0)
+_prev_month_raw() {
+    _pm_year="$1"
+    _pm_month=$(expr "$2" + 0)
+    if [ "$_pm_month" -eq 1 ]; then
+        _pm_py=$((_pm_year - 1)); _pm_pm=12
+    else
+        _pm_py=$_pm_year; _pm_pm=$((_pm_month - 1))
+    fi
+    printf '%04d-%02d' "$_pm_py" "$_pm_pm"
+}
+assert_eq "$S" "zero-padded-08-sep" "$(_prev_month_raw 2026 08)" "2026-07"
+assert_eq "$S" "zero-padded-09-oct" "$(_prev_month_raw 2026 09)" "2026-08"
+
 # ── monthly-email-month-name ──────────────────────────────────────────────────
 # Mirrors the case block that converts YYYY-MM to "Month YYYY" label.
 S="monthly-email-month-name"

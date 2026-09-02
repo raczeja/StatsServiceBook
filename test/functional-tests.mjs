@@ -187,6 +187,33 @@ async function testClubDashboard(page, jsErrors) {
     });
     await page.click("#board .person-row:first-child");
   });
+  // Table header must include "Last week" column
+  await check(S, "table-has-last-week-column", async () => {
+    const headers = await page.$$eval(
+      "#board thead tr th",
+      (ths) => ths.map((th) => th.textContent.trim()),
+    );
+    assert.ok(
+      headers.some((h) => h.replace(/ /g, " ").includes("Last week")),
+      `expected "Last week" column header, got: ${JSON.stringify(headers)}`,
+    );
+  });
+  // Detail rows must be sorted newest-first (descending date)
+  await check(S, "detail-rows-newest-first", async () => {
+    await page.click("#board .person-row:first-child");
+    const dates = await page.$eval(
+      "#board .detail-row .detail-table tbody",
+      (tbody) => Array.from(tbody.querySelectorAll("tr")).map((tr) => tr.querySelector("td")?.textContent.trim() || ""),
+    );
+    assert.ok(dates.length >= 2, `expected >= 2 detail rows to test sort, got ${dates.length}`);
+    for (let i = 0; i < dates.length - 1; i++) {
+      assert.ok(
+        dates[i] >= dates[i + 1],
+        `detail rows not newest-first: row ${i}="${dates[i]}" should be >= row ${i+1}="${dates[i+1]}"`,
+      );
+    }
+    await page.click("#board .person-row:first-child");
+  });
   // Each club's "all-time JSON" footer link must resolve to a real file.
   // This catches the install.sh bug where leaderboard.json was symlinked instead
   // of leaderboard_<clubId>.json.

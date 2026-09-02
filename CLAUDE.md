@@ -81,6 +81,16 @@ scp strava-cron-guard.sh root@192.168.1.1:/usr/bin/strava-cron-guard `
   && ssh root@192.168.1.1 "chmod 0755 /usr/bin/strava-cron-guard /usr/bin/strava-email-monthly /usr/bin/strava-email-weekly"
 ```
 
+Test-send after deploy (override target month; last-week window is always auto-computed from today):
+
+```powershell
+# Send August monthly leaderboard now
+ssh root@192.168.1.1 "STRAVA_EMAIL_TEST_MONTH=2026-08 /usr/bin/strava-email-monthly"
+
+# Send weekly email with August month leaderboard + last-week column (Aug 24–30 when run on a Wednesday in week of Sep 1)
+ssh root@192.168.1.1 "STRAVA_WEEKLY_TEST_MONTH=2026-08 /usr/bin/strava-email-weekly"
+```
+
 Full reinstall (first time or after `install.sh` changes):
 
 ```sh
