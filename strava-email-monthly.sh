@@ -296,6 +296,7 @@ case "$STRAVA_EMAIL_SMTP" in smtp://*) _smtp_starttls="on" ;; esac
 _smtp_user="${STRAVA_EMAIL_USER%%:*}"
 _smtp_pass="${STRAVA_EMAIL_USER#*:}"
 
+_send_failed=0
 old_IFS="$IFS"; IFS=","
 for addr in $_recipients; do
     addr="$(printf '%s' "$addr" | tr -d ' \t')"
@@ -320,8 +321,9 @@ for addr in $_recipients; do
         --passwordeval="printf '%s' '$_smtp_pass'" \
         --from="$EMAIL_FROM" \
         "$addr" \
-        || log "WARNING: failed to send to $addr"
+        || { log "WARNING: failed to send to $addr"; _send_failed=1; }
 done
 IFS="$old_IFS"
 
 log "done."
+exit "$_send_failed"

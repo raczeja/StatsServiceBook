@@ -190,8 +190,8 @@ echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_
 CRON_LINE="$CRON_TIME $BIN_GUARD strava-leaderboard >> /var/log/strava-leaderboard.log 2>&1"
 CRON_LINE_ME="$CRON_TIME_ME $BIN_GUARD strava-my-activities >> /var/log/strava-my-activities.log 2>&1"
 CRON_LINE_HS="$CRON_TIME_HS $BIN_GUARD healthsync-activities >> /var/log/healthsync-activities.log 2>&1"
-CRON_LINE_EMAIL="$CRON_TIME_EMAIL $BIN_EMAIL >> /var/log/strava-email-monthly.log 2>&1"
-CRON_LINE_EMAIL_WEEKLY="$CRON_TIME_EMAIL_WEEKLY $BIN_EMAIL_WEEKLY >> /var/log/strava-email-weekly.log 2>&1"
+CRON_LINE_EMAIL="$CRON_TIME_EMAIL $BIN_GUARD strava-email-monthly >> /var/log/strava-email-monthly.log 2>&1"
+CRON_LINE_EMAIL_WEEKLY="$CRON_TIME_EMAIL_WEEKLY $BIN_GUARD strava-email-weekly >> /var/log/strava-email-weekly.log 2>&1"
 {
   crontab -l 2>/dev/null \
     | grep -v 'strava-leaderboard' \
