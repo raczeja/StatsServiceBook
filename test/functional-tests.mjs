@@ -187,15 +187,44 @@ async function testClubDashboard(page, jsErrors) {
     });
     await page.click("#board .person-row:first-child");
   });
-  // Table header must include "Last week" column
-  await check(S, "table-has-last-week-column", async () => {
+  // Past month (June 2026, which is the default fallback) must NOT show "Last week"
+  await check(S, "table-no-last-week-past-month", async () => {
     const headers = await page.$$eval(
       "#board thead tr th",
       (ths) => ths.map((th) => th.textContent.trim()),
     );
     assert.ok(
-      headers.some((h) => h.replace(/ /g, " ").includes("Last week")),
-      `expected "Last week" column header, got: ${JSON.stringify(headers)}`,
+      !headers.some((h) => h.replace(/ /g, " ").includes("Last week")),
+      `expected no "Last week" header for past month, got: ${JSON.stringify(headers)}`,
+    );
+  });
+  // Table header must include "Last week" column when current month matches the data month
+  await check(S, "table-has-last-week-column", async () => {
+    // Mock Date so the browser thinks it's in June 2026 (same as the data)
+    await page.evaluate(() => {
+      const _Orig = window.Date;
+      const fake = new _Orig(2026, 5, 15);
+      window.__savedDate = _Orig;
+      window.Date = class extends _Orig {
+        constructor(...a) { super(...(a.length ? a : [fake.getTime()])); }
+        static now() { return fake.getTime(); }
+      };
+      if (typeof render === "function") render();
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    const headers = await page.$$eval(
+      "#board thead tr th",
+      (ths) => ths.map((th) => th.textContent.trim()),
+    );
+    // Restore real Date and re-render so later tests see the normal state
+    await page.evaluate(() => {
+      if (window.__savedDate) { window.Date = window.__savedDate; delete window.__savedDate; }
+      if (typeof render === "function") render();
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    assert.ok(
+      headers.some((h) => h.includes("Last week")),
+      `expected "Last week" column header when current month matches data, got: ${JSON.stringify(headers)}`,
     );
   });
   // Detail rows must be sorted newest-first (descending date)

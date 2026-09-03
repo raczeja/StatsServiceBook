@@ -49,6 +49,11 @@ STRAVA_CLUB_IDS="123456,123457"
 # Comment it out (or leave empty) once the overlap period has passed.
 #STRAVA_SCRAPE_START_DATE="2026-09-01"
 
+# Athletes to hide from the leaderboard — comma-separated "Firstname Lastname" values
+# (case-insensitive). Their data stays in the store; removing them from this list
+# brings them back on the next run. Example: STRAVA_EXCLUDE_ATHLETES="Filip B.,Jan K."
+#STRAVA_EXCLUDE_ATHLETES=""
+
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
 STRAVA_SPORT_TYPE=""
 
