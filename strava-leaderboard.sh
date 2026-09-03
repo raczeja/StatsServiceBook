@@ -50,6 +50,7 @@ WEB_DIR="${STRAVA_WEB_DIR:-/www/strava}"
 STATE_DIR="${STRAVA_STATE_DIR:-/usr/lib/strava-leaderboard}"  # must survive reboot (NOT /tmp or /var on OpenWrt)
 SNAPSHOT_DIR="$STATE_DIR/snapshots"
 KEEP_SNAPSHOTS="${STRAVA_KEEP_SNAPSHOTS:-90}"
+EXCLUDE_ATHLETES="${STRAVA_EXCLUDE_ATHLETES:-}"   # comma-separated "Firstname Lastname" to hide
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -208,19 +209,29 @@ while IFS= read -r club_id; do
   # scrape: dedup by activity id; firstSeen = actual startDate from Strava.
   [ -f "$CLUB_STORE" ] || : > "$CLUB_STORE"
 
-  if [ -s "$CLUB_STORE" ]; then
-    jq -s '[ .[].signature ]' "$CLUB_STORE" > "$TMP/known.json" \
+  # Pre-filter: grep removes lines that are not complete JSON objects (e.g.
+  # truncated by an interrupted write) before jq ever opens the file.  grep reads
+  # bytes without JSON-parsing, so it cannot trigger jq's assertion-crash.
+  grep '^{.*}$' "$CLUB_STORE" > "$TMP/store_pre_${club_id}.ndjson" 2>/dev/null \
+    || : > "$TMP/store_pre_${club_id}.ndjson"
+
+  if [ -s "$TMP/store_pre_${club_id}.ndjson" ]; then
+    jq -sc '[ .[].signature ]' "$TMP/store_pre_${club_id}.ndjson" > "$TMP/known.json" \
       || printf '[]\n' > "$TMP/known.json"
   else
     printf '[]\n' > "$TMP/known.json"
   fi
   [ -s "$TMP/fetched.json" ] || printf '[]\n' > "$TMP/fetched.json"
 
+  # Combine known+fetched into one object to avoid --slurpfile, which triggers
+  # a jq assertion crash (cb == jq_util_input_next_input_cb) on OpenWrt jq when
+  # jq tries to report an error position for a slurpfile input.
+  { printf '{"known":'; cat "$TMP/known.json"; \
+    printf ',"fetched":'; cat "$TMP/fetched.json"; printf '}'; } \
+    > "$TMP/merge_input.json"
   case "$STRAVA_SOURCE" in
     api)
-      jq -c -n \
-        --slurpfile known "$TMP/known.json" \
-        --slurpfile fetched "$TMP/fetched.json" \
+      jq -c \
         --arg today "$FIRST_SEEN" '
         def sig:
           [ ((.athlete.firstname // "") | ascii_downcase),
@@ -230,8 +241,8 @@ while IFS= read -r club_id; do
             (.elapsed_time         // 0 | tostring),
             ((.sport_type // .type // "") | ascii_downcase)
           ] | join("|");
-        ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
-        | [ $fetched[0][] | { s: sig, a: . } ]
+        ( (.known // []) | map({ (.): true }) | add // {} ) as $seen
+        | [ .fetched[] | { s: sig, a: . } ]
         | unique_by(.s)
         | map(select($seen[.s] | not))
         | .[]
@@ -249,31 +260,37 @@ while IFS= read -r club_id; do
             type:           (.a.type // ""),
             sport_type:     (.a.sport_type // .a.type // "")
           }
-      ' > "$TMP/new.ndjson"
+      ' "$TMP/merge_input.json" > "$TMP/new.ndjson"
       ;;
     scrape)
       # Stats arrive as HTML strings: strip tags, parse numbers.
       # distance: "34.30<abbr...> km</abbr>" → 34300 m
       # elev:     "108<abbr...> m</abbr>"    → 108 m
       # time:     "1<abbr>h</abbr> 27<abbr>m</abbr>" → seconds
-      jq -c -n \
-        --slurpfile known "$TMP/known.json" \
-        --slurpfile fetched "$TMP/fetched.json" \
+      jq -c \
         --arg cutoff "$SCRAPE_START_DATE" '
-        def strip_html: gsub("<[^>]*>"; "");
-        def parse_km:
-          strip_html | gsub("[^0-9.]"; "") |
-          if . == "" or . == "." then 0 else tonumber end * 1000;
-        def parse_elev:
-          strip_html | gsub("[^0-9.]"; "") |
-          if . == "" or . == "." then 0 else tonumber end;
         def _n: if (. == null or . == "") then 0 else tonumber end;
+        # strip_html and digits avoid gsub/capture (both crash on this jq build:
+        # the regex engine calls jq_util_input_get_position on any error, which
+        # asserts because the error-callback state is uninitialised in this build).
+        def strip_html:
+          [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+        def digits:
+          [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+        def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+        def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
         def parse_time:
-          strip_html |
-          capture("(?:(?<h>[0-9]+)\\s*h)?\\s*(?:(?<m>[0-9]+)\\s*m)?\\s*(?:(?<s>[0-9]+)\\s*s)?") |
-          ((.h | _n) * 3600) + ((.m | _n) * 60) + (.s | _n);
-        ( ($known[0] // []) | map({ (.): true }) | add // {} ) as $seen
-        | [ $fetched[0][]
+          strip_html | . as $t |
+          (if ($t|contains("h")) then ($t|split("h")[0]|digits|_n) else 0 end) * 3600 +
+          (if ($t|contains("m"))
+           then ((if ($t|contains("h")) then $t|split("h")[1] else $t end)|split("m")[0]|digits|_n)
+           else 0 end) * 60 +
+          (if ($t|contains("s"))
+           then ((if ($t|contains("m")) then $t|split("m")[1] else
+                  if ($t|contains("h")) then $t|split("h")[1] else $t end end)|split("s")[0]|digits|_n)
+           else 0 end);
+        ( (.known // []) | map({ (.): true }) | add // {} ) as $seen
+        | [ .fetched[]
             | select(.entity == "Activity")
             | .activity
             | (.stats | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
@@ -313,7 +330,7 @@ while IFS= read -r club_id; do
             type:         .type,
             sport_type:   .sport_type
           }
-      ' > "$TMP/new.ndjson"
+      ' "$TMP/merge_input.json" > "$TMP/new.ndjson"
       ;;
   esac
 
@@ -324,25 +341,37 @@ while IFS= read -r club_id; do
     scrape) log "club $club_id: +$ADDED new (actual dates), $(wc -l < "$CLUB_STORE" | tr -d ' ') total" ;;
   esac
 
+  # Rebuild the grep-filtered view of the store after merge (new entries are valid
+  # jq output so they pass the filter; the check prevents any pre-existing bad
+  # lines from reaching jq's NDJSON parser in 5a/5b).
+  grep '^{.*}$' "$CLUB_STORE" > "$TMP/store_${club_id}.json" 2>/dev/null \
+    || : > "$TMP/store_${club_id}.json"
+
   # 5a. Emit per-club activities temp file (assembled into activities.json below).
   jq -s --arg clubId "$club_id" --arg sport "$SPORT_LC" \
-    --slurpfile info "$TMP/club_info_${club_id}.json" '
+    --argjson info "$(cat "$TMP/club_info_${club_id}.json")" \
+    --arg exclude "$EXCLUDE_ATHLETES" '
+    ($exclude | if . == "" then []
+                else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
+                end) as $excl |
     {
       clubId: $clubId,
       club: {
-        name:           ($info[0].name           // null),
-        city:           ($info[0].city           // null),
-        state:          ($info[0].state          // null),
-        country:        ($info[0].country        // null),
-        member_count:   ($info[0].member_count   // null),
-        description:    ($info[0].description    // null),
-        url:            ($info[0].url            // null),
-        profile_medium: ($info[0].profile_medium // null),
-        sport_type:     ($info[0].sport_type     // null)
+        name:           ($info.name           // null),
+        city:           ($info.city           // null),
+        state:          ($info.state          // null),
+        country:        ($info.country        // null),
+        member_count:   ($info.member_count   // null),
+        description:    ($info.description    // null),
+        url:            ($info.url            // null),
+        profile_medium: ($info.profile_medium // null),
+        sport_type:     ($info.sport_type     // null)
       },
       activities: [
         .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
+        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+        | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
         | {
             date:                 .firstSeen,
             firstname:            .firstname,
@@ -355,13 +384,19 @@ while IFS= read -r club_id; do
           }
       ]
     }
-  ' "$CLUB_STORE" > "$TMP/clubdata_${club_id}.json"
+  ' "$TMP/store_${club_id}.json" > "$TMP/clubdata_${club_id}.json"
 
   # 5b. Emit per-club all-time leaderboard JSON and dated snapshot.
-  jq -s --arg sport "$SPORT_LC" --arg generatedAt "$GENERATED_AT" '
+  jq -s --arg sport "$SPORT_LC" --arg generatedAt "$GENERATED_AT" \
+    --arg exclude "$EXCLUDE_ATHLETES" '
+    ($exclude | if . == "" then []
+                else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
+                end) as $excl |
     def athleteKey: "\(.firstname)|\(.lastname)|\(.profile_medium // "")";
     ( [ .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
+        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+        | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
       ]
       | group_by(athleteKey)
       | map({
@@ -388,7 +423,7 @@ while IFS= read -r club_id; do
         },
         members: $members
       }
-  ' "$CLUB_STORE" > "$TMP/leaderboard_${club_id}.json"
+  ' "$TMP/store_${club_id}.json" > "$TMP/leaderboard_${club_id}.json"
 
   cp "$TMP/leaderboard_${club_id}.json" "$SNAPSHOT_DIR/${STAMP}_${club_id}.json"
   cp "$TMP/leaderboard_${club_id}.json" "$WEB_DIR/leaderboard_${club_id}.json"
@@ -718,7 +753,8 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   if(members.length===0) return '<p class="empty">No activities for this period.</p>';
   var maxDist = members[0].distance || 1;
   var html = '<table><thead><tr><th>#</th><th>Athlete</th><th>Distance</th>'+
-    '<th>Time</th><th>Elev (m)</th><th>Activities</th><th>Avg km/h</th><th>Last week</th></tr></thead><tbody>';
+    '<th>Time</th><th>Elev (m)</th><th>Activities</th><th>Avg km/h</th>'+(lastWeek?'<th>Last week</th>':'')+
+    '</tr></thead><tbody>';
   members.forEach(function(m,i){
     var avg = m.moving_time>0 ? (m.distance/m.moving_time*3.6) : 0;
     var pct = maxDist>0 ? Math.max(3, Math.round(m.distance/maxDist*100)) : 3;
@@ -732,8 +768,9 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
       '<td class="num">'+Math.floor(m.elev)+'</td>'+
       '<td class="num">'+m.count+'</td>'+
       '<td class="num">'+avg.toFixed(1)+'</td>'+
-      '<td class="num">'+fmtKm(lw)+' km</td></tr>';
-    html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="8">';
+      (lastWeek?'<td class="num">'+fmtKm(lw)+' km</td>':'')+
+      '</tr>';
+    html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="'+(lastWeek?8:7)+'">';
     html += '<table class="detail-table"><thead><tr>'+
       '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th><th>Avg km/h</th>'+
       '</tr></thead><tbody>';
@@ -760,7 +797,9 @@ function render(){
   var label = month==="all" ? String(year) : MONTHS[+month-1]+" "+year;
   var clubs = DATA.clubs || [];
   var sport = DATA.sport || "all";
-  var lastWeek = getLastWeekRange();
+  var _now = new Date(), _cy = _now.getFullYear(), _cm = _now.getMonth()+1;
+  var isCurrentPeriod = (year === _cy) && (month === "all" || +month === _cm);
+  var lastWeek = isCurrentPeriod ? getLastWeekRange() : null;
 
   var totalDist = 0, totalActs = 0;
   var html = "";
