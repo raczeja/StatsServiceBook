@@ -54,6 +54,13 @@ STRAVA_CLUB_IDS="123456,123457"
 # brings them back on the next run. Example: STRAVA_EXCLUDE_ATHLETES="Filip B.,Jan K."
 #STRAVA_EXCLUDE_ATHLETES=""
 
+# Merge athlete aliases into a canonical name — comma-separated "Canonical=Alias" pairs.
+# Use this when the same person appears under two slightly different names (e.g. because
+# their Strava display name changed, or the club feed sometimes omits the profile picture
+# causing an extra entry). The alias is matched case-insensitively; the canonical name
+# controls what is displayed. Multiple pairs: "piecz .=piecz ..,John D.=Jon D."
+#STRAVA_MERGE_ATHLETES=""
+
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
 STRAVA_SPORT_TYPE=""
 

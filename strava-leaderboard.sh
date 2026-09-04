@@ -51,6 +51,7 @@ STATE_DIR="${STRAVA_STATE_DIR:-/usr/lib/strava-leaderboard}"  # must survive reb
 SNAPSHOT_DIR="$STATE_DIR/snapshots"
 KEEP_SNAPSHOTS="${STRAVA_KEEP_SNAPSHOTS:-90}"
 EXCLUDE_ATHLETES="${STRAVA_EXCLUDE_ATHLETES:-}"   # comma-separated "Firstname Lastname" to hide
+MERGE_ATHLETES="${STRAVA_MERGE_ATHLETES:-}"     # comma-separated "Canonical=Alias" pairs to merge
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -350,10 +351,17 @@ while IFS= read -r club_id; do
   # 5a. Emit per-club activities temp file (assembled into activities.json below).
   jq -s --arg clubId "$club_id" --arg sport "$SPORT_LC" \
     --argjson info "$(cat "$TMP/club_info_${club_id}.json")" \
-    --arg exclude "$EXCLUDE_ATHLETES" '
+    --arg exclude "$EXCLUDE_ATHLETES" \
+    --arg merge "$MERGE_ATHLETES" '
     ($exclude | if . == "" then []
                 else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
                 end) as $excl |
+    ($merge | if . == "" then {}
+              else split(",") | map(split("=")) | map(select(length == 2))
+                 | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                         value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+                 | from_entries
+              end) as $mergeMap |
     {
       clubId: $clubId,
       club: {
@@ -370,6 +378,12 @@ while IFS= read -r club_id; do
       activities: [
         .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
+        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+        | if ($mergeMap | has($fn)) then
+            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+          else . end
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
         | {
@@ -388,13 +402,26 @@ while IFS= read -r club_id; do
 
   # 5b. Emit per-club all-time leaderboard JSON and dated snapshot.
   jq -s --arg sport "$SPORT_LC" --arg generatedAt "$GENERATED_AT" \
-    --arg exclude "$EXCLUDE_ATHLETES" '
+    --arg exclude "$EXCLUDE_ATHLETES" \
+    --arg merge "$MERGE_ATHLETES" '
     ($exclude | if . == "" then []
                 else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
                 end) as $excl |
-    def athleteKey: "\(.firstname)|\(.lastname)|\(.profile_medium // "")";
+    ($merge | if . == "" then {}
+              else split(",") | map(split("=")) | map(select(length == 2))
+                 | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                         value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+                 | from_entries
+              end) as $mergeMap |
+    def athleteKey: "\(.firstname)|\(.lastname)";
     ( [ .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
+        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+        | if ($mergeMap | has($fn)) then
+            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+          else . end
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
       ]
@@ -732,7 +759,7 @@ function toggleDetail(id){
 function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   var map = {};
   acts.forEach(function(a){
-    var k = a.firstname+"|"+a.lastname+"|"+(a.profile_medium||"");
+    var k = a.firstname+"|"+a.lastname;
     var e = map[k];
     if(!e){ e=map[k]={_key:k,firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0,items:[]}; }
     e.distance+=a.distance||0;

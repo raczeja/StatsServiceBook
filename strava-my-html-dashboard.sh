@@ -50,6 +50,10 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   #drive-banner.visible{display:flex}
   #drive-banner a{background:#fc4c02;color:#fff;padding:.3rem .7rem;border-radius:.35rem;text-decoration:none;font-size:.85rem;white-space:nowrap}
   #drive-banner a:hover{background:#d94202}
+  .ck-banner{padding:.55rem 1rem;border-radius:.4rem;margin:.5rem 0 .75rem;font-size:.88rem}
+  .ck-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+  .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
+  .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
   #drive-token{font-size:.75rem;color:#888;text-align:center;margin:.15rem 0}
   #drive-token.ok{color:#5a9a6a}#drive-token.stale{color:#b07800}#drive-token.err{color:#c0392b}
 </style>
@@ -57,6 +61,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
+<div id="ck-banner" style="display:none"></div>
 <div id="drive-banner"><span id="drive-banner-msg">Google Drive check failed.</span> <a href="/cgi-bin/drive-auth">Re-authorize</a></div>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a></h1></div>
 <div class="filters">
@@ -257,7 +262,32 @@ function fallbackToLatestMonth(acts, year, month) {
   return null;
 }
 
+function renderCookieBanner(meta){
+  var el = document.getElementById("ck-banner");
+  if(!meta){ el.style.display="none"; return; }
+  if(!meta.cookieRefreshNeededBy){ el.style.display="none"; return; }
+  var daysLeft = Math.ceil((new Date(meta.cookieRefreshNeededBy) - new Date()) / 86400000);
+  var cls, msg;
+  if(daysLeft <= 0){
+    cls = "ck-expired";
+    msg = "&#9888; Session cookie has expired &mdash; paste a fresh <code>_strava4_session</code> value"+
+          " into <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-my-activities.conf</code>";
+  } else if(daysLeft <= 7){
+    cls = "ck-warn";
+    msg = "&#9888; Session cookie expires in "+daysLeft+" day"+(daysLeft===1?"":"s")+
+          " ("+esc(meta.cookieRefreshNeededBy)+") &mdash; refresh <code>_strava4_session</code> soon";
+  } else {
+    cls = "ck-ok";
+    msg = "&#10003; Scrape mode &mdash; cookie verified "+esc(meta.cookieVerifiedAt)+
+          ", valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)";
+  }
+  el.className = "ck-banner "+cls;
+  el.innerHTML = msg;
+  el.style.display = "";
+}
+
 function init(){
+  renderCookieBanner(DATA.scrapeMeta || null);
   var acts = DATA.activities || [];
 
   // Derive VAM (vertical ascent m/h) and coalesce optional metrics to numbers

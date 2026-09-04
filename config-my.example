@@ -2,7 +2,13 @@
 # Copy to /etc/strava-my-activities.conf and `chmod 600` it (it holds secrets).
 # This file is sourced by /bin/sh, so use KEY="value" with no spaces around '='.
 
-# --- Required: from your Strava API application -----------------------------
+# --- Data source ------------------------------------------------------------
+# 'api'    (default): Strava OAuth API — requires STRAVA_CLIENT_ID/SECRET/TOKEN.
+# 'scrape':           Strava web scrape — requires STRAVA_SESSION_COOKIE only;
+#                     use when the API subscription is unavailable or ends.
+#STRAVA_MY_SOURCE="api"
+
+# --- Required for STRAVA_MY_SOURCE=api (Strava API application) -------------
 # Same app credentials as the leaderboard (same client ID/secret/token).
 STRAVA_CLIENT_ID="12345"
 STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
@@ -11,6 +17,14 @@ STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
 # the `activity:read` scope. `activity:read_all` is needed to include private
 # activities. See README.md "One-time authorization" for how to obtain this.
 STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
+
+# --- Required for STRAVA_MY_SOURCE=scrape (session cookie) ------------------
+# Copy the _strava4_session cookie value from your browser DevTools:
+#   Chrome: F12 → Application → Cookies → https://www.strava.com → _strava4_session
+# This cookie is valid for ~30 days. The script fetches a CSRF token
+# automatically from /dashboard on first use (cached 25 days).
+# The cookie is NOT needed when STRAVA_MY_SOURCE=api (the default).
+#STRAVA_SESSION_COOKIE="paste_cookie_value_here"
 
 # --- Optional ---------------------------------------------------------------
 # Strava access tokens last ~6h. The cached token is reused until it's within
@@ -22,10 +36,12 @@ STRAVA_TOKEN_REFRESH_MARGIN="600"
 # Leave blank to fall back to the activity's recorded max_heartrate instead.
 #STRAVA_MY_BIRTH_YEAR="1990"
 
-# How many pages of your activity feed to pull (200 activities/page).
-# 20 pages = up to 4000 activities — covers several years for most athletes.
+# How many pages of your activity feed to pull.
+# api mode:    200 activities/page; 20 pages = up to 4000 activities.
+# scrape mode: 20 activities/page (fixed by Strava web); raise MAX_PAGES
+#              if you have more than MAX_PAGES*20 activities (e.g. 472 ÷ 20 = 24).
 STRAVA_MY_MAX_PAGES="20"
-STRAVA_MY_PER_PAGE="200"
+STRAVA_MY_PER_PAGE="200"  # api mode only; ignored in scrape mode
 
 # Where the dashboard is written (served by uhttpd at http://<router>/strava/me/).
 # To spare the small flash overlay you may point this at roomy persistent

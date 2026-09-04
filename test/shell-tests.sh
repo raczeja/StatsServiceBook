@@ -1385,6 +1385,298 @@ assert_eq "$S" "no-user-skips"     "$(_check_email_cfg "smtps://s" "" "a@b")"   
 assert_eq "$S" "no-to-skips"       "$(_check_email_cfg "smtps://s" "u:p" "")"        "skipped"
 assert_eq "$S" "all-set-proceeds"  "$(_check_email_cfg "smtps://s" "u:p" "a@b")"     "proceed"
 
+# ── merge-athletes ────────────────────────────────────────────────────────────
+# Mirrors the STRAVA_MERGE_ATHLETES jq logic in strava-leaderboard.sh:
+# builds $mergeMap from "Canonical=Alias" pairs and renames matching athletes.
+S="merge-athletes"
+
+# Helper: apply mergeMap to a single NDJSON record.
+_apply_merge() {
+    printf '%s\n' "$1" | jq -c --arg merge "$2" '
+        ($merge | if . == "" then {}
+                  else split(",") | map(split("=")) | map(select(length == 2))
+                     | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                             value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+                     | from_entries
+                  end) as $mergeMap |
+        ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn |
+        if ($mergeMap | has($fn)) then
+            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+        else . end'
+}
+
+# No-op: empty MERGE_ATHLETES leaves name unchanged.
+_r="$(_apply_merge '{"firstname":"Jan","lastname":"Kowalski"}' '')"
+assert_eq "$S" "empty-merge-no-change-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Jan"
+assert_eq "$S" "empty-merge-no-change-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Kowalski"
+
+# Basic rename: alias → canonical (case-insensitive match on alias).
+_r="$(_apply_merge '{"firstname":"piotr","lastname":"k."}' 'Piotr Ko.=piotr k.')"
+assert_eq "$S" "alias-renamed-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Piotr"
+assert_eq "$S" "alias-renamed-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Ko."
+
+# No match: athlete not in map → name unchanged.
+_r="$(_apply_merge '{"firstname":"Alice","lastname":"Smith"}' 'Piotr Ko.=piotr k.')"
+assert_eq "$S" "no-match-first-unchanged" "$(printf '%s' "$_r" | jq -r '.firstname')" "Alice"
+assert_eq "$S" "no-match-last-unchanged"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Smith"
+
+# Single-word canonical (no space) → lastname becomes empty string.
+_r="$(_apply_merge '{"firstname":"jon","lastname":"d."}' 'Jonathan=jon d.')"
+assert_eq "$S" "single-word-canonical-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Jonathan"
+assert_eq "$S" "single-word-canonical-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  ""
+
+# Multiple pairs in one merge string — each alias resolved independently.
+_merge="Piotr Ko.=piotr k.,Alice Smith=alice s."
+_r1="$(_apply_merge '{"firstname":"piotr","lastname":"k."}' "$_merge")"
+_r2="$(_apply_merge '{"firstname":"alice","lastname":"s."}' "$_merge")"
+assert_eq "$S" "multi-pair-first-renamed"  "$(printf '%s' "$_r1" | jq -r '.firstname')" "Piotr"
+assert_eq "$S" "multi-pair-second-renamed" "$(printf '%s' "$_r2" | jq -r '.firstname')" "Alice"
+assert_eq "$S" "multi-pair-second-last"    "$(printf '%s' "$_r2" | jq -r '.lastname')"  "Smith"
+
+# After merge, two records with different original names but same canonical name
+# share the same athleteKey (firstname|lastname) → they group correctly.
+printf '%s\n' \
+    '{"firstname":"piotr","lastname":"k.","distance":15000}' \
+    '{"firstname":"Piotr","lastname":"Ko.","distance":20000}' \
+    > "$TMP/ma_input.ndjson"
+
+jq -sc --arg merge "Piotr Ko.=piotr k.,Piotr Ko.=piotr ko." '
+    ($merge | if . == "" then {}
+              else split(",") | map(split("=")) | map(select(length == 2))
+                 | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                         value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+                 | from_entries
+              end) as $mergeMap |
+    map(
+        ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn |
+        if ($mergeMap | has($fn)) then
+            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+        else . end
+    ) |
+    group_by("\(.firstname)|\(.lastname)") |
+    map({ name: "\(.[0].firstname) \(.[0].lastname)", total: (map(.distance) | add) })
+' "$TMP/ma_input.ndjson" > "$TMP/ma_grouped.json"
+
+assert_eq "$S" "merged-into-one-group" \
+    "$(jq 'length' "$TMP/ma_grouped.json")" "1"
+assert_eq "$S" "merged-group-distance-sum" \
+    "$(jq '.[0].total' "$TMP/ma_grouped.json")" "35000"
+assert_eq "$S" "merged-group-canonical-name" \
+    "$(jq -r '.[0].name' "$TMP/ma_grouped.json")" "Piotr Ko."
+
+# ── my-scrape-time-parse ──────────────────────────────────────────────────────
+# Mirrors parse_time(v) in the STRAVA_MY_SOURCE=scrape normalization block of
+# strava-my-activities.sh.  Input is whatever the web endpoint returns:
+# a number (API-format), an HH:MM:SS string, an MM:SS string, or null.
+S="my-scrape-time-parse"
+
+_pt() {
+    jq -rn --argjson v "$1" '
+        def parse_time(v):
+          if   (v | type) == "number" then v
+          elif (v | type) == "string" and (v | split(":") | length) == 3 then
+               (v | split(":") | (.[0]|tonumber)*3600 + (.[1]|tonumber)*60 + (.[2]|tonumber))
+          elif (v | type) == "string" and (v | split(":") | length) == 2 then
+               (v | split(":") | (.[0]|tonumber)*60 + (.[1]|tonumber))
+          else 0 end;
+        parse_time($v)'
+}
+
+assert_eq "$S" "number-passthrough"  "$(_pt 3661)"        "3661"
+assert_eq "$S" "hh-mm-ss"           "$(_pt '"1:12:34"')"  "4354"
+assert_eq "$S" "mm-ss"              "$(_pt '"45:30"')"     "2730"
+assert_eq "$S" "zero-hh-mm-ss"      "$(_pt '"0:00:00"')"  "0"
+assert_eq "$S" "null-returns-0"     "$(_pt 'null')"        "0"
+assert_eq "$S" "zero-number"        "$(_pt 0)"             "0"
+
+# ── my-scrape-date-parse ──────────────────────────────────────────────────────
+# Mirrors the date-normalization branch of the scrape normalization jq block:
+#   ISO "2026-09-02T08:00:00Z" → "2026-09-02"  (startswith "20")
+#   Locale "Wed, 9/2/2026"     → "2026-09-02"  (contains ",")
+#   Locale "Wed, 12/31/2026"   → "2026-12-31"  (double-digit month/day)
+S="my-scrape-date-parse"
+
+_pd() {
+    jq -rn --arg sd "$1" '
+        if   ($sd | startswith("20")) then $sd[0:10]
+        elif ($sd | contains(",")) then
+          ($sd | split(", ")[-1] | split("/") |
+            (.[2]) + "-" +
+            (.[0]|tonumber|tostring | if length==1 then "0"+. else . end) + "-" +
+            (.[1]|tonumber|tostring | if length==1 then "0"+. else . end))
+        else $sd[0:10]
+        end'
+}
+
+assert_eq "$S" "iso-datetime"         "$(_pd '2026-09-02T08:00:00Z')" "2026-09-02"
+assert_eq "$S" "iso-date-only"        "$(_pd '2026-09-02')"           "2026-09-02"
+assert_eq "$S" "locale-single-digit"  "$(_pd 'Wed, 9/2/2026')"        "2026-09-02"
+assert_eq "$S" "locale-double-digit"  "$(_pd 'Tue, 12/31/2026')"      "2026-12-31"
+assert_eq "$S" "locale-mixed-digits"  "$(_pd 'Mon, 1/15/2026')"       "2026-01-15"
+
+# ── my-scrape-distance-normalize ──────────────────────────────────────────────
+# Mirrors the distance branch of the normalization jq.
+# $web=true  → distance is in km (possibly comma-decimal string) → × 1000
+# $web=false → distance is already in metres (API format) → no conversion
+S="my-scrape-distance-normalize"
+
+_dist() {
+    jq -rn --argjson raw "$1" --argjson web "$2" '
+        ($raw
+         | if   type == "string" then (gsub(","; ".")|tonumber? // 0)
+           else . end
+         | if $web then . * 1000 else . end)'
+}
+
+assert_eq "$S" "api-metres-number"   "$(_dist 25120 false)"     "25120"
+assert_eq "$S" "api-zero"            "$(_dist 0 false)"         "0"
+assert_eq "$S" "scrape-km-number"    "$(_dist 25.12 true)"      "25120"
+assert_eq "$S" "scrape-km-string"    "$(_dist '"25.12"' true)"  "25120"
+assert_eq "$S" "scrape-comma-dec"    "$(_dist '"25,12"' true)"  "25120"
+assert_eq "$S" "scrape-zero-string"  "$(_dist '"0"' true)"      "0"
+
+# ── my-scrape-full-normalize ──────────────────────────────────────────────────
+# End-to-end test of the normalization jq applied to a single scrape record.
+# Input is a web-format record (moving_time is a string → $web=true).
+S="my-scrape-full-normalize"
+
+cat > "$TMP/sc_web_record.json" << 'JSON'
+{
+  "id": 12345678,
+  "name": "Morning Ride",
+  "sport_type": "Ride",
+  "start_date_local": "Wed, 9/3/2026",
+  "distance": "42,5",
+  "moving_time": "1:24:30",
+  "elapsed_time": "1:30:00",
+  "total_elevation_gain": 350,
+  "average_speed": null,
+  "max_speed": null,
+  "average_heartrate": 145,
+  "max_heartrate": 172
+}
+JSON
+
+jq -c '
+  def parse_time(v):
+    if   (v | type) == "number" then v
+    elif (v | type) == "string" and (v | split(":") | length) == 3 then
+         (v | split(":") | (.[0]|tonumber)*3600 + (.[1]|tonumber)*60 + (.[2]|tonumber))
+    elif (v | type) == "string" and (v | split(":") | length) == 2 then
+         (v | split(":") | (.[0]|tonumber)*60 + (.[1]|tonumber))
+    else 0 end;
+  (.moving_time // .movingTime // null) as $mt_raw
+  | (($mt_raw | type) == "string") as $web
+  | (.start_date_local // .start_date // .startDateLocal // "") as $sd
+  | (if   ($sd | startswith("20")) then $sd[0:10]
+     elif ($sd | contains(",")) then
+       ($sd | split(", ")[-1] | split("/") |
+         (.[2]) + "-" +
+         (.[0]|tonumber|tostring | if length==1 then "0"+. else . end) + "-" +
+         (.[1]|tonumber|tostring | if length==1 then "0"+. else . end))
+     else $sd[0:10]
+     end) as $date
+  | ((.distance // 0)
+     | if   type == "string" then (gsub(","; ".")|tonumber? // 0)
+       else . end
+     | if $web then . * 1000 else . end) as $dist
+  | {
+      id:                   (.id // null),
+      start_date_local:     $date,
+      name:                 (.name // .title // ""),
+      sport_type:           (.sport_type // .type // .sportType // ""),
+      distance:             $dist,
+      moving_time:          (parse_time($mt_raw)),
+      elapsed_time:         (parse_time(.elapsed_time // .elapsedTime // null)),
+      total_elevation_gain: (.total_elevation_gain // .totalElevationGain // 0),
+      average_heartrate:    (.average_heartrate // .averageHeartrate // null),
+      max_heartrate:        (.max_heartrate // .maxHeartrate // null)
+    }
+  | select(.id != null)
+' "$TMP/sc_web_record.json" > "$TMP/sc_normalized.json"
+
+_fn() { jq -r "$1" "$TMP/sc_normalized.json"; }
+assert_eq "$S" "date-locale-parsed"   "$(_fn .start_date_local)"     "2026-09-03"
+assert_eq "$S" "distance-km-to-m"     "$(_fn .distance)"             "42500"
+assert_eq "$S" "moving-time-seconds"  "$(_fn .moving_time)"          "5070"
+assert_eq "$S" "elapsed-time-seconds" "$(_fn .elapsed_time)"         "5400"
+assert_eq "$S" "name-preserved"       "$(_fn .name)"                 "Morning Ride"
+assert_eq "$S" "sport-type"           "$(_fn .sport_type)"           "Ride"
+assert_eq "$S" "hr-preserved"         "$(_fn .average_heartrate)"    "145"
+
+# ── my-scrape-detail-extraction ───────────────────────────────────────────────
+# Mirrors the awk brace-counting extractor for .similarActivitiesData({...})
+# and the grep pattern for bikes:[{...}] in strava-my-activities.sh.
+S="my-scrape-detail-extraction"
+
+# Fake activity HTML page with the two patterns.
+cat > "$TMP/sc_detail.html" << 'HTML'
+<html>
+<head></head>
+<body>
+<script>
+pageView.activity().similarActivitiesData({"efforts":[{"activity_id":12345678,"activity_name":"Morning Ride","start_date_local":1757052000,"start_date":1757048400,"activity_values":{"values":{"distance":42500,"moving_time":5070,"elapsed_time":5400,"elev_gain":350,"avg_speed":8.37,"max_speed":12.5,"avg_cadence":88,"avg_watts":195,"bike_id":67890}}}]})
+pageView.activity().set({id:12345678, bikes: [{"id":67890,"name":"Trek Domane"}], shoes: []})
+</script>
+</body>
+</html>
+HTML
+
+# Extract similarActivitiesData argument (brace-counting awk).
+grep -o '\.similarActivitiesData({.*' "$TMP/sc_detail.html" 2>/dev/null \
+  | head -1 \
+  | sed 's/^\.similarActivitiesData(//' \
+  | awk '{
+      depth=0; buf=""
+      for(i=1;i<=length($0);i++){
+        c=substr($0,i,1)
+        buf=buf c
+        if(c=="{") depth++
+        else if(c=="}"){depth--; if(depth==0){print buf; exit}}
+      }
+    }' > "$TMP/sc_sad.json" 2>/dev/null || true
+
+# Extract bikes array.
+grep -o 'bikes: \[{.*}\]' "$TMP/sc_detail.html" 2>/dev/null \
+  | head -1 \
+  | sed 's/^bikes: //' > "$TMP/sc_bikes.json" 2>/dev/null || true
+jq -e 'type == "array"' "$TMP/sc_bikes.json" >/dev/null 2>&1 \
+  || printf '[]' > "$TMP/sc_bikes.json"
+
+if jq -e '.efforts[0].activity_id' "$TMP/sc_sad.json" >/dev/null 2>&1; then
+    ok "$S" "sad-json-extracted"
+else
+    err "$S" "sad-json-extracted" "similarActivitiesData not found/parsed"
+fi
+
+assert_eq "$S" "sad-activity-id" \
+    "$(jq '.efforts[0].activity_id' "$TMP/sc_sad.json")" "12345678"
+assert_eq "$S" "sad-moving-time" \
+    "$(jq '.efforts[0].activity_values.values.moving_time' "$TMP/sc_sad.json")" "5070"
+assert_eq "$S" "sad-bike-id" \
+    "$(jq '.efforts[0].activity_values.values.bike_id' "$TMP/sc_sad.json")" "67890"
+
+assert_eq "$S" "bikes-array-length" \
+    "$(jq 'length' "$TMP/sc_bikes.json")" "1"
+assert_eq "$S" "bikes-name" \
+    "$(jq -r '.[0].name' "$TMP/sc_bikes.json")" "Trek Domane"
+assert_eq "$S" "bikes-id" \
+    "$(jq '.[0].id' "$TMP/sc_bikes.json")" "67890"
+
+# Missing pattern → empty JSON file → bikes fallback is [].
+printf '' > "$TMP/sc_empty.html"
+grep -o 'bikes: \[{.*}\]' "$TMP/sc_empty.html" 2>/dev/null \
+  | head -1 \
+  | sed 's/^bikes: //' > "$TMP/sc_bikes2.json" 2>/dev/null || true
+jq -e 'type == "array"' "$TMP/sc_bikes2.json" >/dev/null 2>&1 \
+  || printf '[]' > "$TMP/sc_bikes2.json"
+assert_eq "$S" "missing-bikes-fallback-empty-array" \
+    "$(jq 'length' "$TMP/sc_bikes2.json")" "0"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
