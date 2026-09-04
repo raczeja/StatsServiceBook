@@ -72,7 +72,9 @@ fetch_weather_temp() {
 }
 
 # _rw_coords id gpx_file detail_dir web_dir  →  sets _wlat/_wlon
-# Tries detail JSON start_latlng, then first GPX trackpoint, then WEATHER_LAT/WEATHER_LON.
+# Tries detail JSON start_latlng, then first GPX trackpoint,
+# then first point decoded from map.summary_polyline (covers privacy-zone masking),
+# then WEATHER_LAT/WEATHER_LON.
 _rw_coords() {
   _wlat="" _wlon=""
   if [ -f "$3/$1.json" ]; then
@@ -82,6 +84,29 @@ _rw_coords() {
   if [ -z "$_wlat" ] && [ -n "$2" ] && [ -f "$4/$2" ]; then
     _wlat=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
     _wlon=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+  fi
+  if [ -z "$_wlat" ] && [ -f "$3/$1.json" ]; then
+    _rw_ply=$(jq -r '.map.summary_polyline // ""' "$3/$1.json" 2>/dev/null || true)
+    if [ -n "$_rw_ply" ]; then
+      _rw_latlon=$(printf '%s\n' "$_rw_ply" | jq -Rc '
+        [explode | .[] - 63] as $c |
+        def dv(c; i):
+          reduce range(i; (c | length)) as $j (
+            {r:0, mul:1, done:false, n:i};
+            if .done then .
+            else (c[$j]) as $b |
+              {r: (.r + (($b % 32) * .mul)), mul: (.mul * 32),
+               done: ($b < 32), n: ($j + 1)}
+            end) |
+          {v: (if (.r % 2) == 1 then -((.r + 1) / 2) else (.r / 2) end), n: .n};
+        dv($c; 0) as $la | dv($c; $la.n) as $lo |
+        "\($la.v / 100000),\($lo.v / 100000)"
+      ' 2>/dev/null || true)
+      if [ -n "$_rw_latlon" ]; then
+        _wlat=${_rw_latlon%%,*}
+        _wlon=${_rw_latlon#*,}
+      fi
+    fi
   fi
   if [ -z "$_wlat" ]; then _wlat="${WEATHER_LAT:-}"; fi
   if [ -z "$_wlon" ]; then _wlon="${WEATHER_LON:-}"; fi
