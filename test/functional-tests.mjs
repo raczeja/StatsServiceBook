@@ -335,6 +335,53 @@ async function testMyActivities(page, jsErrors) {
       "drive-auth banner should be hidden when drive-status.json says ok:true",
     );
   });
+  await check(S, "ck-banner-hidden-in-api-mode", async () => {
+    // Sample activities.json has no scrapeMeta → cookie banner must be hidden in api mode
+    const display = await page
+      .$eval("#ck-banner", (el) => el.style.display)
+      .catch(() => "none");
+    assert.equal(display, "none", "#ck-banner should be hidden when scrapeMeta is null");
+  });
+  await check(S, "ck-banner-ok-state", async () => {
+    // Inject scrapeMeta with cookieRefreshNeededBy 20 days from now → ck-ok (green)
+    const { cls, visible } = await page.evaluate(() => {
+      const el = document.getElementById("ck-banner");
+      if (!el || typeof renderCookieBanner !== "function") return { cls: "", visible: false };
+      const future = new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10);
+      const today  = new Date().toISOString().slice(0, 10);
+      renderCookieBanner({ cookieVerifiedAt: today, cookieRefreshNeededBy: future });
+      return { cls: el.className, visible: el.style.display !== "none" };
+    });
+    assert.ok(visible, "#ck-banner should be visible in ok state");
+    assert.ok(cls.includes("ck-ok"), `#ck-banner class should include ck-ok, got: "${cls}"`);
+  });
+  await check(S, "ck-banner-warn-state", async () => {
+    // Inject scrapeMeta with cookieRefreshNeededBy 4 days from now → ck-warn (orange)
+    const { cls, visible } = await page.evaluate(() => {
+      const el = document.getElementById("ck-banner");
+      if (!el || typeof renderCookieBanner !== "function") return { cls: "", visible: false };
+      const soon  = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+      renderCookieBanner({ cookieVerifiedAt: today, cookieRefreshNeededBy: soon });
+      return { cls: el.className, visible: el.style.display !== "none" };
+    });
+    assert.ok(visible, "#ck-banner should be visible in warn state");
+    assert.ok(cls.includes("ck-warn"), `#ck-banner class should include ck-warn, got: "${cls}"`);
+  });
+  await check(S, "ck-banner-expired-state", async () => {
+    // Inject scrapeMeta with cookieRefreshNeededBy in the past → ck-expired (red)
+    const { cls, visible, text } = await page.evaluate(() => {
+      const el = document.getElementById("ck-banner");
+      if (!el || typeof renderCookieBanner !== "function") return { cls: "", visible: false, text: "" };
+      const past  = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+      renderCookieBanner({ cookieVerifiedAt: today, cookieRefreshNeededBy: past });
+      return { cls: el.className, visible: el.style.display !== "none", text: el.innerHTML };
+    });
+    assert.ok(visible, "#ck-banner should be visible in expired state");
+    assert.ok(cls.includes("ck-expired"), `#ck-banner class should include ck-expired, got: "${cls}"`);
+    assert.ok(text.includes("expired"), `#ck-banner text should mention "expired", got: "${text}"`);
+  });
   await check(S, "drive-token-connected", async () => {
     // drive-status.json has ok:true + file_count + expires_at → status line must show "Drive: reachable"
     await page.waitForFunction(

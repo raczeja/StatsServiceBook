@@ -8,7 +8,9 @@ Strava API or Google Drive + HealthSync exports and **`jq`** to aggregate. The r
 (plus JSON) into **uhttpd's** web root, so the router's built-in web server serves
 it with no extra daemon and almost no RAM.
 
-> **No Strava subscription?** Strava's read API is restricted to paying subscribers. As a workaround, you can use [healthsync.app](https://healthsync.app/) on Android — it syncs activities from Huawei Health, Fitbit, Garmin, and others and exports them (CSV + GPX/TCX) to a Google Drive folder. Switch cron to `healthsync-activities.sh` and it downloads those files instead of calling the Strava API, giving you the same dashboard pages with full route maps. See [§ Switching from Strava to HealthSync](#switching-from-strava-to-healthsync-keeping-full-history) for setup.
+> **No Strava subscription?** Two workarounds are available:
+> - **Strava scrape mode** (`STRAVA_MY_SOURCE=scrape` in `strava-my-activities.conf`): the script switches to the same internal web endpoint Strava's own dashboard uses, authenticated with a browser session cookie (`_strava4_session`). Same dashboard, same route maps (GPX exported automatically per activity), no OAuth app required. Cookie expires ~30 days — the dashboard shows a colour-coded banner when renewal is due. See [§ My Activities scrape mode](#my-activities-scrape-mode-strava_my_sourcescrape) in the Features section.
+> - **HealthSync / Google Drive**: [healthsync.app](https://healthsync.app/) syncs from Huawei Health, Fitbit, Garmin, etc. and exports CSV + GPX/TCX to Google Drive. Switch cron to `healthsync-activities.sh`. See [§ Switching from Strava to HealthSync](#switching-from-strava-to-healthsync-keeping-full-history).
 
 ### What it gives you
 
@@ -172,6 +174,34 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   (longest, most climbing, fastest avg, best VAM, most work — all time for the
   selected sport), a by-sport breakdown, and an average-distance-per-day-of-week
   bar chart. All computed client-side from `activities.json`.
+- **My Activities scrape mode (STRAVA_MY_SOURCE=scrape).** When your Strava API
+  subscription lapses, set `STRAVA_MY_SOURCE=scrape` in
+  `/etc/strava-my-activities.conf`. The script switches to the same internal
+  web endpoint Strava's own dashboard uses (`/athlete/training_activities`) and
+  authenticates with a browser session cookie (`_strava4_session`) instead of an
+  OAuth token — no Strava app required. Data format differences (locale-formatted
+  distances, string times, locale dates) are normalized automatically. Switching
+  is non-destructive: existing activities are matched by Strava ID and updated in
+  place; no duplicates.
+
+  **Detail backfill in scrape mode.** The script fetches each activity's HTML
+  page (`/activities/{id}`) and extracts stats from Strava's embedded Backbone.js
+  bootstrap (`similarActivitiesData`), giving distance, time, elevation, cadence,
+  power, gear, and gear name. It also downloads the GPX export
+  (`/activities/{id}/export_gpx`) and saves it alongside the detail file, so the
+  interactive route map on `activity.html` renders the full GPS track via Leaflet.
+
+  **Cookie health banner.** The My Activities dashboard shows a green / amber /
+  red banner indicating when the `_strava4_session` cookie was last verified and
+  when it will expire (~30 days). The banner is hidden in api mode.
+
+  **Testing locally.** Use the provided PowerShell helper (requires Podman):
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File test\run-scrape-test.ps1 `
+      -SessionCookie "<paste _strava4_session value>" `
+      -MaxPages 3 -DetailMax 10 -KeepOutput
+  ```
+
 - **Club leaderboard scrape mode (STRAVA_SOURCE=scrape).** Strava's `/clubs/{id}/activities` API endpoint is deprecated **effective 2026-09-01**. Set `STRAVA_SOURCE=scrape` in the config to switch to a web-session-based feed that calls the Strava club feed endpoint directly — no OAuth app required. Scrape mode gives **real activity dates and Strava IDs** (not first-seen approximations). Paste your browser's `_strava4_session` cookie from DevTools → Application → Cookies → strava.com; sessions last ~30 days and the script tells you when to refresh. The NDJSON store format is identical between both modes, so switching is non-destructive. See [§ Switching to scrape mode after September 2026](#switching-to-scrape-mode-after-september-2026) for step-by-step instructions.
 
 - **HealthSync / Google Drive data source.** A drop-in replacement for the Strava

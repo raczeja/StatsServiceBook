@@ -25,13 +25,24 @@ CONFIG="${STRAVA_MY_CONFIG:-/etc/strava-my-activities.conf}"
 # Optionally source the HealthSync config to pick up Google Drive credentials
 # (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN / DRIVE_FOLDER_ID)
 # so the Drive connectivity check works without duplicating secrets.
-DRIVE_CHECK_CONFIG="${DRIVE_CHECK_CONFIG:-/etc/healthsync-activities.conf}"
+DRIVE_CHECK_CONFIG="${DRIVE_CHECK_CONFIG-/etc/healthsync-activities.conf}"
 # shellcheck disable=SC1090
 [ -f "$DRIVE_CHECK_CONFIG" ] && . "$DRIVE_CHECK_CONFIG" || true
 
-: "${STRAVA_CLIENT_ID:?set STRAVA_CLIENT_ID in $CONFIG}"
-: "${STRAVA_CLIENT_SECRET:?set STRAVA_CLIENT_SECRET in $CONFIG}"
-: "${STRAVA_REFRESH_TOKEN:?set STRAVA_REFRESH_TOKEN in $CONFIG}"
+STRAVA_SOURCE="${STRAVA_MY_SOURCE:-api}"
+case "$STRAVA_SOURCE" in
+  api)
+    : "${STRAVA_CLIENT_ID:?set STRAVA_CLIENT_ID in $CONFIG}"
+    : "${STRAVA_CLIENT_SECRET:?set STRAVA_CLIENT_SECRET in $CONFIG}"
+    : "${STRAVA_REFRESH_TOKEN:?set STRAVA_REFRESH_TOKEN in $CONFIG}"
+    ;;
+  scrape)
+    : "${STRAVA_SESSION_COOKIE:?set STRAVA_SESSION_COOKIE in $CONFIG (required for STRAVA_MY_SOURCE=scrape — copy _strava4_session from browser DevTools → Application → Cookies → strava.com)}"
+    ;;
+  *)
+    die "STRAVA_MY_SOURCE must be 'api' or 'scrape', got: $STRAVA_SOURCE"
+    ;;
+esac
 
 TOKEN_REFRESH_MARGIN="${STRAVA_TOKEN_REFRESH_MARGIN:-600}"
 MAX_PAGES="${STRAVA_MY_MAX_PAGES:-20}"
@@ -79,34 +90,158 @@ trap 'rm -rf "$TMP" "$LOCKFILE"' EXIT
 
 if [ "$IMPORT_ENABLED" != "0" ]; then
 
-# --- 1. Ensure a valid access token (see strava-lib.sh) -------------------
-ensure_access_token
+# --- 1. Authenticate -------------------------------------------------------
+# api:    OAuth token refresh (see strava-lib.sh ensure_access_token)
+# scrape: web session cookie + CSRF (see strava-lib.sh ensure_session_cookie)
+case "$STRAVA_SOURCE" in
+  api)    ensure_access_token ;;
+  scrape) ensure_session_cookie ;;
+esac
 
 # --- 2. Page through the athlete's own activities feed ---------------------
-# The /athlete/activities endpoint returns full activity objects with real IDs
-# and real dates (start_date_local) — no "first-seen" approximation needed.
-log "fetching athlete activities (up to $MAX_PAGES pages of $PER_PAGE)..."
+# api:    GET /api/v3/athlete/activities — full JSON objects, real IDs + dates.
+# scrape: GET /athlete/training_activities — web endpoint used by the browser;
+#         returns 20 activities/page (fixed). The response may be JSON or a
+#         JS/HTML fragment depending on the Strava version; the parser below
+#         tries JSON first then falls back to ID extraction from HTML attributes.
 : > "$TMP/all.ndjson"
 page=1
 # Whether pagination reached the natural end of the feed (an empty or short page)
 # rather than stopping at MAX_PAGES. Only a full traversal lets section 3 treat a
-# stored activity that is missing from the feed as deleted; a capped run can only
-# prune within the date window it actually saw.
+# stored activity that is missing from the feed as deleted.
 reached_end=0
-while [ "$page" -le "$MAX_PAGES" ]; do
-  curl_retry -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
-    -H "Authorization: Bearer $ACCESS_TOKEN" \
-    -o "$TMP/page.json" || die "activities fetch failed (page $page)"
 
-  count="$(jq 'length' "$TMP/page.json" 2>/dev/null || echo 0)"
-  [ "$count" -gt 0 ] || { log "page $page empty, stopping"; reached_end=1; break; }
+case "$STRAVA_SOURCE" in
+  api)
+    log "fetching athlete activities via API (up to $MAX_PAGES pages of $PER_PAGE)..."
+    while [ "$page" -le "$MAX_PAGES" ]; do
+      curl_retry -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -o "$TMP/page.json" || die "activities fetch failed (page $page)"
 
-  jq -c '.[]' "$TMP/page.json" >> "$TMP/all.ndjson"
-  log "page $page: $count activities"
+      count="$(jq 'length' "$TMP/page.json" 2>/dev/null || echo 0)"
+      [ "$count" -gt 0 ] || { log "page $page empty, stopping"; reached_end=1; break; }
 
-  [ "$count" -lt "$PER_PAGE" ] && { log "short page, stopping"; reached_end=1; break; }
-  page=$((page + 1))
-done
+      jq -c '.[]' "$TMP/page.json" >> "$TMP/all.ndjson"
+      log "page $page: $count activities"
+
+      [ "$count" -lt "$PER_PAGE" ] && { log "short page, stopping"; reached_end=1; break; }
+      page=$((page + 1))
+    done
+    ;;
+
+  scrape)
+    # The training_activities web endpoint returns 20 activities/page (fixed).
+    # MAX_PAGES * 20 = effective history cap; raise STRAVA_MY_MAX_PAGES if you
+    # have more than MAX_PAGES*20 activities.
+    _sc_per_page=20
+    _sc_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
+    # Generate a search session UUID (reused across pages of the same run).
+    _sc_session_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
+      || printf '%08x-%04x-4%03x-%04x-%012x' \
+         "$(date +%s)" "$(( $$ & 0xFFFF ))" "$(( $$ & 0xFFF ))" \
+         "$(( ($$ >> 4 & 0x3FFF) | 0x8000 ))" "$(date +%s)$$" 2>/dev/null \
+      || printf 'scrape-session-%s-%s' "$(date +%s)" "$$")"
+    log "fetching athlete activities via scrape (up to $MAX_PAGES pages of $_sc_per_page)..."
+    while [ "$page" -le "$MAX_PAGES" ]; do
+      curl_retry -fsS \
+        -b "$STATE_DIR/strava_cookies.txt" \
+        -H "x-csrf-token: $_sc_csrf" \
+        -H "x-requested-with: XMLHttpRequest" \
+        -H "accept: text/javascript, application/javascript, application/ecmascript, application/x-ecmascript" \
+        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+        "https://www.strava.com/athlete/training_activities?keywords=&sport_type=&tags=&commute=&private_activities=&trainer=&gear=&search_session_id=${_sc_session_id}&new_activity_only=false&page=${page}" \
+        -o "$TMP/sc_page.raw" || die "activities scrape failed (page $page)"
+
+      # Parse the response. Modern Strava returns JSON; older versions may return
+      # a JS/HTML fragment. Try JSON array, JSON wrapper, then HTML ID extraction.
+      : > "$TMP/sc_acts.ndjson"
+      if jq -e 'type == "array" and length > 0' "$TMP/sc_page.raw" >/dev/null 2>&1; then
+        jq -c '.[]' "$TMP/sc_page.raw" > "$TMP/sc_acts.ndjson"
+      elif jq -e '(.activities // .models) | type == "array"' "$TMP/sc_page.raw" >/dev/null 2>&1; then
+        jq -c '(.activities // .models)[]' "$TMP/sc_page.raw" > "$TMP/sc_acts.ndjson"
+      else
+        # HTML/JS fallback: extract activity IDs from href or data attributes.
+        # These produce minimal records; detail backfill enriches them later.
+        grep -oE '"/activities/[0-9]+"' "$TMP/sc_page.raw" 2>/dev/null \
+          | grep -oE '[0-9]+' | sort -u \
+          | while IFS= read -r _sc_aid; do printf '{"id":%s}\n' "$_sc_aid"; done \
+          > "$TMP/sc_acts.ndjson"
+        if [ ! -s "$TMP/sc_acts.ndjson" ]; then
+          grep -oE '"id"\s*:\s*[0-9]{6,}' "$TMP/sc_page.raw" 2>/dev/null \
+            | grep -oE '[0-9]{6,}' | sort -u \
+            | while IFS= read -r _sc_aid; do printf '{"id":%s}\n' "$_sc_aid"; done \
+            > "$TMP/sc_acts.ndjson"
+        fi
+        [ -s "$TMP/sc_acts.ndjson" ] || { log "  page $page empty (no IDs parsed), stopping"; reached_end=1; break; }
+        log "  page $page: note — response was HTML/JS, only IDs extracted; detail backfill will enrich"
+      fi
+
+      count="$(wc -l < "$TMP/sc_acts.ndjson" | tr -d ' ')"
+      [ "$count" -gt 0 ] || { log "  page $page empty, stopping"; reached_end=1; break; }
+
+      # Normalize to the same field shape as the API feed so section 3 merge works.
+      # The Strava web endpoint differs from the API in three ways:
+      #   1. Dates are locale-formatted ("Wed, 9/2/2026"), not ISO-8601
+      #   2. Distance is in km (possibly with comma decimal), not metres
+      #   3. Times are formatted strings ("1:12:34"), not integer seconds
+      # Detection: if moving_time is a string the record is in web format.
+      jq -c '
+        def parse_time(v):
+          if   (v | type) == "number" then v
+          elif (v | type) == "string" and (v | split(":") | length) == 3 then
+               (v | split(":") | (.[0]|tonumber)*3600 + (.[1]|tonumber)*60 + (.[2]|tonumber))
+          elif (v | type) == "string" and (v | split(":") | length) == 2 then
+               (v | split(":") | (.[0]|tonumber)*60 + (.[1]|tonumber))
+          else 0 end;
+        (.moving_time // .movingTime // null) as $mt_raw
+        | (($mt_raw | type) == "string") as $web
+        | (.start_date_local // .start_date // .startDateLocal // "") as $sd
+        | (if   ($sd | startswith("20")) then $sd[0:10]
+           elif ($sd | contains(",")) then
+             ($sd | split(", ")[-1] | split("/") |
+               (.[2]) + "-" +
+               (.[0]|tonumber|tostring | if length==1 then "0"+. else . end) + "-" +
+               (.[1]|tonumber|tostring | if length==1 then "0"+. else . end))
+           else $sd[0:10]
+           end) as $date
+        | ((.distance // 0)
+           | if   type == "string" then (gsub(","; ".")|tonumber? // 0)
+             else . end
+           | if $web then . * 1000 else . end) as $dist
+        | {
+            id:                   (.id // null),
+            start_date_local:     $date,
+            name:                 (.name // .title // ""),
+            sport_type:           (.sport_type // .type // .sportType // ""),
+            gear_id:              (.gear_id // .gearId // null),
+            distance:             $dist,
+            moving_time:          (parse_time($mt_raw)),
+            elapsed_time:         (parse_time(.elapsed_time // .elapsedTime // null)),
+            total_elevation_gain: (.total_elevation_gain // .totalElevationGain // 0),
+            average_speed:        (.average_speed // .averageSpeed // 0),
+            max_speed:            (.max_speed // .maxSpeed // 0),
+            average_heartrate:    (.average_heartrate // .averageHeartrate // null),
+            max_heartrate:        (.max_heartrate // .maxHeartrate // null),
+            average_cadence:      (.average_cadence // .averageCadence // null),
+            average_watts:        (.average_watts // .averageWatts // null),
+            weighted_average_watts: (.weighted_average_watts // .weightedAverageWatts // null),
+            max_watts:            (.max_watts // .maxWatts // null),
+            kilojoules:           (.kilojoules // null),
+            average_temp:         (.average_temp // .averageTemp // null),
+            suffer_score:         (.suffer_score // .sufferScore // null),
+            elev_high:            (.elev_high // .elevHigh // null),
+            elev_low:             (.elev_low // .elevLow // null)
+          }
+        | select(.id != null)
+      ' "$TMP/sc_acts.ndjson" >> "$TMP/all.ndjson" 2>/dev/null || true
+
+      log "  page $page: $count activities (scrape)"
+      [ "$count" -lt "$_sc_per_page" ] && { log "  short page, stopping"; reached_end=1; break; }
+      page=$((page + 1))
+    done
+    ;;
+esac
 
 jq -s '.' "$TMP/all.ndjson" > "$TMP/fetched.json"
 TOTAL="$(jq 'length' "$TMP/fetched.json")"
@@ -284,9 +419,118 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
     fi
 
     tried=$((tried + 1))
-    code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
-      "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
-      -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
+    case "$STRAVA_SOURCE" in
+      api)
+        code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
+          "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
+          -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
+        ;;
+      scrape)
+        # Fetch the activity HTML page and extract data from Strava's Backbone.js
+        # bootstrap. Strava does NOT use Next.js; activity data is embedded via
+        # chained Backbone method calls:
+        #   .similarActivitiesData({...})  — metrics + start_date_local (Unix ts)
+        #   pageView.activity().set({bikes:[{id,name},...], shoes:[...]})  — gear
+        # Both appear on single long lines, making grep+awk extraction reliable.
+        code="$(curl_retry -sS -o "$TMP/sc_detail.html" -w '%{http_code}' \
+          -b "$STATE_DIR/strava_cookies.txt" \
+          -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+          "https://www.strava.com/activities/$id" || echo 000)"
+        if [ "$code" = "200" ]; then
+          : > "$TMP/detail.json"
+
+          # Extract the similarActivitiesData({...}) JSON object.
+          # The argument is a single long line; strip the method prefix then use
+          # awk brace-counting to extract the balanced JSON object.
+          grep -o '\.similarActivitiesData({.*' "$TMP/sc_detail.html" 2>/dev/null \
+            | head -1 \
+            | sed 's/^\.similarActivitiesData(//' \
+            | awk '{
+                depth=0; buf=""
+                for(i=1;i<=length($0);i++){
+                  c=substr($0,i,1)
+                  buf=buf c
+                  if(c=="{") depth++
+                  else if(c=="}"){depth--; if(depth==0){print buf; exit}}
+                }
+              }' > "$TMP/sc_sad.json" 2>/dev/null || true
+
+          # Extract bikes array from pageView.activity().set({bikes:[...], ...}).
+          # Keys are unquoted JS; the bikes value array IS valid JSON.
+          grep -o 'bikes: \[{.*}\]' "$TMP/sc_detail.html" 2>/dev/null \
+            | head -1 \
+            | sed 's/^bikes: //' > "$TMP/sc_bikes.json" 2>/dev/null || true
+          jq -e 'type == "array"' "$TMP/sc_bikes.json" >/dev/null 2>&1 \
+            || printf '[]' > "$TMP/sc_bikes.json"
+
+          # sport_type is already normalised in the store from the list fetch.
+          _sc_sport="$(jq -rs --arg i "$id" \
+            '[.[] | select(.id == ($i|tonumber))] | .[0].sport_type // "Ride"' \
+            "$STORE" 2>/dev/null)" || _sc_sport=""
+          [ -n "$_sc_sport" ] || _sc_sport="Ride"
+
+          # Build the detail JSON from the extracted blobs.
+          if jq -e '.efforts[0].activity_id' "$TMP/sc_sad.json" >/dev/null 2>&1; then
+            jq -n \
+              --argjson sad   "$(cat "$TMP/sc_sad.json")" \
+              --argjson bikes "$(cat "$TMP/sc_bikes.json")" \
+              --arg     sport "$_sc_sport" \
+              '
+                $sad.efforts[0] as $e
+                | $e.activity_values.values as $v
+                | ($v.bike_id != null) as $has_bike
+                | (if $has_bike then ($v.bike_id | floor) else null end) as $bid
+                | (if $has_bike then "b\($bid | tostring)" else null end) as $gid
+                | ([$bikes[] | select(.id == $bid)] | if length > 0 then .[0].name else "Unknown Bike" end) as $bname
+                | {
+                    id:                    $e.activity_id,
+                    name:                  $e.activity_name,
+                    sport_type:            $sport,
+                    start_date_local:      ($e.start_date_local | strftime("%Y-%m-%dT%H:%M:%SZ")),
+                    start_date:            ($e.start_date       | strftime("%Y-%m-%dT%H:%M:%SZ")),
+                    distance:              ($v.distance         // 0),
+                    moving_time:           ($v.moving_time      // 0 | floor),
+                    elapsed_time:          ($v.elapsed_time     // 0 | floor),
+                    total_elevation_gain:  ($v.elev_gain        // 0),
+                    average_speed:         ($v.avg_speed        // 0),
+                    max_speed:             ($v.max_speed        // 0),
+                    average_cadence:       ($v.avg_cadence      // null),
+                    average_watts:         ($v.avg_watts        // null),
+                    kilojoules:            (if ($v.avg_watts != null and $v.moving_time != null)
+                                           then ($v.avg_watts * $v.moving_time / 1000 | round)
+                                           else null end),
+                    calories:              ($v.calories         | if . != null then floor else null end),
+                    average_temp:          ($v.avg_temp         // null),
+                    gear_id:               $gid,
+                    gear:                  (if $has_bike then {id: $gid, name: $bname} else null end)
+                  }
+              ' > "$TMP/detail.json" 2>/dev/null || true
+          fi
+
+          if ! jq -e '.id' "$TMP/detail.json" >/dev/null 2>&1; then
+            log "detail backfill scrape: activity $id — could not extract JSON from page (similarActivitiesData not found); skipping"
+            continue   # page loaded but parse failed — skip this activity, don't abort the run
+          fi
+
+          # Download the GPX export for the Leaflet map track.
+          # Non-GPS activities (manual, indoor) return no track; we skip them.
+          mkdir -p "$WEB_DIR/gpx"
+          _gpx_code="$(curl_retry -sS \
+            -o "$WEB_DIR/gpx/$id.gpx" \
+            -w '%{http_code}' \
+            -b "$STATE_DIR/strava_cookies.txt" \
+            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+            "https://www.strava.com/activities/$id/export_gpx" || echo 000)"
+          if [ "$_gpx_code" = "200" ] && grep -q "<trkpt" "$WEB_DIR/gpx/$id.gpx" 2>/dev/null; then
+            jq --arg gpx "gpx/$id.gpx" '. + {gpx_file: $gpx}' \
+              "$TMP/detail.json" > "$TMP/detail_gpx.json" 2>/dev/null \
+              && mv "$TMP/detail_gpx.json" "$TMP/detail.json"
+          else
+            rm -f "$WEB_DIR/gpx/$id.gpx"
+          fi
+        fi
+        ;;
+    esac
     case "$code" in
       200)
         # Validate it parses before committing it to the (web-served) detail dir.
@@ -305,8 +549,8 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
         log "detail backfill: rate limited (HTTP 429) on activity $id; stopping for this run"
         break
         ;;
-      401)
-        log "detail backfill: unauthorized (HTTP 401) — token/scope issue; stopping"
+      401|403)
+        log "detail backfill: unauthorized (HTTP $code) — token/cookie issue; stopping"
         break
         ;;
       *)
@@ -333,6 +577,20 @@ TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 # Flat list of all stored activities, sorted newest-first. The browser handles
 # all year/month/sport-type filtering; no server-side aggregation needed.
 GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+# Cookie health metadata (scrape mode only) — mirrors leaderboard's scrapeMeta
+# so the dashboard can show the same expiry banner.
+_sc_meta='null'
+if [ "$STRAVA_SOURCE" = "scrape" ]; then
+  _sc_age="$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || printf '0')"
+  case "$_sc_age" in ''|*[!0-9]*) _sc_age=0 ;; esac
+  if [ "$_sc_age" -gt 0 ]; then
+    _sc_meta="$(jq -n --argjson ts "$_sc_age" '{
+      cookieVerifiedAt:      ($ts            | todate | split("T")[0]),
+      cookieRefreshNeededBy: (($ts + 2592000) | todate | split("T")[0])
+    }')"
+  fi
+fi
 
 # ids that currently have a detail file, so the dashboard can link to them.
 ls -1 "$DETAIL_DIR" 2>/dev/null | grep -E '^[0-9]+\.json$' | cut -d. -f1 \
@@ -384,6 +642,7 @@ fi
 
 jq -s --arg generatedAt "$GENERATED_AT" \
   --arg athleteAge "$ATHLETE_AGE" \
+  --argjson scrapeMeta "$_sc_meta" \
   --slurpfile det "$TMP/detail_ids.json" \
   --slurpfile enr "$TMP/enrich.json" \
   --slurpfile gears "$TMP/gears.json" \
@@ -396,6 +655,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   | {
     generatedAt: $generatedAt,
     athleteAge: (if $athleteAge == "" then null else ($athleteAge | tonumber) end),
+    scrapeMeta: $scrapeMeta,
     gears: ($gears[0] // {}),
     activities: [
       .[]
@@ -505,6 +765,7 @@ if [ -n "$_gci" ] && [ -n "$_gcs" ] && [ -n "$_grt" ] && [ -n "$_dfi" ]; then
     fi
 else
     log "drive check: GOOGLE_CLIENT_ID/REFRESH_TOKEN/DRIVE_FOLDER_ID not set, skipping"
+    rm -f "$WEB_DIR/drive-status.json"   # clear any stale error from a previous run
 fi
 
 log "done."
