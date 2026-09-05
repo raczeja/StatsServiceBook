@@ -344,6 +344,27 @@ ensure_session_cookie() {
 # fetch otherwise. On success the cookie/CSRF/age files are written identically
 # to ensure_session_cookie so the two functions share state safely.
 # Requires: STRAVA_SESSION_COOKIE, STATE_DIR, TMP
+# JQ_MERGE_FUNC — jq preamble shared by leaderboard and email scripts.
+# Requires --arg merge "$MERGE_ATHLETES" on the jq call.
+# Builds $mergeMap and defines applyMerge, which renames alias athletes to
+# their canonical name (e.g. Alias=Canonical pairs in STRAVA_MERGE_ATHLETES).
+JQ_MERGE_FUNC=$(cat <<'JQ'
+($merge | if . == "" then {}
+           else split(",") | map(split("=")) | map(select(length == 2))
+              | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                       value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+              | from_entries
+           end) as $mergeMap |
+def applyMerge:
+  ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+  | if ($mergeMap | has($fn)) then
+      ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+      . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+            lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+    else . end;
+JQ
+)
+
 check_session_cookie_status() {
   _sc_check_valid=0
   _sc_cookie_file="$STATE_DIR/strava_cookies.txt"
