@@ -358,16 +358,11 @@ while IFS= read -r club_id; do
   jq -s --arg clubId "$club_id" --arg sport "$SPORT_LC" \
     --argjson info "$(cat "$TMP/club_info_${club_id}.json")" \
     --arg exclude "$EXCLUDE_ATHLETES" \
-    --arg merge "$MERGE_ATHLETES" '
+    --arg merge "$MERGE_ATHLETES" \
+    "$JQ_MERGE_FUNC"'
     ($exclude | if . == "" then []
                 else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
                 end) as $excl |
-    ($merge | if . == "" then {}
-              else split(",") | map(split("=")) | map(select(length == 2))
-                 | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
-                         value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
-                 | from_entries
-              end) as $mergeMap |
     {
       clubId: $clubId,
       club: {
@@ -384,12 +379,7 @@ while IFS= read -r club_id; do
       activities: [
         .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
-        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
-        | if ($mergeMap | has($fn)) then
-            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
-            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
-                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
-          else . end
+        | applyMerge
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
         | {
@@ -409,25 +399,15 @@ while IFS= read -r club_id; do
   # 5b. Emit per-club all-time leaderboard JSON and dated snapshot.
   jq -s --arg sport "$SPORT_LC" --arg generatedAt "$GENERATED_AT" \
     --arg exclude "$EXCLUDE_ATHLETES" \
-    --arg merge "$MERGE_ATHLETES" '
+    --arg merge "$MERGE_ATHLETES" \
+    "$JQ_MERGE_FUNC"'
     ($exclude | if . == "" then []
                 else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
                 end) as $excl |
-    ($merge | if . == "" then {}
-              else split(",") | map(split("=")) | map(select(length == 2))
-                 | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
-                         value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
-                 | from_entries
-              end) as $mergeMap |
     def athleteKey: "\(.firstname)|\(.lastname)";
     ( [ .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
-        | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
-        | if ($mergeMap | has($fn)) then
-            ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
-            . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
-                  lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
-          else . end
+        | applyMerge
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
       ]
