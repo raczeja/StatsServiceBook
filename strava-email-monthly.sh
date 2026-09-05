@@ -92,6 +92,7 @@ esac
 MONTH_LABEL="$month_name ${TARGET_MONTH%%-*}"
 
 log "building $_mode leaderboard email for $TARGET_MONTH ($MONTH_LABEL)"
+log "merge athletes: ${MERGE_ATHLETES:-none}"
 
 # --- Last week date range (weekly email only) ---------------------------------
 LAST_WEEK_FROM="" LAST_WEEK_TO=""
@@ -122,6 +123,7 @@ STATE_DIR="${STRAVA_STATE_DIR:-/usr/lib/strava-leaderboard}"
 WEB_DIR="${STRAVA_WEB_DIR:-/www/strava}"
 CLUB_IDS="${STRAVA_CLUB_IDS:-${STRAVA_CLUB_ID:-}}"
 : "${CLUB_IDS:?set STRAVA_CLUB_IDS in $CONFIG}"
+MERGE_ATHLETES="${STRAVA_MERGE_ATHLETES:-}"
 
 TMP="$(mktemp -d /tmp/strava-email.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
@@ -163,6 +165,11 @@ for club_id in $CLUB_IDS; do
     [ -n "$club_id" ] || continue
 
     NDJSON="$STATE_DIR/activities_${club_id}.ndjson"
+    if [ -f "$NDJSON" ]; then
+        log "club $club_id: $(wc -l < "$NDJSON" | tr -d ' ') activities in store"
+    else
+        log "club $club_id: NDJSON store not found"
+    fi
 
     club_name=""
     ACTIVITIES_JSON="$WEB_DIR/activities.json"
@@ -186,7 +193,8 @@ for club_id in $CLUB_IDS; do
             --arg month "$TARGET_MONTH" \
             --arg wfrom "$LAST_WEEK_FROM" \
             --arg wto   "$LAST_WEEK_TO" \
-            '[ inputs ] as $all
+            --arg merge "$MERGE_ATHLETES" \
+            "$JQ_MERGE_FUNC"'[ inputs | applyMerge ] as $all
              | ($all | map(select(.firstSeen | startswith($month)))) as $ma
              | ($all | map(select(.firstSeen >= $wfrom and .firstSeen <= $wto))) as $wa
              | ($ma | group_by("\(.firstname)|\(.lastname)")
@@ -216,8 +224,10 @@ for club_id in $CLUB_IDS; do
              | @tsv' \
             "$NDJSON" > "$TABLE" 2>/dev/null || true
     else
-        jq -rn --arg month "$TARGET_MONTH" \
-            '[inputs | select(.firstSeen | startswith($month))]
+        jq -rn \
+            --arg month "$TARGET_MONTH" \
+            --arg merge "$MERGE_ATHLETES" \
+            "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
              | group_by("\(.firstname)|\(.lastname)")
              | map({
                  name: "\(.[0].firstname) \(.[0].lastname)",
@@ -240,6 +250,7 @@ for club_id in $CLUB_IDS; do
              | @tsv' \
             "$NDJSON" > "$TABLE" 2>/dev/null || true
     fi
+    log "club $club_id: $(wc -l < "$TABLE" 2>/dev/null | tr -d ' ') athletes in table"
 
     if [ ! -s "$TABLE" ]; then
         printf '<p class="nd">No activities%s %s.</p>' \
@@ -321,6 +332,7 @@ for addr in $_recipients; do
         --passwordeval="printf '%s' '$_smtp_pass'" \
         --from="$EMAIL_FROM" \
         "$addr" \
+        && log "sent OK to $addr" \
         || { log "WARNING: failed to send to $addr"; _send_failed=1; }
 done
 IFS="$old_IFS"
