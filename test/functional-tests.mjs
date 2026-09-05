@@ -227,6 +227,35 @@ async function testClubDashboard(page, jsErrors) {
       `expected "Last week" column header when current month matches data, got: ${JSON.stringify(headers)}`,
     );
   });
+  // Last-week column must show a non-zero km value for at least one athlete
+  // (regression guard for the lwMap key mismatch that caused always-zero values)
+  await check(S, "last-week-column-has-value", async () => {
+    await page.evaluate(() => {
+      const _Orig = window.Date;
+      const fake = new _Orig(2026, 5, 15);
+      window.__savedDateLw = _Orig;
+      window.Date = class extends _Orig {
+        constructor(...a) { super(...(a.length ? a : [fake.getTime()])); }
+        static now() { return fake.getTime(); }
+      };
+      if (typeof render === "function") render();
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    const lwValues = await page.$$eval(
+      "#board .person-row td:last-child",
+      (tds) => tds.map((td) => td.textContent.trim()),
+    );
+    await page.evaluate(() => {
+      if (window.__savedDateLw) { window.Date = window.__savedDateLw; delete window.__savedDateLw; }
+      if (typeof render === "function") render();
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    const nonZero = lwValues.filter((v) => !v.startsWith("0"));
+    assert.ok(
+      nonZero.length > 0,
+      `expected ≥1 non-zero last-week km value, got: ${JSON.stringify(lwValues)}`,
+    );
+  });
   // Detail rows must be sorted newest-first (descending date)
   await check(S, "detail-rows-newest-first", async () => {
     await page.click("#board .person-row:first-child");
