@@ -4,6 +4,7 @@
 # activities.json which the page fetches and filters in the browser.
 
 # --- 5. Render the static HTML dashboard ----------------------------------
+log "html: writing index.html..."
 cat > "$WEB_DIR/index.html" <<'HTML'
 <!doctype html>
 <html lang="en">

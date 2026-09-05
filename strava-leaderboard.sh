@@ -119,6 +119,7 @@ while IFS= read -r club_id; do
   # 2. Fetch club details for the dashboard (api only; scrape has no OAuth token).
   case "$STRAVA_SOURCE" in
     api)
+      log "club $club_id: fetching club details via API..."
       if curl_retry -fsS "https://www.strava.com/api/v3/clubs/$club_id" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -o "$TMP/club_info_${club_id}.json" 2>/dev/null; then
@@ -136,25 +137,28 @@ while IFS= read -r club_id; do
       if [ -f "$STATE_DIR/club_info_${club_id}.json" ]; then
         cp "$STATE_DIR/club_info_${club_id}.json" "$TMP/club_info_${club_id}.json"
         log "club $club_id: $(jq -r '.name // "(unnamed)"' "$TMP/club_info_${club_id}.json") (scrape mode, cached details)"
-      elif curl_retry -fsS \
-        -b "$STATE_DIR/strava_cookies.txt" \
-        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
-        "https://www.strava.com/clubs/$club_id" \
-        -o "$TMP/club_page_${club_id}.html" 2>/dev/null; then
-        _scn=$(awk '/<title>/{
-          gsub(/.*<title>/, ""); gsub(/<\/title>.*/, "")
-          gsub(/ *[|].*$/, ""); gsub(/^[ \t]+|[ \t]+$/, "")
-          if ($0 != "") { print; exit }
-        }' "$TMP/club_page_${club_id}.html")
-        if [ -n "$_scn" ]; then
-          printf '%s\n' "$_scn" | jq -R '{name: .}' > "$TMP/club_info_${club_id}.json"
+      else
+        log "club $club_id: fetching club page via scrape..."
+        if curl_retry -fsS \
+          -b "$STATE_DIR/strava_cookies.txt" \
+          -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+          "https://www.strava.com/clubs/$club_id" \
+          -o "$TMP/club_page_${club_id}.html" 2>/dev/null; then
+          _scn=$(awk '/<title>/{
+            gsub(/.*<title>/, ""); gsub(/<\/title>.*/, "")
+            gsub(/ *[|].*$/, ""); gsub(/^[ \t]+|[ \t]+$/, "")
+            if ($0 != "") { print; exit }
+          }' "$TMP/club_page_${club_id}.html")
+          if [ -n "$_scn" ]; then
+            printf '%s\n' "$_scn" | jq -R '{name: .}' > "$TMP/club_info_${club_id}.json"
+          else
+            printf '{}' > "$TMP/club_info_${club_id}.json"
+          fi
+          log "club $club_id: ${_scn:-(unnamed)} (scrape mode, name from page)"
         else
           printf '{}' > "$TMP/club_info_${club_id}.json"
+          log "club $club_id (scrape mode, club details unavailable)"
         fi
-        log "club $club_id: ${_scn:-(unnamed)} (scrape mode, name from page)"
-      else
-        printf '{}' > "$TMP/club_info_${club_id}.json"
-        log "club $club_id (scrape mode, club details unavailable)"
       fi
       ;;
   esac
@@ -167,6 +171,7 @@ while IFS= read -r club_id; do
   while [ "$page" -le "$MAX_PAGES" ]; do
     case "$STRAVA_SOURCE" in
       api)
+        log "  page $page: requesting club $club_id activities via API..."
         curl_retry -fsS \
           "https://www.strava.com/api/v3/clubs/$club_id/activities?per_page=$PER_PAGE&page=$page" \
           -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -181,6 +186,7 @@ while IFS= read -r club_id; do
         _sc_url="https://www.strava.com/clubs/$club_id/feed?feed_type=club&club_id=$club_id"
         [ -n "$_scrape_cursor" ] && _sc_url="$_sc_url&before=$_scrape_cursor&cursor=$_scrape_cursor"
         _sc_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
+        log "  page $page: requesting club $club_id feed via scrape..."
         curl_retry -fsS \
           -b "$STATE_DIR/strava_cookies.txt" \
           -H "accept: application/json, text/plain, */*" \
@@ -556,6 +562,7 @@ elif [ "$_scrape_dry_run" = "1" ]; then
   _sc_meta="$_sc_dry_run_meta"
 fi
 
+log "aggregating leaderboard JSON..."
 # shellcheck disable=SC2086
 jq -s --arg generatedAt "$GENERATED_AT" --arg sport "$SPORT_LC" \
   --arg source "$STRAVA_SOURCE" --argjson scrapeMeta "$_sc_meta" \
@@ -573,6 +580,7 @@ log "wrote $WEB_DIR/activities.json and per-club leaderboard JSON (snapshot $STA
 # aggregation in the browser, showing one section per club. Single-quoted
 # heredoc — nothing below is shell-expanded; all runtime data flows through
 # activities.json.
+log "rendering HTML..."
 cat > "$WEB_DIR/index.html" <<'HTML'
 <!doctype html>
 <html lang="en">
@@ -771,7 +779,7 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   var lwMap = {};
   (allActs||[]).forEach(function(a){
     if(a.date && lastWeek && a.date>=lastWeek.from && a.date<=lastWeek.to){
-      var k=a.firstname+"|"+a.lastname+"|"+(a.profile_medium||"");
+      var k=a.firstname+"|"+a.lastname;
       lwMap[k]=(lwMap[k]||0)+(a.distance||0);
     }
   });

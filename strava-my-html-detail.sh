@@ -5,6 +5,7 @@
 # Quoted heredoc: nothing shell-expanded.
 
 # --- 6a. Render the per-activity detail page -------------------------------
+log "html: writing activity.html..."
 cat > "$WEB_DIR/activity.html" <<'HTML'
 <!doctype html>
 <html lang="en">

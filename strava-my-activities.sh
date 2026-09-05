@@ -261,6 +261,7 @@ log "fetched $TOTAL activities total"
 # Pruning is skipped entirely when the feed came back empty (likely a transient
 # error, not a mass deletion) or when STRAVA_MY_PRUNE_DELETED=0 (append-only mode).
 [ -f "$STORE" ] || : > "$STORE"
+log "merging $TOTAL fetched with $(wc -l < "$STORE" | tr -d ' ') stored activities..."
 
 # Project each fetched activity to the compact store record.
 jq '[ .[] | {
@@ -421,11 +422,13 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
     tried=$((tried + 1))
     case "$STRAVA_SOURCE" in
       api)
+        log "detail backfill: fetching activity $id via API..."
         code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
           "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
           -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
         ;;
       scrape)
+        log "detail backfill: fetching activity $id via scrape..."
         # Fetch the activity HTML page and extract data from Strava's Backbone.js
         # bootstrap. Strava does NOT use Next.js; activity data is embedded via
         # chained Backbone method calls:
@@ -515,6 +518,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           # Download the GPX export for the Leaflet map track.
           # Non-GPS activities (manual, indoor) return no track; we skip them.
           mkdir -p "$WEB_DIR/gpx"
+          log "detail backfill: fetching GPX for activity $id..."
           _gpx_code="$(curl_retry -sS \
             -o "$WEB_DIR/gpx/$id.gpx" \
             -w '%{http_code}' \
@@ -522,10 +526,12 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
             -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
             "https://www.strava.com/activities/$id/export_gpx" || echo 000)"
           if [ "$_gpx_code" = "200" ] && grep -q "<trkpt" "$WEB_DIR/gpx/$id.gpx" 2>/dev/null; then
+            log "detail backfill: GPX saved for activity $id (has track points)"
             jq --arg gpx "gpx/$id.gpx" '. + {gpx_file: $gpx}' \
               "$TMP/detail.json" > "$TMP/detail_gpx.json" 2>/dev/null \
               && mv "$TMP/detail_gpx.json" "$TMP/detail.json"
           else
+            log "detail backfill: GPX discarded for activity $id (HTTP $_gpx_code, no track points)"
             rm -f "$WEB_DIR/gpx/$id.gpx"
           fi
         fi
@@ -640,6 +646,7 @@ else
   echo '{}' > "$TMP/gears.json"
 fi
 
+log "building activities.json..."
 jq -s --arg generatedAt "$GENERATED_AT" \
   --arg athleteAge "$ATHLETE_AGE" \
   --argjson scrapeMeta "$_sc_meta" \
