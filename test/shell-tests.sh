@@ -1369,6 +1369,37 @@ _dist_km="$(jq -rn --arg m "2026-06" '
     | .[1].dist / 1000' "$TMP/mo_june.ndjson")"
 assert_eq "$S" "bob-dist-km-15"        "$_dist_km" "15"
 
+# ── monthly-email-merge ───────────────────────────────────────────────────────
+# Verifies STRAVA_MERGE_ATHLETES alias collapsing in the email jq pipeline.
+# Sources strava-lib.sh so JQ_MERGE_FUNC itself is exercised end-to-end.
+S="monthly-email-merge"
+
+. /opt/strava-lib.sh 2>/dev/null || true
+
+printf '%s\n' \
+    '{"firstSeen":"2026-06-10","firstname":"piotr","lastname":"k.","distance":15000,"moving_time":2000,"total_elevation_gain":100}' \
+    '{"firstSeen":"2026-06-12","firstname":"Piotr","lastname":"Ko.","distance":20000,"moving_time":2500,"total_elevation_gain":150}' \
+    '{"firstSeen":"2026-06-14","firstname":"Alice","lastname":"Smith","distance":30000,"moving_time":3600,"total_elevation_gain":200}' \
+    > "$TMP/me_merge.ndjson"
+
+_MERGE="Piotr Ko.=piotr k.,Piotr Ko.=piotr ko."
+
+_me_result="$(jq -rn --arg month "2026-06" --arg merge "$_MERGE" \
+    "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
+     | group_by("\(.firstname)|\(.lastname)")
+     | map({ name: "\(.[0].firstname) \(.[0].lastname)", dist: ([.[].distance] | add) })
+     | sort_by(-.dist)' "$TMP/me_merge.ndjson")"
+
+assert_eq "$S" "merged-into-two-groups"    "$(printf '%s' "$_me_result" | jq 'length')"          "2"
+assert_eq "$S" "merged-athlete-ranked-first" "$(printf '%s' "$_me_result" | jq -r '.[0].name')"  "Piotr Ko."
+assert_eq "$S" "merged-distance-sum"       "$(printf '%s' "$_me_result" | jq '.[0].dist')"       "35000"
+assert_eq "$S" "unmerged-athlete-present"  "$(printf '%s' "$_me_result" | jq -r '.[1].name')"    "Alice Smith"
+
+_me_no_merge="$(jq -rn --arg month "2026-06" --arg merge "" \
+    "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
+     | group_by("\(.firstname)|\(.lastname)") | length' "$TMP/me_merge.ndjson")"
+assert_eq "$S" "empty-merge-three-groups"  "$_me_no_merge" "3"
+
 # ── monthly-email-graceful-noop ───────────────────────────────────────────────
 # Mirrors the guard at the top of strava-email-monthly.sh that silently skips
 # when SMTP is not configured.

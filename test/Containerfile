@@ -21,6 +21,7 @@ COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
 COPY strava-my-html-bike.sh      /opt/strava-my-html-bike.sh
 COPY strava-my-html-stats.sh     /opt/strava-my-html-stats.sh
 COPY strava-leaderboard.sh       /opt/strava-leaderboard.sh
+COPY strava-lib.sh               /opt/strava-lib.sh
 COPY test/activities.sample.json /opt/activities.sample.json
 COPY test/club-activities.sample.json /opt/club-activities.sample.json
 COPY test/bike-service.sample.json /opt/bike-service.sample.json
