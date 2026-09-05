@@ -182,6 +182,7 @@ drive_download() {
         cp "$LOCAL_DRIVE_DIR/$fid" "$dest" 2>/dev/null || return 1
         return 0
     fi
+    log "drive: downloading file $fid..."
     curl_retry -fsS -L \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         "https://www.googleapis.com/drive/v3/files/${fid}?alt=media" \
@@ -366,7 +367,9 @@ while IFS= read -r base; do
     gpx_ref="null"; elevation_gain=0; max_speed_v=0
 
     gpx_id="$(drive_file_id "$gpx_name")"
-    if [ -n "$gpx_id" ] && drive_download "$gpx_id" "$gpx_local" 2>/dev/null; then
+    if [ -z "$gpx_id" ]; then
+        log "  gpx: no GPX file in Drive for $gpx_name"
+    elif drive_download "$gpx_id" "$gpx_local" 2>/dev/null; then
         gpx_ref="\"gpx/$gpx_safe\""
         elevation_gain="$(grep -o '<ele>[0-9.]*</ele>' "$gpx_local" \
             | tr -d '<el>/' \
@@ -392,6 +395,9 @@ while IFS= read -r base; do
             | cut -d'>' -f2 | cut -d'<' -f1 || true)"
         [ -n "$_gt1" ] && _gt1="$(printf '%s' "$_gt1" | cut -d'.' -f1 | tr -d 'Z')Z"
         [ -n "$_gt1" ] && act_start="$_gt1"
+        log "  gpx parsed: elev_gain=${elevation_gain}m max_speed=${max_speed_v}m/s cad=$avg_cad_v start=$act_start"
+    else
+        log "  gpx: download failed for $gpx_name"
     fi
 
     case "$sport_type" in
@@ -423,6 +429,8 @@ while IFS= read -r base; do
         fi
     fi
 
+    _gpx_tag="no-gpx"; [ -n "$gpx_local" ] && _gpx_tag="gpx"
+    log "  $act_id: $sport_type ${distance_m}m active=${csv_active}s hr=$avg_hr $_gpx_tag temp=$_w_temp"
     jq -nc \
         --arg id         "$act_id" \
         --arg date       "$act_date" \
@@ -550,6 +558,7 @@ if [ "${HEALTHSYNC_MODE:-full}" = "full" ]; then
                 [ -n "$_mgpxpath" ] \
                     || { log "Magene: no GPX link in GPS Visualizer response"; continue; }
 
+                log "Magene: downloading converted GPX from GPS Visualizer..."
                 curl -s --max-time 60 \
                     -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
                     "https://www.gpsvisualizer.com${_mgpxpath}" \
