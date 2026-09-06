@@ -206,7 +206,7 @@ case "$STRAVA_SOURCE" in
            else $sd[0:10]
            end) as $date
         | ((.distance // 0)
-           | if   type == "string" then (gsub(","; ".")|tonumber? // 0)
+           | if   type == "string" then (split(",") | join(".") | try tonumber catch 0)
              else . end
            | if $web then . * 1000 else . end) as $dist
         | {
@@ -218,7 +218,7 @@ case "$STRAVA_SOURCE" in
             distance:             $dist,
             moving_time:          (parse_time($mt_raw)),
             elapsed_time:         (parse_time(.elapsed_time // .elapsedTime // null)),
-            total_elevation_gain: (.total_elevation_gain // .totalElevationGain // 0),
+            total_elevation_gain: (.total_elevation_gain // .totalElevationGain // .elevation_gain_raw // 0),
             average_speed:        (.average_speed // .averageSpeed // 0),
             max_speed:            (.max_speed // .maxSpeed // 0),
             average_heartrate:    (.average_heartrate // .averageHeartrate // null),
@@ -495,14 +495,23 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
                     moving_time:           ($v.moving_time      // 0 | floor),
                     elapsed_time:          ($v.elapsed_time     // 0 | floor),
                     total_elevation_gain:  ($v.elev_gain        // 0),
-                    average_speed:         ($v.avg_speed        // 0),
+                    average_speed:         (($v.avg_speed // 0) as $asp |
+                                           if $asp > 0 then $asp
+                                           elif ($v.distance // 0) > 0 and ($v.moving_time // 0) > 0
+                                           then ($v.distance / ($v.moving_time | floor))
+                                           else 0 end),
                     max_speed:             ($v.max_speed        // 0),
+                    average_heartrate:     ($v.avg_heartrate    // $v.average_heartrate // null),
+                    max_heartrate:         ($v.max_heartrate    // null),
                     average_cadence:       ($v.avg_cadence      // null),
                     average_watts:         ($v.avg_watts        // null),
+                    weighted_average_watts:($v.weighted_avg_watts // null),
+                    max_watts:             ($v.max_watts        // null),
                     kilojoules:            (if ($v.avg_watts != null and $v.moving_time != null)
                                            then ($v.avg_watts * $v.moving_time / 1000 | round)
                                            else null end),
                     calories:              ($v.calories         | if . != null then floor else null end),
+                    suffer_score:          ($v.suffer_score     // null),
                     average_temp:          ($v.avg_temp         // null),
                     gear_id:               $gid,
                     gear:                  (if $has_bike then {id: $gid, name: $bname} else null end)
@@ -615,6 +624,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     map(select(.id != null) | {
       (.id|tostring): {
         elapsed_time:           (.elapsed_time // null),
+        total_elevation_gain:   (.total_elevation_gain // null),
+        average_speed:          (.average_speed // null),
         max_speed:              (.max_speed // null),
         average_heartrate:      (.average_heartrate // null),
         max_heartrate:          (.max_heartrate // null),
@@ -680,10 +691,10 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           gear_id:                $bike,
           distance:               (.distance // 0),
           moving_time:            (.moving_time // 0),
-          elapsed_time:           ((.elapsed_time // $e.elapsed_time) // 0),
-          total_elevation_gain:   (.total_elevation_gain // 0),
-          average_speed:          (.average_speed // 0),
-          max_speed:              ((.max_speed // $e.max_speed) // 0),
+          elapsed_time:           (if (.elapsed_time // 0) > 0 then .elapsed_time else ($e.elapsed_time // 0) end),
+          total_elevation_gain:   (if (.total_elevation_gain // 0) > 0 then .total_elevation_gain else ($e.total_elevation_gain // 0) end),
+          average_speed:          (if (.average_speed // 0) > 0 then .average_speed else ($e.average_speed // 0) end),
+          max_speed:              (if (.max_speed // 0) > 0 then .max_speed else ($e.max_speed // 0) end),
           average_heartrate:      (.average_heartrate // $e.average_heartrate),
           max_heartrate:          (.max_heartrate // $e.max_heartrate),
           average_cadence:        (.average_cadence // $e.average_cadence),
@@ -772,7 +783,7 @@ if [ -n "$_gci" ] && [ -n "$_gcs" ] && [ -n "$_grt" ] && [ -n "$_dfi" ]; then
     fi
 else
     log "drive check: GOOGLE_CLIENT_ID/REFRESH_TOKEN/DRIVE_FOLDER_ID not set, skipping"
-    rm -f "$WEB_DIR/drive-status.json"   # clear any stale error from a previous run
+    printf '{"source":"strava"}\n' > "$WEB_DIR/drive-status.json"
 fi
 
 log "done."

@@ -150,7 +150,7 @@ run_weather_backfill() {
     fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
     fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>/dev/null || true
-    _wt=$(cat "$_rw_tmp/fw_out.txt" 2>/dev/null || true)
+    _wt=$(grep -E '^-?[0-9]+$' "$_rw_tmp/fw_out.txt" 2>/dev/null | tail -1 || true)
     if [ -z "$_wt" ]; then _rw_p1_fail=$((_rw_p1_fail+1)); continue; fi
     jq --arg id "$_wid" --argjson t "$_wt" --arg s "$_fw_temp_source" \
        --argjson at "${_fw_apparent_temp:-null}" --argjson ws "${_fw_wind_speed:-null}" \
@@ -224,7 +224,7 @@ run_weather_backfill() {
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
     _fw_archive_only=1
     fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>/dev/null || true
-    _wt=$(cat "$_rw_tmp/fw_out.txt" 2>/dev/null || true)
+    _wt=$(grep -E '^-?[0-9]+$' "$_rw_tmp/fw_out.txt" 2>/dev/null | tail -1 || true)
     _fw_archive_only=0
     [ -n "$_wt" ] || continue
     jq --arg id "$_wid" --argjson t "$_wt" --arg s "$_fw_temp_source" \
