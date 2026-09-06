@@ -44,7 +44,7 @@ STRAVA_CLUB_IDS="${STRAVA_CLUB_IDS:-${STRAVA_CLUB_ID:-}}"
 
 SPORT_TYPE="${STRAVA_SPORT_TYPE:-}"                 # e.g. Run, Ride; "" = all sports
 TOKEN_REFRESH_MARGIN="${STRAVA_TOKEN_REFRESH_MARGIN:-600}"  # refresh if the access token expires within this many seconds
-MAX_PAGES="${STRAVA_MAX_PAGES:-5}"
+MAX_PAGES="${STRAVA_MAX_PAGES:-20}"
 PER_PAGE="${STRAVA_PER_PAGE:-200}"
 WEB_DIR="${STRAVA_WEB_DIR:-/www/strava}"
 STATE_DIR="${STRAVA_STATE_DIR:-/usr/lib/strava-leaderboard}"  # must survive reboot (NOT /tmp or /var on OpenWrt)
@@ -298,11 +298,23 @@ while IFS= read -r club_id; do
            else 0 end);
         ( (.known // []) | map({ (.): true }) | add // {} ) as $seen
         | [ .fetched[]
-            | select(.entity == "Activity")
-            | .activity
-            | (.stats | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
-            | (.stats | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
-            | (.stats | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+            | select(.entity == "Activity" or .entity == "GroupActivity")
+            | (if .entity == "GroupActivity"
+               then (.rowData.activities // [])[]
+                    | {id: (.entity_id_str // ""),
+                       stats: (.stats // []),
+                       athlete: {firstName: (.athlete_firstname // ""),
+                                 athleteName: (.athlete_name // ""),
+                                 avatarUrl: (.athlete_avatar_url // "")},
+                       activityName: (.name // ""),
+                       type: (.type // ""),
+                       startDate: (.start_date // ""),
+                       elapsedTime: (.elapsed_time // 0)}
+               else .activity end)
+            | select(. != null and (.id // "") != "")
+            | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+            | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+            | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
             | (.athlete.firstName // "") as $fn
             | (.athlete.athleteName // "") as $an
             | {
@@ -486,7 +498,7 @@ if [ "$_scrape_dry_run" = "1" ]; then
         _sc_dry_run_feed_ok=0; break
       fi
       _dr_count="$(jq '.entries | length' "$TMP/dr_feed_${_dr_club}.json")"
-      _dr_acts="$(jq '[.entries[] | select(.entity == "Activity")] | length' "$TMP/dr_feed_${_dr_club}.json")"
+      _dr_acts="$(jq '[.entries[] | if .entity == "Activity" then . elif .entity == "GroupActivity" then (.rowData.activities // [])[] else empty end] | length' "$TMP/dr_feed_${_dr_club}.json")"
       _dr_total_acts=$((_dr_total_acts + _dr_acts))
       log "cookie dry-run: club $_dr_club page $_dr_page — $_dr_count entries, $_dr_acts activities (not saved)"
       [ "$_dr_count" -gt 0 ] || break
