@@ -528,20 +528,37 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           # Non-GPS activities (manual, indoor) return no track; we skip them.
           mkdir -p "$WEB_DIR/gpx"
           log "detail backfill: fetching GPX for activity $id..."
+          _gpx_tmp="$TMP/$id.gpx"
           _gpx_code="$(curl_retry -sS \
-            -o "$WEB_DIR/gpx/$id.gpx" \
+            -o "$_gpx_tmp" \
             -w '%{http_code}' \
             -b "$STATE_DIR/strava_cookies.txt" \
             -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
             "https://www.strava.com/activities/$id/export_gpx" || echo 000)"
-          if [ "$_gpx_code" = "200" ] && grep -q "<trkpt" "$WEB_DIR/gpx/$id.gpx" 2>/dev/null; then
+          if [ "$_gpx_code" = "200" ] && grep -q "<trkpt" "$_gpx_tmp" 2>/dev/null; then
             log "detail backfill: GPX saved for activity $id (has track points)"
+            mv "$_gpx_tmp" "$WEB_DIR/gpx/$id.gpx"
             jq --arg gpx "gpx/$id.gpx" '. + {gpx_file: $gpx}' \
               "$TMP/detail.json" > "$TMP/detail_gpx.json" 2>/dev/null \
               && mv "$TMP/detail_gpx.json" "$TMP/detail.json"
+          elif [ "$_gpx_code" = "429" ]; then
+            # Rate limited — don't clobber any GPX we already have for this activity.
+            rm -f "$_gpx_tmp"
+            if [ -f "$WEB_DIR/gpx/$id.gpx" ] && grep -q "<trkpt" "$WEB_DIR/gpx/$id.gpx" 2>/dev/null; then
+              log "detail backfill: GPX rate limited for activity $id (HTTP 429); keeping existing GPX"
+              jq --arg gpx "gpx/$id.gpx" '. + {gpx_file: $gpx}' \
+                "$TMP/detail.json" > "$TMP/detail_gpx.json" 2>/dev/null \
+                && mv "$TMP/detail_gpx.json" "$TMP/detail.json"
+            else
+              # No existing GPX — save detail JSON without GPX, queue for GPX retry.
+              grep -qxF "$id" "$STATE_DIR/gpx-pending.txt" 2>/dev/null \
+                || echo "$id" >> "$STATE_DIR/gpx-pending.txt"
+              log "detail backfill: GPX rate limited for activity $id (HTTP 429); detail saved, GPX queued for retry"
+              # fall through — detail JSON saved below without gpx_file
+            fi
           else
             log "detail backfill: GPX discarded for activity $id (HTTP $_gpx_code, no track points)"
-            rm -f "$WEB_DIR/gpx/$id.gpx"
+            rm -f "$_gpx_tmp" "$WEB_DIR/gpx/$id.gpx"
           fi
         fi
         ;;
@@ -576,6 +593,55 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
 
     [ "$DETAIL_SLEEP" -gt 0 ] && sleep "$DETAIL_SLEEP"
   done < "$TMP/ids.txt"
+
+  # --- 3b-ii. GPX retry for activities that hit 429 on a prior run ----------
+  GPX_PENDING="$STATE_DIR/gpx-pending.txt"
+  if [ -f "$GPX_PENDING" ] && [ -s "$GPX_PENDING" ] && [ "$STRAVA_SOURCE" = "scrape" ]; then
+    _gpx_retried=0
+    _gpx_still_pending=""
+    while IFS= read -r _gpx_id; do
+      [ -n "$_gpx_id" ] || continue
+      if [ -f "$WEB_DIR/gpx/$_gpx_id.gpx" ] && grep -q "<trkpt" "$WEB_DIR/gpx/$_gpx_id.gpx" 2>/dev/null; then
+        # GPX already present — wire up reference if detail is missing it
+        if [ -f "$DETAIL_DIR/$_gpx_id.json" ] && ! jq -e '.gpx_file' "$DETAIL_DIR/$_gpx_id.json" >/dev/null 2>&1; then
+          jq --arg gpx "gpx/$_gpx_id.gpx" '. + {gpx_file: $gpx}' \
+            "$DETAIL_DIR/$_gpx_id.json" > "$TMP/gpx_update.json" 2>/dev/null \
+            && mv "$TMP/gpx_update.json" "$DETAIL_DIR/$_gpx_id.json"
+        fi
+        continue   # drop from pending — no need to rewrite it
+      fi
+      _gpx_tmp="$TMP/$_gpx_id.gpx"
+      log "detail backfill: GPX retry for activity $_gpx_id..."
+      _gpx_code="$(curl_retry -sS \
+        -o "$_gpx_tmp" \
+        -w '%{http_code}' \
+        -b "$STATE_DIR/strava_cookies.txt" \
+        -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+        "https://www.strava.com/activities/$_gpx_id/export_gpx" || echo 000)"
+      if [ "$_gpx_code" = "200" ] && grep -q "<trkpt" "$_gpx_tmp" 2>/dev/null; then
+        mv "$_gpx_tmp" "$WEB_DIR/gpx/$_gpx_id.gpx"
+        if [ -f "$DETAIL_DIR/$_gpx_id.json" ]; then
+          jq --arg gpx "gpx/$_gpx_id.gpx" '. + {gpx_file: $gpx}' \
+            "$DETAIL_DIR/$_gpx_id.json" > "$TMP/gpx_update.json" 2>/dev/null \
+            && mv "$TMP/gpx_update.json" "$DETAIL_DIR/$_gpx_id.json"
+        fi
+        _gpx_retried=$((_gpx_retried + 1))
+        log "detail backfill: GPX retry succeeded for activity $_gpx_id"
+      elif [ "$_gpx_code" = "429" ]; then
+        rm -f "$_gpx_tmp"
+        _gpx_still_pending="${_gpx_still_pending}${_gpx_id}
+"
+        log "detail backfill: GPX retry still rate limited for activity $_gpx_id; keeping in queue"
+        break
+      else
+        rm -f "$_gpx_tmp"
+        log "detail backfill: GPX retry for activity $_gpx_id — HTTP $_gpx_code; discarding from queue"
+      fi
+      [ "$DETAIL_SLEEP" -gt 0 ] && sleep "$DETAIL_SLEEP"
+    done < "$GPX_PENDING"
+    printf '%s' "$_gpx_still_pending" > "$GPX_PENDING"
+    [ "$_gpx_retried" -gt 0 ] && log "detail backfill: GPX retry: $_gpx_retried saved"
+  fi
 
   DETAIL_HAVE="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.json$' || true)"
   log "detail backfill: +$saved saved ($tried requests) this run, $DETAIL_HAVE/$TOTAL_STORED activities have detail"
