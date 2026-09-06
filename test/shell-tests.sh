@@ -1708,6 +1708,120 @@ jq -e 'type == "array"' "$TMP/sc_bikes2.json" >/dev/null 2>&1 \
 assert_eq "$S" "missing-bikes-fallback-empty-array" \
     "$(jq 'length' "$TMP/sc_bikes2.json")" "0"
 
+# ── scrape-distance-parsing ───────────────────────────────────────────────────
+# The scrape normalization uses split(",") | join(".") | try tonumber catch 0
+# to convert string km distances (possibly comma-decimal from locale) to meters.
+# This replaces gsub(","; ".")|tonumber? which crashes certain jq builds.
+S="scrape-distance-parsing"
+
+_norm_dist() {
+    printf '%s' "$1" | jq -r '
+        . as $raw |
+        if type == "number" then .
+        elif type == "string" then (split(",") | join(".") | try tonumber catch 0)
+        else 0
+        end | . * 1000 | round'
+}
+
+assert_eq "$S" "period-decimal string" "$(_norm_dist '"31.88"')" "31880"
+assert_eq "$S" "comma-decimal string"  "$(_norm_dist '"31,88"')" "31880"
+assert_eq "$S" "integer string"        "$(_norm_dist '"32"')"    "32000"
+assert_eq "$S" "numeric passthrough"   "$(_norm_dist '31.88')"   "31880"
+assert_eq "$S" "invalid string → 0"   "$(_norm_dist '"N/A"')"   "0"
+assert_eq "$S" "empty string → 0"     "$(_norm_dist '""')"      "0"
+
+# ── weather-temp-extraction ───────────────────────────────────────────────────
+# fetch_weather_temp writes its integer result to stdout, but log() also writes
+# to stdout, so fw_out.txt may contain log lines before the temperature.
+# The fix: grep -E '^-?[0-9]+$' | tail -1 extracts only the bare integer.
+S="weather-temp-extraction"
+
+# Positive temperature mixed with log lines.
+printf '%s\n' \
+    "2026-09-05 12:00:00 [weather] fetching temp" \
+    "fetch ok" \
+    "17" \
+    > "$TMP/fw_out_mixed.txt"
+assert_eq "$S" "extract temp from mixed output" \
+    "$(grep -E '^-?[0-9]+$' "$TMP/fw_out_mixed.txt" 2>/dev/null | tail -1 || true)" "17"
+
+# Negative temperature (winter / high altitude).
+printf '%s\n' "log line" "-3" > "$TMP/fw_out_neg.txt"
+assert_eq "$S" "negative temperature extracted" \
+    "$(grep -E '^-?[0-9]+$' "$TMP/fw_out_neg.txt" 2>/dev/null | tail -1 || true)" "-3"
+
+# Only log lines — no temperature present → empty string (not crash).
+printf '%s\n' "error: no data" > "$TMP/fw_out_empty.txt"
+assert_eq "$S" "no temperature → empty string" \
+    "$(grep -E '^-?[0-9]+$' "$TMP/fw_out_empty.txt" 2>/dev/null | tail -1 || true)" ""
+
+# tail -1 picks the LAST integer line when multiple are present.
+printf '%s\n' "log with code 200" "15" > "$TMP/fw_out_multi.txt"
+assert_eq "$S" "log line with embedded number ignored" \
+    "$(grep -E '^-?[0-9]+$' "$TMP/fw_out_multi.txt" 2>/dev/null | tail -1 || true)" "15"
+
+# ── enrich-zero-fallback ──────────────────────────────────────────────────────
+# When a stored activity has average_speed/max_speed = 0 (e.g. from an HTML-only
+# scrape that returned only IDs), the merge must fall back to the detail-file
+# value rather than keeping 0. This validates the > 0 guard added to the merge.
+S="enrich-zero-fallback"
+
+_ez_store='[{"id":111,"date":"2026-09-01","name":"Morning Ride","sport_type":"Ride",
+  "gear_id":null,"distance":31000,"moving_time":5700,"elapsed_time":0,
+  "total_elevation_gain":0,"average_speed":0,"max_speed":0,
+  "average_heartrate":null,"max_heartrate":null,"average_cadence":null,
+  "average_watts":null,"weighted_average_watts":null,"max_watts":null,
+  "kilojoules":null,"average_temp":null,"suffer_score":null}]'
+
+_ez_enrich='{"111":{"elapsed_time":5800,"total_elevation_gain":97,
+  "average_speed":4.58,"max_speed":11.2,
+  "average_heartrate":145,"max_heartrate":172,
+  "average_cadence":85,"average_watts":null,"weighted_average_watts":null,
+  "max_watts":null,"kilojoules":null,"average_temp":null,"suffer_score":null,
+  "calories":null}}'
+
+_ez_out="$(printf '%s' "$_ez_store" | jq --argjson enrich "$_ez_enrich" '
+  [.[] | ($enrich[(.id|tostring)] // {}) as $e | {
+    average_speed:        (if (.average_speed // 0) > 0 then .average_speed else ($e.average_speed // 0) end),
+    max_speed:            (if (.max_speed // 0) > 0 then .max_speed else ($e.max_speed // 0) end),
+    total_elevation_gain: (if (.total_elevation_gain // 0) > 0 then .total_elevation_gain else ($e.total_elevation_gain // 0) end),
+    elapsed_time:         (if (.elapsed_time // 0) > 0 then .elapsed_time else ($e.elapsed_time // 0) end),
+    average_heartrate:    (.average_heartrate // $e.average_heartrate)
+  }]
+' 2>/dev/null)"
+
+assert_eq "$S" "avg-speed-from-detail"   "$(printf '%s' "$_ez_out" | jq '.[0].average_speed')"        "4.58"
+assert_eq "$S" "max-speed-from-detail"   "$(printf '%s' "$_ez_out" | jq '.[0].max_speed')"            "11.2"
+assert_eq "$S" "elev-from-detail"        "$(printf '%s' "$_ez_out" | jq '.[0].total_elevation_gain')" "97"
+assert_eq "$S" "elapsed-from-detail"     "$(printf '%s' "$_ez_out" | jq '.[0].elapsed_time')"         "5800"
+assert_eq "$S" "hr-from-detail"          "$(printf '%s' "$_ez_out" | jq '.[0].average_heartrate')"    "145"
+
+# When store already has a real value, it must NOT be overwritten by the detail.
+_ez_store2='[{"id":222,"date":"2026-09-02","name":"Flat Ride","sport_type":"Ride",
+  "gear_id":null,"distance":20000,"moving_time":3600,"elapsed_time":3700,
+  "total_elevation_gain":5,"average_speed":5.5,"max_speed":9.8,
+  "average_heartrate":null,"max_heartrate":null,"average_cadence":null,
+  "average_watts":null,"weighted_average_watts":null,"max_watts":null,
+  "kilojoules":null,"average_temp":null,"suffer_score":null}]'
+_ez_enrich2='{"222":{"average_speed":3.0,"max_speed":6.0,"total_elevation_gain":999,
+  "elapsed_time":9999,"average_heartrate":null,"max_heartrate":null,
+  "average_cadence":null,"average_watts":null,"weighted_average_watts":null,
+  "max_watts":null,"kilojoules":null,"average_temp":null,"suffer_score":null,"calories":null}}'
+
+_ez_out2="$(printf '%s' "$_ez_store2" | jq --argjson enrich "$_ez_enrich2" '
+  [.[] | ($enrich[(.id|tostring)] // {}) as $e | {
+    average_speed:        (if (.average_speed // 0) > 0 then .average_speed else ($e.average_speed // 0) end),
+    max_speed:            (if (.max_speed // 0) > 0 then .max_speed else ($e.max_speed // 0) end),
+    total_elevation_gain: (if (.total_elevation_gain // 0) > 0 then .total_elevation_gain else ($e.total_elevation_gain // 0) end),
+    elapsed_time:         (if (.elapsed_time // 0) > 0 then .elapsed_time else ($e.elapsed_time // 0) end)
+  }]
+' 2>/dev/null)"
+
+assert_eq "$S" "store-speed-not-overwritten"  "$(printf '%s' "$_ez_out2" | jq '.[0].average_speed')"        "5.5"
+assert_eq "$S" "store-maxspd-not-overwritten" "$(printf '%s' "$_ez_out2" | jq '.[0].max_speed')"            "9.8"
+assert_eq "$S" "store-elev-not-overwritten"   "$(printf '%s' "$_ez_out2" | jq '.[0].total_elevation_gain')" "5"
+assert_eq "$S" "store-elapsed-not-overwritten" "$(printf '%s' "$_ez_out2" | jq '.[0].elapsed_time')"        "3700"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then

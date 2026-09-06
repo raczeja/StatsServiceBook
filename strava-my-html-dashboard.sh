@@ -714,7 +714,7 @@ fetch("activities.json", { cache:"no-store" })
 fetch("drive-status.json", { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(d){
-    if (!d) return;
+    if (!d || d.source === "strava") return;
     var b=document.getElementById("drive-banner");
     var bm=document.getElementById("drive-banner-msg");
     var t=document.getElementById("drive-token");
