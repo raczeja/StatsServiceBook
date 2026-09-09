@@ -60,7 +60,7 @@ mkdir -p "$WEB_DIR" "$SNAPSHOT_DIR"
 
 TOKEN_STATE="$STATE_DIR/token.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: strava-leaderboard exited with code $_rc"' EXIT
 
 # --- 1. Authenticate (api: OAuth token refresh; scrape: web session login) --
 # Cookie dry-run: when STRAVA_SOURCE=api but STRAVA_SESSION_COOKIE is also set,
@@ -119,7 +119,7 @@ while IFS= read -r club_id; do
   # 2. Fetch club details for the dashboard (api only; scrape has no OAuth token).
   case "$STRAVA_SOURCE" in
     api)
-      log "club $club_id: fetching club details via API..."
+      log "club $club_id: GET /api/v3/clubs/$club_id"
       if curl_retry -fsS "https://www.strava.com/api/v3/clubs/$club_id" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -o "$TMP/club_info_${club_id}.json" 2>/dev/null; then
@@ -171,7 +171,7 @@ while IFS= read -r club_id; do
   while [ "$page" -le "$MAX_PAGES" ]; do
     case "$STRAVA_SOURCE" in
       api)
-        log "  page $page: requesting club $club_id activities via API..."
+        log "  page $page: GET /api/v3/clubs/$club_id/activities?per_page=$PER_PAGE&page=$page"
         curl_retry -fsS \
           "https://www.strava.com/api/v3/clubs/$club_id/activities?per_page=$PER_PAGE&page=$page" \
           -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -186,7 +186,7 @@ while IFS= read -r club_id; do
         _sc_url="https://www.strava.com/clubs/$club_id/feed?feed_type=club&club_id=$club_id"
         [ -n "$_scrape_cursor" ] && _sc_url="$_sc_url&before=$_scrape_cursor&cursor=$_scrape_cursor"
         _sc_csrf="$(cat "$STATE_DIR/strava_csrf.txt" 2>/dev/null || echo "")"
-        log "  page $page: requesting club $club_id feed via scrape..."
+        log "  page $page: GET $_sc_url"
         curl_retry -fsS \
           -b "$STATE_DIR/strava_cookies.txt" \
           -H "accept: application/json, text/plain, */*" \

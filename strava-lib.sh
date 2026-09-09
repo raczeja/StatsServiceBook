@@ -8,8 +8,8 @@
 #   STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, TMP
 # Sets: ACCESS_TOKEN (used by the calling script after ensure_access_token)
 
-log() { logger -t strava "$*"; echo "$(date '+%Y-%m-%d %H:%M:%S') $*"; }
-die() { logger -t strava "ERROR: $*"; echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $*" >&2; exit 1; }
+log() { logger -t strava "$*"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$(basename "$0")] $*"; }
+die() { logger -t strava "ERROR: $*"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$(basename "$0")] ERROR: $*" >&2; exit 1; }
 
 # curl_retry — wraps curl with retry on network-level failure.
 # Transient DNS gaps (e.g. router dnsmasq restart) clear within seconds;
@@ -59,14 +59,21 @@ fetch_weather_temp() {
   _fw_temp_source="" _fw_t=""
   _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
   log "weather: fetching archive $3 ($1,$2)..."
-  _fw_resp=$(curl -fsS --max-time 15 \
+  if _fw_resp=$(curl -fsS --max-time 15 \
     "https://archive-api.open-meteo.com/v1/archive?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
-    2>/dev/null) && _fw_parse_weather "$_fw_resp" && _fw_temp_source="archive" || true
+    2>&1); then
+    _fw_parse_weather "$_fw_resp" && _fw_temp_source="archive" || true
+  else
+    log "WARNING: weather archive curl failed for $3 ($1,$2)"
+  fi
   if [ -z "$_fw_t" ] && [ "${_fw_archive_only:-0}" != "1" ]; then
     log "weather: archive miss, fetching forecast $3 ($1,$2)..."
-    _fw_resp=$(curl -fsS --max-time 15 \
+    if ! _fw_resp=$(curl -fsS --max-time 15 \
       "https://api.open-meteo.com/v1/forecast?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
-      2>/dev/null) || return 1
+      2>&1); then
+      log "WARNING: weather forecast curl failed for $3 ($1,$2)"
+      return 1
+    fi
     _fw_parse_weather "$_fw_resp" && _fw_temp_source="forecast" || true
   fi
   [ -n "$_fw_t" ] || return 1
@@ -86,6 +93,14 @@ _rw_coords() {
   if [ -z "$_wlat" ] && [ -n "$2" ] && [ -f "$4/$2" ]; then
     _wlat=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
     _wlon=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+  fi
+  # gpx_file lives in the detail JSON, not in the store record; fall back to it when $2 is empty.
+  if [ -z "$_wlat" ] && [ -f "$3/$1.json" ]; then
+    _rw_det_gpx=$(jq -r '.gpx_file // ""' "$3/$1.json" 2>/dev/null || true)
+    if [ -n "$_rw_det_gpx" ] && [ -f "$4/$_rw_det_gpx" ]; then
+      _wlat=$(grep '<trkpt' "$4/$_rw_det_gpx" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+      _wlon=$(grep '<trkpt' "$4/$_rw_det_gpx" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+    fi
   fi
   if [ -z "$_wlat" ] && [ -f "$3/$1.json" ]; then
     _rw_ply=$(jq -r '.map.summary_polyline // ""' "$3/$1.json" 2>/dev/null || true)
@@ -117,7 +132,7 @@ _rw_coords() {
 # run_weather_backfill store cache tmp detail_dir web_dir
 # Fills/upgrades the weather cache for activities in the store.
 #   Pass 1 — null-temp, no object in cache → fetch all fields → {t,s,at,ws,wd,wc,pr}
-#   Pass 2 — has-temp, no object in cache  → fetch extended only → {at,ws,wd,wc,pr}
+#   Pass 2 — has-temp (store OR detail file), no object in cache → fetch extended only → {at,ws,wd,wc,pr}
 #   Pass 3 — cached forecast entry >7 days old → archive-only re-fetch → upgrade
 # Legacy plain-number cache entries are treated as "no object" and are upgraded too.
 # Sets global _rw_changed to the total count of cache entries written this run.
@@ -149,7 +164,7 @@ run_weather_backfill() {
       continue
     fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
-    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>/dev/null || true
+    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>&1 || log "WARNING: weather fetch failed for activity $_wid ($3)"
     _wt=$(grep -E '^-?[0-9]+$' "$_rw_tmp/fw_out.txt" 2>/dev/null | tail -1 || true)
     if [ -z "$_wt" ]; then _rw_p1_fail=$((_rw_p1_fail+1)); continue; fi
     jq --arg id "$_wid" --argjson t "$_wt" --arg s "$_fw_temp_source" \
@@ -169,8 +184,17 @@ run_weather_backfill() {
   log "weather: Pass 1 done — +$_rw_p1_fetched fetched, $_rw_p1_nocoord no-coord, $_rw_p1_fail api-fail, $(jq 'length' "$_rw_cache") total cached"
   _rw_changed=$((_rw_changed + _rw_p1_fetched))
 
-  # Pass 2: has-temp activities missing a cache object (e.g. Strava device temp) → fetch extended fields
-  jq -c 'select(.average_temp != null) | {id:(.id|tostring), date, gpx:(.gpx_file//"")}' \
+  # Pass 2: has-temp activities (store OR detail file) missing extended cache fields.
+  # Strava's list endpoint omits average_temp; it only appears in the detail file.
+  # Scan detail files to find those device temps so Pass 2 triggers correctly.
+  if ls "$_rw_ddir"/*.json >/dev/null 2>&1; then
+    jq -s 'map(select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}) | add // {}' \
+        "$_rw_ddir"/*.json > "$_rw_tmp/rw2_devtemp.json"
+  else
+    printf '{}' > "$_rw_tmp/rw2_devtemp.json"
+  fi
+  jq -c --slurpfile dt "$_rw_tmp/rw2_devtemp.json" \
+      'select(.average_temp != null or ($dt[0][(.id|tostring)] != null)) | {id:(.id|tostring), date, gpx:(.gpx_file//"")}' \
       "$_rw_store" > "$_rw_tmp/rw2.ndjson"
   _rw_p2_total=$(jq -s 'length' "$_rw_tmp/rw2.ndjson")
   _rw_p2_unc=$(jq -s --slurpfile c "$_rw_cache" \
@@ -185,7 +209,7 @@ run_weather_backfill() {
     _rw_coords "$_wid" "$_wgpx" "$_rw_ddir" "$_rw_wdir"
     if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then continue; fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
-    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" >/dev/null 2>&1 || true
+    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" >/dev/null 2>&1 || log "WARNING: weather fetch failed for activity $_wid ($3)"
     [ -n "$_fw_wind_speed" ] || continue
     jq --arg id "$_wid" \
        --argjson at "${_fw_apparent_temp:-null}" --argjson ws "${_fw_wind_speed:-null}" \
@@ -223,7 +247,7 @@ run_weather_backfill() {
     if [ -z "$_wlat" ] || [ -z "$_wlon" ]; then continue; fi
     _fw_temp_source="" _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
     _fw_archive_only=1
-    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>/dev/null || true
+    fetch_weather_temp "$_wlat" "$_wlon" "$_wd" > "$_rw_tmp/fw_out.txt" 2>&1 || log "WARNING: weather archive-upgrade fetch failed for activity $_wid ($3)"
     _wt=$(grep -E '^-?[0-9]+$' "$_rw_tmp/fw_out.txt" 2>/dev/null | tail -1 || true)
     _fw_archive_only=0
     [ -n "$_wt" ] || continue
@@ -271,7 +295,7 @@ ensure_access_token() {
     [ -n "$saved" ] && refresh="$saved"
   fi
 
-  log "access token missing/expiring, refreshing..."
+  log "access token missing/expiring, refreshing (POST https://www.strava.com/oauth/token)..."
   curl_retry -fsS https://www.strava.com/oauth/token \
     -d client_id="$STRAVA_CLIENT_ID" \
     -d client_secret="$STRAVA_CLIENT_SECRET" \
