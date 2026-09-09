@@ -20,7 +20,7 @@ it with no extra daemon and almost no RAM.
 | **My Activities**    | `/strava/me/`              | All your activities in a sortable table with year/month/sport filters, bests strip, and monthly bar charts |
 | **Activity detail**  | `/strava/me/activity.html` | Per-activity stats cards, interactive route map (Leaflet + OSM), and per-km splits chart                   |
 | **Personal stats**   | `/strava/me/stats.html`    | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, and day-of-week chart           |
-| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: add parts with multiple named service types (each with its own km/hour threshold and history), track mileage auto-computed from your rides     |
+| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: add parts with multiple named service types (each with its own km/hour/calendar-time threshold and history), track mileage auto-computed from your rides     |
 
 Everything runs on the router or docker container. The browser fetches a static JSON file and renders all charts and filters client-side — no server-side processing after the nightly cron.
 
@@ -285,12 +285,16 @@ cron (23:55) ──► healthsync-activities.sh         ← Google Drive (Strava
   **Multiple service types per part.** Each part can have one or more named
   service types — for example a chain can have a "Clean & Lube" type (every
   500 km) and a "Replace" type (every 2 000 km). Each type has its own optional
-  **km threshold** and/or **hours threshold** (riding time since the last service
-  or install of that type) and its own independent service history. The table
-  shows a progress bar and percentage for every type on the part. Once any type
-  exceeds 100 % its row is **highlighted in yellow**. The worst percentage across
-  all types drives the sort order. Existing data (single-threshold parts) is
-  migrated automatically to a single "Service" type on first load.
+  **km threshold**, **hours threshold** (riding time since the last service or
+  install of that type), and/or **calendar-time threshold** (N weeks / months /
+  years since the last service, regardless of riding distance — useful for
+  suspension service, cable inspection, or other time-based intervals). All
+  three thresholds combine: the highest percentage of the three drives the
+  progress bar and the highlight. The "Since service" cell shows km + riding
+  hours + elapsed days whenever a time threshold is configured. Once any type
+  exceeds 100 % its row is **highlighted in yellow**. The worst percentage
+  across all types drives the sort order. Existing data (single-threshold
+  parts) is migrated automatically to a single "Service" type on first load.
 
   **Multiple bikes.** Track as many bikes as you like; each is a separate tab.
   The initial bike name is configurable via `STRAVA_MY_DEFAULT_BIKE_NAME` and is
