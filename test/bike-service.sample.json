@@ -86,6 +86,25 @@
           "services": []
         },
         {
+          "id": "p-fork-service",
+          "name": "Fork service",
+          "note": "lower leg service annually",
+          "installedDate": "2025-09-01",
+          "installedMileage": 0,
+          "status": "new",
+          "serviceTypes": [
+            {
+              "id": "st-fork-annual",
+              "name": "Annual service",
+              "alertKm": null,
+              "alertH": null,
+              "alertTimeN": 1,
+              "alertTimeUnit": "years",
+              "services": []
+            }
+          ]
+        },
+        {
           "id": "p-old-chain",
           "name": "Old Chain",
           "note": "11-speed, waxed",

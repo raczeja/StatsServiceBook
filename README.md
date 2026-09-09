@@ -1,7 +1,7 @@
 # StravaStats for OpenWrt
 [![CI](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml/badge.svg)](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml)
 
-A router-native activity stats and bike service tracker for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with mileage and service alerts. Supports Strava as the primary source, and also works with [HealthSync](https://healthsync.app/)-exported CSV/GPX/TCX files from Google Drive for Strava-API-free use. Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
+A router-native activity stats and bike service tracker for OpenWrt — club leaderboard, personal activity dashboard, per-activity detail with route map, personal stats, and a bike service tracker with mileage and service alerts. Supports three data sources: **Strava API** (OAuth), **Strava scrape mode** (browser session cookie, no subscription required), and **[HealthSync](https://healthsync.app/)** (CSV/GPX/TCX from Google Drive, fully Strava-API-free). Runs entirely on the router: no cloud, no extra server, no RAM daemon. Can also run locally via **Docker** or **Windows WSL**.
 
 This is a single POSIX shell script driven by **cron**, using **`curl`** to talk to the
 Strava API or Google Drive + HealthSync exports and **`jq`** to aggregate. The result is written as a static HTML page
@@ -43,13 +43,21 @@ cron (23:50) ──► strava-leaderboard.sh
                    └─ page fetches activities.json and filters by year/month
                       (defaulting to the current month) entirely in the browser
 
-cron (23:55) ──► strava-my-activities.sh          ← Strava API (active while subscribed)
-                   │  1. refresh access token (curl)
-                   │  2. page /athlete/activities feed (curl)
-                   │       real Strava IDs + real dates (start_date_local)
-                   │  3. merge into activity store (jq)
-                   │       dedupe by Strava activity ID — no approximation
-                   └► 4. render static /www/strava/me/{index,activity,stats,bike}.html
+cron (23:55) ──► strava-my-activities.sh
+                   │  STRAVA_MY_SOURCE=api (default; Strava OAuth):
+                   │    1. refresh access token (curl)
+                   │    2. page /athlete/activities feed (curl)
+                   │         real Strava IDs + real dates (start_date_local)
+                   │    3. merge into activity store (jq)
+                   │         dedupe by Strava activity ID — no approximation
+                   │  STRAVA_MY_SOURCE=scrape (no subscription needed):
+                   │    1. verify _strava4_session cookie + CSRF token
+                   │    2. page /athlete/training_activities web endpoint (curl)
+                   │         same endpoint Strava's own dashboard uses
+                   │    3. backfill per-activity detail + export GPX automatically
+                   │    4. merge into activity store (jq)
+                   │         dedupe by Strava activity ID, real activity dates
+                   └► 5. render static /www/strava/me/{index,activity,stats,bike}.html
 
              — OR —
 

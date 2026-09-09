@@ -183,6 +183,19 @@ function fmtDuration(from, to){
   if(days||(parts.length===0)) parts.push(days+" day"+(days!==1?"s":""));
   return parts.join(" ");
 }
+function calendarDaysSince(fromDate){
+  if(!fromDate) return 0;
+  var a=new Date(fromDate),b=new Date(todayStr());
+  if(isNaN(a.getTime())||isNaN(b.getTime())) return 0;
+  return Math.max(0,Math.round((b-a)/86400000));
+}
+function alertTimeDays(st){
+  var n=+st.alertTimeN||0; if(!n) return 0;
+  var unit=st.alertTimeUnit||"months";
+  if(unit==="weeks") return n*7;
+  if(unit==="years") return n*365;
+  return n*30;
+}
 function err(msg){ document.getElementById("err").textContent = msg || ""; }
 
 // ---- mileage math (client-side, from activities.json) ---------------------
@@ -301,9 +314,12 @@ function stPct(bike,p,st){
   var fromDate=last?last.date:(p.installedDate||"");
   var refKm=Math.max(0,rideMileageSince(bike,fromDate));
   var refH=rideTimeSince(bike,fromDate)/3600;
+  var refDays=calendarDaysSince(fromDate);
   var pctKm=(st.alertKm&&+st.alertKm>0)?(refKm/+st.alertKm*100):0;
   var pctH=(st.alertH&&+st.alertH>0)?(refH/+st.alertH*100):0;
-  return Math.max(pctKm,pctH);
+  var adv=alertTimeDays(st);
+  var pctDays=(adv>0)?(refDays/adv*100):0;
+  return Math.max(pctKm,pctH,pctDays);
 }
 // Worst % across all service types; 0 when no thresholds configured (used for sorting).
 function partPct(bike,p){
@@ -426,10 +442,10 @@ function loadAll(){
         seeded = true;
       }
       if (!curBike() && MODEL.bikes.length) {
-        // Default to the bike mapped to DEFGEAR (the highest-distance gear) so the
-        // primary bike is pre-selected rather than whichever seeded first.
+        // Prefer the bike marked isDefault; fall back to DEFGEAR match, then first.
         var defBike = null;
-        if (DEFGEAR) MODEL.bikes.forEach(function(b){ if (!defBike && b.gearId === DEFGEAR) defBike = b; });
+        MODEL.bikes.forEach(function(b){ if (!defBike && b.isDefault) defBike = b; });
+        if (!defBike && DEFGEAR) MODEL.bikes.forEach(function(b){ if (!defBike && b.gearId === DEFGEAR) defBike = b; });
         selBike = defBike ? defBike.id : MODEL.bikes[0].id;
       }
       progressDone();
@@ -523,7 +539,7 @@ window.deleteBike = function(id){
 window.selectBike = function(id){ selBike = id; render(); };
 
 // ---- part: add / edit -----------------------------------------------------
-function stBlockHtml(i,stId,name,km,h,desc){
+function stBlockHtml(i,stId,name,km,h,desc,timeN,timeUnit){
   return '<input type="hidden" class="st-id" value="'+esc(stId||'')+'">'+
     '<div style="display:flex;align-items:center;gap:.4rem">'+
     '<input class="st-name" style="flex:1;font:inherit;border:1px solid #ccc;border-radius:.4rem;padding:.35rem .5rem;background:#fff;color:#222" placeholder="e.g. Clean &amp; Lube" value="'+esc(name||'')+'">'+
@@ -531,14 +547,22 @@ function stBlockHtml(i,stId,name,km,h,desc){
     '<input class="st-desc" style="width:100%;box-sizing:border-box;font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:.4rem;padding:.28rem .5rem;margin-top:.3rem;background:#fff;color:#222" placeholder="Description / tooltip (optional)" value="'+esc(desc||'')+'">'+
     '<div class="row" style="margin-top:.35rem">'+
     '<div><label>Alert after km (optional)</label><input class="st-km" type="number" step="1" min="0" placeholder="e.g. 500" value="'+(km!=null&&km!==''?km:'')+'"></div>'+
-    '<div><label>Alert after hours (optional)</label><input class="st-h" type="number" step="0.1" min="0" placeholder="e.g. 20" value="'+(h!=null&&h!==''?h:'')+'"></div></div>';
+    '<div><label>Alert after hours (optional)</label><input class="st-h" type="number" step="0.1" min="0" placeholder="e.g. 20" value="'+(h!=null&&h!==''?h:'')+'"></div></div>'+
+    '<div style="margin-top:.25rem"><label>Alert after time (optional)</label>'+
+    '<div style="display:flex;gap:.4rem;align-items:center">'+
+    '<input class="st-timen" type="number" step="1" min="1" placeholder="e.g. 1" style="width:5rem" value="'+(timeN!=null&&+timeN>=1?timeN:'')+'">'+
+    '<select class="st-timeunit" style="font:inherit;padding:.35rem .5rem;border:1px solid #ccc;border-radius:.4rem;background:#fff;color:#222">'+
+    '<option value="weeks"'+(timeUnit==="weeks"?' selected':'')+'>weeks</option>'+
+    '<option value="months"'+((!timeUnit||timeUnit==="months")?' selected':'')+'>months</option>'+
+    '<option value="years"'+(timeUnit==="years"?' selected':'')+'>years</option>'+
+    '</select></div></div>';
 }
 window.addSvcType = function(){
   var list=document.getElementById("st-list"); if(!list) return;
   var i=list.children.length;
   var div=document.createElement("div");
   div.className="st-block"; div.id="st-"+i;
-  div.innerHTML=stBlockHtml(i,uid("st-"),"",null,null,"");
+  div.innerHTML=stBlockHtml(i,uid("st-"),"",null,null,"",null,"months");
   list.appendChild(div);
 };
 window.removeSvcType = function(i){
@@ -552,7 +576,7 @@ function partForm(part){
   var mi   = part ? part.installedMileage : Math.round(bikeMileage(b, date)*10)/10;
   var types=(part&&part.serviceTypes&&part.serviceTypes.length)?part.serviceTypes:[{id:uid("st-"),name:"Service",alertKm:null,alertH:null}];
   var stHtml=types.map(function(st,i){
-    return '<div class="st-block" id="st-'+i+'">'+stBlockHtml(i,st.id,st.name,st.alertKm,st.alertH,st.desc)+'</div>';
+    return '<div class="st-block" id="st-'+i+'">'+stBlockHtml(i,st.id,st.name,st.alertKm,st.alertH,st.desc,st.alertTimeN,st.alertTimeUnit)+'</div>';
   }).join("");
   openModal(
     '<h3>'+(part?'Edit part':'Add part')+'</h3>'+
@@ -588,11 +612,15 @@ window.savePart = function(id){
     var sdesc=(el.querySelector(".st-desc")||{value:""}).value.trim()||"";
     var skm=el.querySelector(".st-km").value;
     var sh=el.querySelector(".st-h").value;
+    var stimen=(el.querySelector(".st-timen")||{value:""}).value;
+    var stimeu=(el.querySelector(".st-timeunit")||{value:"months"}).value||"months";
     var existing=null;
     if(existingPart) existingPart.serviceTypes.forEach(function(st){ if(st.id===stid) existing=st; });
     serviceTypes.push({id:stid,name:sname,desc:sdesc||undefined,
       alertKm:skm!==""?(+skm||null):null,
       alertH:sh!==""?(+sh||null):null,
+      alertTimeN:stimen!==""&&+stimen>=1?(+stimen):null,
+      alertTimeUnit:stimen!==""&&+stimen>=1?stimeu:undefined,
       services:existing?existing.services:[]});
   });
   if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
@@ -825,10 +853,13 @@ function render(){
         var fromDate=last?last.date:(p.installedDate||"");
         var sinceKm=Math.max(0,rideMileageSince(b,fromDate));
         var sinceH=Math.max(0,rideTimeSince(b,fromDate)/3600);
+        var sinceDays=calendarDaysSince(fromDate);
+        var adv=alertTimeDays(st);
         var pctKm=(st.alertKm&&+st.alertKm>0)?(sinceKm/+st.alertKm*100):0;
         var pctH=(st.alertH&&+st.alertH>0)?(sinceH/+st.alertH*100):0;
-        var pct=Math.max(pctKm,pctH);
-        var hasThresh=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);
+        var pctDays=(adv>0)?(sinceDays/adv*100):0;
+        var pct=Math.max(pctKm,pctH,pctDays);
+        var hasThresh=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0)||(adv>0);
         if(pct>=100) isWarn=true;
         var barClr=pct>=100?'#b00':pct>=80?'#fc4c02':'#4caf50';
         var label=(multiType||st.desc)?'<div class="svc-type-label"'+(st.desc?' title="'+esc(st.desc)+'"':'')+'>'+esc(st.name)+'</div>':'';
@@ -836,13 +867,15 @@ function render(){
         var tipParts=[];
         if(st.alertKm&&+st.alertKm>0) tipParts.push(fmtKm(sinceKm)+' km / '+st.alertKm+' km');
         if(st.alertH&&+st.alertH>0) tipParts.push(sinceH.toFixed(1)+' h / '+st.alertH+' h');
+        if(adv>0) tipParts.push(sinceDays+' d / '+adv+' d');
         var barTip=(last?'Since last service: ':'Since install: ')+tipParts.join('; ');
         var bar=hasThresh
           ?'<div class="svc-bar" title="'+esc(barTip)+'"><div class="svc-bar-fill" style="width:'+Math.min(100,pct).toFixed(1)+'%;background:'+barClr+'"></div></div>'+
            '<span class="svc-pct" title="'+esc(barTip)+'">'+Math.round(pct)+'%</span>'
           :'';
         sinceCell+='<div class="svc-type-row">'+label+
-          (last?'<b>'+fmtKm(sinceKm)+'</b> km<div class="muted">'+sinceH.toFixed(1)+' h</div>':'<span class="muted">—</span>')+
+          (last?'<b>'+fmtKm(sinceKm)+'</b> km<div class="muted">'+sinceH.toFixed(1)+' h'+(adv>0?' · '+sinceDays+' d':'')+'</div>'
+               :(adv>0?'<span class="muted">'+sinceDays+' d</span>':'<span class="muted">—</span>'))+
           bar+'</div>';
       });
       if(!types.length){lastCell='<span class="muted">never</span>';sinceCell='<span class="muted">—</span>';}

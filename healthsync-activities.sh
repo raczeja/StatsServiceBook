@@ -53,7 +53,7 @@ GEARS_CACHE="$STATE_DIR/gears-strava-cache.json"
 
 mkdir -p "$STATE_DIR" "$WEB_DIR" "$GPX_DIR" "$DETAIL_DIR"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/healthsync.XXXXXX")"
-trap 'rm -rf "$TMP"' EXIT
+trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: healthsync-activities exited with code $_rc"' EXIT
 
 # --- 0. One-time migration: import historical activities from a Strava store --
 # Set HEALTHSYNC_IMPORT_STRAVA_STORE=/path/to/strava-my-activities/activities.ndjson
@@ -111,18 +111,21 @@ ensure_drive_token() {
             return 0
         fi
     fi
-    log "refreshing Google Drive token..."
+    log "refreshing Google Drive token (POST https://oauth2.googleapis.com/token)..."
     # Use -sS without -f so the error body (e.g. invalid_grant) is written to token.json.
-    curl_retry -sS https://oauth2.googleapis.com/token \
+    if ! curl_retry -sS https://oauth2.googleapis.com/token \
         -d "client_id=$GOOGLE_CLIENT_ID" \
         -d "client_secret=$GOOGLE_CLIENT_SECRET" \
         -d "refresh_token=$GOOGLE_REFRESH_TOKEN" \
         -d "grant_type=refresh_token" \
-        -o "$TMP/token.json" 2>/dev/null || true
+        -o "$TMP/token.json" 2>&1; then
+        log "Drive token refresh curl failed (network error)"
+    fi
     ACCESS_TOKEN="$(jq -r '.access_token // empty' "$TMP/token.json" 2>/dev/null || true)"
     if [ -z "$ACCESS_TOKEN" ]; then
         _gerr="$(jq -r '.error // empty' "$TMP/token.json" 2>/dev/null || true)"
-        log "Drive token refresh failed${_gerr:+ (Google: $_gerr)}"
+        _gbody="$(cat "$TMP/token.json" 2>/dev/null | head -c 200 || true)"
+        log "Drive token refresh failed${_gerr:+ (Google: $_gerr)}${_gbody:+ — response: $_gbody}"
         printf '{"ok":false,"error":"Drive token refresh failed","google_error":"%s","ts":%s}\n' \
             "$_gerr" "$(date +%s)" > "$WEB_DIR/drive-status.json" 2>/dev/null || true
         return 1
@@ -177,12 +180,12 @@ drive_file_id() {
 }
 
 drive_download() {
-    fid="$1"; dest="$2"
+    fid="$1"; dest="$2"; _fname="${3:-$fid}"
     if [ -n "${LOCAL_DRIVE_DIR:-}" ]; then
         cp "$LOCAL_DRIVE_DIR/$fid" "$dest" 2>/dev/null || return 1
         return 0
     fi
-    log "drive: downloading file $fid..."
+    log "drive: GET /drive/v3/files/$fid?alt=media  ($_fname)"
     curl_retry -fsS -L \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         "https://www.googleapis.com/drive/v3/files/${fid}?alt=media" \
@@ -257,7 +260,7 @@ while IFS= read -r base; do
     # Also check extensionless variant (some HealthSync versions omit .csv)
     [ -z "$csv_id" ] && csv_id="$(drive_file_id "$base")"
 
-    if [ -n "$csv_id" ] && drive_download "$csv_id" "$TMP/activity.csv" 2>/dev/null; then
+    if [ -n "$csv_id" ] && drive_download "$csv_id" "$TMP/activity.csv" "${base}.csv" 2>/dev/null; then
         # Skip header row; columns: source_app,type,name,date,time,elapsed_s,active_s,dist_km
         # Strip \r so CRLF exports from the Android app don't leave a trailing \r on the
         # last field, which would break jq's tonumber on csv_dist_km.
@@ -291,7 +294,7 @@ while IFS= read -r base; do
     tcx_name="${base}.tcx"
     avg_hr="null"; max_hr="null"; calories="null"; avg_watts_v="null"; kj_v="null"; avg_cad_v="null"
     tcx_id="$(drive_file_id "$tcx_name")"
-    if [ -n "$tcx_id" ] && drive_download "$tcx_id" "$TMP/activity.tcx" 2>/dev/null; then
+    if [ -n "$tcx_id" ] && drive_download "$tcx_id" "$TMP/activity.tcx" "$tcx_name" 2>/dev/null; then
         _v="$(grep -o 'AverageHeartRateBpm><Value>[0-9]*</Value>' \
             "$TMP/activity.tcx" | head -1 | grep -o 'Value>[0-9]*' | grep -o '[0-9]*$' || true)"
         [ -n "$_v" ] && avg_hr="$_v"
@@ -369,7 +372,7 @@ while IFS= read -r base; do
     gpx_id="$(drive_file_id "$gpx_name")"
     if [ -z "$gpx_id" ]; then
         log "  gpx: no GPX file in Drive for $gpx_name"
-    elif drive_download "$gpx_id" "$gpx_local" 2>/dev/null; then
+    elif drive_download "$gpx_id" "$gpx_local" "$gpx_name" 2>/dev/null; then
         gpx_ref="\"gpx/$gpx_safe\""
         elevation_gain="$(grep -o '<ele>[0-9.]*</ele>' "$gpx_local" \
             | tr -d '<el>/' \
@@ -539,7 +542,7 @@ if [ "${HEALTHSYNC_MODE:-full}" = "full" ]; then
 
                 _mfid="$(drive_file_id "$_mf")"
                 [ -n "$_mfid" ] || { log "Magene: not found in Drive listing: $_mf"; continue; }
-                drive_download "$_mfid" "$TMP/magene.fit" \
+                drive_download "$_mfid" "$TMP/magene.fit" "$_mf" \
                     || { log "Magene: download failed: $_mf"; continue; }
 
                 log "Magene: converting FIT to GPX via GPS Visualizer..."

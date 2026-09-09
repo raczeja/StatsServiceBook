@@ -31,6 +31,7 @@ if [ "$EXIT_CODE" -eq 0 ]; then
     exit 0
 fi
 
+logger -t strava "ERROR: $SCRIPT_NAME failed (exit $EXIT_CODE) — checking for alert config"
 # Non-zero exit — send alert email if SMTP is configured.
 STRAVA_EMAIL_SMTP=""
 STRAVA_EMAIL_USER=""
@@ -44,6 +45,7 @@ fi
 
 if [ -z "$STRAVA_EMAIL_SMTP" ] || [ -z "$STRAVA_EMAIL_USER" ] || [ -z "$STRAVA_EMAIL_ALERTS_TO" ]; then
     printf 'strava-cron-guard: alert email not configured (STRAVA_EMAIL_SMTP/USER/ALERTS_TO); skipping notification\n'
+    logger -t strava "WARNING: $SCRIPT_NAME failed (exit $EXIT_CODE) — no alert email configured"
     rm -f "$CAPTURE"
     exit "$EXIT_CODE"
 fi
@@ -75,6 +77,7 @@ for addr in $STRAVA_EMAIL_ALERTS_TO; do
     addr="$(printf '%s' "$addr" | tr -d ' \t')"
     [ -n "$addr" ] || continue
     printf 'strava-cron-guard: sending alert to %s\n' "$addr"
+    logger -t strava "ERROR: $SCRIPT_NAME failed (exit $EXIT_CODE) — sending alert to $addr"
     {
         printf 'From: %s\r\n' "$EMAIL_FROM"
         printf 'To: %s\r\n' "$addr"
@@ -94,7 +97,7 @@ for addr in $STRAVA_EMAIL_ALERTS_TO; do
         --passwordeval="printf '%s' '$_smtp_pass'" \
         --from="$EMAIL_FROM" \
         "$addr" \
-        || printf 'strava-cron-guard: failed to send alert to %s\n' "$addr"
+        || { printf 'strava-cron-guard: failed to send alert to %s\n' "$addr"; logger -t strava "ERROR: failed to send failure alert for $SCRIPT_NAME to $addr"; }
 done
 IFS="$old_IFS"
 
