@@ -1199,6 +1199,29 @@ async function testBikeService(page, jsErrors) {
       `expected duration text (year/month/week/day) in archived part, got: "${durText}"`,
     );
   });
+  // Fork service part has alertTimeN=1, alertTimeUnit="years" — installed 2025-09-01,
+  // today is well past 1 year so the bar should show ≥ 100% and trigger a warning row.
+  await check(S, "time-based-alert-bar-renders", async () => {
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+    const pct = await page.$eval(
+      "#bikepanel tbody tr:not(.ridesrow):not(.archived) .svc-pct",
+      (el) => el.textContent.trim(),
+    );
+    assert.ok(pct.endsWith("%"), `expected a % value in .svc-pct, got: "${pct}"`);
+  });
+  await check(S, "time-based-alert-shows-days", async () => {
+    const sinceCells = await page.$$eval(
+      "#bikepanel tbody tr:not(.ridesrow):not(.archived) td:nth-child(5)",
+      (els) => els.map((e) => e.textContent),
+    );
+    const hasDays = sinceCells.some((t) => /\d+ d/.test(t));
+    assert.ok(hasDays, `expected at least one "Since service" cell to show days (e.g. "365 d"), got: ${JSON.stringify(sinceCells)}`);
+  });
 }
 
 async function testBikeServicePartReplacement(page, jsErrors) {

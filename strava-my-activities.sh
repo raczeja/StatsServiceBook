@@ -86,7 +86,7 @@ WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
 LOCKFILE="${TMPDIR:-/tmp}/strava-my-activities.lock"
 mkdir "$LOCKFILE" 2>/dev/null || { log "another instance is already running ($LOCKFILE); exiting"; exit 0; }
-trap 'rm -rf "$TMP" "$LOCKFILE"' EXIT
+trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-my-activities exited with code $_rc"' EXIT
 
 if [ "$IMPORT_ENABLED" != "0" ]; then
 
@@ -115,6 +115,7 @@ case "$STRAVA_SOURCE" in
   api)
     log "fetching athlete activities via API (up to $MAX_PAGES pages of $PER_PAGE)..."
     while [ "$page" -le "$MAX_PAGES" ]; do
+      log "page $page: GET /api/v3/athlete/activities?per_page=$PER_PAGE&page=$page"
       curl_retry -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -o "$TMP/page.json" || die "activities fetch failed (page $page)"
@@ -144,6 +145,7 @@ case "$STRAVA_SOURCE" in
       || printf 'scrape-session-%s-%s' "$(date +%s)" "$$")"
     log "fetching athlete activities via scrape (up to $MAX_PAGES pages of $_sc_per_page)..."
     while [ "$page" -le "$MAX_PAGES" ]; do
+      log "page $page: GET /athlete/training_activities?page=$page"
       curl_retry -fsS \
         -b "$STATE_DIR/strava_cookies.txt" \
         -H "x-csrf-token: $_sc_csrf" \
@@ -234,7 +236,7 @@ case "$STRAVA_SOURCE" in
             elev_low:             (.elev_low // .elevLow // null)
           }
         | select(.id != null)
-      ' "$TMP/sc_acts.ndjson" >> "$TMP/all.ndjson" 2>/dev/null || true
+      ' "$TMP/sc_acts.ndjson" >> "$TMP/all.ndjson" || log "WARNING: jq scrape normalization failed (page $page) — activities may be missing"
 
       log "  page $page: $count activities (scrape)"
       [ "$count" -lt "$_sc_per_page" ] && { log "  short page, stopping"; reached_end=1; break; }
@@ -422,13 +424,13 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
     tried=$((tried + 1))
     case "$STRAVA_SOURCE" in
       api)
-        log "detail backfill: fetching activity $id via API..."
+        log "detail backfill: GET /api/v3/activities/$id"
         code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
           "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
           -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
         ;;
       scrape)
-        log "detail backfill: fetching activity $id via scrape..."
+        log "detail backfill: GET /activities/$id (scrape)"
         # Fetch the activity HTML page and extract data from Strava's Backbone.js
         # bootstrap. Strava does NOT use Next.js; activity data is embedded via
         # chained Backbone method calls:
@@ -527,7 +529,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           # Download the GPX export for the Leaflet map track.
           # Non-GPS activities (manual, indoor) return no track; we skip them.
           mkdir -p "$WEB_DIR/gpx"
-          log "detail backfill: fetching GPX for activity $id..."
+          log "detail backfill: GET /activities/$id/export_gpx"
           _gpx_tmp="$TMP/$id.gpx"
           _gpx_code="$(curl_retry -sS \
             -o "$_gpx_tmp" \

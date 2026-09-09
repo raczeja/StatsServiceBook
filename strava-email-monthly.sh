@@ -126,7 +126,7 @@ CLUB_IDS="${STRAVA_CLUB_IDS:-${STRAVA_CLUB_ID:-}}"
 MERGE_ATHLETES="${STRAVA_MERGE_ATHLETES:-}"
 
 TMP="$(mktemp -d /tmp/strava-email.XXXXXX)"
-trap 'rm -rf "$TMP"' EXIT
+trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: strava-email exited with code $_rc"' EXIT
 
 BODY="$TMP/body.html"
 
@@ -222,7 +222,7 @@ for club_id in $CLUB_IDS; do
                  ((.value.week_dist * 10 | round) / 10 | tostring)
                ]
              | @tsv' \
-            "$NDJSON" > "$TABLE" 2>/dev/null || true
+            "$NDJSON" > "$TABLE" || log "WARNING: jq failed building weekly email table for club $club_id — table may be empty"
     else
         jq -rn \
             --arg month "$TARGET_MONTH" \
@@ -248,7 +248,7 @@ for club_id in $CLUB_IDS; do
                  (if .value.time_s > 0 then ((.value.dist / (.value.time_s / 3600) * 10 | round) / 10) else 0 end | tostring)
                ]
              | @tsv' \
-            "$NDJSON" > "$TABLE" 2>/dev/null || true
+            "$NDJSON" > "$TABLE" || log "WARNING: jq failed building monthly email table for club $club_id — table may be empty"
     fi
     log "club $club_id: $(wc -l < "$TABLE" 2>/dev/null | tr -d ' ') athletes in table"
 

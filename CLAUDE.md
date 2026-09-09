@@ -2,9 +2,7 @@
 
 ## Overview
 
-A **router-native Strava stats app** for OpenWrt. A set of POSIX shell scripts
-driven by cron, using `curl` to talk to Strava and `jq` to aggregate, writing
-static HTML pages + JSON into uhttpd's web root.
+A **router-native activity stats and bike service tracker** for OpenWrt. A set of POSIX shell scripts driven by cron, using `curl` and `jq` to aggregate, writing static HTML pages + JSON into uhttpd's web root. Supports three data sources: **Strava API** (OAuth), **Strava scrape mode** (`STRAVA_MY_SOURCE=scrape`, browser session cookie, no subscription required), and **HealthSync** (CSV/GPX/TCX from Google Drive, fully Strava-API-free).
 
 ## Files
 

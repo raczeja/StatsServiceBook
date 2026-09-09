@@ -882,6 +882,7 @@ cat > "$_RC/web/gpx/act.gpx" << 'GPX'
 GPX
 
 # Shared function body written once into a sourced helper.
+# Must stay in sync with _rw_coords in strava-lib.sh (polyline decode omitted here).
 cat > "$_RC/rw_coords.sh" << 'EOF'
 _rw_coords() {
   _wlat="" _wlon=""
@@ -892,6 +893,14 @@ _rw_coords() {
   if [ -z "$_wlat" ] && [ -n "$2" ] && [ -f "$4/$2" ]; then
     _wlat=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
     _wlon=$(grep '<trkpt' "$4/$2" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+  fi
+  # gpx_file lives in the detail JSON, not in the store record; fall back to it when $2 is empty.
+  if [ -z "$_wlat" ] && [ -f "$3/$1.json" ]; then
+    _rw_det_gpx=$(jq -r '.gpx_file // ""' "$3/$1.json" 2>/dev/null || true)
+    if [ -n "$_rw_det_gpx" ] && [ -f "$4/$_rw_det_gpx" ]; then
+      _wlat=$(grep '<trkpt' "$4/$_rw_det_gpx" | head -n1 | grep -o 'lat="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+      _wlon=$(grep '<trkpt' "$4/$_rw_det_gpx" | head -n1 | grep -o 'lon="[^"]*"' | cut -d'"' -f2 | head -n1 || true)
+    fi
   fi
   if [ -z "$_wlat" ]; then _wlat="${WEATHER_LAT:-}"; fi
   if [ -z "$_wlon" ]; then _wlon="${WEATHER_LON:-}"; fi
@@ -922,6 +931,24 @@ if sh "$_RC/t_gpx.sh" 2>/dev/null; then
     ok "$S" "exits 0 + reads coords from GPX when no detail JSON"
 else
     err "$S" "exits 0 + reads coords from GPX when no detail JSON" "returned non-zero"
+fi
+
+# Scrape-mode case: store record has no gpx_file ($2=""), but the detail JSON
+# has gpx_file pointing to a GPX with track points. This is the path that was
+# silently producing no-coord for all Strava scrape activities with a GPX.
+printf '{"gpx_file":"gpx/act.gpx"}' > "$_RC/details/00001.json"
+cat > "$_RC/t_det_gpx.sh" << EOF
+#!/bin/sh
+set -eu
+. "$_RC/rw_coords.sh"
+_rw_coords 00001 "" "$_RC/details" "$_RC/web"
+[ "\$_wlat" = "50.06" ] && [ "\$_wlon" = "19.94" ]
+EOF
+if sh "$_RC/t_det_gpx.sh" 2>/dev/null; then
+    ok "$S" "exits 0 + reads GPX coords via detail JSON gpx_file when store \$2 is empty"
+else
+    err "$S" "exits 0 + reads GPX coords via detail JSON gpx_file when store \$2 is empty" \
+        "returned non-zero or coords did not match"
 fi
 
 cat > "$_RC/t_missing.sh" << EOF
@@ -1058,6 +1085,24 @@ _wpc_p2=$(jq -s --slurpfile c "$TMP/wpc_p2_cache.json" \
     '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].ws == null))] | length' \
     "$TMP/wpc_pending.ndjson")
 assert_eq "$S" "Pass2: null-ws object counts as uncached" "$_wpc_p2" "1"
+
+# Pass 2 selection: activity with average_temp only in detail file (null in store) must qualify.
+# Strava's list endpoint omits average_temp; it only appears in the detail file, so the store
+# record has average_temp==null even though a device temperature is available.
+printf '{"id":100,"average_temp":19}\n' > "$TMP/wpc_detail_100.json"
+printf '{"id":100,"average_temp":null}\n{"id":200,"average_temp":null}\n{"id":300,"average_temp":22}\n' \
+    > "$TMP/wpc_p2sel_store.ndjson"
+jq -s 'map(select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}) | add // {}' \
+    "$TMP/wpc_detail_100.json" > "$TMP/wpc_p2_devtemp.json"
+_wpc_p2sel=$(jq -c --slurpfile dt "$TMP/wpc_p2_devtemp.json" \
+    'select(.average_temp != null or ($dt[0][(.id|tostring)] != null)) | .id' \
+    "$TMP/wpc_p2sel_store.ndjson" | tr '\n' ',')
+assert_eq "$S" "Pass2: detail-file temp selects store-null activity" \
+    "$(printf '%s' "$_wpc_p2sel" | grep -c '100' || true)" "1"
+assert_eq "$S" "Pass2: null-temp no detail → not selected" \
+    "$(printf '%s' "$_wpc_p2sel" | grep -c '200' || true)" "0"
+assert_eq "$S" "Pass2: store has temp → selected" \
+    "$(printf '%s' "$_wpc_p2sel" | grep -c '300' || true)" "1"
 
 # ── weather-pass3-forecast-upgrade ───────────────────────────────────────────
 # Pass 3 filter selects cache entries with s=="forecast" where the activity
