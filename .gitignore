@@ -10,3 +10,6 @@ test/node_modules/
 test/package.json
 test/package-lock.json
 test/dysk/
+
+# Wiki pages live in the GitHub wiki repo, not here
+wiki/
