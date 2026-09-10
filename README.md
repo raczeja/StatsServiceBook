@@ -21,6 +21,40 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **Personal stats** | `/strava/me/stats.html` | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart |
 | **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage |
 
+## Features
+
+**My Activities dashboard**
+- Sortable table: distance, time, elevation, avg/max speed, VAM, avg HR, avg power, work (kJ)
+- Year/month/sport-type filters; period "bests" strip (longest, most climbing, fastest, best VAM, most work)
+- Monthly bar charts for distance, time, and elevation — all client-side from a single JSON file
+
+**Activity detail**
+- Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
+- Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear
+- Weather: temperature, feels-like, wind speed + direction, WMO code icon, precipitation — from [Open-Meteo](https://open-meteo.com/) per activity date + GPS location
+
+**Club leaderboard**
+- Month/year filter, multiple clubs (`STRAVA_CLUB_IDS`), ranked by distance with avg speed
+- Accumulating store — deduplicated daily, filter back through full history
+
+**Personal stats**
+- KPI cards, year overview table, monthly breakdown chart, year-over-year km/month heatmap
+- Personal records (longest, most climbing, fastest, best VAM, most work), sport breakdown, day-of-week chart
+
+**Bike service tracker**
+- Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
+- Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
+- Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
+- Saves via a small CGI — daily cron never touches your data
+
+**Data management**
+- Historical sync: renamed rides, corrected sport types, deleted activities all reflected automatically
+- Per-activity detail backfill: fetches full activity JSON (`/activities/{id}`) gradually over nightly runs
+- Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
+- HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
+
+Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Features)
+
 ## Screenshots
 
 | Club dashboard | My Activities dashboard |
@@ -97,6 +131,7 @@ Full instructions for running with real credentials, HealthSync, or Windows WSL:
 | Wiki page | Contents |
 | --------- | -------- |
 | [Home](https://github.com/raczeja/StatsServiceBook/wiki) | Index of all wiki pages |
+| [Features](https://github.com/raczeja/StatsServiceBook/wiki/Features) | Detailed description of every feature across all five pages |
 | [Installation](https://github.com/raczeja/StatsServiceBook/wiki/Installation) | Full install guide, path variables, scheduling, verification |
 | [Data-Source-Strava-API](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-Strava-API) | Create Strava app, one-time OAuth, token handling |
 | [Data-Source-Scrape-Mode](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-Scrape-Mode) | My Activities scrape mode, Club leaderboard scrape mode, session cookie |
