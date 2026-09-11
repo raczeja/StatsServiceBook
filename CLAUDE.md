@@ -222,3 +222,14 @@ script persists whatever it returns and prefers that next run.
   configs untouched, replace (not append) both cron lines.
 - The README documents real user-facing behavior — update it whenever you
   change defaults, paths, cron times, deps, or the run output.
+- The **GitHub wiki** (`https://github.com/raczeja/StatsServiceBook/wiki`) holds
+  detailed documentation split across pages: Features, Installation, data-source
+  setup guides, Running Locally, Email Notifications, Upgrading, Switching Data
+  Sources, and Operations. Wiki source files live locally at `wiki/*.md` (gitignored
+  from this repo — they belong to the wiki's own git repo). Update the relevant
+  wiki page whenever you add a feature, change behaviour, add a config option, or
+  change a file path. The pages that most commonly need updating are:
+  - `wiki/Features.md` — add/update any new feature description
+  - `wiki/Installation.md` — new config keys, path variables, install steps
+  - `wiki/Data-Source-*.md` — changes to a specific data source
+  - `wiki/Operations.md` — new file paths or URLs
