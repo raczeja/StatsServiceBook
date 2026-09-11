@@ -1,5 +1,6 @@
 # Local config files — contain secrets, never commit
 *.conf
+!docker/lighttpd.conf
 my-activities.conf
 config-healthsync
 strava-leaderboard.conf
