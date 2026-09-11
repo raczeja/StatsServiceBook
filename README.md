@@ -60,11 +60,11 @@ Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wik
 
 | Club dashboard | My Activities dashboard |
 | :------------: | :---------------------: |
-| ![Club dashboard](test/screenshots/club-dashboard.png) | ![My Activities](test/screenshots/my-activities.png) |
+| ![Club dashboard](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/club-dashboard.png) | ![My Activities](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/my-activities.png) |
 
 | Personal stats | Activity detail (map + splits) | Bike service tracker |
 | :------------: | :----------------------------: | :------------------: |
-| ![My Stats](test/screenshots/stats.png) | ![Activity detail](test/screenshots/activity-detail.png) | ![Bike service](test/screenshots/bike-service.png) |
+| ![My Stats](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/stats.png) | ![Activity detail](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/activity-detail.png) | ![Bike service](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service.png) |
 
 > Screenshots generated from sample data via `powershell -File test/make-screenshots.ps1`.
 
