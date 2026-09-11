@@ -1,0 +1,33 @@
+# Strava My Activities — Docker config template
+# Copy to a local file, fill in your credentials, then mount it:
+#
+#   cp docker/strava-my-activities.conf.example my-activities.conf
+#   docker run ... -v ./my-activities.conf:/etc/strava-my-activities.conf:ro ...
+#
+# Data source: "api" (Strava API OAuth) or "scrape" (browser session cookie).
+STRAVA_MY_SOURCE="api"
+
+# --- Strava API OAuth (required for source=api) ---
+STRAVA_CLIENT_ID=""
+STRAVA_CLIENT_SECRET=""
+STRAVA_REFRESH_TOKEN=""
+
+# --- Scrape mode (required for source=scrape) ---
+# STRAVA_SESSION_COOKIE=""
+
+# --- Paths (pre-set for the /data volume in docker-compose.yml) ---
+STRAVA_MY_STATE_DIR="/data/strava-my-activities"
+STRAVA_MY_WEB_DIR="/www/strava/me"
+STRAVA_MY_DETAIL_DIR="/www/strava/me/details"
+STRAVA_MY_CGI_DIR="/www/cgi-bin"
+STRAVA_MY_BIKE_DATA="/data/strava-my-activities/bike-service.json"
+
+# --- Rate-limiting (Strava API: 40 detail fetches per run, 1 s apart) ---
+STRAVA_MY_DETAIL_MAX_PER_RUN="40"
+STRAVA_MY_DETAIL_SLEEP="1"
+
+# --- Optional ---
+# STRAVA_MY_DEFAULT_BIKE_NAME=""   # bike name for the initial seed
+# WEATHER_LAT=""                   # fallback GPS for Open-Meteo weather
+# WEATHER_LON=""
+# DRIVE_CHECK_CONFIG=""            # path to healthsync conf for Drive-auth banner

@@ -1,0 +1,27 @@
+# HealthSync / Google Drive — Docker config template
+# Copy to a local file, fill in your credentials, then mount it:
+#
+#   cp docker/healthsync-activities.conf.example healthsync.conf
+#   docker run ... -v ./healthsync.conf:/etc/healthsync-activities.conf:ro ...
+#
+# See https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-HealthSync
+# for the one-time Google OAuth setup that produces GOOGLE_REFRESH_TOKEN.
+
+# --- Google Drive OAuth ---
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GOOGLE_REFRESH_TOKEN=""
+DRIVE_FOLDER_ID=""
+
+# --- Paths (pre-set for the /data volume in docker-compose.yml) ---
+HEALTHSYNC_STATE_DIR="/data/healthsync"
+HEALTHSYNC_WEB_DIR="/www/strava/me"
+HEALTHSYNC_CGI_DIR="/www/cgi-bin"
+HEALTHSYNC_BIKE_DATA="/data/healthsync/bike-service.json"
+HEALTHSYNC_BIKE_ASSIGN="/data/healthsync/bike-assignments.json"
+
+# --- Optional ---
+# HEALTHSYNC_DEFAULT_BIKE=""   # name of your primary bike for first-run seed
+# HEALTHSYNC_BIRTH_YEAR=""     # for relative-effort calculation
+# HEALTHSYNC_MODE="full"       # "full" (default) or "keepalive" (token-only)
+# HEALTHSYNC_IMPORT_STRAVA_STORE=""  # path to Strava NDJSON for one-time migration
