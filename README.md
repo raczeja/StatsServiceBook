@@ -1,5 +1,6 @@
 # StravaStats for OpenWrt
 [![CI](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml/badge.svg)](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/pulls/jraczek/statsservicebook)](https://hub.docker.com/r/jraczek/statsservicebook)
 
 A router-native activity stats and bike service tracker for OpenWrt. A single POSIX shell script driven by cron uses `curl` and `jq` to fetch activity data, then writes static HTML and JSON into uhttpd's web root — no extra daemon, almost no RAM. Three data sources are supported; the router's built-in web server serves everything. Can also run locally via Docker or Windows WSL.
 
