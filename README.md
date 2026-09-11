@@ -101,6 +101,43 @@ A healthy run ends with `done.`. Any `ERROR:` line means the run aborted — che
 
 For full install options, path variables, and post-install verification see [Installation](https://github.com/raczeja/StatsServiceBook/wiki/Installation).
 
+## Docker Hub
+
+The easiest way to run StatsServiceBook on any machine (Linux, Mac, Windows, Raspberry Pi):
+
+```sh
+# 1. Copy and fill in config template(s):
+cp docker/strava-my-activities.conf.example my-activities.conf
+# edit my-activities.conf — add CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN
+
+# Optional: club leaderboard
+cp docker/strava-leaderboard.conf.example leaderboard.conf
+# edit leaderboard.conf — add CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN / CLUB_IDS
+
+# Optional: HealthSync / Google Drive (Strava-API-free)
+# cp docker/healthsync-activities.conf.example healthsync.conf
+
+# 2. Start:
+docker compose up -d
+
+# 3. Open http://localhost/strava/me/
+```
+
+Or without compose:
+
+```sh
+docker run -d --name statsservicebook \
+  -p 80:80 \
+  -v "$(pwd)/my-activities.conf:/etc/strava-my-activities.conf:ro" \
+  -v statsservicebook_data:/data \
+  -e TZ=Europe/Warsaw \
+  -e RUN_ON_START=1 \
+  jraczek/statsservicebook:latest
+```
+
+Supported architectures: `amd64`, `arm64`, `arm/v7` (Raspberry Pi).
+Full setup, config options, and docker-compose reference: [Docker](https://github.com/raczeja/StatsServiceBook/wiki/Docker).
+
 ## Running locally (Docker / WSL)
 
 Quick preview with sample data — no credentials needed:
@@ -136,6 +173,7 @@ Full instructions for running with real credentials, HealthSync, or Windows WSL:
 | [Data-Source-Strava-API](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-Strava-API) | Create Strava app, one-time OAuth, token handling |
 | [Data-Source-Scrape-Mode](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-Scrape-Mode) | My Activities scrape mode, Club leaderboard scrape mode, session cookie |
 | [Data-Source-HealthSync](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-HealthSync) | Google Drive OAuth, HealthSync setup, Magene FIT, dual-source detection |
+| [Docker](https://github.com/raczeja/StatsServiceBook/wiki/Docker) | Docker Hub quick start, config templates, docker-compose, publishing |
 | [Running-Locally](https://github.com/raczeja/StatsServiceBook/wiki/Running-Locally) | Docker preview, real-data Docker, WSL, HealthSync local test |
 | [Email-Notifications](https://github.com/raczeja/StatsServiceBook/wiki/Email-Notifications) | Monthly leaderboard email, cron error alerts, Gmail App Password |
 | [Upgrading](https://github.com/raczeja/StatsServiceBook/wiki/Upgrading) | Binary-only scp deploy, full reinstall, surviving sysupgrade |

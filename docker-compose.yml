@@ -1,0 +1,37 @@
+# StatsServiceBook — docker-compose quick-start
+#
+# 1. Copy and fill in one (or more) config template(s) from docker/:
+#      cp docker/strava-my-activities.conf.example my-activities.conf
+#      # edit my-activities.conf — add CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN
+#
+# 2. Start:
+#      docker compose up -d
+#
+# 3. Open http://localhost/strava/me/
+#
+# Full setup guide: https://github.com/raczeja/StatsServiceBook/wiki/Docker
+
+services:
+  statsservicebook:
+    image: jraczek/statsservicebook:latest
+    # build: .    # uncomment to build from local source instead of Docker Hub
+    ports:
+      - "80:80"
+    environment:
+      TZ: Europe/Warsaw        # your timezone (tzdata name, e.g. America/New_York)
+      RUN_ON_START: "1"        # run the enabled scripts once at container start
+      # Override daily cron schedule (default: 23:50 leaderboard, 23:55 my-activities):
+      # CRON_LEADERBOARD: "50 23 * * *"
+      # CRON_MY_ACTIVITIES: "55 23 * * *"
+      # CRON_HEALTHSYNC: "55 23 * * *"
+    volumes:
+      - statsservicebook_data:/data
+      # Mount the config file(s) for the data source(s) you use.
+      # At least one must be present; unmounted paths are simply ignored.
+      - ./my-activities.conf:/etc/strava-my-activities.conf:ro
+      # - ./leaderboard.conf:/etc/strava-leaderboard.conf:ro
+      # - ./healthsync.conf:/etc/healthsync-activities.conf:ro
+    restart: unless-stopped
+
+volumes:
+  statsservicebook_data:
