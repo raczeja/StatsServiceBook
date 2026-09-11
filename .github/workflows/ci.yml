@@ -133,11 +133,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Requires DOCKERHUB_PASSWORD secret (actual account password, not a PAT).
+      # The Hub web API uses a different auth endpoint than the registry push API.
       - name: Update Docker Hub description
         uses: peter-evans/dockerhub-description@v4
         continue-on-error: true
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: ${{ env.IMAGE }}
           readme-filepath: README.md
