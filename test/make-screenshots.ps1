@@ -34,9 +34,10 @@ if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 # the host firewall. Detect the Podman machine's WSL2 IP and use that instead.
 $TestHost = "localhost"
 try {
-    $podmanIP = (wsl -d podman-machine-default -- ip addr show eth0 2>$null |
+    # Use cmd /c to avoid a hang when PowerShell is run from a UNC path (\\wsl.localhost\...)
+    $podmanIP = (& cmd /c "wsl -d podman-machine-default ip addr show eth0 2>nul" 2>$null |
         Select-String "inet " | Select-Object -First 1) -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
-    if ($podmanIP -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = $podmanIP }
+    if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
 } catch {}
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
