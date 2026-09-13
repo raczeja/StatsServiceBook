@@ -27,6 +27,7 @@ const PAGES = [
   { name: "club-dashboard", url: `http://${HOST}:${PORT}/strava/index.html` },
   { name: "my-activities", url: `${BASE}/index.html` },
   { name: "stats", url: `${BASE}/stats.html` },
+  { name: "heatmap", url: `${BASE}/heatmap.html` },
   { name: "activity-detail", url: `${BASE}/activity.html?id=18784255013` },
   { name: "bike-service", url: `${BASE}/bike.html` },
 ];
@@ -91,7 +92,29 @@ try {
   // ── Standard full-page screenshots ───────────────────────────────────────────
   for (const { name, url } of PAGES) {
     console.log(`→ ${name}: ${url}`);
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 20000 });
+    // Heatmap loads CDN scripts (Leaflet) that are unreachable inside the container,
+    // so "networkidle0" would wait forever. Use domcontentloaded then wait for data.
+    const waitFor = name === "heatmap" ? "domcontentloaded" : "networkidle0";
+    await page.goto(url, { waitUntil: waitFor, timeout: 30000 });
+
+    if (name === "heatmap") {
+      // Wait for heatmap data to load (count element populated), then set
+      // "All time / All sports" for a more visually informative screenshot.
+      try {
+        await page.waitForFunction(
+          () => (document.getElementById("count")?.textContent || "").length > 0,
+          { timeout: 12000 },
+        );
+      } catch (_) {}
+      await page.evaluate(() => {
+        const ssel = document.getElementById("sport");
+        if (ssel) { ssel.value = ""; ssel.dispatchEvent(new Event("change", { bubbles: true })); }
+        const psel = document.getElementById("period");
+        if (psel) { psel.value = "all"; psel.dispatchEvent(new Event("change", { bubbles: true })); }
+      });
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+    }
+
     await shot(page, name);
   }
 

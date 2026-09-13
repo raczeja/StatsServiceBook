@@ -1867,6 +1867,126 @@ assert_eq "$S" "store-maxspd-not-overwritten" "$(printf '%s' "$_ez_out2" | jq '.
 assert_eq "$S" "store-elev-not-overwritten"   "$(printf '%s' "$_ez_out2" | jq '.[0].total_elevation_gain')" "5"
 assert_eq "$S" "store-elapsed-not-overwritten" "$(printf '%s' "$_ez_out2" | jq '.[0].elapsed_time')"        "3700"
 
+# ── cron-guard-retry-logic ───────────────────────────────────────────────────
+# Mirrors the retry loop in strava-cron-guard.sh (no sleeps for speed).
+# Verifies: correct total attempt count and final exit code for success,
+# partial-retry success, and exhausted-retry failure cases.
+S="cron-guard-retry-logic"
+
+_guard_run() {
+    _gr_retries="$1"; _gr_script="$2"
+    _gr_attempt=0; _gr_exit=1
+    while true; do
+        _gr_attempt=$((_gr_attempt + 1))
+        set +e; sh "$_gr_script" >/dev/null 2>&1; _gr_exit=$?; set -e
+        [ "$_gr_exit" -eq 0 ] && break
+        [ "$_gr_attempt" -le "$_gr_retries" ] || break
+        # sleep omitted in tests
+    done
+    printf '%d %d' "$_gr_attempt" "$_gr_exit"
+}
+
+printf '#!/bin/sh\nexit 0\n' > "$TMP/gr_ok.sh"
+_r="$(_guard_run 2 "$TMP/gr_ok.sh")"
+assert_eq "$S" "success-first-try-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "1"
+assert_eq "$S" "success-first-try-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "0"
+
+printf '#!/bin/sh\nexit 1\n' > "$TMP/gr_fail.sh"
+_r="$(_guard_run 2 "$TMP/gr_fail.sh")"
+assert_eq "$S" "exhausted-2-retries-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "3"
+assert_eq "$S" "exhausted-2-retries-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "1"
+
+_r="$(_guard_run 0 "$TMP/gr_fail.sh")"
+assert_eq "$S" "no-retry-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "1"
+assert_eq "$S" "no-retry-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "1"
+
+# Fails once, then succeeds; with retries=2 → 2 total attempts, exit 0.
+cat > "$TMP/gr_flaky1.sh" << FLAKY1EOF
+#!/bin/sh
+n=\$(cat $TMP/gr_f1_n 2>/dev/null || echo 0)
+n=\$((n+1)); printf '%s\n' "\$n" > $TMP/gr_f1_n
+[ "\$n" -gt 1 ]
+FLAKY1EOF
+: > "$TMP/gr_f1_n"
+_r="$(_guard_run 2 "$TMP/gr_flaky1.sh")"
+assert_eq "$S" "retry-1-then-success-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "2"
+assert_eq "$S" "retry-1-then-success-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "0"
+
+# Fails twice, then succeeds; with retries=2 → 3 total attempts, exit 0.
+cat > "$TMP/gr_flaky2.sh" << FLAKY2EOF
+#!/bin/sh
+n=\$(cat $TMP/gr_f2_n 2>/dev/null || echo 0)
+n=\$((n+1)); printf '%s\n' "\$n" > $TMP/gr_f2_n
+[ "\$n" -gt 2 ]
+FLAKY2EOF
+: > "$TMP/gr_f2_n"
+_r="$(_guard_run 2 "$TMP/gr_flaky2.sh")"
+assert_eq "$S" "retry-2-then-success-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "3"
+assert_eq "$S" "retry-2-then-success-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "0"
+
+# Exceeds retry budget: fails 3 times with retries=2 → 3 attempts, exit 1.
+cat > "$TMP/gr_flaky3.sh" << FLAKY3EOF
+#!/bin/sh
+n=\$(cat $TMP/gr_f3_n 2>/dev/null || echo 0)
+n=\$((n+1)); printf '%s\n' "\$n" > $TMP/gr_f3_n
+[ "\$n" -gt 3 ]
+FLAKY3EOF
+: > "$TMP/gr_f3_n"
+_r="$(_guard_run 2 "$TMP/gr_flaky3.sh")"
+assert_eq "$S" "budget-exceeded-attempts" "$(printf '%s' "$_r" | cut -d' ' -f1)" "3"
+assert_eq "$S" "budget-exceeded-exit"     "$(printf '%s' "$_r" | cut -d' ' -f2)" "1"
+
+# ── cron-guard-net-check ──────────────────────────────────────────────────────
+# Mirrors the pre-flight network wait loop in strava-cron-guard.sh.
+# Uses a stub check command instead of real ping so no network is needed.
+S="cron-guard-net-check"
+
+_net_wait() {
+    _nw_max="$1"; _nw_interval="$2"; _nw_check="$3"
+    _nw_waited=0
+    while ! sh "$_nw_check" >/dev/null 2>&1; do
+        if [ "$_nw_waited" -ge "$_nw_max" ]; then
+            printf 'timeout'; return 1
+        fi
+        _nw_waited=$((_nw_waited + _nw_interval))
+    done
+    printf '%d' "$_nw_waited"
+}
+
+printf '#!/bin/sh\nexit 0\n' > "$TMP/nw_up.sh"
+_w="$(_net_wait 60 15 "$TMP/nw_up.sh")"
+assert_eq "$S" "net-up-immediately-waited" "$_w" "0"
+
+printf '#!/bin/sh\nexit 1\n' > "$TMP/nw_down.sh"
+_w="$(_net_wait 30 15 "$TMP/nw_down.sh")" || true
+assert_eq "$S" "net-always-down-timeout" "$_w" "timeout"
+
+# Fails once then succeeds → waited one interval (15s).
+cat > "$TMP/nw_delayed.sh" << NWEOF
+#!/bin/sh
+n=\$(cat $TMP/nw_d_n 2>/dev/null || echo 0)
+n=\$((n+1)); printf '%s\n' "\$n" > $TMP/nw_d_n
+[ "\$n" -gt 1 ]
+NWEOF
+: > "$TMP/nw_d_n"
+_w="$(_net_wait 60 15 "$TMP/nw_delayed.sh")"
+assert_eq "$S" "net-up-after-one-wait" "$_w" "15"
+
+# Fails twice then succeeds → waited two intervals (30s).
+cat > "$TMP/nw_slow.sh" << NWSEOF
+#!/bin/sh
+n=\$(cat $TMP/nw_s_n 2>/dev/null || echo 0)
+n=\$((n+1)); printf '%s\n' "\$n" > $TMP/nw_s_n
+[ "\$n" -gt 2 ]
+NWSEOF
+: > "$TMP/nw_s_n"
+_w="$(_net_wait 60 15 "$TMP/nw_slow.sh")"
+assert_eq "$S" "net-up-after-two-waits" "$_w" "30"
+
+# Boundary: max_wait=15 interval=15, always down → timeout after one poll.
+_w="$(_net_wait 15 15 "$TMP/nw_down.sh")" || true
+assert_eq "$S" "net-boundary-timeout" "$_w" "timeout"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
