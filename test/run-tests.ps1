@@ -30,12 +30,18 @@ Write-Host "==> Starting container '$Container' on :$HostPort ..."
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
 # ---- 3. Resolve the host to use for HTTP access --------------------------------
-$TestHost = "localhost"
-try {
-    $podmanIP = (& cmd /c "wsl -d podman-machine-default ip addr show eth0 2>nul" 2>$null |
-        Select-String "inet " | Select-Object -First 1) -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
-    if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
-} catch {}
+$TestHost = if ($env:TEST_HOST) { $env:TEST_HOST } else { "localhost" }
+if (-not $env:TEST_HOST) {
+    try {
+        $job = Start-Job { & wsl -d podman-machine-default ip addr show eth0 2>$null }
+        if (Wait-Job $job -Timeout 5) {
+            $podmanIP = (Receive-Job $job | Select-String "inet " | Select-Object -First 1) `
+                -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
+            if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
+        } else { Stop-Job $job }
+        Remove-Job $job -ErrorAction SilentlyContinue
+    } catch {}
+}
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
 # ---- 4. Wait for httpd to become ready ------------------------------------------
