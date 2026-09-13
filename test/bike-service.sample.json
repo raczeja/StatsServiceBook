@@ -15,6 +15,7 @@
           "installedDate": "2025-09-01",
           "installedMileage": 0,
           "status": "new",
+          "cost": 49.90,
           "alertKm": 500,
           "alertH": null,
           "needsReplacement": true,
@@ -23,7 +24,8 @@
               "id": "s-1",
               "date": "2025-11-30",
               "mileage": 161,
-              "note": "waxed \u00e2\u20ac\u201d wear at 0.75%, replacement due"
+              "note": "waxed \u00e2\u20ac\u201d wear at 0.75%, replacement due",
+              "cost": 5.50
             }
           ]
         },
