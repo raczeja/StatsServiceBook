@@ -14,10 +14,11 @@ import path from "path";
 import assert from "assert/strict";
 
 const PORT = process.env.TEST_PORT || process.env.STRAVA_TEST_PORT || "8080";
-const BASE = `http://localhost:${PORT}/strava/me`;
-const CGI = `http://localhost:${PORT}/cgi-bin`;
+const HOST = process.env.TEST_HOST || "localhost";
+const BASE = `http://${HOST}:${PORT}/strava/me`;
+const CGI = `http://${HOST}:${PORT}/cgi-bin`;
 const URLS = {
-  club: `http://localhost:${PORT}/strava/index.html`,
+  club: `http://${HOST}:${PORT}/strava/index.html`,
   dash: `${BASE}/index.html`,
   stats: `${BASE}/stats.html`,
   activity: `${BASE}/activity.html?id=18784255013`,
@@ -1221,6 +1222,53 @@ async function testBikeService(page, jsErrors) {
     );
     const hasDays = sinceCells.some((t) => /\d+ d/.test(t));
     assert.ok(hasDays, `expected at least one "Since service" cell to show days (e.g. "365 d"), got: ${JSON.stringify(sinceCells)}`);
+  });
+  // Cost tracking — Road Bike / Chain has cost:49.90 + one service with cost:5.50 in sample data.
+  await check(S, "cost-column-header-present", async () => {
+    const headers = await page.$$eval(
+      "#bikepanel thead th",
+      (ths) => ths.map((th) => th.textContent.trim()),
+    );
+    assert.ok(headers.includes("Cost"), `expected "Cost" column header, got: ${JSON.stringify(headers)}`);
+  });
+  await check(S, "cost-total-block-shown", async () => {
+    // Road Bike Chain has part cost 49.90 + service cost 5.50 = 55.40; total block must appear.
+    const block = await page.$(".cost-block");
+    assert.ok(block, "expected .cost-block to be present when costs are recorded");
+    const text = await page.$eval(".cost-block .cost-total", (el) => el.textContent.trim());
+    assert.ok(/\d/.test(text), `expected a numeric value in .cost-total, got: "${text}"`);
+  });
+  await check(S, "cost-total-includes-currency", async () => {
+    const text = await page.$eval(".cost-block .cost-total", (el) => el.textContent.trim());
+    assert.ok(/PLN/i.test(text), `expected currency code (PLN) in cost total, got: "${text}"`);
+  });
+  await check(S, "cost-cell-shows-part-cost", async () => {
+    // The cost column (6th td, 0-indexed 5) of non-archived, non-ridesrow rows should
+    // show a non-dash value for the Chain row (which has cost 49.90).
+    const costCells = await page.$$eval(
+      "#bikepanel tbody tr:not(.ridesrow):not(.archived) td:nth-child(6)",
+      (els) => els.map((e) => e.textContent.trim()),
+    );
+    const hasValue = costCells.some((t) => /\d/.test(t) && !t.includes("—"));
+    assert.ok(hasValue, `expected at least one cost cell with a numeric value, got: ${JSON.stringify(costCells)}`);
+  });
+  await check(S, "cost-modal-label-has-currency", async () => {
+    // Open "Add part" modal and verify the purchase cost label shows the currency code.
+    await page.evaluate(() => {
+      if (typeof showAddPart === "function") showAddPart();
+    });
+    await page.waitForSelector("#p-cost", { timeout: 3000 });
+    const labelText = await page.evaluate(() => {
+      const input = document.getElementById("p-cost");
+      if (!input) return "";
+      const label = input.previousElementSibling;
+      return label ? label.textContent.trim() : "";
+    });
+    assert.ok(
+      /PLN/i.test(labelText),
+      `expected currency code (PLN) in purchase cost label, got: "${labelText}"`,
+    );
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
   });
 }
 
@@ -2810,6 +2858,243 @@ async function testBikeModalCrud(page, jsErrors) {
   });
 }
 
+async function testEmailAlertCheckbox(page, jsErrors) {
+  const S = "email-alert-checkbox";
+  const ENDPOINT = `${CGI}/bike-service`;
+
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // ── 1. Checkbox always present (with hint when email not configured) ──────
+  await check(S, "checkbox-always-visible-in-add-part-modal", async () => {
+    await page.evaluate(() => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = false;
+      if (typeof showAddPart === "function") showAddPart();
+    });
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    const chk = await page.$("#p-email-alert");
+    assert.ok(chk, "#p-email-alert checkbox should always be present in add-part modal");
+    // Hint span visible when email not configured
+    const hint = await page.$('.chk:has(#p-email-alert) .muted');
+    assert.ok(hint, "hint span should appear when emailConfigured=false");
+    await page.evaluate(() => closeModal());
+  });
+
+  // ── 2. Hint hidden when emailConfigured is true ───────────────────────────
+  await check(S, "checkbox-hint-hidden-when-email-configured", async () => {
+    await page.evaluate(() => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = true;
+      if (typeof showAddPart === "function") showAddPart();
+    });
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    const chk = await page.$("#p-email-alert");
+    assert.ok(chk, "#p-email-alert checkbox should be present when emailConfigured=true");
+    const hint = await page.$('.chk:has(#p-email-alert) .muted');
+    assert.ok(!hint, "hint span should not appear when emailConfigured=true");
+    await page.evaluate(() => closeModal());
+  });
+
+  // ── 3. emailAlert:true persisted when checkbox is checked ─────────────────
+  await check(S, "email-alert-true-persisted", async () => {
+    // Select Road Bike
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+    const partName = `EmailAlertPart-${Date.now()}`;
+    const partsBefore = await fetch(ENDPOINT, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const bike = d.bikes.find((b) => b.name === "Road Bike");
+        return bike ? (bike.parts || []).length : 0;
+      });
+
+    // Open modal with emailConfigured=true, fill name, check the box, save
+    await page.evaluate((name) => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = true;
+      showAddPart();
+    }, partName);
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    await page.$eval("#p-name", (el, v) => { el.value = v; }, partName);
+    await page.$eval("#p-email-alert", (el) => { el.checked = true; });
+    await page.evaluate(() => savePart(null));
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 1000)));
+
+    // Verify the new part in the CGI store has emailAlert:true
+    const data = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+    const bike = data.bikes.find((b) => b.name === "Road Bike");
+    assert.ok(bike, "Road Bike not found in CGI store");
+    const newPart = (bike.parts || []).find((p) => p.name === partName);
+    assert.ok(newPart, `Part "${partName}" not found in CGI store`);
+    assert.strictEqual(
+      newPart.emailAlert,
+      true,
+      `expected emailAlert:true on part, got: ${JSON.stringify(newPart.emailAlert)}`,
+    );
+
+    // Cleanup — delete the test part
+    const cleanData = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+    const cleanBike = cleanData.bikes.find((b) => b.name === "Road Bike");
+    if (cleanBike) {
+      cleanBike.parts = (cleanBike.parts || []).filter((p) => p.name !== partName);
+      await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cleanData),
+      });
+    }
+  });
+
+  // ── 4. emailAlert:false default when checkbox not checked ─────────────────
+  await check(S, "email-alert-false-when-unchecked", async () => {
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+    const partName = `EmailAlertFalsePart-${Date.now()}`;
+    await page.evaluate(() => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = true;
+      showAddPart();
+    });
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    await page.$eval("#p-name", (el, v) => { el.value = v; }, partName);
+    // Leave checkbox unchecked (default)
+    await page.evaluate(() => savePart(null));
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 1000)));
+
+    const data = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+    const bike = data.bikes.find((b) => b.name === "Road Bike");
+    const newPart = (bike?.parts || []).find((p) => p.name === partName);
+    assert.ok(newPart, `Part "${partName}" not found in CGI store`);
+    assert.ok(
+      !newPart.emailAlert,
+      `expected emailAlert falsy on unchecked part, got: ${JSON.stringify(newPart.emailAlert)}`,
+    );
+
+    // Cleanup
+    if (bike) {
+      bike.parts = (bike.parts || []).filter((p) => p.name !== partName);
+      const cleanData = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+      const cb = cleanData.bikes.find((b) => b.name === "Road Bike");
+      if (cb) {
+        cb.parts = (cb.parts || []).filter((p) => p.name !== partName);
+        await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cleanData),
+        });
+      }
+    }
+  });
+
+  // ── 5. Editing a part preserves emailAlert when re-saved ──────────────────
+  await check(S, "email-alert-preserved-on-edit", async () => {
+    // Post a part with emailAlert:true directly via CGI
+    const setupData = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+    const road = setupData.bikes.find((b) => b.name === "Road Bike");
+    if (!road) { return; }
+    const partName = `EmailAlertEditPart-${Date.now()}`;
+    const newPart = {
+      id: `p-test-${Date.now()}`, name: partName, note: "", installedDate: "2026-01-01",
+      installedMileage: 0, status: "new", emailAlert: true,
+      serviceTypes: [{ id: "st-test", name: "Service", alertKm: 500, alertH: null, services: [] }],
+    };
+    road.parts = [...(road.parts || []), newPart];
+    await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(setupData),
+    });
+
+    // Reload and open the edit modal for that part
+    await page.reload({ waitUntil: "networkidle0" });
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+
+    // Find and click Edit for the test part
+    const editClicked = await page.evaluate((name) => {
+      const rows = document.querySelectorAll('#bikepanel tbody tr:not(.ridesrow)');
+      for (const row of rows) {
+        if (row.textContent.includes(name)) {
+          const btn = row.querySelector('button[onclick*="editPart"]');
+          if (btn) { btn.click(); return true; }
+        }
+      }
+      return false;
+    }, partName);
+    assert.ok(editClicked, `Edit button for "${partName}" not found`);
+
+    await page.waitForSelector("#p-name", { timeout: 3000 });
+    await page.evaluate(() => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = true;
+    });
+
+    // Checkbox should be pre-checked because the part has emailAlert:true
+    const isChecked = await page.$eval("#p-email-alert", (el) => el.checked).catch(() => null);
+    // If the checkbox exists (emailConfigured was already true when modal opened, it might not be here)
+    // So we re-render: close and reopen with emailConfigured=true
+    await page.evaluate(() => closeModal());
+    await page.evaluate(() => {
+      if (typeof _CFG !== "undefined") _CFG.emailConfigured = true;
+    });
+    const partId = await page.evaluate((name) => {
+      const rows = document.querySelectorAll('#bikepanel tbody tr:not(.ridesrow)');
+      for (const row of rows) {
+        if (row.textContent.includes(name)) {
+          const btn = row.querySelector('button[onclick*="editPart"]');
+          if (btn) {
+            const m = btn.getAttribute("onclick").match(/editPart\('([^']+)'\)/);
+            return m ? m[1] : null;
+          }
+        }
+      }
+      return null;
+    }, partName);
+    if (partId) {
+      await page.evaluate((id) => editPart(id), partId);
+      await page.waitForSelector("#p-name", { timeout: 3000 });
+      const checked = await page.$eval("#p-email-alert", (el) => el.checked).catch(() => false);
+      assert.ok(checked, "emailAlert checkbox should be pre-checked when editing a part with emailAlert:true");
+    }
+    await page.evaluate(() => closeModal());
+
+    // Cleanup
+    const cleanData = await fetch(ENDPOINT, { cache: "no-store" }).then((r) => r.json());
+    const cb = cleanData.bikes.find((b) => b.name === "Road Bike");
+    if (cb) {
+      cb.parts = (cb.parts || []).filter((p) => p.name !== partName);
+      await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cleanData),
+      });
+    }
+  });
+
+  await check(S, "no-js-errors", async () => {
+    assert.strictEqual(jsErrors.length, 0, `JS errors: ${jsErrors.join("; ")}`);
+  });
+}
+
 async function testAlertThresholds(page, jsErrors) {
   const S = "alert-thresholds";
   const ENDPOINT = `${CGI}/bike-service`;
@@ -3207,6 +3492,9 @@ async function main() {
 
     console.log("\n--- Bike Modal CRUD (add/delete bike, add part) ---");
     await testBikeModalCrud(page, jsErrors);
+
+    console.log("\n--- Email Alert Checkbox (part modal + persist) ---");
+    await testEmailAlertCheckbox(page, jsErrors);
 
     console.log("\n--- Alert Thresholds (isWarn) ---");
     await testAlertThresholds(page, jsErrors);

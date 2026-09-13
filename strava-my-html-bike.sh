@@ -14,7 +14,8 @@
 # heredoc (same pattern as the CGI preamble); the rest is shell-unexpanded.
 {
   printf '%s\n' '<!doctype html><html lang="en"><head>'
-  printf '<script>var _CFG={defaultBikeName:"%s"};</script>\n' "$DEFAULT_BIKE_NAME"
+  printf '<script>var _CFG={defaultBikeName:"%s",currency:"%s",emailConfigured:%s};</script>\n' \
+    "$DEFAULT_BIKE_NAME" "${CURRENCY:-PLN}" "$([ -n "${BIKE_EMAIL:-}" ] && printf 'true' || printf 'false')"
 } > "$WEB_DIR/bike.html"
 cat >> "$WEB_DIR/bike.html" <<'HTML'
 <meta charset="utf-8">
@@ -88,6 +89,15 @@ cat >> "$WEB_DIR/bike.html" <<'HTML'
   tr.dragging{opacity:.35}
   tr.dragover td{background:#fff5f0!important;border-top:2px solid #fc4c02}
   #pbar{position:fixed;top:0;left:0;width:0;height:3px;background:#fc4c02;z-index:9999;pointer-events:none}
+  .cost-block{margin:.5rem 0;background:#fff;border:1px solid #eee;border-radius:.45rem;padding:.55rem .8rem}
+  .cost-total{font-size:1.1rem;font-weight:700;font-variant-numeric:tabular-nums;color:#444}
+  .cost-yr-tbl{border-collapse:collapse;width:100%;margin:.35rem 0 0}
+  .cost-yr-tbl td{padding:.15rem .4rem;font-size:.83rem;border-bottom:1px solid #f4f4f4;vertical-align:baseline}
+  .cost-yr-tbl td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  details.cost-yr summary{cursor:pointer;font-size:.82rem;color:#888;list-style:none;padding:.2rem 0}
+  details.cost-yr summary::-webkit-details-marker{display:none}
+  details.cost-yr summary::before{content:"▸ ";color:#fc4c02}
+  details.cost-yr[open] summary::before{content:"▾ "}
 </style>
 </head>
 <body>
@@ -153,6 +163,7 @@ function fmtTime(s){
   return h>0?h+"h "+m+"m":m+"m";
 }
 function fmtInt(n){ return Math.round(n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g," "); }
+function fmtCost(c){ if(c==null||c===''||isNaN(+c)||+c===0) return ''; return (Math.round((+c)*100)/100).toFixed(2)+' '+((_CFG&&_CFG.currency)||'PLN'); }
 function fmtSpan(first,last){
   if(!first||!last) return "";
   var ay=+first.slice(0,4),am=+first.slice(5,7);
@@ -259,6 +270,41 @@ function bikeTotals(bike, dateStr){
   }
   return { km:km, time:time, elev:elev, first:first, last:last };
 }
+// All costs on a bike as [{year, amount, label}].
+function bikeAllCosts(bike){
+  var costs=[];
+  (bike.parts||[]).forEach(function(p){
+    if(p.cost&&+p.cost>0){
+      var yr=(p.installedDate||todayStr()).slice(0,4);
+      costs.push({year:yr,amount:+p.cost,label:esc(p.name)+' <span class="muted">(part)</span>'});
+    }
+    (p.serviceTypes||[]).forEach(function(st){
+      (st.services||[]).forEach(function(s){
+        if(s.cost&&+s.cost>0){
+          var yr=(s.date||todayStr()).slice(0,4);
+          costs.push({year:yr,amount:+s.cost,label:esc(p.name)+' – '+esc(st.name)+' <span class="muted">(service)</span>'});
+        }
+      });
+    });
+  });
+  return costs;
+}
+function bikeTotalCost(bike){
+  var t=0; bikeAllCosts(bike).forEach(function(c){t+=c.amount;}); return t;
+}
+function bikeCostByYear(bike){
+  var yr={};
+  bikeAllCosts(bike).forEach(function(c){yr[c.year]=(yr[c.year]||0)+c.amount;});
+  return yr;
+}
+// Sum of part purchase cost + all service costs for one part.
+function partTotalCost(p){
+  var t=p.cost&&+p.cost>0?+p.cost:0;
+  (p.serviceTypes||[]).forEach(function(st){
+    (st.services||[]).forEach(function(s){if(s.cost&&+s.cost>0)t+=+s.cost;});
+  });
+  return t;
+}
 // The activities counted toward a part, newest first: rides on the bike's gear
 // (or every ride when the bike has no gear) ridden on/after the part was fitted,
 // bounded by its archived date if it has one.
@@ -296,12 +342,14 @@ function servicesBlock(services){
   var asc = (services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   if (!asc.length) return '<span class="muted">never</span>';
   var last = asc[asc.length-1];
-  var lastTxt = esc(last.date)+' @ '+fmtKm(last.mileage)+' km'+
+  var lastCostStr = last.cost&&+last.cost>0?' · '+fmtCost(last.cost):'';
+  var lastTxt = esc(last.date)+' @ '+fmtKm(last.mileage)+' km'+lastCostStr+
     (last.note?'<div class="muted">'+esc(last.note)+'</div>':'');
   if (asc.length === 1) return lastTxt;
   var rows = asc.slice().reverse().map(function(s){            // newest → oldest
+    var costStr=s.cost&&+s.cost>0?' · '+fmtCost(s.cost):'';
     return '<tr><td>'+esc(s.date)+'</td><td class="num">'+fmtKm(s.mileage)+
-      ' km</td><td>'+esc(s.note||"")+'</td></tr>';
+      ' km</td><td>'+esc(s.note||"")+costStr+'</td></tr>';
   }).join("");
   return lastTxt +
     '<details class="rides"><summary>'+asc.length+' services</summary>'+
@@ -587,9 +635,15 @@ function partForm(part){
     '<div><label>Mileage at install (km)</label>'+
       '<input id="f-mileage" type="number" step="0.1" value="'+mi+'">'+
       '<div class="hint">auto-filled from the date; editable</div></div></div>'+
+    '<label>Purchase cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
+    '<input id="p-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00" value="'+(part&&part.cost!=null?+part.cost:'')+'">'+
     '<div style="font-size:.82rem;font-weight:600;color:#555;margin:.7rem 0 .2rem">Service types</div>'+
     '<div id="st-list">'+stHtml+'</div>'+
     '<button class="btn sm" onclick="addSvcType()" style="margin:.3rem 0">＋ Add service type</button>'+
+    '<div class="chk"><input type="checkbox" id="p-email-alert"'+(part&&part.emailAlert?' checked':'')+'>'+
+    '<label style="margin:0">Email alert when service threshold is reached'+
+    (_CFG&&_CFG.emailConfigured?'':' <span class="muted" style="font-weight:400;font-size:.8rem">(set STRAVA_MY_BIKE_EMAIL to enable)</span>')+
+    '</label></div>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="savePart('+(part?'\''+part.id+'\'':'null')+')">Save</button></div>'
   );
@@ -603,7 +657,11 @@ window.savePart = function(id){
   var note = document.getElementById("p-note").value;
   var date = document.getElementById("f-date").value || todayStr();
   var mi   = +document.getElementById("f-mileage").value || 0;
+  var costEl = document.getElementById("p-cost");
+  var cost = costEl && costEl.value !== "" ? +costEl.value : null;
   var existingPart = id ? findPart(id) : null;
+  var emailAlertEl = document.getElementById("p-email-alert");
+  var emailAlert = emailAlertEl ? emailAlertEl.checked : (existingPart ? (existingPart.emailAlert || false) : false);
   var stBlocks = document.getElementById("st-list").querySelectorAll(".st-block");
   var serviceTypes = [];
   stBlocks.forEach(function(el){
@@ -626,10 +684,14 @@ window.savePart = function(id){
   if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
   if (id){
     var p = findPart(id);
-    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.serviceTypes=serviceTypes; }
+    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.serviceTypes=serviceTypes;
+      p.emailAlert=emailAlert;
+      if(cost!=null) p.cost=cost; else delete p.cost; }
   } else {
-    b.parts.push({ id:uid("p-"), name:name, note:note, installedDate:date,
-      installedMileage:mi, status:"new", needsReplacement:false, serviceTypes:serviceTypes });
+    var np2 = { id:uid("p-"), name:name, note:note, installedDate:date,
+      installedMileage:mi, status:"new", needsReplacement:false, emailAlert:emailAlert, serviceTypes:serviceTypes };
+    if(cost!=null) np2.cost=cost;
+    b.parts.push(np2);
   }
   closeModal(); persist();
 };
@@ -679,6 +741,8 @@ window.showService = function(id){
       '<input id="f-mileage" type="number" step="0.1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Note (optional)</label><textarea id="s-note" placeholder="e.g. cleaned &amp; lubed, checked wear"></textarea>'+
+    '<label>Service cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
+    '<input id="s-cost" type="number" step="0.01" min="0" placeholder="e.g. 5.00">'+
     '<div class="chk"><input type="checkbox" id="s-needs-repl"'+(p.needsReplacement?' checked':'')+'>'+
       '<label style="margin:0">Needs replacement</label></div>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
@@ -694,12 +758,15 @@ window.saveService = function(id){
   if(!st&&p.serviceTypes&&p.serviceTypes.length) st=p.serviceTypes[0];
   if(!st) return;
   if(!st.services) st.services=[];
-  st.services.push({
+  var svcCostEl=document.getElementById("s-cost");
+  var svcRec={
     id: uid("s-"),
     date: document.getElementById("f-date").value || todayStr(),
     mileage: +document.getElementById("f-mileage").value || 0,
     note: document.getElementById("s-note").value
-  });
+  };
+  if(svcCostEl&&svcCostEl.value!=="") svcRec.cost=+svcCostEl.value;
+  st.services.push(svcRec);
   st.services.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   p.needsReplacement = document.getElementById("s-needs-repl").checked;
   closeModal(); persist();
@@ -750,9 +817,11 @@ window.showReplace = function(id){
       '<input id="f-mileage" type="number" step="0.1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Reason / note (optional)</label><textarea id="r-note" placeholder="e.g. worn out at 0.75 on the chain checker"></textarea>'+
-    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked">'+
+    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
       '<label style="margin:0">Install a replacement now</label></div>'+
     '<label>New part name</label><input id="r-newname" value="'+esc(p.name)+'">'+
+    '<label>New part cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
+    '<input id="r-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00">'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveReplace(\''+id+'\')">Replace</button></div>'
   );
@@ -769,8 +838,11 @@ window.saveReplace = function(id){
   if (note) p.archiveNote = note;
   if (document.getElementById("r-new").checked){
     var nm = document.getElementById("r-newname").value.trim() || p.name;
+    var rCostEl = document.getElementById("r-cost");
+    var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
     var np = { id:uid("p-"), name:nm, note:"", installedDate:date,
       installedMileage:mi, status:"new", services:[] };
+    if(rCost!=null) np.cost=rCost;
     b.parts.push(np);
     p.replacedById = np.id;
   }
@@ -816,6 +888,26 @@ function render(){
     '<button class="btn sm" onclick="editBike(\''+b.id+'\')">Edit bike</button> '+
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
 
+  // cost summary block
+  var totalCost = bikeTotalCost(b);
+  if(totalCost>0){
+    var costByYr = bikeCostByYear(b);
+    var yrKeys = Object.keys(costByYr).sort(function(a,c){return c<a?-1:1;});
+    var yrRows = yrKeys.map(function(yr){
+      return '<tr><td>'+esc(yr)+'</td><td>'+fmtCost(costByYr[yr])+'</td></tr>';
+    }).join('');
+    html += '<div class="cost-block">'+
+      '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.15rem">Total cost</div>'+
+      '<div class="cost-total">'+fmtCost(totalCost)+'</div>'+
+      (yrKeys.length>1
+        ?'<details class="cost-yr"><summary>By year</summary>'+
+          '<table class="cost-yr-tbl"><tbody>'+yrRows+'</tbody></table></details>'
+        :(yrKeys.length===1
+          ?'<div style="font-size:.83rem;color:#888;margin-top:.1rem">'+esc(yrKeys[0])+'</div>'
+          :''))+
+    '</div>';
+  }
+
   var active   = b.parts.filter(function(p){ return p.status !== "archived"; });
   // Parts with an alert threshold: sort by % used descending (soonest service due first).
   // Parts without any threshold: sort by install date descending (newest install first).
@@ -837,7 +929,7 @@ function render(){
   if (!active.length){
     html += '<div class="panel empty">No active parts. Add a chain, tyres, brake pads… each tracks the km ridden since you fitted it.</div>';
   } else {
-    html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th></th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th>Cost</th><th></th></tr></thead><tbody>';
     active.forEach(function(p){
       var ridden = rideMileageSince(b, p.installedDate);
       var riddenSec = rideTimeSince(b, p.installedDate);
@@ -886,11 +978,17 @@ function render(){
         ' ondragleave="dragLeave(this)"'+
         ' ondragover="dragOver(event)"'+
         ' ondrop="drop(event,\''+p.id+'\',this)"';
+      var pCostTotal = partTotalCost(p);
+      var costCell = pCostTotal>0
+        ? '<span style="font-variant-numeric:tabular-nums">'+fmtCost(pCostTotal)+'</span>'+
+          (p.cost&&+p.cost>0?'<div class="muted" style="font-size:.78rem">part: '+fmtCost(p.cost)+'</div>':'')
+        : '<span class="muted">—</span>';
       html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+replBadge+noteLine+'</td>'+
         '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
         '<td>'+sinceCell+'</td>'+
+        '<td class="num">'+costCell+'</td>'+
         '<td style="white-space:nowrap">'+
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
@@ -899,7 +997,7 @@ function render(){
         '</td></tr>';
       html += '<tr class="ridesrow'+(isWarn?' warn':'')+'"'+
         ' ondragover="dragOver(event)" ondrop="drop(event,\''+p.id+'\',this)">'+
-        '<td colspan="6">'+ridesBlock(partRides(b, p))+'</td></tr>';
+        '<td colspan="7">'+ridesBlock(partRides(b, p))+'</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -907,7 +1005,7 @@ function render(){
   // archived parts
   if (archived.length){
     html += '<h2>Archived (replaced)</h2>';
-    html += '<table><thead><tr><th>Part</th><th>Lifespan</th><th>Distance on part</th><th>Services</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Part</th><th>Lifespan</th><th>Distance on part</th><th>Services</th><th>Cost</th></tr></thead><tbody>';
     archived.sort(function(a,c){ return (c.archivedDate||"") < (a.archivedDate||"") ? -1 : 1; });
     archived.forEach(function(p){
       var life = (+p.archivedMileage||0) - (+p.installedMileage||0);
@@ -920,11 +1018,14 @@ function render(){
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
       var arcNote = p.archiveNote ? '<div class="muted">'+esc(p.archiveNote)+'</div>' : '';
       var dur = fmtDuration(p.installedDate, p.archivedDate);
+      var aCostTotal = partTotalCost(p);
+      var aCostCell = aCostTotal>0 ? fmtCost(aCostTotal) : '<span class="muted">—</span>';
       html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
         '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+(dur?'<div class="muted">'+esc(dur)+'</div>':'')+arcNote+'</td>'+
         '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div></td>'+
-        '<td class="svc">'+svcTxt+'</td></tr>';
-      html += '<tr class="ridesrow archived"><td colspan="4">'+ridesBlock(partRides(b, p))+'</td></tr>';
+        '<td class="svc">'+svcTxt+'</td>'+
+        '<td class="num">'+aCostCell+'</td></tr>';
+      html += '<tr class="ridesrow archived"><td colspan="5">'+ridesBlock(partRides(b, p))+'</td></tr>';
     });
     html += '</tbody></table>';
   }

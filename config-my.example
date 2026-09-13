@@ -76,11 +76,33 @@ STRAVA_MY_STATE_DIR="/mnt/sda5/strava-my-activities"
 STRAVA_MY_BIKE_DATA="/mnt/sda5/strava-my-activities/bike-service.json"
 STRAVA_MY_CGI_DIR="/www/cgi-bin"
 
+# Currency code shown next to costs in the bike-service tracker (default: PLN).
+#STRAVA_MY_CURRENCY="PLN"
+
 # Name seeded into the bike-service tracker when no bikes are saved yet and
 # Strava gear sync hasn't happened yet (detail backfill still pending). Once
 # you save or rename a bike in the browser the stored name takes over; this is
 # only the first-time default.
 STRAVA_MY_DEFAULT_BIKE_NAME="My Bike"
+
+# Email address(es) to notify when a bike part's service threshold is crossed.
+# Comma-separated for multiple recipients. Leave empty to disable email alerts.
+# When set, a checkbox appears in the "Add/edit part" modal so you can enable
+# alerts per-part. Sends a WARNING at >= 90% and an ALERT at >= 100%.
+# Each threshold tier fires once; ALERT emails re-send every 7 days while
+# the part stays overdue. Requires STRAVA_EMAIL_SMTP and STRAVA_EMAIL_USER below.
+#STRAVA_MY_BIKE_EMAIL="you@example.com"
+
+# SMTP credentials for bike-service email alerts.
+# Use the same values as in /etc/strava-leaderboard.conf if already configured.
+# Format: STRAVA_EMAIL_SMTP="smtps://smtp.gmail.com:465"  (smtps = TLS on connect)
+#         or                 "smtp://smtp.gmail.com:587"   (smtp  = STARTTLS)
+#         STRAVA_EMAIL_USER="user@gmail.com:app_password"  (user:pass combined)
+# Optional sender display name / address override (defaults to STRAVA_EMAIL_USER):
+#         STRAVA_EMAIL_FROM="StatsServiceBook <user@gmail.com>"
+#STRAVA_EMAIL_SMTP="smtps://smtp.gmail.com:465"
+#STRAVA_EMAIL_USER="user@gmail.com:app_password"
+#STRAVA_EMAIL_FROM=""
 
 # --- Per-activity detail backfill -------------------------------------------
 # Each run fetches the full activity object (GET /activities/{id}) for activities

@@ -20,10 +20,11 @@ if (!outDir) {
 fs.mkdirSync(outDir, { recursive: true });
 
 const PORT = process.env.TEST_PORT || process.env.STRAVA_TEST_PORT || "8080";
-const BASE = `http://localhost:${PORT}/strava/me`;
+const HOST = process.env.TEST_HOST || "localhost";
+const BASE = `http://${HOST}:${PORT}/strava/me`;
 
 const PAGES = [
-  { name: "club-dashboard", url: `http://localhost:${PORT}/strava/index.html` },
+  { name: "club-dashboard", url: `http://${HOST}:${PORT}/strava/index.html` },
   { name: "my-activities", url: `${BASE}/index.html` },
   { name: "stats", url: `${BASE}/stats.html` },
   { name: "activity-detail", url: `${BASE}/activity.html?id=18784255013` },
