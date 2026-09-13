@@ -32,13 +32,21 @@ if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 # ---- 3. Resolve the host to use for HTTP access --------------------------------
 # On Windows + WSL2-backed Podman, localhost port-forwarding can be blocked by
 # the host firewall. Detect the Podman machine's WSL2 IP and use that instead.
-$TestHost = "localhost"
-try {
-    # Use cmd /c to avoid a hang when PowerShell is run from a UNC path (\\wsl.localhost\...)
-    $podmanIP = (& cmd /c "wsl -d podman-machine-default ip addr show eth0 2>nul" 2>$null |
-        Select-String "inet " | Select-Object -First 1) -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
-    if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
-} catch {}
+$TestHost = if ($env:TEST_HOST) { $env:TEST_HOST } else { "localhost" }
+if (-not $env:TEST_HOST) {
+    # Detect Podman machine WSL2 IP — use Start-Job so the subprocess runs from
+    # a normal Windows path, avoiding a hang when this script is invoked from a
+    # UNC path (\\wsl.localhost\...).
+    try {
+        $job = Start-Job { & wsl -d podman-machine-default ip addr show eth0 2>$null }
+        if (Wait-Job $job -Timeout 5) {
+            $podmanIP = (Receive-Job $job | Select-String "inet " | Select-Object -First 1) `
+                -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
+            if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
+        } else { Stop-Job $job }
+        Remove-Job $job -ErrorAction SilentlyContinue
+    } catch {}
+}
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
 # ---- 4. Wait for httpd to become ready ------------------------------------------
