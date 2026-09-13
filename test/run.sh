@@ -10,6 +10,7 @@ DASHBOARD=/opt/strava-my-html-dashboard.sh
 DETAIL=/opt/strava-my-html-detail.sh
 BIKE=/opt/strava-my-html-bike.sh
 STATS=/opt/strava-my-html-stats.sh
+HEATMAP=/opt/strava-my-html-heatmap.sh
 CLUB=/opt/strava-leaderboard.sh
 
 WEB=/www/strava/me
@@ -23,6 +24,7 @@ awk '/^cat > "\$WEB_DIR\/index\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "
 awk '/^cat > "\$WEB_DIR\/index\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$CLUB"      > "$CLUB_WEB/index.html"
 awk '/^cat > "\$WEB_DIR\/activity\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DETAIL"    > "$WEB/activity.html"
 awk '/^cat > "\$WEB_DIR\/stats\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$STATS"     > "$WEB/stats.html"
+awk '/^cat > "\$WEB_DIR\/heatmap\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$HEATMAP" > "$WEB/heatmap.html"
 {
   printf '%s\n' '<!doctype html><html lang="en"><head>'
   printf '<script>var _CFG={defaultBikeName:""};</script>\n'
@@ -56,6 +58,7 @@ chmod 0755 /www/cgi-bin/bike-assign
 chmod 0755 /www/cgi-bin/drive-auth
 
 cp /opt/activities.sample.json "$WEB/activities.json"
+cp /opt/heatmap.sample.json    "$WEB/heatmap.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
 printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
     "$(date +%s)" "$(($(date +%s) + 7200))" > "$WEB/drive-status.json"
@@ -95,6 +98,7 @@ echo "  club/index.html: $(wc -l < "$CLUB_WEB/index.html") lines"
 echo "  index.html:    $(wc -l < "$WEB/index.html") lines"
 echo "  activity.html: $(wc -l < "$WEB/activity.html") lines"
 echo "  stats.html:    $(wc -l < "$WEB/stats.html") lines"
+echo "  heatmap.html:  $(wc -l < "$WEB/heatmap.html") lines"
 echo "  bike.html:     $(wc -l < "$WEB/bike.html") lines"
 echo "  CGI:           $(wc -l < /www/cgi-bin/bike-service) lines"
 echo "serving on :8080:"

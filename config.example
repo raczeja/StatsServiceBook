@@ -101,6 +101,30 @@ STRAVA_KEEP_SNAPSHOTS="90"
 #STRAVA_CURL_RETRIES="3"
 #STRAVA_CURL_RETRY_DELAY="15"
 
+# --- Cron self-healing (optional) -------------------------------------------
+# strava-cron-guard runs before each nightly script and implements two layers
+# of resilience against transient failures:
+#
+#   1. Network pre-flight: pings STRAVA_NET_CHECK_HOST before starting.
+#      If the host is unreachable (e.g. WAN reconnect in progress), the guard
+#      waits up to STRAVA_NET_CHECK_WAIT seconds, polling every
+#      STRAVA_NET_CHECK_INTERVAL seconds. If the network never comes up it logs
+#      to syslog and aborts cleanly (no alert email sent for a network absence).
+#      Use an IP, not a hostname, so the check itself does not need DNS.
+#
+#   2. Script retry: if the script exits non-zero the guard re-runs it up to
+#      STRAVA_CRON_RETRIES times, waiting STRAVA_CRON_RETRY_DELAY seconds
+#      between each attempt. The alert email is only sent if every attempt fails.
+#      The email subject line reports the total number of attempts tried.
+#
+# Defaults are conservative — suitable for a stable home network. Raise
+# STRAVA_NET_CHECK_WAIT and STRAVA_CRON_RETRY_DELAY on flaky WAN connections.
+#STRAVA_NET_CHECK_HOST="1.1.1.1"     # IP to ping (Cloudflare DNS; no DNS needed)
+#STRAVA_NET_CHECK_WAIT="120"         # max seconds to wait for network (default 120)
+#STRAVA_NET_CHECK_INTERVAL="15"      # seconds between connectivity polls (default 15)
+#STRAVA_CRON_RETRIES="2"             # retries after the first attempt (0 = no retry)
+#STRAVA_CRON_RETRY_DELAY="300"       # seconds between retries (default 300 = 5 min)
+
 # --- Email (optional) --------------------------------------------------------
 # When configured, three email features are enabled:
 #

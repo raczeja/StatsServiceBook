@@ -166,6 +166,10 @@ case "$STRAVA_SOURCE" in
       elif jq -e '(.activities // .models) | type == "array"' "$TMP/sc_page.raw" >/dev/null 2>&1; then
         jq -c '(.activities // .models)[]' "$TMP/sc_page.raw" > "$TMP/sc_acts.ndjson"
       else
+        # Before trying HTML extraction, detect if Strava redirected to login page.
+        if grep -qiE 'Log In to Strava|id="login-form"|action="/session"' "$TMP/sc_page.raw" 2>/dev/null; then
+          die "activities scrape: page $page — Strava returned the login page; STRAVA_SESSION_COOKIE has expired; copy a fresh _strava4_session value from browser DevTools (Application → Cookies → strava.com)"
+        fi
         # HTML/JS fallback: extract activity IDs from href or data attributes.
         # These produce minimal records; detail backfill enriches them later.
         grep -oE '"/activities/[0-9]+"' "$TMP/sc_page.raw" 2>/dev/null \
@@ -178,7 +182,11 @@ case "$STRAVA_SOURCE" in
             | while IFS= read -r _sc_aid; do printf '{"id":%s}\n' "$_sc_aid"; done \
             > "$TMP/sc_acts.ndjson"
         fi
-        [ -s "$TMP/sc_acts.ndjson" ] || { log "  page $page empty (no IDs parsed), stopping"; reached_end=1; break; }
+        if [ ! -s "$TMP/sc_acts.ndjson" ]; then
+          _sc_raw_sample="$(head -c 300 "$TMP/sc_page.raw" | tr '\n\r' '  ')"
+          log "  LAYOUT CHANGE DETECTED: page $page — not JSON and no activity IDs found in HTML; response starts: ${_sc_raw_sample}; Strava may have changed the /athlete/training_activities endpoint"
+          reached_end=1; break
+        fi
         log "  page $page: note — response was HTML/JS, only IDs extracted; detail backfill will enrich"
       fi
 
@@ -525,7 +533,12 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           fi
 
           if ! jq -e '.id' "$TMP/detail.json" >/dev/null 2>&1; then
-            log "detail backfill scrape: activity $id — could not extract JSON from page (similarActivitiesData not found); skipping"
+            if grep -qiE 'Log In to Strava|id="login-form"|action="/session"' "$TMP/sc_detail.html" 2>/dev/null; then
+              log "detail backfill scrape: activity $id — Strava returned the login page (cookie expired); stopping detail backfill"
+              break
+            fi
+            _sc_detail_sample="$(head -c 300 "$TMP/sc_detail.html" | tr '\n\r' '  ')"
+            log "LAYOUT CHANGE DETECTED: detail backfill scrape: activity $id — similarActivitiesData not found in page (Strava may have changed their activity page bootstrap format); response starts: ${_sc_detail_sample}; skipping"
             continue   # page loaded but parse failed — skip this activity, don't abort the run
           fi
 
@@ -807,7 +820,7 @@ log "html: rendering pages..."
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-my-html-stats.sh"
 
-# --- 6e. Bike-service email alerts -------------------------------------------
+# --- 6f. Bike-service email alerts -------------------------------------------
 # When STRAVA_MY_BIKE_EMAIL is set, check every active part with emailAlert:true
 # against its service-type thresholds. Sends a warning at >=90% and an alert at
 # >=100%. State is tracked in BIKE_EMAIL_STATE so each tier triggers one email
@@ -1030,5 +1043,9 @@ else
     log "drive check: GOOGLE_CLIENT_ID/REFRESH_TOKEN/DRIVE_FOLDER_ID not set, skipping"
     printf '{"source":"strava"}\n' > "$WEB_DIR/drive-status.json"
 fi
+
+# --- Render all-activities heatmap (last — GPX scan is slow on flash storage) -
+# shellcheck disable=SC1090
+. "$STRAVA_LIBDIR/strava-my-html-heatmap.sh"
 
 log "done."

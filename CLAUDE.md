@@ -16,6 +16,7 @@ A **router-native activity stats and bike service tracker** for OpenWrt. A set o
 | [strava-my-html-detail.sh](strava-my-html-detail.sh)           | Sourced by `strava-my-activities.sh`: writes `activity.html` (per-activity detail page with Leaflet map, splits chart, elevation chart, HR chart, cadence chart).                           |
 | [strava-my-html-bike.sh](strava-my-html-bike.sh)               | Sourced by both main scripts: writes `bike.html` + installs the bike-service CGI + installs the bike-assign CGI.                                                                             |
 | [strava-my-html-stats.sh](strava-my-html-stats.sh)             | Sourced by both main scripts: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                         |
+| [strava-my-html-heatmap.sh](strava-my-html-heatmap.sh)         | Sourced by both main scripts: generates `heatmap.json` (downsampled GPS points per activity) + writes `heatmap.html` (full-viewport Leaflet.heat all-activities heatmap with period filter). |
 | [config-my.example](config-my.example)                         | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed. |
 | [healthsync-activities.sh](healthsync-activities.sh)           | HealthSync / Google Drive data source: Drive OAuth → download CSV+GPX+TCX → parse (incl. cadence from TCX/GPX) → cache GPX → emit `activities.json` → source HTML helpers. Also processes `Magene_*.fit` files via GPS Visualizer conversion (§3b). Writes `drive-status.json` and generates the `drive-auth` re-authorization CGI (§7). Installed to `/usr/bin/healthsync-activities`. |
 | [config-healthsync.example](config-healthsync.example)         | Config template → `/etc/healthsync-activities.conf`. Holds Google OAuth credentials, Drive folder ID, `HEALTHSYNC_DEFAULT_BIKE`. |
@@ -51,7 +52,7 @@ Run from the repo root on the dev machine:
 # Push updated scripts+helpers and regenerate the dashboard immediately
 scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
-  && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh root@192.168.1.1:/usr/bin/ `
+  && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh strava-my-html-heatmap.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-my-activities
 ```
 

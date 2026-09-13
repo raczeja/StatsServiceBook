@@ -20,6 +20,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **My Activities** | `/strava/me/` | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts |
 | **Activity detail** | `/strava/me/activity.html` | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts |
 | **Personal stats** | `/strava/me/stats.html` | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart |
+| **Activity heatmap** | `/strava/me/heatmap.html` | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter, city label overlay |
 | **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
 
 ## Features
@@ -42,6 +43,13 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - KPI cards, year overview table, monthly breakdown chart, year-over-year km/month heatmap
 - Personal records (longest, most climbing, fastest, best VAM, most work), sport breakdown, day-of-week chart
 
+**Activity heatmap**
+- Full-viewport dark map (Esri World Dark Gray + OSM fallback) showing all GPS activity routes as a heat overlay
+- Period filter: Last 3 months (default), Last 30 days, Last 7 days, All time, or individual years
+- Sport-type filter: defaults to Ride; dynamically populated from your data; "All sports" option
+- City label overlay on a separate Leaflet pane (z-index 450) so names stay readable above the heat layer
+- Point count and activity count shown in the top bar; fits the map to visible tracks
+
 **Bike service tracker**
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
@@ -56,6 +64,10 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
 
+**Cron self-healing** (via `strava-cron-guard`)
+- Network pre-flight: pings a configurable IP before each run; if unreachable, waits up to `STRAVA_NET_CHECK_WAIT` seconds (default 2 min) for the WAN to come back, then aborts cleanly — no false-positive alerts during a brief reconnect
+- Automatic retry: re-runs the script up to `STRAVA_CRON_RETRIES` times (default 2) with `STRAVA_CRON_RETRY_DELAY` seconds (default 5 min) between attempts; alert email is only sent after all retries are exhausted, and the subject line reports the total attempt count
+
 Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Features)
 
 ## Screenshots
@@ -67,6 +79,10 @@ Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wik
 | Personal stats | Activity detail (map + splits) | Bike service tracker |
 | :------------: | :----------------------------: | :------------------: |
 | ![My Stats](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/stats.png) | ![Activity detail](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/activity-detail.png) | ![Bike service](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service.png) |
+
+| Activity heatmap |
+| :--------------: |
+| ![Heatmap](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/heatmap.png) |
 
 > Screenshots generated from sample data via `powershell -File test/make-screenshots.ps1`.
 

@@ -196,7 +196,12 @@ while IFS= read -r club_id; do
           "$_sc_url" \
           -o "$TMP/page.json" || die "feed fetch failed (club $club_id page $page)"
         if ! jq -e '.entries' "$TMP/page.json" >/dev/null 2>&1; then
-          die "feed response not JSON (club $club_id) — session may have expired; delete $STATE_DIR/strava_session_age.txt and retry"
+          if grep -qiE 'Log In to Strava|id="login-form"|action="/session"' "$TMP/page.json" 2>/dev/null; then
+            die "club $club_id feed: Strava returned the login page — STRAVA_SESSION_COOKIE has expired; copy a fresh _strava4_session value from browser DevTools (Application → Cookies → strava.com) and delete $STATE_DIR/strava_session_age.txt"
+          fi
+          _feed_sample="$(head -c 300 "$TMP/page.json" | tr '\n\r' '  ')"
+          _feed_keys="$(jq -r 'if type == "object" then keys[] else "not-an-object" end' "$TMP/page.json" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
+          die "LAYOUT CHANGE DETECTED: club $club_id feed page $page — .entries field missing from response (Strava may have changed the club feed JSON structure); top-level keys: [${_feed_keys}]; response starts: ${_feed_sample}; expected field: .entries[]"
         fi
         count="$(jq '.entries | length' "$TMP/page.json")"
         [ "$count" -gt 0 ] || { log "  page $page empty, stopping"; break; }
@@ -494,7 +499,13 @@ if [ "$_scrape_dry_run" = "1" ]; then
         _sc_dry_run_feed_ok=0; break
       fi
       if ! jq -e '.entries' "$TMP/dr_feed_${_dr_club}.json" >/dev/null 2>&1; then
-        log "cookie dry-run: club $_dr_club page $_dr_page — response not valid JSON (session may have expired)"
+        if grep -qiE 'Log In to Strava|id="login-form"|action="/session"' "$TMP/dr_feed_${_dr_club}.json" 2>/dev/null; then
+          log "cookie dry-run: club $_dr_club page $_dr_page — Strava returned login page; STRAVA_SESSION_COOKIE has expired"
+        else
+          _dr_sample="$(head -c 200 "$TMP/dr_feed_${_dr_club}.json" | tr '\n\r' '  ')"
+          _dr_keys="$(jq -r 'if type == "object" then keys[] else "not-an-object" end' "$TMP/dr_feed_${_dr_club}.json" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
+          log "cookie dry-run: LAYOUT CHANGE DETECTED — club $_dr_club page $_dr_page — .entries missing from feed response; top-level keys: [${_dr_keys}]; response starts: ${_dr_sample}"
+        fi
         _sc_dry_run_feed_ok=0; break
       fi
       _dr_count="$(jq '.entries | length' "$TMP/dr_feed_${_dr_club}.json")"
