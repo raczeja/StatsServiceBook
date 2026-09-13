@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Warsaw",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["jraczek/statsservicebook"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["Dockerfile"],
+      "groupName": "Alpine (production image)"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": ["test/Containerfile", "test/Containerfile.healthsync"],
+      "groupName": "Alpine (test images)"
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": [".devcontainer/Dockerfile"],
+      "groupName": "devcontainer base image",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["pin", "digest"],
+      "automerge": true
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true
+  }
+}
