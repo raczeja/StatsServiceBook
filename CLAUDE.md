@@ -96,6 +96,52 @@ Full reinstall (first time or after `install.sh` changes):
 scp -r . root@192.168.1.1:/tmp/strava && ssh root@192.168.1.1 sh /tmp/strava/install.sh
 ```
 
+### After a router sysupgrade
+
+OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — only `/etc/` is preserved by default. After any firmware upgrade:
+
+1. **Re-install packages** (they are gone):
+   ```sh
+   ssh root@192.168.1.1 "opkg update && opkg install curl jq ca-bundle"
+   ```
+2. **Re-deploy all scripts** (full reinstall from the repo):
+   ```powershell
+   scp -r . root@192.168.1.1:/tmp/strava
+   ssh root@192.168.1.1 sh /tmp/strava/install.sh
+   ```
+   `install.sh` is idempotent and will not touch existing configs in `/etc/`.
+3. **Verify state is intact** — persistent state lives under `STRAVA_STATE_DIR` (default `/usr/lib/strava-leaderboard`). If that path is on the overlay (it is on a standard OpenWrt setup), it survives sysupgrade and no data migration is needed. Confirm with:
+   ```sh
+   ssh root@192.168.1.1 "ls /usr/lib/strava-leaderboard/"
+   ```
+
+   The `/etc/sysupgrade.conf` on the router should list all scripts and state dirs so they are preserved across upgrades. The complete correct list is:
+   ```
+   /usr/bin/strava-leaderboard
+   /usr/bin/strava-my-activities
+   /usr/bin/healthsync-activities
+   /usr/bin/strava-cron-guard
+   /usr/bin/strava-email-monthly
+   /usr/bin/strava-email-weekly
+   /usr/bin/strava-lib.sh
+   /usr/bin/strava-my-html-dashboard.sh
+   /usr/bin/strava-my-html-detail.sh
+   /usr/bin/strava-my-html-bike.sh
+   /usr/bin/strava-my-html-stats.sh
+   /usr/bin/strava-my-html-heatmap.sh
+   /etc/strava-leaderboard.conf
+   /etc/strava-my-activities.conf
+   /etc/healthsync-activities.conf
+   /usr/lib/strava-leaderboard
+   /usr/lib/strava-my-activities
+   /usr/lib/healthsync
+   ```
+   CGI scripts (`/www/cgi-bin/bike-service`, `bike-assign`, `drive-auth`) are **not** listed — they are regenerated automatically on the first run after reinstall.
+4. **Trigger a manual run** to regenerate the HTML:
+   ```sh
+   ssh root@192.168.1.1 strava-my-activities
+   ```
+
 ## How it runs (no dev server)
 
 The scripts target BusyBox `sh` on the router — you can't meaningfully execute
@@ -234,3 +280,27 @@ script persists whatever it returns and prefers that next run.
   - `../StatsServiceBook.wiki/Installation.md` — new config keys, path variables, install steps
   - `../StatsServiceBook.wiki/Data-Source-*.md` — changes to a specific data source
   - `../StatsServiceBook.wiki/Operations.md` — new file paths or URLs
+
+## After every change (Claude checklist)
+
+When you finish implementing a new feature or behaviour change, always do the following before considering the task done:
+
+1. **Run the functional test suite** to catch regressions:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
+   ```
+   If any test fails, fix the regression before proceeding. Do not skip this step.
+
+2. **Consider whether new tests are needed.** If you added a new UI feature, filter, chart, button, sorting behaviour, or CGI endpoint that is not already covered by `test/functional-tests.mjs`, explicitly propose a test case to the user. Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
+
+3. **Propose README and wiki updates.** After any feature addition or behaviour change, tell the user exactly which sections of `README.md` and which wiki page(s) (`../StatsServiceBook.wiki/*.md`) need updating, and offer to write the changes. The most commonly affected pages are listed in "Editing notes" above. Never silently skip docs.
+
+4. **Propose a deploy command.** Once tests pass and docs are updated, offer the user the exact `scp`/`ssh` command(s) to push the changed file(s) to the router (use the per-script patterns in the "Deploy" section above). Do not run the deploy yourself without explicit user confirmation — deploying to the router is an irreversible action on shared infrastructure.
+
+5. **Update service/install instructions if necessary.** If the change adds, renames, or removes a script or helper file; changes a default path or config key; adds a new cron entry; or changes how the service is installed or started, propose updates to:
+   - `install.sh` — keep it idempotent and complete so a full reinstall still works
+   - The "Deploy" section in this file — add/update the per-script `scp`/`ssh` pattern
+   - `config.example` / `config-my.example` / `config-healthsync.example` — add/remove/document any new config keys
+   Do not leave `install.sh` out of sync with the deployed scripts.
+
+6. **Update `/etc/sysupgrade.conf` if new installed files are added.** Whenever a change adds a new script to `/usr/bin/`, a new state directory, or a new config file to `/etc/`, tell the user to add the path to `/etc/sysupgrade.conf` on the router so it survives firmware upgrades. The complete canonical list is documented in the "After a router sysupgrade" section above — keep it in sync. CGI scripts (`/www/cgi-bin/`) are the only exception: they are regenerated on first run and do not need to be listed. Always explicitly remind the user to update `sysupgrade.conf` when this applies.
