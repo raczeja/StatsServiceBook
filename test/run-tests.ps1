@@ -32,9 +32,9 @@ if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 # ---- 3. Resolve the host to use for HTTP access --------------------------------
 $TestHost = "localhost"
 try {
-    $podmanIP = (wsl -d podman-machine-default -- ip addr show eth0 2>$null |
+    $podmanIP = (& cmd /c "wsl -d podman-machine-default ip addr show eth0 2>nul" 2>$null |
         Select-String "inet " | Select-Object -First 1) -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
-    if ($podmanIP -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = $podmanIP }
+    if ("$podmanIP".Trim() -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = "$podmanIP".Trim() }
 } catch {}
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
