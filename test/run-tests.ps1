@@ -29,13 +29,22 @@ Write-Host "==> Starting container '$Container' on :$HostPort ..."
 & podman run -d --name $Container -p "${HostPort}:$ContainerPort" $Image
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
-# ---- 3. Wait for httpd to become ready ------------------------------------------
+# ---- 3. Resolve the host to use for HTTP access --------------------------------
+$TestHost = "localhost"
+try {
+    $podmanIP = (wsl -d podman-machine-default -- ip addr show eth0 2>$null |
+        Select-String "inet " | Select-Object -First 1) -replace '.*inet (\d+\.\d+\.\d+\.\d+).*','$1'
+    if ($podmanIP -match '^\d+\.\d+\.\d+\.\d+$') { $TestHost = $podmanIP }
+} catch {}
+Write-Host "==> Using host '$TestHost' for HTTP checks ..."
+
+# ---- 4. Wait for httpd to become ready ------------------------------------------
 Write-Host "==> Waiting for httpd to become ready ..."
 $ready = $false
-for ($i = 0; $i -lt 20; $i++) {
+for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
     try {
-        $null = Invoke-WebRequest -Uri "http://localhost:$HostPort/strava/me/index.html" `
+        $null = Invoke-WebRequest -Uri "http://${TestHost}:$HostPort/strava/me/index.html" `
                                   -UseBasicParsing -TimeoutSec 2
         $ready = $true; break
     } catch { Write-Host "  [$i] not yet ready ..." }
@@ -43,7 +52,7 @@ for ($i = 0; $i -lt 20; $i++) {
 if (-not $ready) {
     Write-Host "==> Container logs:"
     & podman logs $Container
-    throw "httpd did not become ready in 20 s"
+    throw "httpd did not become ready in 30 s"
 }
 Write-Host "   httpd is ready."
 
@@ -67,9 +76,11 @@ try {
     # ---- 5b. Run functional (Puppeteer) tests --------------------------------
     Write-Host "==> Running functional tests ..."
     $env:TEST_PORT = $HostPort
+    $env:TEST_HOST = $TestHost
     & node functional-tests.mjs
     $FunctionalExitCode = $LASTEXITCODE
     Remove-Item Env:TEST_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:TEST_HOST -ErrorAction SilentlyContinue
 
     $ExitCode = if ($ShellExitCode -ne 0 -or $FunctionalExitCode -ne 0) { 1 } else { 0 }
 

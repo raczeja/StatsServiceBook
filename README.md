@@ -20,7 +20,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **My Activities** | `/strava/me/` | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts |
 | **Activity detail** | `/strava/me/activity.html` | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts |
 | **Personal stats** | `/strava/me/stats.html` | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart |
-| **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage |
+| **Bike service** | `/strava/me/bike.html` | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
 
 ## Features
 
@@ -46,6 +46,8 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
+- **Cost tracking** — optional purchase price per part and cost per service; total and per-year summary shown in the bike header; currency set via `STRAVA_MY_CURRENCY` in the config (default `PLN`)
+- **Email alerts** — per-part checkbox in the Edit modal; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue
 - Saves via a small CGI — daily cron never touches your data
 
 **Data management**
@@ -176,7 +178,7 @@ Full instructions for running with real credentials, HealthSync, or Windows WSL:
 | [Data-Source-HealthSync](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-HealthSync) | Google Drive OAuth, HealthSync setup, Magene FIT, dual-source detection |
 | [Docker](https://github.com/raczeja/StatsServiceBook/wiki/Docker) | Docker Hub quick start, config templates, docker-compose, publishing |
 | [Running-Locally](https://github.com/raczeja/StatsServiceBook/wiki/Running-Locally) | Docker preview, real-data Docker, WSL, HealthSync local test |
-| [Email-Notifications](https://github.com/raczeja/StatsServiceBook/wiki/Email-Notifications) | Monthly leaderboard email, cron error alerts, Gmail App Password |
+| [Email-Notifications](https://github.com/raczeja/StatsServiceBook/wiki/Email-Notifications) | Bike service alerts, monthly leaderboard email, cron error alerts, Gmail App Password |
 | [Upgrading](https://github.com/raczeja/StatsServiceBook/wiki/Upgrading) | Binary-only scp deploy, full reinstall, surviving sysupgrade |
 | [Switching-Data-Sources](https://github.com/raczeja/StatsServiceBook/wiki/Switching-Data-Sources) | API → scrape mode, Strava → HealthSync migration steps |
 | [Operations](https://github.com/raczeja/StatsServiceBook/wiki/Operations) | Full file/URL reference, limitations, rate limits |

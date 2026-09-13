@@ -110,7 +110,7 @@ them on a Windows dev box. To validate changes:
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
   ```
-  102 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
+  107 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
   Requires Podman, Node.js ≥ 18, and Microsoft Edge.
 - **Screenshots of all pages** (saves PNGs to `test/screenshots/`):
   ```powershell
@@ -225,11 +225,11 @@ script persists whatever it returns and prefers that next run.
 - The **GitHub wiki** (`https://github.com/raczeja/StatsServiceBook/wiki`) holds
   detailed documentation split across pages: Features, Installation, data-source
   setup guides, Running Locally, Email Notifications, Upgrading, Switching Data
-  Sources, and Operations. Wiki source files live locally at `wiki/*.md` (gitignored
-  from this repo — they belong to the wiki's own git repo). Update the relevant
+  Sources, and Operations. Wiki source files live locally at `../StatsServiceBook.wiki/*.md`
+  (sibling directory, its own git repo — commit and push changes there separately). Update the relevant
   wiki page whenever you add a feature, change behaviour, add a config option, or
   change a file path. The pages that most commonly need updating are:
-  - `wiki/Features.md` — add/update any new feature description
-  - `wiki/Installation.md` — new config keys, path variables, install steps
-  - `wiki/Data-Source-*.md` — changes to a specific data source
-  - `wiki/Operations.md` — new file paths or URLs
+  - `../StatsServiceBook.wiki/Features.md` — add/update any new feature description
+  - `../StatsServiceBook.wiki/Installation.md` — new config keys, path variables, install steps
+  - `../StatsServiceBook.wiki/Data-Source-*.md` — changes to a specific data source
+  - `../StatsServiceBook.wiki/Operations.md` — new file paths or URLs
