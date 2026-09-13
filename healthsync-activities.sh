@@ -1109,4 +1109,9 @@ CGI
 } > "$CGI_DIR/drive-auth"
 chmod 0755 "$CGI_DIR/drive-auth"
 log "wrote $CGI_DIR/drive-auth"
+
+# Heatmap last — GPX scan is slow on flash storage; fast pages are already served.
+# shellcheck disable=SC1090
+. "$LIBDIR/strava-my-html-heatmap.sh"
+
 log "done."

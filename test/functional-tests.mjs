@@ -21,6 +21,7 @@ const URLS = {
   club: `http://${HOST}:${PORT}/strava/index.html`,
   dash: `${BASE}/index.html`,
   stats: `${BASE}/stats.html`,
+  heatmap: `${BASE}/heatmap.html`,
   activity: `${BASE}/activity.html?id=18784255013`,
   activityHealthsyncRun: `${BASE}/activity.html?id=2026-06-22-15-07-running`,
   activityHealthsyncCycling: `${BASE}/activity.html?id=2026-06-22-10-30-cycling`,
@@ -3398,6 +3399,160 @@ async function testServiceTypeDescription(page, jsErrors) {
   }
 }
 
+// ── Heatmap page ───────────────────────────────────────────────────────────────
+
+async function testHeatmap(page, jsErrors) {
+  const S = "heatmap";
+  jsErrors.length = 0;
+  await page.goto(URLS.heatmap, { waitUntil: "networkidle0", timeout: 20000 });
+
+  // heatmap.json loads via fetch; wait for count to be populated
+  try {
+    await page.waitForFunction(
+      () => (document.getElementById("count")?.textContent || "").length > 0,
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "no-js-errors", () =>
+    assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
+  );
+
+  await check(S, "map-container-present", async () => {
+    const el = await page.$("#map");
+    assert.ok(el, "#map element not found");
+  });
+
+  await check(S, "period-dropdown-present", async () => {
+    const el = await page.$("#period");
+    assert.ok(el, "#period select not found");
+  });
+
+  await check(S, "period-has-all-time-option", async () => {
+    const opts = await page.$$eval("#period option", (os) => os.map((o) => o.value));
+    assert.ok(opts.includes("all"), `expected "all" option in #period, got: ${JSON.stringify(opts)}`);
+  });
+
+  await check(S, "period-has-time-range-options", async () => {
+    const opts = await page.$$eval("#period option", (os) => os.map((o) => o.value));
+    assert.ok(opts.includes("w7"),  `expected "w7"  option in #period`);
+    assert.ok(opts.includes("w30"), `expected "w30" option in #period`);
+    assert.ok(opts.includes("w90"), `expected "w90" option in #period`);
+  });
+
+  await check(S, "period-has-year-options", async () => {
+    const opts = await page.$$eval("#period option", (os) => os.map((o) => o.value));
+    const years = opts.filter((v) => /^\d{4}$/.test(v));
+    assert.ok(years.length >= 1, `expected at least one year option, got: ${JSON.stringify(opts)}`);
+  });
+
+  // heatmap.sample.json has 4 activities; 1 on 2026-07-15 (Ride) falls within 90 days of today
+  await check(S, "default-is-last-3-months", async () => {
+    const val = await page.$eval("#period", (el) => el.value);
+    assert.equal(val, "w90", `expected default period to be "w90", got: "${val}"`);
+  });
+
+  // default sport = Ride; 2026-07-15 is the only Ride within 90 days
+  await check(S, "default-last-3-months-shows-1-activity", async () => {
+    const count = await page.$eval("#count", (el) => el.textContent.trim());
+    assert.ok(
+      count.startsWith("1 "),
+      `expected count to start with "1 " for Last 3 months + Ride (default), got: "${count}"`,
+    );
+  });
+
+  // --- Sport dropdown ---
+  await check(S, "sport-dropdown-present", async () => {
+    const el = await page.$("#sport");
+    assert.ok(el, "#sport select not found");
+  });
+
+  await check(S, "sport-has-all-sports-option", async () => {
+    const opts = await page.$$eval("#sport option", (os) => os.map((o) => o.value));
+    assert.ok(opts.includes(""), `expected "" (All sports) option in #sport, got: ${JSON.stringify(opts)}`);
+  });
+
+  await check(S, "sport-has-ride-and-run", async () => {
+    const opts = await page.$$eval("#sport option", (os) => os.map((o) => o.value));
+    assert.ok(opts.includes("Ride"), `expected "Ride" option in #sport, got: ${JSON.stringify(opts)}`);
+    assert.ok(opts.includes("Run"),  `expected "Run"  option in #sport, got: ${JSON.stringify(opts)}`);
+  });
+
+  await check(S, "sport-default-is-ride", async () => {
+    const val = await page.$eval("#sport", (el) => el.value);
+    assert.equal(val, "Ride", `expected default sport to be "Ride", got: "${val}"`);
+  });
+
+  // heatmap.sample.json: 4 activities total (3 Rides + 1 Run). Set All sports + All time.
+  await check(S, "all-time-shows-4-activities", async () => {
+    await page.evaluate(() => {
+      const ssel = document.getElementById("sport");
+      ssel.value = ""; ssel.dispatchEvent(new Event("change", { bubbles: true }));
+      const sel = document.getElementById("period");
+      sel.value = "all"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const count = await page.$eval("#count", (el) => el.textContent.trim());
+    assert.ok(
+      count.startsWith("4 "),
+      `expected count to start with "4 " for All time + All sports, got: "${count}"`,
+    );
+  });
+
+  // 2024 has 2 activities: 2024-06-15 (Ride) + 2024-06-22 (Run). All sports → 2.
+  await check(S, "filter-2024-shows-2-activities", async () => {
+    await page.evaluate(() => {
+      const ssel = document.getElementById("sport");
+      ssel.value = ""; ssel.dispatchEvent(new Event("change", { bubbles: true }));
+      const sel = document.getElementById("period");
+      const opt = Array.from(sel.options).find((o) => o.value === "2024");
+      if (opt) { sel.value = "2024"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const count = await page.$eval("#count", (el) => el.textContent.trim());
+    assert.ok(
+      count.startsWith("2 "),
+      `expected count to start with "2 " for 2024 + All sports, got: "${count}"`,
+    );
+  });
+
+  // Sport filter: Run across all time → 1 activity (2024-06-22)
+  await check(S, "sport-filter-run-all-time-shows-1", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("period");
+      sel.value = "all"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      const ssel = document.getElementById("sport");
+      ssel.value = "Run"; ssel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const count = await page.$eval("#count", (el) => el.textContent.trim());
+    assert.ok(
+      count.startsWith("1 "),
+      `expected count to start with "1 " for All time + Run sport filter, got: "${count}"`,
+    );
+  });
+
+  await check(S, "filter-last-7-days-shows-0-activities", async () => {
+    await page.evaluate(() => {
+      const ssel = document.getElementById("sport");
+      ssel.value = ""; ssel.dispatchEvent(new Event("change", { bubbles: true }));
+      const sel = document.getElementById("period");
+      sel.value = "w7"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const count = await page.$eval("#count", (el) => el.textContent.trim());
+    assert.ok(
+      count.startsWith("0 "),
+      `expected count to start with "0 " for last-7-days filter, got: "${count}"`,
+    );
+  });
+
+  await check(S, "dashboard-link-present", async () => {
+    const href = await page.$eval(".crumbs a", (el) => el.getAttribute("href"));
+    assert.ok(href && href.includes("index.html"), `expected crumbs link to index.html, got: "${href}"`);
+  });
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -3456,6 +3611,9 @@ async function main() {
 
     console.log("\n--- Column Sorting ---");
     await testColumnSorting(page, jsErrors);
+
+    console.log("\n--- Heatmap ---");
+    await testHeatmap(page, jsErrors);
 
     console.log("\n--- Stats ---");
     await testStats(page, jsErrors);

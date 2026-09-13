@@ -163,3 +163,10 @@ STRAVA_MY_PRUNE_DELETED="1"
 # STRAVA_CURL_RETRY_DELAY:  seconds to wait between retries (default 15)
 #STRAVA_CURL_RETRIES="3"
 #STRAVA_CURL_RETRY_DELAY="15"
+
+# --- Cron self-healing (optional) -------------------------------------------
+# strava-cron-guard wraps every nightly cron run. Its self-healing knobs live
+# in /etc/strava-leaderboard.conf (the guard always reads that file regardless
+# of which script it wraps). See the comments in config.example for details:
+#   STRAVA_NET_CHECK_HOST, STRAVA_NET_CHECK_WAIT, STRAVA_NET_CHECK_INTERVAL
+#   STRAVA_CRON_RETRIES, STRAVA_CRON_RETRY_DELAY

@@ -72,8 +72,10 @@ cp "$SRC_DIR/strava-my-html-detail.sh"   /usr/bin/strava-my-html-detail.sh
 chmod 0644 /usr/bin/strava-my-html-detail.sh
 cp "$SRC_DIR/strava-my-html-bike.sh"     /usr/bin/strava-my-html-bike.sh
 chmod 0644 /usr/bin/strava-my-html-bike.sh
-cp "$SRC_DIR/strava-my-html-stats.sh"   /usr/bin/strava-my-html-stats.sh
+cp "$SRC_DIR/strava-my-html-stats.sh"    /usr/bin/strava-my-html-stats.sh
 chmod 0644 /usr/bin/strava-my-html-stats.sh
+cp "$SRC_DIR/strava-my-html-heatmap.sh" /usr/bin/strava-my-html-heatmap.sh
+chmod 0644 /usr/bin/strava-my-html-heatmap.sh
 
 echo "==> installing $BIN_ME"
 cp "$SRC_DIR/strava-my-activities.sh" "$BIN_ME"

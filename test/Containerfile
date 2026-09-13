@@ -20,6 +20,7 @@ COPY strava-my-html-dashboard.sh /opt/strava-my-html-dashboard.sh
 COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
 COPY strava-my-html-bike.sh      /opt/strava-my-html-bike.sh
 COPY strava-my-html-stats.sh     /opt/strava-my-html-stats.sh
+COPY strava-my-html-heatmap.sh   /opt/strava-my-html-heatmap.sh
 COPY strava-leaderboard.sh       /opt/strava-leaderboard.sh
 COPY strava-lib.sh               /opt/strava-lib.sh
 COPY test/activities.sample.json /opt/activities.sample.json
@@ -32,6 +33,7 @@ COPY test/healthsync-bike.json   /opt/healthsync-bike.json
 COPY test/healthsync-bike.gpx    /opt/healthsync-bike.gpx
 COPY test/magene-sample.json     /opt/magene-sample.json
 COPY test/magene-sample.gpx      /opt/magene-sample.gpx
+COPY test/heatmap.sample.json    /opt/heatmap.sample.json
 COPY test/run.sh /opt/run.sh
 COPY test/shell-tests.sh /opt/shell-tests.sh
 RUN chmod 0755 /opt/run.sh /opt/shell-tests.sh
