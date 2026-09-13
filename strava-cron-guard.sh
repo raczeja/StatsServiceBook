@@ -14,7 +14,14 @@
 #      seconds, up to STRAVA_CRON_RETRIES additional attempts. The alert email is
 #      only sent once all attempts have failed.
 #
-# All knobs live in /etc/strava-leaderboard.conf (or $STRAVA_CONFIG):
+# Config loading: the guard sources /etc/strava-leaderboard.conf first (base
+# config for SMTP and all knobs), then the script-specific config if it exists
+# (e.g. /etc/strava-my-activities.conf for strava-my-activities). The
+# script-specific file takes precedence, so SMTP settings placed there are used
+# for that script's failure alerts even when the leaderboard config is absent.
+# Override the base config path with $STRAVA_CONFIG.
+#
+# Knobs (any config file):
 #   STRAVA_CRON_RETRIES=2          retries after the first attempt (0 = no retry)
 #   STRAVA_CRON_RETRY_DELAY=300    seconds between retries
 #   STRAVA_NET_CHECK_HOST=1.1.1.1  host to ping for the pre-flight check
@@ -26,10 +33,12 @@ set -eu
 SCRIPT_NAME="${1:?Usage: strava-cron-guard <script-name>}"
 SCRIPT="/usr/bin/$SCRIPT_NAME"
 CONFIG="${STRAVA_CONFIG:-/etc/strava-leaderboard.conf}"
+# Derive script-specific config path: strava-my-activities → /etc/strava-my-activities.conf
+SCRIPT_CONFIG="/etc/${SCRIPT_NAME}.conf"
 
 [ -x "$SCRIPT" ] || { printf 'strava-cron-guard: not found or not executable: %s\n' "$SCRIPT" >&2; exit 1; }
 
-# Defaults — overridden by values in the config file.
+# Defaults — overridden by values in config files.
 STRAVA_CRON_RETRIES=2
 STRAVA_CRON_RETRY_DELAY=300
 STRAVA_NET_CHECK_HOST="1.1.1.1"
@@ -40,9 +49,14 @@ STRAVA_EMAIL_USER=""
 STRAVA_EMAIL_FROM=""
 STRAVA_EMAIL_ALERTS_TO=""
 
+# Source base config first, then script-specific config (may override SMTP/alerts).
 if [ -f "$CONFIG" ]; then
     # shellcheck disable=SC1090
     . "$CONFIG"
+fi
+if [ -f "$SCRIPT_CONFIG" ] && [ "$SCRIPT_CONFIG" != "$CONFIG" ]; then
+    # shellcheck disable=SC1090
+    . "$SCRIPT_CONFIG"
 fi
 
 # ── 1. Network pre-flight ─────────────────────────────────────────────────────
