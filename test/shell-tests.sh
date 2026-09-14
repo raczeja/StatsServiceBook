@@ -1419,7 +1419,7 @@ assert_eq "$S" "bob-dist-km-15"        "$_dist_km" "15"
 # Sources strava-lib.sh so JQ_MERGE_FUNC itself is exercised end-to-end.
 S="monthly-email-merge"
 
-. /opt/strava-lib.sh 2>/dev/null || true
+. /usr/bin/strava-lib.sh
 
 printf '%s\n' \
     '{"firstSeen":"2026-06-10","firstname":"piotr","lastname":"k.","distance":15000,"moving_time":2000,"total_elevation_gain":100}' \
