@@ -258,6 +258,11 @@ function Invoke-GoogleDeviceAuth {
     return $true
 }
 
+# ---- Build the production image (has curl/jq/ca-certs — no apk add needed) --
+Write-Host "==> Building production image 'stravame-prod' ..."
+& podman build -t stravame-prod $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "podman build failed" }
+
 try {
     # ---- 1. Run healthsync-activities.sh -------------------------------------
     $importFlag = if ($SkipImport) { '0' } else { '1' }
@@ -286,8 +291,8 @@ try {
 
     & podman run --rm --name $RunName @volArgs `
         -e "HEALTHSYNC_IMPORT_ENABLED=$importFlag" `
-        alpine:3.20 `
-        sh -c 'apk add --no-cache curl jq ca-certificates >/dev/null 2>&1 && sh /app/healthsync-activities.sh'
+        stravame-prod `
+        sh /app/healthsync-activities.sh
 
     if ($LASTEXITCODE -ne 0) {
         # Detect whether it was a Drive token failure via drive-status.json
@@ -308,8 +313,8 @@ try {
             Write-Host ""
             & podman run --rm --name $RunName @volArgs `
                 -e "HEALTHSYNC_IMPORT_ENABLED=$importFlag" `
-                alpine:3.20 `
-                sh -c 'apk add --no-cache curl jq ca-certificates >/dev/null 2>&1 && sh /app/healthsync-activities.sh'
+                stravame-prod `
+                sh /app/healthsync-activities.sh
 
             if ($LASTEXITCODE -ne 0) {
                 Write-Host ""
@@ -354,10 +359,11 @@ try {
     Write-Host "==> Starting server on port $Port ..."
 
     & podman run -d --name $ServeName `
-        -p "${Port}:8080" `
+        -p "${Port}:80" `
         -v "${WebDir}:/www:ro" `
-        alpine:3.20 `
-        sh -c 'apk add --no-cache busybox-extras >/dev/null 2>&1 && httpd -f -p 8080 -h /www'
+        --entrypoint /bin/sh `
+        stravame-prod `
+        -c 'lighttpd -D -f /etc/lighttpd/lighttpd.conf'
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Failed to start serve container." -ForegroundColor Red

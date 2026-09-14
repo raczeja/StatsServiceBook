@@ -1987,6 +1987,38 @@ assert_eq "$S" "net-up-after-two-waits" "$_w" "30"
 _w="$(_net_wait 15 15 "$TMP/nw_down.sh")" || true
 assert_eq "$S" "net-boundary-timeout" "$_w" "timeout"
 
+# ── script-syntax-check ──────────────────────────────────────────────────────
+# Runs sh -n on every .sh script deployed into /opt/ so that:
+#   (a) any syntax error in a changed script is caught here, and
+#   (b) if a new script is added to the repo but NOT to test/Containerfile,
+#       the file will be absent at /opt/ and this test will fail, making
+#       the omission visible before it reaches the router.
+S="script-syntax-check"
+for _f in \
+    /usr/bin/strava-my-html-dashboard.sh \
+    /usr/bin/strava-my-html-detail.sh \
+    /usr/bin/strava-my-html-bike.sh \
+    /usr/bin/strava-my-html-stats.sh \
+    /usr/bin/strava-my-html-heatmap.sh \
+    /usr/bin/strava-leaderboard \
+    /usr/bin/strava-lib.sh \
+    /usr/bin/strava-cron-guard \
+    /usr/bin/strava-email-monthly \
+    /usr/bin/strava-email-weekly \
+    /usr/bin/strava-my-activities \
+    /usr/bin/healthsync-activities \
+; do
+    _name="$(basename "$_f")"
+    if [ ! -f "$_f" ]; then
+        err "$S" "$_name" "not found in container — add COPY to test/Containerfile"
+    elif sh -n "$_f" 2>/tmp/sn_err_$$; then
+        ok "$S" "$_name"
+    else
+        err "$S" "$_name" "$(cat /tmp/sn_err_$$)"
+    fi
+    rm -f /tmp/sn_err_$$
+done
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
