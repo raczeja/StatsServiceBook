@@ -24,12 +24,17 @@ const HOST = process.env.TEST_HOST || "localhost";
 const BASE = `http://${HOST}:${PORT}/strava/me`;
 
 const PAGES = [
-  { name: "club-dashboard", url: `http://${HOST}:${PORT}/strava/index.html` },
-  { name: "my-activities", url: `${BASE}/index.html` },
-  { name: "stats", url: `${BASE}/stats.html` },
-  { name: "heatmap", url: `${BASE}/heatmap.html` },
-  { name: "activity-detail", url: `${BASE}/activity.html?id=18784255013` },
-  { name: "bike-service", url: `${BASE}/bike.html` },
+  { name: "club-dashboard",      url: `http://${HOST}:${PORT}/strava/index.html`, dark: false },
+  { name: "my-activities",       url: `${BASE}/index.html`,                       dark: false },
+  { name: "stats",               url: `${BASE}/stats.html`,                       dark: false },
+  { name: "heatmap",             url: `${BASE}/heatmap.html`,                     dark: false },
+  { name: "activity-detail",     url: `${BASE}/activity.html?id=18784255013`,     dark: false },
+  { name: "bike-service",        url: `${BASE}/bike.html`,                        dark: false },
+  // Dark mode variants
+  { name: "my-activities-dark",  url: `${BASE}/index.html`,                       dark: true },
+  { name: "stats-dark",          url: `${BASE}/stats.html`,                       dark: true },
+  { name: "activity-detail-dark",url: `${BASE}/activity.html?id=18784255013`,     dark: true },
+  { name: "bike-service-dark",   url: `${BASE}/bike.html`,                        dark: true },
 ];
 
 const BROWSER_CANDIDATES = [
@@ -90,8 +95,12 @@ try {
   await page.setViewport({ width: 1440, height: 900 });
 
   // ── Standard full-page screenshots ───────────────────────────────────────────
-  for (const { name, url } of PAGES) {
-    console.log(`→ ${name}: ${url}`);
+  for (const { name, url, dark } of PAGES) {
+    console.log(`→ ${name}: ${url}${dark ? " [dark]" : ""}`);
+    // Set theme in localStorage before navigation so the anti-FOUC script picks it up.
+    await page.evaluate((isDark) => {
+      try { if (isDark) localStorage.setItem("theme", "dark"); else localStorage.removeItem("theme"); } catch (_) {}
+    }, dark);
     // Heatmap uses networkidle2 (allows ≤2 in-flight requests) so tile loading
     // doesn't block indefinitely, while still letting CDN scripts finish loading.
     const waitFor = name === "heatmap" ? "networkidle2" : "networkidle0";
@@ -124,8 +133,9 @@ try {
     await shot(page, name);
   }
 
-  // ── Bike-service modal screenshots ───────────────────────────────────────────
+  // ── Bike-service modal screenshots (light mode) ──────────────────────────────
   console.log("→ bike modal screenshots");
+  await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
   await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle0", timeout: 20000 });
   await waitBikeReady(page);
 

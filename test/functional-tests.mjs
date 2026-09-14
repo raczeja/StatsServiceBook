@@ -3553,6 +3553,108 @@ async function testHeatmap(page, jsErrors) {
   });
 }
 
+// ── Dark mode toggle ───────────────────────────────────────────────────────────
+
+async function testDarkMode(page, jsErrors) {
+  const S = "dark-mode";
+
+  // Pages that have the toggle button (heatmap is excluded — stays always dark).
+  const pages = [
+    { name: "dashboard",  url: URLS.dash,     wait: "#board table" },
+    { name: "stats",      url: URLS.stats,    wait: ".kpis .kpi" },
+    { name: "bike",       url: URLS.bike,     wait: ".bikes .tab" },
+    { name: "activity",   url: URLS.activity, wait: "#content" },
+    { name: "leaderboard",url: URLS.club,     wait: "#board" },
+  ];
+
+  for (const pg of pages) {
+    jsErrors.length = 0;
+    // Clear localStorage so theme starts from OS default (no data-theme attr).
+    await page.evaluate(() => {
+      try { localStorage.removeItem("theme"); } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+    });
+    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
+    try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
+
+    await check(S, `${pg.name}-toggle-button-exists`, async () => {
+      const btn = await page.$("#theme-tog");
+      assert.ok(btn, `#theme-tog not found on ${pg.name} page`);
+    });
+
+    await check(S, `${pg.name}-button-shows-moon-initially`, async () => {
+      // No localStorage value → button should show 🌙 (light mode icon, since test
+      // browser prefers-color-scheme defaults to "no-preference" / light).
+      const icon = await page.$eval("#theme-tog", (el) => el.textContent.trim());
+      assert.ok(icon === "🌙" || icon === "☀️",
+        `expected 🌙 or ☀️ from #theme-tog on ${pg.name}, got: "${icon}"`);
+    });
+
+    await check(S, `${pg.name}-click-sets-dark`, async () => {
+      // Set to light first so we know the toggle direction.
+      await page.evaluate(() => {
+        document.documentElement.dataset.theme = "light";
+        localStorage.setItem("theme", "light");
+        document.getElementById("theme-tog").textContent = "🌙";
+      });
+      await page.click("#theme-tog");
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+
+      const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+      assert.equal(theme, "dark",
+        `clicking #theme-tog from light should set data-theme=dark on ${pg.name}`);
+
+      const icon = await page.$eval("#theme-tog", (el) => el.textContent.trim());
+      assert.equal(icon, "☀️",
+        `icon after dark toggle should be ☀️ on ${pg.name}, got "${icon}"`);
+    });
+
+    await check(S, `${pg.name}-click-toggles-back-to-light`, async () => {
+      await page.click("#theme-tog");
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+
+      const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+      assert.equal(theme, "light",
+        `second click on #theme-tog should set data-theme=light on ${pg.name}`);
+
+      const icon = await page.$eval("#theme-tog", (el) => el.textContent.trim());
+      assert.equal(icon, "🌙",
+        `icon after light toggle should be 🌙 on ${pg.name}, got "${icon}"`);
+    });
+
+    await check(S, `${pg.name}-persists-to-localstorage`, async () => {
+      // After clicking dark, reload — data-theme=dark should be set immediately
+      // (anti-FOUC script reads localStorage before any CSS parses).
+      await page.evaluate(() => {
+        document.documentElement.dataset.theme = "light";
+        localStorage.setItem("theme", "light");
+        document.getElementById("theme-tog").textContent = "🌙";
+      });
+      await page.click("#theme-tog"); // → dark
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+
+      const stored = await page.evaluate(() => localStorage.getItem("theme"));
+      assert.equal(stored, "dark",
+        `localStorage["theme"] should be "dark" after clicking to dark on ${pg.name}`);
+
+      // Reload and verify the theme is still dark (anti-FOUC preserved it).
+      await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+      try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
+
+      const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+      assert.equal(theme, "dark",
+        `after reload, data-theme should still be "dark" on ${pg.name}`);
+
+      // Cleanup
+      await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
+    });
+
+    await check(S, `${pg.name}-no-js-errors`, () =>
+      assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
+    );
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -3662,6 +3764,9 @@ async function main() {
 
     console.log("\n--- Service Type Description (modal hint) ---");
     await testServiceTypeDescription(page, jsErrors);
+
+    console.log("\n--- Dark Mode Toggle ---");
+    await testDarkMode(page, jsErrors);
   } finally {
     await browser.close();
   }

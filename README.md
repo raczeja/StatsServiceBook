@@ -64,6 +64,11 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
 
+**Dark mode**
+- Every page (except the always-dark heatmap) has a 🌙/☀️ toggle button in the top-right corner
+- Defaults to the OS `prefers-color-scheme` setting; manual choice is remembered in `localStorage` across sessions
+- Full CSS variable conversion — SVG charts, bar fills, tooltips, and all UI elements adapt without re-rendering
+
 **Cron self-healing** (via `strava-cron-guard`)
 - Network pre-flight: pings a configurable IP before each run; if unreachable, waits up to `STRAVA_NET_CHECK_WAIT` seconds (default 2 min) for the WAN to come back, then aborts cleanly — no false-positive alerts during a brief reconnect
 - Automatic retry: re-runs the script up to `STRAVA_CRON_RETRIES` times (default 2) with `STRAVA_CRON_RETRY_DELAY` seconds (default 5 min) between attempts; alert email is only sent after all retries are exhausted, and the subject line reports the total attempt count
@@ -84,7 +89,21 @@ Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wik
 | :--------------: |
 | ![Heatmap](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/heatmap.png) |
 
-> Screenshots generated from sample data via `powershell -File test/make-screenshots.ps1`.
+### Dark mode
+
+| My Activities (dark) | Personal stats (dark) |
+| :------------------: | :-------------------: |
+| ![My Activities dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/my-activities-dark.png) | ![Stats dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/stats-dark.png) |
+
+| Activity detail (dark) | Bike service (dark) |
+| :--------------------: | :-----------------: |
+| ![Activity detail dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/activity-detail-dark.png) | ![Bike service dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service-dark.png) |
+
+| Club leaderboard (dark) |
+| :---------------------: |
+| ![Club leaderboard dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/club-dashboard-dark.png) |
+
+> Screenshots generated from sample data via `node test/take-screenshots.mjs` (or `powershell -File test/make-screenshots.ps1` on Windows).
 
 ## Quick start
 
