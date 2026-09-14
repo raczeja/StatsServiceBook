@@ -76,7 +76,7 @@ svg.bar-chart{width:100%;height:150px;display:block}
 #drive-token.ok{color:#5a9a6a}#drive-token.stale{color:#b07800}#drive-token.err{color:#c0392b}
 .bike-sel{font:inherit;font-size:.8rem;border:1px solid var(--border-2);border-radius:.3rem;padding:.1rem .25rem;background:var(--select-bg);color:var(--text);max-width:140px}
 #board{overflow-x:auto;-webkit-overflow-scrolling:touch}
-@media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}}
+@media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}.chart-box{box-sizing:border-box}}
 </style>
 </head>
 <body>
