@@ -26,8 +26,11 @@ jobs:
         with:
           node-version: 24
 
+      - name: Build production image
+        run: docker build -t stravame-prod .
+
       - name: Build test container
-        run: docker build -f test/Containerfile -t stravame-test .
+        run: docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test .
 
       - name: Start test container
         run: docker run -d --name stravame-tests -p 8080:8080 stravame-test
