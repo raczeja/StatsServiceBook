@@ -637,12 +637,11 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .detail-table th{background:var(--detail-th);color:var(--text-2);font-weight:600;padding:.3rem .6rem}
   .detail-table td{padding:.3rem .6rem;border-bottom:1px solid var(--detail-th)}
   .detail-table td.num{text-align:right}
-  #theme-tog{position:fixed;top:.5rem;right:.7rem;z-index:9999;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text-3)}
+  #theme-tog{margin-left:auto;flex-shrink:0;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text-3)}
 </style>
 </head>
 <body>
-<button id="theme-tog">🌙</button>
-<h1>🏆 Club Leaderboard</h1>
+<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><h1 style="margin:0">🏆 Club Leaderboard</h1><button id="theme-tog">🌙</button></div>
 <div class="nav"><a href="me/">→ My Activities</a></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
