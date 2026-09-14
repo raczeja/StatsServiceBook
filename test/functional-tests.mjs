@@ -3657,6 +3657,50 @@ async function testDarkMode(page, jsErrors) {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 
+async function testMobileLayout(page, jsErrors) {
+  const S = "mobile-layout";
+
+  const pages = [
+    { name: "dashboard", url: URLS.dash,     wait: "#board" },
+    { name: "stats",     url: URLS.stats,    wait: ".kpis .kpi" },
+    { name: "bike",      url: URLS.bike,     wait: ".bikes" },
+    { name: "activity",  url: URLS.activity, wait: "#content" },
+  ];
+
+  await page.setViewport({ width: 375, height: 812 });
+
+  for (const pg of pages) {
+    jsErrors.length = 0;
+    await page.evaluate(() => {
+      try { localStorage.removeItem("theme"); } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+    });
+    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
+    try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
+
+    await check(S, `${pg.name}-no-horizontal-overflow`, async () => {
+      const overflow = await page.evaluate(() =>
+        document.documentElement.scrollWidth > document.documentElement.clientWidth
+      );
+      assert.ok(!overflow,
+        `${pg.name} page has horizontal overflow at 375px — table needs overflow-x:auto wrapper`);
+    });
+
+    await check(S, `${pg.name}-hdr-exists`, async () => {
+      const hdr = await page.$("#hdr");
+      assert.ok(hdr, `#hdr element not found on ${pg.name} page`);
+    });
+
+    await check(S, `${pg.name}-no-js-errors`, () => {
+      assert.strictEqual(jsErrors.length, 0,
+        `JS errors on ${pg.name} at 375px: ${jsErrors.map((e) => e.message).join("; ")}`);
+    });
+  }
+
+  // Restore desktop viewport for subsequent test suites.
+  await page.setViewport({ width: 1440, height: 900 });
+}
+
 async function main() {
   const executablePath = await findBrowser();
   console.log("Using browser:", executablePath);
@@ -3764,6 +3808,9 @@ async function main() {
 
     console.log("\n--- Service Type Description (modal hint) ---");
     await testServiceTypeDescription(page, jsErrors);
+
+    console.log("\n--- Mobile Layout (375px viewport) ---");
+    await testMobileLayout(page, jsErrors);
 
     console.log("\n--- Dark Mode Toggle ---");
     await testDarkMode(page, jsErrors);
