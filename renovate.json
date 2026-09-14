@@ -8,7 +8,7 @@
     "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Europe/Warsaw",
-  "schedule": ["before 6am on monday"],
+  "schedule": ["at any time"],
   "labels": ["dependencies"],
   "packageRules": [
     {
