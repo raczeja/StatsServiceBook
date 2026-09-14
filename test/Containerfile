@@ -1,10 +1,10 @@
-# Local test image for club + My Activities pages + CGI (NOT used on the router).
-# lighttpd is used instead of BusyBox httpd because BusyBox httpd does not
-# forward POST bodies to CGI stdin reliably, breaking bike-service saves.
-# lighttpd is a full CGI/1.1 server and handles POST correctly.
+# Test image built on top of the production image (Dockerfile in the repo root).
+# All scripts come from the production layer — no separate COPY list to maintain.
+# When a new script is added to Dockerfile it is automatically available here.
 #
-# Build context is the repo root:
-#   podman build -f test/Containerfile -t stravame-test .
+# Build (via run-tests.sh / run-tests.ps1 which build stravame-prod first):
+#   podman build -t stravame-prod .
+#   podman build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test .
 #   podman run --rm -p 8080:8080 stravame-test
 # then open:
 #   http://localhost:8080/strava/me/         (dashboard)
@@ -12,30 +12,25 @@
 #   http://localhost:8080/strava/me/activity.html?id=18784255013
 #   http://localhost:8080/strava/me/bike.html
 #   http://localhost:8080/strava/            (club dashboard)
-FROM docker.io/library/alpine:3.20
 
-RUN apk add --no-cache jq lighttpd
+ARG BASE=stravame-prod
+FROM ${BASE}
 
-COPY strava-my-html-dashboard.sh /opt/strava-my-html-dashboard.sh
-COPY strava-my-html-detail.sh    /opt/strava-my-html-detail.sh
-COPY strava-my-html-bike.sh      /opt/strava-my-html-bike.sh
-COPY strava-my-html-stats.sh     /opt/strava-my-html-stats.sh
-COPY strava-my-html-heatmap.sh   /opt/strava-my-html-heatmap.sh
-COPY strava-leaderboard.sh       /opt/strava-leaderboard.sh
-COPY strava-lib.sh               /opt/strava-lib.sh
-COPY test/activities.sample.json /opt/activities.sample.json
+# Test-only: static data files served by the test lighttpd instance.
+# Scripts are inherited from the production image — no COPY needed here.
+COPY test/activities.sample.json      /opt/activities.sample.json
 COPY test/club-activities.sample.json /opt/club-activities.sample.json
-COPY test/bike-service.sample.json /opt/bike-service.sample.json
-COPY test/18784255013.json       /opt/18784255013.json
-COPY test/healthsync-20260622.json /opt/healthsync-20260622.json
-COPY test/healthsync-sample.gpx  /opt/healthsync-sample.gpx
-COPY test/healthsync-bike.json   /opt/healthsync-bike.json
-COPY test/healthsync-bike.gpx    /opt/healthsync-bike.gpx
-COPY test/magene-sample.json     /opt/magene-sample.json
-COPY test/magene-sample.gpx      /opt/magene-sample.gpx
-COPY test/heatmap.sample.json    /opt/heatmap.sample.json
-COPY test/run.sh /opt/run.sh
-COPY test/shell-tests.sh /opt/shell-tests.sh
+COPY test/bike-service.sample.json    /opt/bike-service.sample.json
+COPY test/18784255013.json            /opt/18784255013.json
+COPY test/healthsync-20260622.json    /opt/healthsync-20260622.json
+COPY test/healthsync-sample.gpx       /opt/healthsync-sample.gpx
+COPY test/healthsync-bike.json        /opt/healthsync-bike.json
+COPY test/healthsync-bike.gpx         /opt/healthsync-bike.gpx
+COPY test/magene-sample.json          /opt/magene-sample.json
+COPY test/magene-sample.gpx           /opt/magene-sample.gpx
+COPY test/heatmap.sample.json         /opt/heatmap.sample.json
+COPY test/run.sh                      /opt/run.sh
+COPY test/shell-tests.sh              /opt/shell-tests.sh
 RUN chmod 0755 /opt/run.sh /opt/shell-tests.sh
 
 EXPOSE 8080
