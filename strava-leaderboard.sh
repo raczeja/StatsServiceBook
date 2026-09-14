@@ -590,19 +590,24 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t;</script>
 <title>Club Leaderboard</title>
 <style>
-  body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:900px;padding:0 1rem;background:#fafafa;color:#222}
+  :root{--bg:#fafafa;--surface:#fff;--surface-2:#f5f5f5;--text:#222;--text-2:#444;--text-3:#666;--text-4:#888;--border:#eee;--border-2:#ccc;--row-alt:#fafafa;--accent:#fc4c02;--detail-th:#e8e8e8;--hover-row:#fff0eb}
+  @media(prefers-color-scheme:dark){:root{--bg:#121212;--surface:#1e1e1e;--surface-2:#252525;--text:#e0e0e0;--text-2:#b0b0b0;--text-3:#909090;--text-4:#6a6a6a;--border:#2a2a2a;--border-2:#3a3a3a;--row-alt:#1a1a1a;--detail-th:#2a2a2a;--hover-row:#2a1200}}
+  [data-theme=light]{--bg:#fafafa;--surface:#fff;--surface-2:#f5f5f5;--text:#222;--text-2:#444;--text-3:#666;--text-4:#888;--border:#eee;--border-2:#ccc;--row-alt:#fafafa;--accent:#fc4c02;--detail-th:#e8e8e8;--hover-row:#fff0eb}
+  [data-theme=dark]{--bg:#121212;--surface:#1e1e1e;--surface-2:#252525;--text:#e0e0e0;--text-2:#b0b0b0;--text-3:#909090;--text-4:#6a6a6a;--border:#2a2a2a;--border-2:#3a3a3a;--row-alt:#1a1a1a;--detail-th:#2a2a2a;--hover-row:#2a1200}
+  body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:900px;padding:0 1rem;background:var(--bg);color:var(--text)}
   h1{margin:0 0 .25rem}
-  .meta{color:#666;font-size:.85rem;margin:.75rem 0 1rem}
+  .meta{color:var(--text-3);font-size:.85rem;margin:.75rem 0 1rem}
   .filters{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0 1rem}
-  select{font:inherit;padding:.35rem .5rem;border:1px solid #ccc;border-radius:.4rem;background:#fff;color:#222}
-  table{border-collapse:collapse;width:100%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  th,td{padding:.5rem .75rem;text-align:left;border-bottom:1px solid #eee}
+  select{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--surface);color:var(--text)}
+  table{border-collapse:collapse;width:100%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  th,td{padding:.5rem .75rem;text-align:left;border-bottom:1px solid var(--border)}
   th{background:#fc4c02;color:#fff}
-  tr:nth-child(even) td{background:#fafafa}
+  tr:nth-child(even) td{background:var(--row-alt)}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
-  .empty{color:#666;padding:1rem 0}
+  .empty{color:var(--text-3);padding:1rem 0}
   .nav{margin:.25rem 0 1rem}
   .nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}
   .nav a:hover{background:#e34402}
@@ -610,24 +615,33 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .club-heading{color:#fc4c02;margin:1.25rem 0 .25rem;font-size:1.1rem;border-bottom:2px solid #fc4c02;padding-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
   .club-heading img{width:1.6rem;height:1.6rem;border-radius:50%;object-fit:cover;flex-shrink:0}
   .club-heading a{font-size:.7em;font-weight:normal;color:#fc4c02;margin-left:auto}
-  .club-sub{color:#666;font-size:.82rem;margin:0 0 .5rem}
-  .club-desc{color:#555;font-size:.82rem;margin:0 0 .75rem;font-style:italic}
+  .club-sub{color:var(--text-3);font-size:.82rem;margin:0 0 .5rem}
+  .club-desc{color:var(--text-2);font-size:.82rem;margin:0 0 .75rem;font-style:italic}
   .ck-banner{padding:.55rem 1rem;border-radius:.4rem;margin:.5rem 0 1rem;font-size:.88rem}
   .ck-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
   .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
   .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
+  @media(prefers-color-scheme:dark){.ck-ok{background:#14391a;color:#86efac;border-color:#166534}.ck-warn{background:#3d2200;color:#fdba74;border-color:#92400e}.ck-expired{background:#3d0a0a;color:#fca5a5;border-color:#991b1b}}
+  [data-theme=dark] .ck-ok{background:#14391a;color:#86efac;border-color:#166534}
+  [data-theme=dark] .ck-warn{background:#3d2200;color:#fdba74;border-color:#92400e}
+  [data-theme=dark] .ck-expired{background:#3d0a0a;color:#fca5a5;border-color:#991b1b}
+  [data-theme=light] .ck-ok{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
+  [data-theme=light] .ck-warn{background:#fff8e1;color:#e65100;border-color:#ffe082}
+  [data-theme=light] .ck-expired{background:#ffebee;color:#b71c1c;border-color:#ef9a9a}
   .bar{height:5px;background:#fc4c02;border-radius:3px;margin-top:4px;min-width:3px}
   .person-row{cursor:pointer}
-  .person-row:hover td{background:#fff0eb}
+  .person-row:hover td{background:var(--hover-row)}
   .expand-btn{float:right;font-size:.8rem;opacity:.6}
-  .detail-row td{padding:0;background:#f5f5f5}
+  .detail-row td{padding:0;background:var(--surface-2)}
   .detail-table{border-collapse:collapse;width:100%;font-size:.83rem}
-  .detail-table th{background:#e8e8e8;color:#444;font-weight:600;padding:.3rem .6rem}
-  .detail-table td{padding:.3rem .6rem;border-bottom:1px solid #e8e8e8}
+  .detail-table th{background:var(--detail-th);color:var(--text-2);font-weight:600;padding:.3rem .6rem}
+  .detail-table td{padding:.3rem .6rem;border-bottom:1px solid var(--detail-th)}
   .detail-table td.num{text-align:right}
+  #theme-tog{position:fixed;top:.5rem;right:.7rem;z-index:9999;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text-3)}
 </style>
 </head>
 <body>
+<button id="theme-tog">🌙</button>
 <h1>🏆 Club Leaderboard</h1>
 <div class="nav"><a href="me/">→ My Activities</a></div>
 <div class="filters">
@@ -883,6 +897,18 @@ fetch("activities.json",{cache:"no-store"})
     meta.textContent="Failed to load activities.json ("+err.message+
       "). Open this page via the router's web server, not from a file.";
   });
+
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById('theme-tog');
+  var saved=localStorage.getItem('theme');
+  if(saved) root.dataset.theme=saved;
+  function isDark(){return root.dataset.theme==='dark'||(!root.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches);}
+  function syncBtn(){btn.textContent=isDark()?'☀️':'🌙';}
+  syncBtn();
+  btn.onclick=function(){root.dataset.theme=isDark()?'light':'dark';localStorage.setItem('theme',root.dataset.theme);syncBtn();};
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
+})();
 </script>
 </body>
 </html>
