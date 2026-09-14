@@ -34,4 +34,5 @@ COPY test/shell-tests.sh              /opt/shell-tests.sh
 RUN chmod 0755 /opt/run.sh /opt/shell-tests.sh
 
 EXPOSE 8080
+ENTRYPOINT []
 CMD ["/opt/run.sh"]
