@@ -92,14 +92,16 @@ try {
   // ── Standard full-page screenshots ───────────────────────────────────────────
   for (const { name, url } of PAGES) {
     console.log(`→ ${name}: ${url}`);
-    // Heatmap loads CDN scripts (Leaflet) that are unreachable inside the container,
-    // so "networkidle0" would wait forever. Use domcontentloaded then wait for data.
-    const waitFor = name === "heatmap" ? "domcontentloaded" : "networkidle0";
-    await page.goto(url, { waitUntil: waitFor, timeout: 30000 });
+    // Heatmap uses networkidle2 (allows ≤2 in-flight requests) so tile loading
+    // doesn't block indefinitely, while still letting CDN scripts finish loading.
+    const waitFor = name === "heatmap" ? "networkidle2" : "networkidle0";
+    await page.goto(url, { waitUntil: waitFor, timeout: 45000 });
 
     if (name === "heatmap") {
-      // Wait for heatmap data to load (count element populated), then set
-      // "All time / All sports" for a more visually informative screenshot.
+      // Wait for Leaflet library to be available, then for heatmap data and tiles.
+      try {
+        await page.waitForFunction(() => typeof L !== "undefined", { timeout: 15000 });
+      } catch (_) { console.warn("  Leaflet did not load from CDN"); }
       try {
         await page.waitForFunction(
           () => (document.getElementById("count")?.textContent || "").length > 0,
@@ -112,6 +114,10 @@ try {
         const psel = document.getElementById("period");
         if (psel) { psel.value = "all"; psel.dispatchEvent(new Event("change", { bubbles: true })); }
       });
+      // Wait for at least one map tile to paint before screenshotting.
+      try {
+        await page.waitForSelector(".leaflet-tile-loaded", { timeout: 10000 });
+      } catch (_) { console.warn("  No tiles loaded — map may be tile-less in screenshot"); }
       await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
     }
 
