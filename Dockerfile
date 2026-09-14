@@ -29,6 +29,7 @@ COPY strava-my-html-dashboard.sh /usr/bin/strava-my-html-dashboard.sh
 COPY strava-my-html-detail.sh    /usr/bin/strava-my-html-detail.sh
 COPY strava-my-html-bike.sh      /usr/bin/strava-my-html-bike.sh
 COPY strava-my-html-stats.sh     /usr/bin/strava-my-html-stats.sh
+COPY strava-my-html-heatmap.sh   /usr/bin/strava-my-html-heatmap.sh
 
 RUN chmod 0755 \
     /usr/bin/strava-leaderboard \
@@ -42,7 +43,8 @@ RUN chmod 0755 \
     /usr/bin/strava-my-html-dashboard.sh \
     /usr/bin/strava-my-html-detail.sh \
     /usr/bin/strava-my-html-bike.sh \
-    /usr/bin/strava-my-html-stats.sh
+    /usr/bin/strava-my-html-stats.sh \
+    /usr/bin/strava-my-html-heatmap.sh
 
 COPY docker/lighttpd.conf /etc/lighttpd/lighttpd.conf
 COPY docker/entrypoint.sh /entrypoint.sh

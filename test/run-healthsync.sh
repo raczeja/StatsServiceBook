@@ -18,7 +18,7 @@ export HEALTHSYNC_BIKE_DATA="$STATE/bike-service.json"
 export HEALTHSYNC_BIKE_ASSIGN="$STATE/bike-assignments.json"
 
 echo "==> running healthsync-activities.sh ..."
-/opt/healthsync-activities.sh
+/usr/bin/healthsync-activities
 
 cat > /tmp/lighttpd.conf <<'CONF'
 server.document-root = "/www"

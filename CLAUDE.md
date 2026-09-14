@@ -285,22 +285,30 @@ script persists whatever it returns and prefers that next run.
 
 When you finish implementing a new feature or behaviour change, always do the following before considering the task done:
 
-1. **Run the functional test suite** to catch regressions:
+1. **Update `Dockerfile` (and only `Dockerfile`) when scripts change.** The test image (`test/Containerfile`) is built on top of the production image — it inherits all scripts automatically. So there is only **one** place to maintain the script list:
+   - **[Dockerfile](Dockerfile)** — add/remove the `COPY` line and the matching entry in the `chmod 0644` or `chmod 0755` block.
+   - If the file is also needed in the web root at test time, add/remove it in [test/run.sh](test/run.sh).
+   - Add/remove the script path from the `script-syntax-check` loop in [test/shell-tests.sh](test/shell-tests.sh) (paths are `/usr/bin/` — the prod install paths).
+   - `test/Containerfile` only needs changes when **test-data files** (under `test/`) are added or removed.
+
+   **Why this matters:** `shell-tests.sh`'s `script-syntax-check` suite runs `sh -n` on every script at its `/usr/bin/` path. If a script is missing from `Dockerfile`, it won't be in the image and the test will fail with "not found in container", surfacing the omission before it reaches the router.
+
+2. **Run the functional test suite** to catch regressions:
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
    ```
    If any test fails, fix the regression before proceeding. Do not skip this step.
 
-2. **Consider whether new tests are needed.** If you added a new UI feature, filter, chart, button, sorting behaviour, or CGI endpoint that is not already covered by `test/functional-tests.mjs`, explicitly propose a test case to the user. Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
+3. **Consider whether new tests are needed.** If you added a new UI feature, filter, chart, button, sorting behaviour, or CGI endpoint that is not already covered by `test/functional-tests.mjs`, explicitly propose a test case to the user. Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
 
-3. **Propose README and wiki updates.** After any feature addition or behaviour change, tell the user exactly which sections of `README.md` and which wiki page(s) (`../StatsServiceBook.wiki/*.md`) need updating, and offer to write the changes. The most commonly affected pages are listed in "Editing notes" above. Never silently skip docs.
+4. **Propose README and wiki updates.** After any feature addition or behaviour change, tell the user exactly which sections of `README.md` and which wiki page(s) (`../StatsServiceBook.wiki/*.md`) need updating, and offer to write the changes. The most commonly affected pages are listed in "Editing notes" above. Never silently skip docs.
 
-4. **Propose a deploy command.** Once tests pass and docs are updated, offer the user the exact `scp`/`ssh` command(s) to push the changed file(s) to the router (use the per-script patterns in the "Deploy" section above). Do not run the deploy yourself without explicit user confirmation — deploying to the router is an irreversible action on shared infrastructure.
+5. **Propose a deploy command.** Once tests pass and docs are updated, offer the user the exact `scp`/`ssh` command(s) to push the changed file(s) to the router (use the per-script patterns in the "Deploy" section above). Do not run the deploy yourself without explicit user confirmation — deploying to the router is an irreversible action on shared infrastructure.
 
-5. **Update service/install instructions if necessary.** If the change adds, renames, or removes a script or helper file; changes a default path or config key; adds a new cron entry; or changes how the service is installed or started, propose updates to:
+6. **Update service/install instructions if necessary.** If the change adds, renames, or removes a script or helper file; changes a default path or config key; adds a new cron entry; or changes how the service is installed or started, propose updates to:
    - `install.sh` — keep it idempotent and complete so a full reinstall still works
    - The "Deploy" section in this file — add/update the per-script `scp`/`ssh` pattern
    - `config.example` / `config-my.example` / `config-healthsync.example` — add/remove/document any new config keys
    Do not leave `install.sh` out of sync with the deployed scripts.
 
-6. **Update `/etc/sysupgrade.conf` if new installed files are added.** Whenever a change adds a new script to `/usr/bin/`, a new state directory, or a new config file to `/etc/`, tell the user to add the path to `/etc/sysupgrade.conf` on the router so it survives firmware upgrades. The complete canonical list is documented in the "After a router sysupgrade" section above — keep it in sync. CGI scripts (`/www/cgi-bin/`) are the only exception: they are regenerated on first run and do not need to be listed. Always explicitly remind the user to update `sysupgrade.conf` when this applies.
+7. **Update `/etc/sysupgrade.conf` if new installed files are added.** Whenever a change adds a new script to `/usr/bin/`, a new state directory, or a new config file to `/etc/`, tell the user to add the path to `/etc/sysupgrade.conf` on the router so it survives firmware upgrades. The complete canonical list is documented in the "After a router sysupgrade" section above — keep it in sync. CGI scripts (`/www/cgi-bin/`) are the only exception: they are regenerated on first run and do not need to be listed. Always explicitly remind the user to update `sysupgrade.conf` when this applies.

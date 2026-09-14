@@ -18,10 +18,14 @@ $HostPort  = if ($env:STRAVA_TEST_PORT) { [int]$env:STRAVA_TEST_PORT } else {
 }
 $ContainerPort = 8080
 
-# ---- 1. Build the Podman image -----------------------------------------------
-Write-Host "==> Building image '$Image' (context: $ScriptDir) ..."
-& podman build -f "$(Join-Path $TestDir 'Containerfile')" -t $Image $ScriptDir
-if ($LASTEXITCODE -ne 0) { throw "podman build failed" }
+# ---- 1. Build images: production first, then test on top ---------------------
+Write-Host "==> Building production image 'stravame-prod' (context: $ScriptDir) ..."
+& podman build -t stravame-prod $ScriptDir
+if ($LASTEXITCODE -ne 0) { throw "podman build (production) failed" }
+
+Write-Host "==> Building test image '$Image' on top of 'stravame-prod' ..."
+& podman build -f "$(Join-Path $TestDir 'Containerfile')" --build-arg BASE=stravame-prod -t $Image $ScriptDir
+if ($LASTEXITCODE -ne 0) { throw "podman build (test) failed" }
 
 # ---- 2. Start the container --------------------------------------------------
 Write-Host "==> Starting container '$Container' on :$HostPort ..."

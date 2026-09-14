@@ -119,6 +119,11 @@ function Stop-Containers {
 
 Stop-Containers
 
+# ---- Build the production image (has curl/jq/ca-certs — no apk add needed) --
+Write-Host "==> Building production image 'stravame-prod' ..."
+& podman build -t stravame-prod $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "podman build failed" }
+
 try {
     # ---- 1. Run strava-my-activities.sh ----------------------------------------
 
@@ -147,8 +152,8 @@ try {
 
     & podman run --rm --name $RunName @volArgs `
         -e "STRAVA_MY_IMPORT_ENABLED=$importFlag" `
-        alpine:3.20 `
-        sh -c 'apk add --no-cache curl jq ca-certificates >/dev/null 2>&1 && sh /app/strava-my-activities.sh'
+        stravame-prod `
+        sh /app/strava-my-activities.sh
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
@@ -219,8 +224,9 @@ try {
         -v "${WebDir}:/www:ro" `
         -v "${UseStateDir}:/state:ro" `
         -v "${ConfFile}:/tmp/lighttpd.conf:ro" `
-        alpine:3.20 `
-        sh -c 'apk add --no-cache lighttpd >/dev/null 2>&1 && lighttpd -D -f /tmp/lighttpd.conf'
+        --entrypoint /bin/sh `
+        stravame-prod `
+        -c 'lighttpd -D -f /tmp/lighttpd.conf'
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Failed to start serve container." -ForegroundColor Red

@@ -46,8 +46,11 @@ fi
 
 PORT_MAPPING="-p ${HOST_PORT}:${CONTAINER_PORT}"
 
-echo "==> Building image '$IMAGE' (context: $SCRIPT_DIR) ..."
-$CRUNNER build -f "$TEST_DIR/Containerfile" -t "$IMAGE" "$SCRIPT_DIR"
+echo "==> Building production image 'stravame-prod' (context: $SCRIPT_DIR) ..."
+$CRUNNER build -t stravame-prod "$SCRIPT_DIR"
+
+echo "==> Building test image '$IMAGE' on top of 'stravame-prod' ..."
+$CRUNNER build -f "$TEST_DIR/Containerfile" --build-arg BASE=stravame-prod -t "$IMAGE" "$SCRIPT_DIR"
 
 echo "==> Starting container '$CONTAINER' on :$HOST_PORT ..."
 $CRUNNER rm -f "$CONTAINER" >/dev/null 2>&1 || true

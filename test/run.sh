@@ -6,12 +6,13 @@
 # Used inside the container built by Containerfile; not shipped to the router.
 set -eu
 
-DASHBOARD=/opt/strava-my-html-dashboard.sh
-DETAIL=/opt/strava-my-html-detail.sh
-BIKE=/opt/strava-my-html-bike.sh
-STATS=/opt/strava-my-html-stats.sh
-HEATMAP=/opt/strava-my-html-heatmap.sh
-CLUB=/opt/strava-leaderboard.sh
+# Scripts are installed by the production image at /usr/bin/ — no /opt/ copies needed.
+DASHBOARD=/usr/bin/strava-my-html-dashboard.sh
+DETAIL=/usr/bin/strava-my-html-detail.sh
+BIKE=/usr/bin/strava-my-html-bike.sh
+STATS=/usr/bin/strava-my-html-stats.sh
+HEATMAP=/usr/bin/strava-my-html-heatmap.sh
+CLUB=/usr/bin/strava-leaderboard
 
 WEB=/www/strava/me
 DATA=/data/bike-service.json
