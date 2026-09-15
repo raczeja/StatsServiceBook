@@ -65,6 +65,55 @@ jobs:
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
+      - name: Count tests and update badge gist
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.BADGE_GIST_ID }}
+        run: |
+          total=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          total = 0
+          for f in ['shell-tests.xml', 'test-results.xml']:
+              try:
+                  root = ET.parse(f).getroot()
+                  if root.tag == 'testsuites':
+                      for s in root.findall('testsuite'):
+                          total += int(s.get('tests', 0))
+                  else:
+                      total += int(root.get('tests', 0))
+              except Exception:
+                  pass
+          print(total)
+          ")
+          failures=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          failures = 0
+          for f in ['shell-tests.xml', 'test-results.xml']:
+              try:
+                  root = ET.parse(f).getroot()
+                  if root.tag == 'testsuites':
+                      for s in root.findall('testsuite'):
+                          failures += int(s.get('failures', 0)) + int(s.get('errors', 0))
+                  else:
+                      failures += int(root.get('failures', 0)) + int(root.get('errors', 0))
+              except Exception:
+                  pass
+          print(failures)
+          ")
+          if [ "$failures" -eq 0 ]; then
+            color="brightgreen"
+            message="${total} passed"
+          else
+            color="red"
+            message="${total} total, ${failures} failed"
+          fi
+          payload="{\"files\":{\"tests.json\":{\"content\":\"{\\\"schemaVersion\\\":1,\\\"label\\\":\\\"tests\\\",\\\"message\\\":\\\"${message}\\\",\\\"color\\\":\\\"${color}\\\"}\"}}}"
+          curl -s -X PATCH "https://api.github.com/gists/${GIST_ID}" \
+            -H "Authorization: token ${GIST_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
       - name: Publish JUnit test report
         if: always()
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
