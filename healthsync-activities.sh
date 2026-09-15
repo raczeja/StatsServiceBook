@@ -33,6 +33,7 @@ STATE_DIR="${HEALTHSYNC_STATE_DIR:-/usr/lib/healthsync}"
 WEB_DIR="${HEALTHSYNC_WEB_DIR:-/www/strava/me}"
 BIKE_DATA="${HEALTHSYNC_BIKE_DATA:-$STATE_DIR/bike-service.json}"
 BIKE_ASSIGN="${HEALTHSYNC_BIKE_ASSIGN:-$STATE_DIR/bike-assignments.json}"
+GOALS_DATA="${HEALTHSYNC_GOALS_DATA:-$STATE_DIR/ride-goals.json}"
 DEFAULT_BIKE_NAME="${HEALTHSYNC_DEFAULT_BIKE:-Kross}"
 CGI_DIR="${HEALTHSYNC_CGI_DIR:-/www/cgi-bin}"
 IMPORT_ENABLED="${HEALTHSYNC_IMPORT_ENABLED:-1}"
@@ -53,7 +54,20 @@ GEARS_CACHE="$STATE_DIR/gears-strava-cache.json"
 
 mkdir -p "$STATE_DIR" "$WEB_DIR" "$GPX_DIR" "$DETAIL_DIR"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/healthsync.XXXXXX")"
-trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: healthsync-activities exited with code $_rc"' EXIT
+LOCKFILE="${TMPDIR:-/tmp}/healthsync-activities.lock"
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+  _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
+  if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
+    log "another instance is already running (PID $_lock_pid, $LOCKFILE); exiting"
+    rm -rf "$TMP"; exit 0
+  else
+    log "stale lock found (PID ${_lock_pid:-unknown} not running); removing and continuing"
+    rm -rf "$LOCKFILE"
+    mkdir "$LOCKFILE"
+  fi
+fi
+printf '%s\n' "$$" > "$LOCKFILE/pid"
+trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: healthsync-activities exited with code $_rc"' EXIT
 
 # --- 0. One-time migration: import historical activities from a Strava store --
 # Set HEALTHSYNC_IMPORT_STRAVA_STORE=/path/to/strava-my-activities/activities.ndjson

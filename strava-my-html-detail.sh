@@ -311,6 +311,9 @@ function renderCards(d){
     html += cardTip("Max HR", Math.round(d.max_heartrate) + " bpm", mhrTip);
   }
   if (d.average_cadence)   html += card("Avg cadence", Math.round(d.average_cadence));
+  if (d.average_cadence && (d.sport_type === "Walk" || d.sport_type === "Hike"))
+    html += cardTip("Steps", Math.round(d.average_cadence * 2 * d.moving_time / 60).toLocaleString(),
+      "Estimated total steps: avg cadence (strides/min) × 2 × moving time.");
   if (d.average_watts)     html += card("Avg power", Math.round(d.average_watts) + " W");
   // Normalized power (weighted average) + Variability Index = NP / avg.
   if (d.weighted_average_watts) {

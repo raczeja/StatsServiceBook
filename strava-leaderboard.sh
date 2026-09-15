@@ -60,7 +60,20 @@ mkdir -p "$WEB_DIR" "$SNAPSHOT_DIR"
 
 TOKEN_STATE="$STATE_DIR/token.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
-trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: strava-leaderboard exited with code $_rc"' EXIT
+LOCKFILE="${TMPDIR:-/tmp}/strava-leaderboard.lock"
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+  _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
+  if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
+    log "another instance is already running (PID $_lock_pid, $LOCKFILE); exiting"
+    rm -rf "$TMP"; exit 0
+  else
+    log "stale lock found (PID ${_lock_pid:-unknown} not running); removing and continuing"
+    rm -rf "$LOCKFILE"
+    mkdir "$LOCKFILE"
+  fi
+fi
+printf '%s\n' "$$" > "$LOCKFILE/pid"
+trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-leaderboard exited with code $_rc"' EXIT
 
 # --- 1. Authenticate (api: OAuth token refresh; scrape: web session login) --
 # Cookie dry-run: when STRAVA_SOURCE=api but STRAVA_SESSION_COOKIE is also set,
