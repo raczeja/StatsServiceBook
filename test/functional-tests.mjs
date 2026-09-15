@@ -1273,6 +1273,112 @@ async function testBikeService(page, jsErrors) {
   });
 }
 
+async function testBikeInputStepAndOdo(page, jsErrors) {
+  const S = "bike-input-step-and-odo";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // ── step=1 on km / hours inputs in "Add part" modal ──────────────────────
+  await check(S, "add-part-mileage-step-is-1", async () => {
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+    await page.evaluate(() => { if (typeof showAddPart === "function") showAddPart(); });
+    await page.waitForSelector("#f-mileage", { timeout: 3000 });
+    const step = await page.$eval("#f-mileage", (el) => el.getAttribute("step"));
+    assert.equal(step, "1", `expected #f-mileage step="1", got "${step}"`);
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
+  });
+
+  await check(S, "add-part-alert-km-step-is-1", async () => {
+    await page.evaluate(() => { if (typeof showAddPart === "function") showAddPart(); });
+    await page.waitForSelector(".st-km", { timeout: 3000 });
+    const step = await page.$eval(".st-km", (el) => el.getAttribute("step"));
+    assert.equal(step, "1", `expected .st-km step="1", got "${step}"`);
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
+  });
+
+  await check(S, "add-part-alert-hours-step-is-1", async () => {
+    await page.evaluate(() => { if (typeof showAddPart === "function") showAddPart(); });
+    await page.waitForSelector(".st-h", { timeout: 3000 });
+    const step = await page.$eval(".st-h", (el) => el.getAttribute("step"));
+    assert.equal(step, "1", `expected .st-h step="1", got "${step}"`);
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
+  });
+
+  await check(S, "edit-bike-base-mileage-step-is-1", async () => {
+    await page.evaluate(() => {
+      const btns = document.querySelectorAll("#bikepanel .btn.sm");
+      const edit = Array.from(btns).find((b) => b.textContent.includes("Edit bike"));
+      if (edit) edit.click();
+    });
+    await page.waitForSelector("#b-base", { timeout: 3000 });
+    const step = await page.$eval("#b-base", (el) => el.getAttribute("step"));
+    assert.equal(step, "1", `expected #b-base step="1", got "${step}"`);
+    await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
+  });
+
+  // ── Ridden-since-install uses odometer difference (baseMileage included) ──
+  // "Odo Test Bike": baseMileage=5000, gearId="" (all rides → ~1301 km tracked),
+  // Chain installedMileage=1200. Expected ridden = (5000 + ~1301) - 1200 = ~5101 km.
+  // The OLD formula (rideMileageSince) would have returned only ~1301 (tracked rides only).
+  await check(S, "odo-test-bike-tab-present", async () => {
+    const labels = await page.$$eval(".bikes .tab:not(.add)", (els) =>
+      els.map((e) => e.textContent.trim()),
+    );
+    assert.ok(
+      labels.some((l) => l.includes("Odo Test Bike")),
+      `"Odo Test Bike" not in tabs: ${JSON.stringify(labels)}`,
+    );
+  });
+
+  await check(S, "ridden-since-install-includes-base-mileage", async () => {
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+      const t = Array.from(tabs).find((el) => el.textContent.includes("Odo Test Bike"));
+      if (t) t.click();
+    });
+    await page.waitForSelector("#bikepanel table", { timeout: 5000 });
+    // "Ridden since install" is 3rd column (td:nth-child(3)) of the first non-rides row.
+    const riddenText = await page.$eval(
+      "#bikepanel tbody tr:not(.ridesrow) td:nth-child(3)",
+      (el) => el.textContent.trim(),
+    );
+    // Parse leading number (e.g. "5 101.2 km" → 5101.2)
+    const km = parseFloat(riddenText.replace(/[\s ]/g, "").replace(",", "."));
+    // baseMileage=5000, tracked rides≈1301, installedMileage=1200 → ridden≈5101
+    // Minimum sanity: must be > 4000 (proves baseMileage is counted, not just tracked rides).
+    assert.ok(
+      km > 4000,
+      `expected ridden-since-install > 4000 km (baseMileage included), got ${km} from "${riddenText}"`,
+    );
+  });
+
+  await check(S, "alert-pct-includes-base-mileage", async () => {
+    // alertKm=2000, ridden≈5101 → pct ≥ 100%. If baseMileage were ignored (1301 km), pct=65%.
+    const pctText = await page.$eval(
+      "#bikepanel tbody tr:not(.ridesrow):not(.archived) .svc-pct",
+      (el) => el.textContent.trim(),
+    );
+    const pct = parseFloat(pctText);
+    assert.ok(
+      pct >= 100,
+      `expected alert pct >= 100% (baseMileage included in calc), got ${pct}% from "${pctText}"`,
+    );
+  });
+}
+
 async function testBikeServicePartReplacement(page, jsErrors) {
   const S = "bike-service-parts";
   jsErrors.length = 0;
@@ -3787,6 +3893,9 @@ async function main() {
 
     console.log("\n--- Bike Service (UI) ---");
     await testBikeService(page, jsErrors);
+
+    console.log("\n--- Bike Service (Input Step + Odo-based Mileage) ---");
+    await testBikeInputStepAndOdo(page, jsErrors);
 
     console.log("\n--- Bike Service (Part Replacement) ---");
     await testBikeServicePartReplacement(page, jsErrors);

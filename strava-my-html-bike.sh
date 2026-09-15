@@ -372,7 +372,8 @@ function stPct(bike,p,st){
   var svc=(st.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   var last=svc.length?svc[svc.length-1]:null;
   var fromDate=last?last.date:(p.installedDate||"");
-  var refKm=Math.max(0,rideMileageSince(bike,fromDate));
+  var refMileage=last?(+last.mileage||0):(+p.installedMileage||0);
+  var refKm=Math.max(0,bikeMileage(bike)-refMileage);
   var refH=rideTimeSince(bike,fromDate)/3600;
   var refDays=calendarDaysSince(fromDate);
   var pctKm=(st.alertKm&&+st.alertKm>0)?(refKm/+st.alertKm*100):0;
@@ -564,7 +565,7 @@ function bikeForm(bike){
     '<label>Name</label><input id="b-name" value="'+esc(bike?bike.name:"")+'" placeholder="e.g. Road bike">'+
     '<label>Strava gear (which rides count toward this bike’s mileage)</label><select id="b-gear">'+opts+'</select>'+
     '<label>Base mileage (km already ridden before Strava tracking)</label>'+
-    '<input id="b-base" type="number" step="0.1" value="'+(bike?(+bike.baseMileage||0):0)+'">'+
+    '<input id="b-base" type="number" step="1" value="'+(bike?(+bike.baseMileage||0):0)+'">'+
     '<div class="chk"><input type="checkbox" id="b-default"'+((bike&&bike.isDefault)?' checked':'')+'>'+
     '<label style="margin:0">Default bike — untagged rides are counted here</label></div>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
@@ -607,7 +608,7 @@ function stBlockHtml(i,stId,name,km,h,desc,timeN,timeUnit){
     '<input class="st-desc" style="width:100%;box-sizing:border-box;font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:.4rem;padding:.28rem .5rem;margin-top:.3rem;background:#fff;color:#222" placeholder="Description / tooltip (optional)" value="'+esc(desc||'')+'">'+
     '<div class="row" style="margin-top:.35rem">'+
     '<div><label>Alert after km (optional)</label><input class="st-km" type="number" step="1" min="0" placeholder="e.g. 500" value="'+(km!=null&&km!==''?km:'')+'"></div>'+
-    '<div><label>Alert after hours (optional)</label><input class="st-h" type="number" step="0.1" min="0" placeholder="e.g. 20" value="'+(h!=null&&h!==''?h:'')+'"></div></div>'+
+    '<div><label>Alert after hours (optional)</label><input class="st-h" type="number" step="1" min="0" placeholder="e.g. 20" value="'+(h!=null&&h!==''?h:'')+'"></div></div>'+
     '<div style="margin-top:.25rem"><label>Alert after time (optional)</label>'+
     '<div style="display:flex;gap:.4rem;align-items:center">'+
     '<input class="st-timen" type="number" step="1" min="1" placeholder="e.g. 1" style="width:5rem" value="'+(timeN!=null&&+timeN>=1?timeN:'')+'">'+
@@ -645,7 +646,7 @@ function partForm(part){
     '<div class="row"><div><label>Installed date</label>'+
       '<input id="f-date" type="date" value="'+esc(date)+'" onchange="recalc()"></div>'+
     '<div><label>Mileage at install (km)</label>'+
-      '<input id="f-mileage" type="number" step="0.1" value="'+mi+'">'+
+      '<input id="f-mileage" type="number" step="1" value="'+mi+'">'+
       '<div class="hint">auto-filled from the date; editable</div></div></div>'+
     '<label>Purchase cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
     '<input id="p-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00" value="'+(part&&part.cost!=null?+part.cost:'')+'">'+
@@ -750,7 +751,7 @@ window.showService = function(id){
     '<div class="row"><div><label>Date</label>'+
       '<input id="f-date" type="date" value="'+esc(date)+'" onchange="recalc()"></div>'+
     '<div><label>Mileage (km)</label>'+
-      '<input id="f-mileage" type="number" step="0.1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
+      '<input id="f-mileage" type="number" step="1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Note (optional)</label><textarea id="s-note" placeholder="e.g. cleaned &amp; lubed, checked wear"></textarea>'+
     '<label>Service cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
@@ -826,7 +827,7 @@ window.showReplace = function(id){
     '<div class="row"><div><label>Replaced on</label>'+
       '<input id="f-date" type="date" value="'+esc(date)+'" onchange="recalc()"></div>'+
     '<div><label>Mileage (km)</label>'+
-      '<input id="f-mileage" type="number" step="0.1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
+      '<input id="f-mileage" type="number" step="1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Reason / note (optional)</label><textarea id="r-note" placeholder="e.g. worn out at 0.75 on the chain checker"></textarea>'+
     '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
@@ -943,7 +944,7 @@ function render(){
   } else {
     html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th>Cost</th><th></th></tr></thead><tbody>';
     active.forEach(function(p){
-      var ridden = rideMileageSince(b, p.installedDate);
+      var ridden = Math.max(0, bikeMileage(b) - (+p.installedMileage || 0));
       var riddenSec = rideTimeSince(b, p.installedDate);
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
       var replBadge = p.needsReplacement ? '<span class="needs-repl">Needs replacement</span>' : '';
@@ -955,7 +956,8 @@ function render(){
         var svc=(st.services||[]).slice().sort(function(a,c){return a.date<c.date?-1:1;});
         var last=svc.length?svc[svc.length-1]:null;
         var fromDate=last?last.date:(p.installedDate||"");
-        var sinceKm=Math.max(0,rideMileageSince(b,fromDate));
+        var sinceMileage=last?(+last.mileage||0):(+p.installedMileage||0);
+        var sinceKm=Math.max(0,bikeMileage(b)-sinceMileage);
         var sinceH=Math.max(0,rideTimeSince(b,fromDate)/3600);
         var sinceDays=calendarDaysSince(fromDate);
         var adv=alertTimeDays(st);
