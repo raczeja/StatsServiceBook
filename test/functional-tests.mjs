@@ -1117,8 +1117,10 @@ async function testActivityDetailWalk(page, jsErrors) {
   // Steps card: 55 strides/min * 2 * 5198s / 60 ≈ 9530
   await check(S, "steps-card-shown", async () => {
     const text = await page.$eval(".cards", el => el.textContent);
+    // Strip locale thousands separators (comma, space, dot) before numeric check
+    const digits = text.replace(/[,.\s]/g, "");
     assert.ok(
-      text.includes("Steps") && text.includes("953"),
+      text.includes("Steps") && digits.includes("9530"),
       `expected Steps card with ~9530 in .cards: ${text.slice(0, 300)}`
     );
   });
@@ -2285,7 +2287,9 @@ async function testStatsSportFilter(page, jsErrors) {
       }
       return null;
     });
-    assert.ok(val && val.includes("953"),
+    // Strip locale thousands separators before numeric check
+    const digits = val ? val.replace(/[,.\s]/g, "") : "";
+    assert.ok(val && digits.includes("9530"),
       `expected Steps KPI with ~9530 when All sports selected, got "${val}"`);
   });
 
@@ -2303,7 +2307,8 @@ async function testStatsSportFilter(page, jsErrors) {
       }
       return null;
     });
-    assert.ok(val && val.includes("953"),
+    const digitsW = val ? val.replace(/[,.\s]/g, "") : "";
+    assert.ok(val && digitsW.includes("9530"),
       `expected Steps KPI with ~9530 when Walk selected, got "${val}"`);
   });
 
@@ -3339,9 +3344,10 @@ async function testStatsGoals(page, jsErrors) {
   });
   await check(S, "stats-line-tip-has-distribution-content", async () => {
     const text = await page.evaluate(() => document.getElementById("tip").textContent);
+    // fmtKmD outputs a number without a "km" unit; check for month name and a number
     assert.ok(
-      text.includes("Jan") && text.includes("km"),
-      `distribution tip should contain "Jan" and "km", got: "${text}"`,
+      text.includes("Jan") && /\d/.test(text),
+      `distribution tip should contain "Jan" and a numeric value, got: "${text}"`,
     );
     assert.ok(
       text.toLowerCase().includes("based on") || text.toLowerCase().includes("equal split"),
