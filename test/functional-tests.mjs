@@ -1243,6 +1243,31 @@ async function testBikeService(page, jsErrors) {
     const text = await page.$eval(".cost-block .cost-total", (el) => el.textContent.trim());
     assert.ok(/PLN/i.test(text), `expected currency code (PLN) in cost total, got: "${text}"`);
   });
+  await check(S, "cost-split-parts-and-service", async () => {
+    // Road Bike has part cost (49.90) AND a service cost (5.50) → split line must appear
+    // showing both "parts" and "service" labels beneath the total.
+    const text = await page.$eval(".cost-block", (el) => el.textContent);
+    assert.ok(
+      /parts/i.test(text),
+      `expected "parts" label in cost split line, got: "${text}"`,
+    );
+    assert.ok(
+      /service/i.test(text),
+      `expected "service" label in cost split line, got: "${text}"`,
+    );
+  });
+  await check(S, "cost-split-shows-correct-amounts", async () => {
+    // part cost 49.90 + service cost 5.50; each must appear in the split line.
+    const text = await page.$eval(".cost-block", (el) => el.textContent);
+    assert.ok(
+      /49[.,]90/.test(text),
+      `expected part cost 49.90 in cost block, got: "${text}"`,
+    );
+    assert.ok(
+      /5[.,]50/.test(text),
+      `expected service cost 5.50 in cost block, got: "${text}"`,
+    );
+  });
   await check(S, "cost-cell-shows-part-cost", async () => {
     // The cost column (6th td, 0-indexed 5) of non-archived, non-ridesrow rows should
     // show a non-dash value for the Chain row (which has cost 49.90).
