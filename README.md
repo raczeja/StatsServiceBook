@@ -33,7 +33,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 **Activity detail**
 - Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
-- Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear
+- Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear; Walk/Hike activities additionally show **estimated total steps** (cadence × 2 × moving time)
 - Weather: temperature, feels-like, wind speed + direction, WMO code icon, precipitation — from [Open-Meteo](https://open-meteo.com/) per activity date + GPS location
 
 **Club leaderboard**
@@ -42,7 +42,8 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 **Personal stats**
 - KPI cards, year overview table, monthly breakdown chart, year-over-year km/month heatmap
-- Personal records (longest, most climbing, fastest, best VAM, most work), sport breakdown, day-of-week chart
+- **Annual Goals** — set a yearly ride distance target per year; progress bar + projected year-end km + monthly breakdown (green = hit, orange = current, blue = past)
+- **Personal records** — longest ride, most climbing, fastest avg speed, best VAM, most power, most energy (kJ), most steps (Walk/Hike), best week, best month by km and by count, longest streak — all-time across all sports; each record links to the activity
 
 **Activity heatmap**
 - Full-viewport dark map (Esri World Dark Gray + OSM fallback) showing all GPS activity routes as a heat overlay

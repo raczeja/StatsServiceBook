@@ -56,6 +56,7 @@ STATE_DIR="${STRAVA_MY_STATE_DIR:-/usr/lib/strava-my-activities}"
 # the RAM-backed /tmp,/var); CGI_DIR is uhttpd's default CGI prefix, /www/cgi-bin.
 BIKE_DATA="${STRAVA_MY_BIKE_DATA:-$STATE_DIR/bike-service.json}"
 BIKE_ASSIGN="${STRAVA_MY_BIKE_ASSIGN:-$STATE_DIR/bike-assignments.json}"
+GOALS_DATA="${STRAVA_MY_GOALS_DATA:-$STATE_DIR/ride-goals.json}"
 CGI_DIR="${STRAVA_MY_CGI_DIR:-/www/cgi-bin}"
 DEFAULT_BIKE_NAME="${STRAVA_MY_DEFAULT_BIKE_NAME:-My Bike}"
 CURRENCY="${STRAVA_MY_CURRENCY:-PLN}"
@@ -88,7 +89,18 @@ STORE="$STATE_DIR/activities.ndjson"
 WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
 LOCKFILE="${TMPDIR:-/tmp}/strava-my-activities.lock"
-mkdir "$LOCKFILE" 2>/dev/null || { log "another instance is already running ($LOCKFILE); exiting"; exit 0; }
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+  _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
+  if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
+    log "another instance is already running (PID $_lock_pid, $LOCKFILE); exiting"
+    exit 0
+  else
+    log "stale lock found (PID ${_lock_pid:-unknown} not running); removing and continuing"
+    rm -rf "$LOCKFILE"
+    mkdir "$LOCKFILE"
+  fi
+fi
+printf '%s\n' "$$" > "$LOCKFILE/pid"
 trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-my-activities exited with code $_rc"' EXIT
 
 if [ "$IMPORT_ENABLED" != "0" ]; then
