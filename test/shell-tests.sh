@@ -1987,6 +1987,70 @@ assert_eq "$S" "net-up-after-two-waits" "$_w" "30"
 _w="$(_net_wait 15 15 "$TMP/nw_down.sh")" || true
 assert_eq "$S" "net-boundary-timeout" "$_w" "timeout"
 
+# ── skip-render-guard ────────────────────────────────────────────────────────
+# Verifies the skip-render logic (strava-my-activities.sh / healthsync) using
+# controlled file timestamps.  Logic is replicated inline so the test is
+# self-contained and runs without a real store or Strava credentials.
+S="skip-render-guard"
+{
+    _sr_td="$TMP/skip_render"
+    mkdir -p "$_sr_td/web" "$_sr_td/scripts"
+
+    # Run the skip-guard logic with given ADDED value and current file state.
+    # Returns the resulting _skip_render value (0 = render, 1 = skip).
+    _run_skip() {
+        _sr_added="$1" _sr_web="$2" _sr_assign="$3" _sr_lib="$4"
+        _skip_render=0
+        if [ "$_sr_added" -eq 0 ] && [ -f "$_sr_web/activities.json" ] && \
+           [ -f "$_sr_web/index.html" ] && \
+           [ -f "$_sr_assign" ] && [ "$_sr_web/activities.json" -nt "$_sr_assign" ]; then
+            _skip_render=1
+            for _sr_hs in \
+                "$_sr_lib/strava-my-html-dashboard.sh" \
+                "$_sr_lib/strava-my-html-detail.sh" \
+                "$_sr_lib/strava-my-html-bike.sh" \
+                "$_sr_lib/strava-my-html-stats.sh" \
+                "$_sr_lib/strava-my-html-heatmap.sh" \
+                "$_sr_lib/strava-lib.sh"; do
+                [ -f "$_sr_hs" ] && [ "$_sr_hs" -nt "$_sr_web/index.html" ] \
+                    && _skip_render=0 && break
+            done
+        fi
+        printf '%s' "$_skip_render"
+    }
+
+    # Base state: outputs exist, activities.json > bike-assign, scripts < index.html
+    printf 'x' > "$_sr_td/web/index.html"
+    touch -t 202601010100 "$_sr_td/web/index.html"
+    printf 'x' > "$_sr_td/web/activities.json"
+    touch -t 202601010200 "$_sr_td/web/activities.json"
+    printf 'x' > "$_sr_td/assign.json"
+    touch -t 202601010000 "$_sr_td/assign.json"
+    for _sr_s in strava-my-html-dashboard.sh strava-my-html-detail.sh \
+                 strava-my-html-bike.sh strava-my-html-stats.sh \
+                 strava-my-html-heatmap.sh strava-lib.sh; do
+        printf 'x' > "$_sr_td/scripts/$_sr_s"
+        touch -t 202601010000 "$_sr_td/scripts/$_sr_s"
+    done
+
+    assert_eq "$S" "fires-when-quiet" \
+        "$(_run_skip 0 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "1"
+
+    assert_eq "$S" "no-skip-when-new-activities" \
+        "$(_run_skip 1 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "0"
+
+    # bike-assign newer than activities.json simulates a CGI write
+    touch -t 202601010300 "$_sr_td/assign.json"
+    assert_eq "$S" "no-skip-when-assign-newer" \
+        "$(_run_skip 0 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "0"
+    touch -t 202601010000 "$_sr_td/assign.json"
+
+    # one helper script newer than index.html simulates a script deploy
+    touch -t 202601010200 "$_sr_td/scripts/strava-my-html-heatmap.sh"
+    assert_eq "$S" "no-skip-when-script-updated" \
+        "$(_run_skip 0 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "0"
+}
+
 # ── script-syntax-check ──────────────────────────────────────────────────────
 # Runs sh -n on every .sh script deployed into /opt/ so that:
 #   (a) any syntax error in a changed script is caught here, and
