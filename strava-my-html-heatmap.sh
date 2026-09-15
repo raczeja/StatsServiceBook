@@ -5,8 +5,22 @@
 # Quoted heredoc: nothing shell-expanded.
 
 # --- 7. Generate heatmap.json -----------------------------------------------
-log "html: writing heatmap.json..."
+# Skip if heatmap.json is already up-to-date: no new GPX files and the heatmap
+# script itself hasn't changed since the last run. Only the JSON scan is slow;
+# heatmap.html (static heredoc) is always written below.
+_hm_skip=0
+if [ -f "$WEB_DIR/heatmap.json" ] && [ -d "$WEB_DIR/gpx" ]; then
+  _hm_newer="$(find "$WEB_DIR/gpx" -name '*.gpx' -newer "$WEB_DIR/heatmap.json" 2>/dev/null | head -1)"
+  _hm_self="${STRAVA_LIBDIR:-${LIBDIR:-}}/strava-my-html-heatmap.sh"
+  if [ -z "$_hm_newer" ] && ! [ "$_hm_self" -nt "$WEB_DIR/heatmap.json" ]; then
+    _hm_skip=1
+    log "html: heatmap.json up-to-date (no new GPX files, script unchanged) — skipping"
+  fi
+fi
+unset _hm_newer _hm_self
 
+if [ "$_hm_skip" -eq 0 ]; then
+log "html: writing heatmap.json..."
 # heatmap.json: [{d:"YYYY-MM-DD", s:"Ride", p:[[lat,lng],...]}]
 # Source: activities.json for GPX paths, dates and sport types; every 10th trkpt.
 # Per-file grep+awk pipeline: grep extracts only trkpt lines, awk samples 1-in-10.
@@ -36,6 +50,8 @@ if [ -f "$WEB_DIR/activities.json" ]; then
 else
   printf '[]' > "$WEB_DIR/heatmap.json"
 fi
+fi  # _hm_skip
+unset _hm_skip
 
 # --- 7b. Write heatmap.html -------------------------------------------------
 log "html: writing heatmap.html..."

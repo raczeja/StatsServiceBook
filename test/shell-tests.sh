@@ -519,6 +519,24 @@ assert_eq "$S" "bike-assign-array-rejected" \
 assert_eq "$S" "bike-assign-malformed-rejected" \
     "$(_bike_assign_valid '{bad}')" "false"
 
+_ride_goals_valid() {
+    printf '%s' "$1" | jq -e 'type=="object" and (.goals|type=="object")' \
+        >/dev/null 2>&1 && printf true || printf false
+}
+
+assert_eq "$S" "ride-goals-valid-payload" \
+    "$(_ride_goals_valid '{"goals":{"2025":7500,"2026":8000}}')" "true"
+assert_eq "$S" "ride-goals-empty-goals-valid" \
+    "$(_ride_goals_valid '{"goals":{}}')" "true"
+assert_eq "$S" "ride-goals-missing-goals-key" \
+    "$(_ride_goals_valid '{"data":{}}')" "false"
+assert_eq "$S" "ride-goals-goals-is-array" \
+    "$(_ride_goals_valid '{"goals":[]}')" "false"
+assert_eq "$S" "ride-goals-array-rejected" \
+    "$(_ride_goals_valid '[]')" "false"
+assert_eq "$S" "ride-goals-malformed-rejected" \
+    "$(_ride_goals_valid 'not json')" "false"
+
 # ── keepalive-mode ────────────────────────────────────────────────────────────
 # Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
 # after the Drive folder listing when mode is "keepalive".
@@ -1414,6 +1432,63 @@ _dist_km="$(jq -rn --arg m "2026-06" '
     | .[1].dist / 1000' "$TMP/mo_june.ndjson")"
 assert_eq "$S" "bob-dist-km-15"        "$_dist_km" "15"
 
+# ── stale-lock-handling ──────────────────────────────────────────────────────
+# Mirrors the lock logic added to strava-my-activities.sh, strava-leaderboard.sh,
+# and healthsync-activities.sh.
+S="stale-lock-handling"
+
+_lock_acquire() {
+    _lf="$1"
+    if ! mkdir "$_lf" 2>/dev/null; then
+        _lock_pid="$(cat "$_lf/pid" 2>/dev/null || true)"
+        if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
+            printf 'blocked'; return 0
+        else
+            rm -rf "$_lf"
+            mkdir "$_lf"
+        fi
+    fi
+    printf '%s\n' "$$" > "$_lf/pid"
+    printf 'acquired'
+}
+
+# No lock present → acquires immediately
+_lf="$TMP/lock-fresh"
+_result="$(_lock_acquire "$_lf")"
+assert_eq "$S" "no-lock-acquires"     "$_result" "acquired"
+rm -rf "$_lf"
+
+# Lock with a live PID ($$) → blocked
+_lf="$TMP/lock-live"
+mkdir "$_lf"
+printf '%s\n' "$$" > "$_lf/pid"
+_result="$(_lock_acquire "$_lf")"
+assert_eq "$S" "live-pid-blocked"     "$_result" "blocked"
+rm -rf "$_lf"
+
+# Lock with a dead PID (99999 — should not exist) → stale, acquires
+_lf="$TMP/lock-dead"
+mkdir "$_lf"
+printf '99999\n' > "$_lf/pid"
+_result="$(_lock_acquire "$_lf")"
+assert_eq "$S" "dead-pid-acquires"    "$_result" "acquired"
+rm -rf "$_lf"
+
+# Lock with empty PID file → treated as dead, acquires
+_lf="$TMP/lock-empty-pid"
+mkdir "$_lf"
+printf '' > "$_lf/pid"
+_result="$(_lock_acquire "$_lf")"
+assert_eq "$S" "empty-pid-acquires"   "$_result" "acquired"
+rm -rf "$_lf"
+
+# Lock directory present but no pid file → treated as dead, acquires
+_lf="$TMP/lock-no-pid-file"
+mkdir "$_lf"
+_result="$(_lock_acquire "$_lf")"
+assert_eq "$S" "missing-pid-acquires" "$_result" "acquired"
+rm -rf "$_lf"
+
 # ── monthly-email-merge ───────────────────────────────────────────────────────
 # Verifies STRAVA_MERGE_ATHLETES alias collapsing in the email jq pipeline.
 # Sources strava-lib.sh so JQ_MERGE_FUNC itself is exercised end-to-end.
@@ -2049,6 +2124,60 @@ S="skip-render-guard"
     touch -t 202601010200 "$_sr_td/scripts/strava-my-html-heatmap.sh"
     assert_eq "$S" "no-skip-when-script-updated" \
         "$(_run_skip 0 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "0"
+}
+
+# ── heatmap-skip-guard ────────────────────────────────────────────────────────
+# Verifies the heatmap.json skip logic in strava-my-html-heatmap.sh using
+# controlled file timestamps.  Logic is replicated inline so the test is
+# self-contained and runs without GPX data or credentials.
+S="heatmap-skip-guard"
+{
+    _hsg_td="$TMP/heatmap_skip"
+    mkdir -p "$_hsg_td/web/gpx" "$_hsg_td/scripts"
+
+    # Inline the skip condition from strava-my-html-heatmap.sh.
+    # Returns 1 if heatmap.json would be skipped, 0 if it would be regenerated.
+    _hm_would_skip() {
+        _hsg_web="$1" _hsg_lib="$2"
+        _hm_skip=0
+        if [ -f "$_hsg_web/heatmap.json" ] && [ -d "$_hsg_web/gpx" ]; then
+            _hm_newer="$(find "$_hsg_web/gpx" -name '*.gpx' -newer "$_hsg_web/heatmap.json" 2>/dev/null | head -1)"
+            _hm_self="$_hsg_lib/strava-my-html-heatmap.sh"
+            if [ -z "$_hm_newer" ] && ! [ "$_hm_self" -nt "$_hsg_web/heatmap.json" ]; then
+                _hm_skip=1
+            fi
+        fi
+        printf '%s' "$_hm_skip"
+    }
+
+    # Base state: heatmap.json exists, one GPX file older than it, script older than it.
+    printf '[]' > "$_hsg_td/web/heatmap.json"
+    touch -t 202601010200 "$_hsg_td/web/heatmap.json"
+    printf 'x'  > "$_hsg_td/web/gpx/123.gpx"
+    touch -t 202601010100 "$_hsg_td/web/gpx/123.gpx"
+    printf 'x'  > "$_hsg_td/scripts/strava-my-html-heatmap.sh"
+    touch -t 202601010100 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
+
+    assert_eq "$S" "skips-when-quiet" \
+        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "1"
+
+    # New GPX file newer than heatmap.json → must regenerate
+    printf 'x' > "$_hsg_td/web/gpx/456.gpx"
+    touch -t 202601010300 "$_hsg_td/web/gpx/456.gpx"
+    assert_eq "$S" "no-skip-when-new-gpx" \
+        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
+    rm "$_hsg_td/web/gpx/456.gpx"
+
+    # Script newer than heatmap.json → must regenerate even with no new GPX
+    touch -t 202601010300 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
+    assert_eq "$S" "no-skip-when-script-updated" \
+        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
+    touch -t 202601010100 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
+
+    # No heatmap.json at all → must generate from scratch
+    rm "$_hsg_td/web/heatmap.json"
+    assert_eq "$S" "no-skip-when-no-heatmap-json" \
+        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
 }
 
 # ── script-syntax-check ──────────────────────────────────────────────────────

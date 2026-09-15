@@ -26,6 +26,7 @@ const URLS = {
   activityHealthsyncRun: `${BASE}/activity.html?id=2026-06-22-15-07-running`,
   activityHealthsyncCycling: `${BASE}/activity.html?id=2026-06-22-10-30-cycling`,
   activityMagene: `${BASE}/activity.html?id=magene-2026-07-12-50671559`,
+  activityWalk: `${BASE}/activity.html?id=3`,
   bike: `${BASE}/bike.html`,
 };
 
@@ -1088,6 +1089,47 @@ async function testActivityDetailMagene(page, jsErrors) {
   await check(S, "splits-box-hidden", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
     assert.equal(display, "none", `#splits-box should be hidden for Magene activity, got "${display}"`);
+  });
+}
+
+async function testActivityDetailWalk(page, jsErrors) {
+  const S = "activity-detail-walk";
+  jsErrors.length = 0;
+  await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+  // Forest Walk: id=3, average_cadence=55, moving_time=5198
+  // expected steps = Math.round(55 * 2 * 5198 / 60) = 9530
+  await page.goto(URLS.activityWalk, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 }
+    );
+  } catch (_) {}
+
+  await check(S, "no-js-errors", () => {
+    const real = jsErrors.filter(e =>
+      !e.message?.toLowerCase().includes("leaflet") &&
+      !e.message?.toLowerCase().includes("unpkg.com")
+    );
+    assert.equal(real.length, 0, real.map(e => e.message).join("; "));
+  });
+
+  // Steps card: 55 strides/min * 2 * 5198s / 60 ≈ 9530
+  await check(S, "steps-card-shown", async () => {
+    const text = await page.$eval(".cards", el => el.textContent);
+    assert.ok(
+      text.includes("Steps") && text.includes("953"),
+      `expected Steps card with ~9530 in .cards: ${text.slice(0, 300)}`
+    );
+  });
+
+  // Cadence card should also be visible
+  await check(S, "cadence-card-shown", async () => {
+    const text = await page.$eval(".cards", el => el.textContent);
+    assert.ok(
+      text.toLowerCase().includes("cadence") && text.includes("55"),
+      `expected cadence card with value 55: ${text.slice(0, 300)}`
+    );
   });
 }
 
@@ -2175,6 +2217,30 @@ async function testStatsSportFilter(page, jsErrors) {
     );
   });
 
+  // Records respond to sport switch: longest-distance value must differ from Ride
+  await check(S, "records-change-on-sport-switch", async () => {
+    // We switched to Run above. Longest Run in sample = 8.2 km, not the Ride 102.4 km.
+    const val = await getRecVal(page, "Longest distance");
+    assert.ok(val, "Longest distance record not found after switching to Run");
+    assert.ok(
+      !val.includes("102.4"),
+      `Longest distance should show Run value, not Ride 102.4 km — got: "${val}"`,
+    );
+    assert.ok(
+      val.includes("km"),
+      `expected "km" in Longest distance after sport switch, got: "${val}"`,
+    );
+  });
+
+  // Records subtitle shows the selected sport name
+  await check(S, "records-subtitle-shows-sport", async () => {
+    const subtitle = await page.$eval("#recsSubtitle", (el) => el.textContent);
+    assert.ok(
+      subtitle.includes("Run"),
+      `expected "Run" in records subtitle after switching to Run, got: "${subtitle}"`,
+    );
+  });
+
   // Verify records section still renders after sport switch
   await check(S, "records-render-after-sport-switch", async () => {
     const recsEl = await page.$(".recs");
@@ -2208,6 +2274,52 @@ async function testStatsSportFilter(page, jsErrors) {
       sportRows >= 2,
       `expected >= 2 rows in #sportTable with All sports, got ${sportRows}`,
     );
+  });
+
+  // All sports: Steps KPI appears because Forest Walk has average_cadence=55
+  // expected steps = Math.round(55 * 2 * 5198 / 60) = 9530
+  await check(S, "all-sports-steps-kpi-shown", async () => {
+    const val = await page.evaluate(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Steps")) return k.querySelector(".v")?.textContent.trim();
+      }
+      return null;
+    });
+    assert.ok(val && val.includes("953"),
+      `expected Steps KPI with ~9530 when All sports selected, got "${val}"`);
+  });
+
+  // Switch to Walk: Steps KPI still present
+  await check(S, "walk-sport-steps-kpi-shown", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const opt = Array.from(sel.options).find(o => o.value === "Walk");
+      if (opt) { sel.value = "Walk"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+    const val = await page.evaluate(() => {
+      for (const k of document.querySelectorAll(".kpi")) {
+        if (k.querySelector(".k")?.textContent.includes("Steps")) return k.querySelector(".v")?.textContent.trim();
+      }
+      return null;
+    });
+    assert.ok(val && val.includes("953"),
+      `expected Steps KPI with ~9530 when Walk selected, got "${val}"`);
+  });
+
+  // Switch to Ride: Steps KPI absent
+  await check(S, "ride-sport-no-steps-kpi", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const opt = Array.from(sel.options).find(o => o.value === "Ride");
+      if (opt) { sel.value = "Ride"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.evaluate(() => new Promise(r => setTimeout(r, 300)));
+    const found = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll(".kpi"))
+        .some(k => k.querySelector(".k")?.textContent.includes("Steps"));
+    });
+    assert.ok(!found, "Steps KPI should not appear when Ride sport is selected");
   });
 }
 
@@ -2826,6 +2938,50 @@ async function testStravaLink(page, jsErrors) {
   });
 }
 
+// helper: find a record card by label substring and return its .rv text
+async function getRecVal(page, labelFrag) {
+  return page.evaluate((frag) => {
+    for (const rec of document.querySelectorAll("#recs .rec")) {
+      if (rec.querySelector(".rl")?.textContent.includes(frag))
+        return rec.querySelector(".rv")?.textContent || "";
+    }
+    return null;
+  }, labelFrag);
+}
+
+// helper: find a record card by label substring and return its link href (or null)
+async function getRecLink(page, labelFrag) {
+  return page.evaluate((frag) => {
+    for (const rec of document.querySelectorAll("#recs .rec")) {
+      if (rec.querySelector(".rl")?.textContent.includes(frag)) {
+        const a = rec.querySelector("a[href]");
+        return a ? a.getAttribute("href") : null;
+      }
+    }
+    return null;
+  }, labelFrag);
+}
+
+// helper: fire the _gf() call from a period-record link and return the parsed filter object
+async function getFilterFromRecLink(page, labelFrag) {
+  const json = await page.evaluate((frag) => {
+    for (const rec of document.querySelectorAll("#recs .rec")) {
+      if (rec.querySelector(".rl")?.textContent.includes(frag)) {
+        const a = rec.querySelector("a[href='index.html']");
+        if (a) {
+          const oc = a.getAttribute("onclick") || "";
+          const m = oc.match(/_gf\(([^)]+)\)/);
+          // eslint-disable-next-line no-eval
+          if (m) eval("window._gf(" + m[1] + ")");
+        }
+        break;
+      }
+    }
+    return sessionStorage.getItem("activityFilter");
+  }, labelFrag);
+  return json ? JSON.parse(json) : null;
+}
+
 async function testStatsRecords(page, jsErrors) {
   const S = "stats-records";
   jsErrors.length = 0;
@@ -2839,50 +2995,446 @@ async function testStatsRecords(page, jsErrors) {
     );
   } catch (_) {}
 
-  await check(S, "best-week-record-present", async () => {
+  // ── all expected labels are present ────────────────────────────────────────
+  const EXPECTED_LABELS = [
+    "Longest distance",
+    "Longest ride",
+    "Most elevation",
+    "Fastest avg speed",
+    "Best week",
+    "Best month",
+    "Most activities",
+    "Longest streak",
+  ];
+  await check(S, "all-expected-labels-present", async () => {
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
+    );
+    for (const frag of EXPECTED_LABELS) {
+      assert.ok(
+        labels.some((l) => l.includes(frag)),
+        `expected "${frag}" in #recs record labels, got: ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  // ── per-activity record values ──────────────────────────────────────────────
+  await check(S, "longest-distance-is-102.4km", async () => {
+    const val = await getRecVal(page, "Longest distance");
+    assert.ok(val && val.includes("102.4"), `expected "102.4" in Longest distance, got: "${val}"`);
+  });
+
+  await check(S, "most-elevation-is-1320m", async () => {
+    const val = await getRecVal(page, "Most elevation");
+    assert.ok(val && val.includes("1 320"), `expected "1 320" in Most elevation, got: "${val}"`);
+  });
+
+  await check(S, "fastest-speed-has-kmh", async () => {
+    const val = await getRecVal(page, "Fastest avg speed");
+    assert.ok(val && val.includes("km/h"), `expected "km/h" in Fastest avg speed, got: "${val}"`);
+  });
+
+  await check(S, "longest-ride-has-duration", async () => {
+    const val = await getRecVal(page, "Longest ride");
+    assert.ok(val && val.match(/\d+h\s+\d+m/), `expected "Xh Ym" in Longest ride, got: "${val}"`);
+  });
+
+  // ── per-activity records have "View activity" links ────────────────────────
+  for (const labelFrag of ["Longest distance", "Longest ride", "Most elevation", "Fastest avg speed"]) {
+    await check(S, `link-present-for-${labelFrag.toLowerCase().replace(/ /g, "-")}`, async () => {
+      const href = await getRecLink(page, labelFrag);
+      assert.ok(
+        href && href.includes("activity.html?id="),
+        `expected activity link for "${labelFrag}", got: ${href}`,
+      );
+    });
+  }
+
+  // ── period records link to index.html (filtered); "Longest streak" has no link
+  for (const labelFrag of ["Best week", "Best month", "Most activities"]) {
+    await check(S, `filter-link-for-${labelFrag.toLowerCase().replace(/ /g, "-")}`, async () => {
+      const href = await getRecLink(page, labelFrag);
+      assert.ok(
+        href && href === "index.html",
+        `expected "index.html" link for "${labelFrag}", got: ${href}`,
+      );
+    });
+  }
+  await check(S, "filter-link-for-longest-streak", async () => {
+    const href = await getRecLink(page, "Longest streak");
+    assert.ok(href === "index.html",
+      `expected "index.html" link for "Longest streak", got: ${href}`);
+  });
+
+  // Streak in sample data starts 2026-06-03 → link must point to June 2026.
+  await check(S, "streak-filter-year-month-sport", async () => {
+    const f = await getFilterFromRecLink(page, "Longest streak");
+    assert.ok(f, "activityFilter not set by Longest streak link");
+    assert.strictEqual(f.year,  "2026", `expected year "2026", got "${f.year}"`);
+    assert.strictEqual(f.month, "6",    `expected month "6" (June), got "${f.month}"`);
+    assert.strictEqual(f.sport, "Ride", `expected sport "Ride", got "${f.sport}"`);
+  });
+
+  // ── period-record filter links pre-load the correct dashboard filter ────────
+  // Sample data: best month = June 2026 (6 rides, ~303 km); default sport = Ride.
+  await check(S, "best-month-filter-year-month-sport", async () => {
+    const f = await getFilterFromRecLink(page, "Best month");
+    assert.ok(f, "activityFilter not set by Best month link");
+    assert.strictEqual(f.year,  "2026", `expected year "2026", got "${f.year}"`);
+    assert.strictEqual(f.month, "6",    `expected month "6" (June), got "${f.month}"`);
+    assert.strictEqual(f.sport, "Ride", `expected sport "Ride", got "${f.sport}"`);
+  });
+
+  // Sample data: best week starts 2026-06-01 → June 2026.
+  await check(S, "best-week-filter-year-month-sport", async () => {
+    const f = await getFilterFromRecLink(page, "Best week");
+    assert.ok(f, "activityFilter not set by Best week link");
+    assert.strictEqual(f.year,  "2026", `expected year "2026", got "${f.year}"`);
+    assert.strictEqual(f.month, "6",    `expected month "6" (June), got "${f.month}"`);
+    assert.strictEqual(f.sport, "Ride", `expected sport "Ride", got "${f.sport}"`);
+  });
+
+  // Sample data: most Ride activities also in June 2026 (6 rides).
+  await check(S, "most-activities-filter-year-month-sport", async () => {
+    const f = await getFilterFromRecLink(page, "Most activities");
+    assert.ok(f, "activityFilter not set by Most activities link");
+    assert.strictEqual(f.year,  "2026", `expected year "2026", got "${f.year}"`);
+    assert.strictEqual(f.month, "6",    `expected month "6" (June), got "${f.month}"`);
+    assert.strictEqual(f.sport, "Ride", `expected sport "Ride", got "${f.sport}"`);
+  });
+
+  // ── period record values ────────────────────────────────────────────────────
+  await check(S, "best-week-value-has-km", async () => {
+    const val = await getRecVal(page, "Best week");
+    assert.ok(val && val.includes("km"), `expected "km" in Best week value, got: "${val}"`);
+  });
+
+  await check(S, "best-month-value-has-km", async () => {
+    const val = await getRecVal(page, "Best month");
+    assert.ok(val && val.includes("km"), `expected "km" in Best month value, got: "${val}"`);
+  });
+
+  await check(S, "most-activities-value-is-number", async () => {
+    const val = await getRecVal(page, "Most activities");
+    assert.ok(val && val.match(/\d+\s+activit/), `expected "N activit..." in Most activities, got: "${val}"`);
+  });
+
+  await check(S, "streak-value-has-days", async () => {
+    const val = await getRecVal(page, "Longest streak");
+    assert.ok(val && val.includes("day"), `expected "day" in Longest streak value, got: "${val}"`);
+  });
+
+  // ── VAM and power records absent (sample data has no watts/kJ) ────────────
+  await check(S, "no-power-record-without-data", async () => {
     const labels = await page.$$eval("#recs .rec .rl", (els) =>
       els.map((el) => el.textContent),
     );
     assert.ok(
-      labels.some((l) => l.includes("Best week")),
-      `expected "Best week" in #recs record labels, got: ${JSON.stringify(labels)}`,
-    );
-  });
-  await check(S, "best-week-value-has-km", async () => {
-    const val = await page.evaluate(() => {
-      for (const rec of document.querySelectorAll("#recs .rec")) {
-        if (rec.querySelector(".rl")?.textContent.includes("Best week"))
-          return rec.querySelector(".rv")?.textContent || "";
-      }
-      return null;
-    });
-    assert.ok(
-      val && val.includes("km"),
-      `expected "km" in best-week value, got: "${val}"`,
+      !labels.some((l) => l.includes("Most power")),
+      `"Most power" record should be absent when no watts data, got: ${JSON.stringify(labels)}`,
     );
   });
 
-  await check(S, "streak-record-present", async () => {
+  await check(S, "no-work-record-without-data", async () => {
     const labels = await page.$$eval("#recs .rec .rl", (els) =>
       els.map((el) => el.textContent),
     );
     assert.ok(
-      labels.some((l) => l.toLowerCase().includes("streak")),
-      `expected "streak" in #recs record labels, got: ${JSON.stringify(labels)}`,
+      !labels.some((l) => l.includes("Most work")),
+      `"Most work" record should be absent when no kJ data, got: ${JSON.stringify(labels)}`,
     );
   });
-  await check(S, "streak-value-has-days", async () => {
-    const val = await page.evaluate(() => {
-      for (const rec of document.querySelectorAll("#recs .rec")) {
-        if (rec.querySelector(".rl")?.textContent.toLowerCase().includes("streak"))
-          return rec.querySelector(".rv")?.textContent || "";
-      }
-      return null;
-    });
-    assert.ok(
-      val && val.includes("day"),
-      `expected "day" in streak value, got: "${val}"`,
+
+  // ── sport-aware "Longest X" label: "Longest ride" for Ride sport ──────────
+  await check(S, "longest-label-says-ride-for-ride-sport", async () => {
+    // page loaded with default Ride sport
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
     );
+    assert.ok(
+      labels.some((l) => l === "Longest ride"),
+      `expected "Longest ride" label when sport=Ride, got: ${JSON.stringify(labels)}`,
+    );
+  });
+
+  // ── switch to Walk: label changes, "Most steps" appears ──────────────────
+  await check(S, "longest-label-says-walk-for-walk-sport", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const opt = Array.from(sel.options).find((o) => o.value === "Walk");
+      if (opt) { sel.value = "Walk"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
+    );
+    assert.ok(
+      labels.some((l) => l === "Longest walk"),
+      `expected "Longest walk" label when sport=Walk, got: ${JSON.stringify(labels)}`,
+    );
+  });
+
+  await check(S, "most-steps-appears-for-walk", async () => {
+    // still on Walk from previous check
+    const val = await getRecVal(page, "Most steps");
+    assert.ok(val && /[\d\s]/.test(val),
+      `expected a numeric steps value for Walk, got: "${val}"`);
+  });
+
+  await check(S, "most-steps-absent-for-ride", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("sportSel");
+      const opt = Array.from(sel.options).find((o) => o.value === "Ride");
+      if (opt) { sel.value = "Ride"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const labels = await page.$$eval("#recs .rec .rl", (els) =>
+      els.map((el) => el.textContent),
+    );
+    assert.ok(
+      !labels.some((l) => l.includes("Most steps")),
+      `"Most steps" should be absent for Ride sport, got: ${JSON.stringify(labels)}`,
+    );
+  });
+}
+
+async function testStatsGoals(page, jsErrors) {
+  const S = "stats-goals";
+  jsErrors.length = 0;
+  // Reset goal state before the suite so results are deterministic.
+  await fetch(`${CGI}/ride-goals`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goals: {} }),
+  }).catch(() => {});
+
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  // Default: year=2026, sport=Ride → goals section should render (no goal set yet)
+  await check(S, "section-visible-ride-2026", async () => {
+    const el = await page.$("#goalsSection .goal-wrap");
+    assert.ok(el, "#goalsSection .goal-wrap not found for Ride + 2026");
+  });
+
+  // Switch sport to Run → section should disappear
+  await page.evaluate(() => {
+    const sel = document.getElementById("sportSel");
+    sel.value = "Run";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+  await check(S, "section-hidden-for-run", async () => {
+    const html = await page.$eval("#goalsSection", (el) => el.innerHTML);
+    assert.equal(html, "", `#goalsSection should be empty for Run sport, got: "${html.slice(0, 100)}"`);
+  });
+
+  // Switch sport back to Ride, then year to all → section should disappear
+  await page.evaluate(() => {
+    document.getElementById("sportSel").value = "Ride";
+    document.getElementById("sportSel").dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => {
+    document.getElementById("yearSel").value = "all";
+    document.getElementById("yearSel").dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+  await check(S, "section-hidden-for-all-years", async () => {
+    const html = await page.$eval("#goalsSection", (el) => el.innerHTML);
+    assert.equal(html, "", `#goalsSection should be empty for all-years, got: "${html.slice(0, 100)}"`);
+  });
+
+  // Switch year back to 2026 → section should reappear
+  await page.evaluate(() => {
+    document.getElementById("yearSel").value = "2026";
+    document.getElementById("yearSel").dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  await check(S, "section-reappears-ride-2026", async () => {
+    const el = await page.$("#goalsSection .goal-wrap");
+    assert.ok(el, "#goalsSection .goal-wrap not found after switching back to Ride + 2026");
+  });
+
+  // Set a goal of 2000 km and save
+  await page.evaluate(() => {
+    const inp = document.getElementById("goalKmInput");
+    if (inp) { inp.value = "2000"; }
+  });
+  await page.click("#goalKmSave");
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+
+  // Progress bar must be present and have non-zero width (941 km done / 2000 goal → ~47%)
+  await check(S, "progress-bar-appears", async () => {
+    const el = await page.$(".goal-bar-inner");
+    assert.ok(el, ".goal-bar-inner not found after saving goal");
+  });
+  await check(S, "progress-bar-nonzero-width", async () => {
+    const w = await page.$eval(".goal-bar-inner", (el) => el.style.width);
+    const pct = parseFloat(w);
+    assert.ok(pct > 0 && pct <= 100, `expected 0 < progress width <= 100%, got "${w}"`);
+  });
+
+  // Stats line shows distance and %
+  await check(S, "stats-line-shows-percent", async () => {
+    const text = await page.$eval(".goal-stats", (el) => el.textContent);
+    assert.ok(text.includes("%"), `expected "%" in .goal-stats, got: "${text}"`);
+  });
+
+  // 12 monthly breakdown tiles
+  await check(S, "twelve-monthly-tiles", async () => {
+    const n = await page.$$eval(".goal-mo", (els) => els.length);
+    assert.equal(n, 12, `expected 12 .goal-mo tiles, got ${n}`);
+  });
+  await check(S, "twelve-monthly-bars", async () => {
+    const n = await page.$$eval(".goal-mo-bar", (els) => els.length);
+    assert.equal(n, 12, `expected 12 .goal-mo-bar elements, got ${n}`);
+  });
+
+  // Hovering a monthly tile shows the #tip with this-year / prev-year / target lines
+  await check(S, "monthly-tile-hover-shows-tip", async () => {
+    const visible = await page.evaluate(() => {
+      const tile = document.querySelector(".goal-mo");
+      if (!tile) return false;
+      const r = tile.getBoundingClientRect();
+      tile.dispatchEvent(new MouseEvent("mouseenter", {
+        bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      }));
+      return document.getElementById("tip").style.display === "block";
+    });
+    assert.ok(visible, "#tip should be visible after mouseenter on .goal-mo tile");
+  });
+  await check(S, "monthly-tile-tip-has-year-lines", async () => {
+    const text = await page.evaluate(() => document.getElementById("tip").textContent);
+    // tooltip must contain the current year and a "km" value for both years
+    assert.ok(
+      text.includes("2026") && text.includes("km"),
+      `#tip text should contain "2026" and "km", got: "${text}"`,
+    );
+    assert.ok(
+      text.includes("Target"),
+      `#tip text should contain "Target", got: "${text}"`,
+    );
+  });
+
+  // Hovering the stats line shows distribution tooltip with per-month targets
+  await check(S, "stats-line-hover-shows-distribution-tip", async () => {
+    const visible = await page.evaluate(() => {
+      const el = document.querySelector(".goal-stats");
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent("mouseenter", {
+        bubbles: true, cancelable: true,
+        clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+      }));
+      return document.getElementById("tip").style.display === "block";
+    });
+    assert.ok(visible, "#tip should be visible after mouseenter on .goal-stats");
+  });
+  await check(S, "stats-line-tip-has-distribution-content", async () => {
+    const text = await page.evaluate(() => document.getElementById("tip").textContent);
+    assert.ok(
+      text.includes("Jan") && text.includes("km"),
+      `distribution tip should contain "Jan" and "km", got: "${text}"`,
+    );
+    assert.ok(
+      text.toLowerCase().includes("based on") || text.toLowerCase().includes("equal split"),
+      `distribution tip should name the source, got: "${text}"`,
+    );
+    // Each month entry must include a percentage share
+    assert.ok(
+      /\(\d+\.\d+%\)/.test(text),
+      `distribution tip should contain percentage values like "(8.3%)", got: "${text}"`,
+    );
+  });
+
+  // Goal persists across page reload
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
+  await check(S, "goal-persists-after-reload", async () => {
+    const val = await page.evaluate(
+      () => document.getElementById("goalKmInput")?.value,
+    );
+    assert.equal(val, "2000", `expected input value "2000" after reload, got "${val}"`);
+  });
+}
+
+async function testRideGoalsCgi() {
+  const ENDPOINT = `${CGI}/ride-goals`;
+
+  // Reset state first
+  await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goals: {} }),
+  });
+
+  await check("cgi-ride-goals", "GET-returns-json-with-goals-object", async () => {
+    const r = await fetch(ENDPOINT, { cache: "no-store" });
+    assert.equal(r.status, 200, `expected 200, got ${r.status}`);
+    const ct = r.headers.get("content-type") ?? "";
+    assert.ok(ct.includes("json"), `expected JSON content-type, got: ${ct}`);
+    const data = await r.json();
+    assert.ok(
+      data.goals !== undefined && typeof data.goals === "object" && !Array.isArray(data.goals),
+      `data.goals must be a plain object, got: ${JSON.stringify(data.goals)}`,
+    );
+  });
+
+  await check("cgi-ride-goals", "POST-goal-persists", async () => {
+    const testKm = 7000 + Math.floor(Math.random() * 2000);
+    const postR = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goals: { "2026": testKm } }),
+    });
+    assert.ok(postR.ok, `POST failed with status ${postR.status}`);
+    const posted = await postR.json();
+    assert.equal(
+      posted.goals?.["2026"],
+      testKm,
+      `POST response does not echo back goal: ${JSON.stringify(posted)}`,
+    );
+    assert.ok(posted.updatedAt, "POST response missing updatedAt");
+
+    const getR = await fetch(ENDPOINT, { cache: "no-store" });
+    const got = await getR.json();
+    assert.equal(
+      got.goals?.["2026"],
+      testKm,
+      `subsequent GET missing posted goal: ${JSON.stringify(got)}`,
+    );
+  });
+
+  await check("cgi-ride-goals", "POST-missing-goals-key-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: {} }),
+    });
+    assert.equal(r.status, 400, `expected 400 for missing goals key, got ${r.status}`);
+  });
+
+  await check("cgi-ride-goals", "POST-goals-as-array-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goals: [8000] }),
+    });
+    assert.equal(r.status, 400, `expected 400 for goals array, got ${r.status}`);
   });
 }
 
@@ -3901,6 +4453,9 @@ async function main() {
     console.log("\n--- Stats Records (best week / streak) ---");
     await testStatsRecords(page, jsErrors);
 
+    console.log("\n--- Stats Goals & Progress ---");
+    await testStatsGoals(page, jsErrors);
+
     console.log("\n--- Activity Detail ---");
     await testActivityDetail(page, jsErrors);
 
@@ -3912,6 +4467,9 @@ async function main() {
 
     console.log("\n--- Activity Detail (Magene C606 — no HR) ---");
     await testActivityDetailMagene(page, jsErrors);
+
+    console.log("\n--- Activity Detail (Walk — steps card) ---");
+    await testActivityDetailWalk(page, jsErrors);
 
     console.log("\n--- Strava Link (numeric vs HealthSync ID) ---");
     await testStravaLink(page, jsErrors);
@@ -3954,6 +4512,9 @@ async function main() {
 
   console.log("\n--- CGI: bike-service ---");
   await testBikeServiceCgi();
+
+  console.log("\n--- CGI: ride-goals ---");
+  await testRideGoalsCgi();
 
   console.log("\n" + "=".repeat(50));
   console.log(`Results: ${passed} passed, ${failed} failed`);
