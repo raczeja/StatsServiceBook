@@ -66,53 +66,44 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
       - name: Count tests and update badge gist
-        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.BADGE_GIST_ID != ''
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.BADGE_GIST_ID }}
         run: |
-          total=$(python3 -c "
-          import xml.etree.ElementTree as ET
-          total = 0
+          python3 - <<'EOF'
+          import json, os, subprocess, xml.etree.ElementTree as ET
+
+          total, failures = 0, 0
           for f in ['shell-tests.xml', 'test-results.xml']:
               try:
                   root = ET.parse(f).getroot()
-                  if root.tag == 'testsuites':
-                      for s in root.findall('testsuite'):
-                          total += int(s.get('tests', 0))
-                  else:
-                      total += int(root.get('tests', 0))
+                  suites = root.findall('testsuite') if root.tag == 'testsuites' else [root]
+                  for s in suites:
+                      total    += int(s.get('tests',    0))
+                      failures += int(s.get('failures', 0)) + int(s.get('errors', 0))
               except Exception:
                   pass
-          print(total)
-          ")
-          failures=$(python3 -c "
-          import xml.etree.ElementTree as ET
-          failures = 0
-          for f in ['shell-tests.xml', 'test-results.xml']:
-              try:
-                  root = ET.parse(f).getroot()
-                  if root.tag == 'testsuites':
-                      for s in root.findall('testsuite'):
-                          failures += int(s.get('failures', 0)) + int(s.get('errors', 0))
-                  else:
-                      failures += int(root.get('failures', 0)) + int(root.get('errors', 0))
-              except Exception:
-                  pass
-          print(failures)
-          ")
-          if [ "$failures" -eq 0 ]; then
-            color="brightgreen"
-            message="${total} passed"
-          else
-            color="red"
-            message="${total} total, ${failures} failed"
-          fi
-          payload="{\"files\":{\"tests.json\":{\"content\":\"{\\\"schemaVersion\\\":1,\\\"label\\\":\\\"tests\\\",\\\"message\\\":\\\"${message}\\\",\\\"color\\\":\\\"${color}\\\"}\"}}}"
-          curl -s -X PATCH "https://api.github.com/gists/${GIST_ID}" \
-            -H "Authorization: token ${GIST_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "$payload"
+
+          badge = json.dumps({
+              "schemaVersion": 1,
+              "label":   "tests",
+              "message": f"{total} passed" if failures == 0 else f"{total} total, {failures} failed",
+              "color":   "brightgreen"     if failures == 0 else "red",
+          })
+          payload = json.dumps({"files": {"tests.json": {"content": badge}}})
+
+          gist_id = os.environ["GIST_ID"]
+          token   = os.environ["GIST_TOKEN"]
+          subprocess.run([
+              "curl", "-sf", "-X", "PATCH",
+              f"https://api.github.com/gists/{gist_id}",
+              "-H", f"Authorization: token {token}",
+              "-H", "Content-Type: application/json",
+              "-d", payload,
+          ], check=True)
+          print(f"Badge updated: {badge}")
+          EOF
 
       - name: Publish JUnit test report
         if: always()
