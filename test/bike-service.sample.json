@@ -238,6 +238,30 @@
           "services": []
         }
       ]
+    },
+    {
+      "id": "b-odo-test",
+      "name": "Odo Test Bike",
+      "gearId": "",
+      "baseMileage": 5000,
+      "parts": [
+        {
+          "id": "p-odo-chain",
+          "name": "Odo Chain",
+          "installedDate": "2020-01-01",
+          "installedMileage": 1200,
+          "status": "new",
+          "serviceTypes": [
+            {
+              "id": "st-odo-1",
+              "name": "Replace",
+              "alertKm": 2000,
+              "alertH": null,
+              "services": []
+            }
+          ]
+        }
+      ]
     }
   ]
 }
