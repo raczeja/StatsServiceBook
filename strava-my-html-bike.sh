@@ -304,6 +304,20 @@ function bikeAllCosts(bike){
 function bikeTotalCost(bike){
   var t=0; bikeAllCosts(bike).forEach(function(c){t+=c.amount;}); return t;
 }
+function bikePartsCostOnly(bike){
+  var t=0;
+  (bike.parts||[]).forEach(function(p){ if(p.cost&&+p.cost>0) t+=+p.cost; });
+  return t;
+}
+function bikeServiceCostOnly(bike){
+  var t=0;
+  (bike.parts||[]).forEach(function(p){
+    (p.serviceTypes||[]).forEach(function(st){
+      (st.services||[]).forEach(function(s){ if(s.cost&&+s.cost>0) t+=+s.cost; });
+    });
+  });
+  return t;
+}
 function bikeCostByYear(bike){
   var yr={};
   bikeAllCosts(bike).forEach(function(c){yr[c.year]=(yr[c.year]||0)+c.amount;});
@@ -904,14 +918,21 @@ function render(){
   // cost summary block
   var totalCost = bikeTotalCost(b);
   if(totalCost>0){
+    var partsCost   = bikePartsCostOnly(b);
+    var serviceCost = bikeServiceCostOnly(b);
     var costByYr = bikeCostByYear(b);
     var yrKeys = Object.keys(costByYr).sort(function(a,c){return c<a?-1:1;});
     var yrRows = yrKeys.map(function(yr){
       return '<tr><td>'+esc(yr)+'</td><td>'+fmtCost(costByYr[yr])+'</td></tr>';
     }).join('');
+    var splitHtml = (partsCost>0&&serviceCost>0)
+      ?'<div style="font-size:.8rem;color:#888;margin-top:.15rem">'+
+         fmtCost(partsCost)+' parts · '+fmtCost(serviceCost)+' service</div>'
+      :'';
     html += '<div class="cost-block">'+
       '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.15rem">Total cost</div>'+
       '<div class="cost-total">'+fmtCost(totalCost)+'</div>'+
+      splitHtml+
       (yrKeys.length>1
         ?'<details class="cost-yr"><summary>By year</summary>'+
           '<table class="cost-yr-tbl"><tbody>'+yrRows+'</tbody></table></details>'
