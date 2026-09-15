@@ -872,10 +872,19 @@ if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ]; then
     _want_age="${ATHLETE_AGE:-null}"
     [ "$_stored_age" != "$_want_age" ] && ADDED=1
 fi
-if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
+_hs_updated=0
+for _hs in "$LIBDIR/strava-my-html-dashboard.sh" \
+            "$LIBDIR/strava-my-html-detail.sh" \
+            "$LIBDIR/strava-my-html-bike.sh" \
+            "$LIBDIR/strava-my-html-stats.sh" \
+            "$LIBDIR/strava-my-html-heatmap.sh" \
+            "$LIBDIR/strava-lib.sh"; do
+    [ -f "$_hs" ] && [ "$_hs" -nt "${WEB_DIR}/index.html" ] && _hs_updated=1 && break
+done
+if [ "$ADDED" -eq 0 ] && [ "$_hs_updated" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
    [ -f "$WEB_DIR/index.html" ] && \
    [ -f "$BIKE_ASSIGN" ] && [ "$WEB_DIR/activities.json" -nt "$BIKE_ASSIGN" ]; then
-    log "no new activities, outputs up-to-date — skipping re-emit"
+    log "no new activities and scripts up-to-date — skipping re-emit"
 else
 GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
@@ -967,6 +976,10 @@ log "wrote $WEB_DIR/activities.json ($TOTAL activities)"
 . "$LIBDIR/strava-my-html-stats.sh"
 
 log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/bike.html, $WEB_DIR/stats.html"
+
+# Heatmap last — GPX scan is slow on flash storage; fast pages are already served.
+# shellcheck disable=SC1090
+. "$LIBDIR/strava-my-html-heatmap.sh"
 fi
 
 # --- 7. Drive auth status + re-authorization CGI ----------------------------
@@ -1109,9 +1122,5 @@ CGI
 } > "$CGI_DIR/drive-auth"
 chmod 0755 "$CGI_DIR/drive-auth"
 log "wrote $CGI_DIR/drive-auth"
-
-# Heatmap last — GPX scan is slow on flash storage; fast pages are already served.
-# shellcheck disable=SC1090
-. "$LIBDIR/strava-my-html-heatmap.sh"
 
 log "done."

@@ -360,6 +360,7 @@ else
 fi
 
 run_weather_backfill "$STORE" "$WEATHER_CACHE" "$TMP" "$DETAIL_DIR" "$WEB_DIR"
+[ "${_rw_changed:-0}" -gt 0 ] && { log "weather: backfilled/upgraded ${_rw_changed} activities"; ADDED=$((ADDED + _rw_changed)); }
 
 # --- 3a. Reconcile detail files with the synced store ----------------------
 # Deleted activities: drop their cached detail JSON (it is web-served) and any
@@ -663,6 +664,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
 
   DETAIL_HAVE="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.json$' || true)"
   log "detail backfill: +$saved saved ($tried requests) this run, $DETAIL_HAVE/$TOTAL_STORED activities have detail"
+  ADDED=$((ADDED + saved))
 else
   log "detail backfill: disabled (STRAVA_MY_DETAIL_MAX_PER_RUN=0)"
 fi
@@ -671,6 +673,26 @@ else
   log "import disabled (STRAVA_MY_IMPORT_ENABLED=0) — re-rendering from existing store"
 fi
 TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
+
+# Skip re-render when nothing changed and no helper scripts were updated since last render.
+# Re-renders when: new/changed/deleted activities, new detail files, weather backfill,
+# bike-assign written via CGI (bike-assign newer than activities.json), or helper scripts updated.
+_skip_render=0
+if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
+   [ -f "$WEB_DIR/index.html" ] && \
+   [ -f "$BIKE_ASSIGN" ] && [ "$WEB_DIR/activities.json" -nt "$BIKE_ASSIGN" ]; then
+    _skip_render=1
+    for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
+                "$STRAVA_LIBDIR/strava-my-html-detail.sh" \
+                "$STRAVA_LIBDIR/strava-my-html-bike.sh" \
+                "$STRAVA_LIBDIR/strava-my-html-stats.sh" \
+                "$STRAVA_LIBDIR/strava-my-html-heatmap.sh" \
+                "$STRAVA_LIBDIR/strava-lib.sh"; do
+        [ -f "$_hs" ] && [ "$_hs" -nt "$WEB_DIR/index.html" ] && _skip_render=0 && break
+    done
+    [ "$_skip_render" -eq 1 ] && log "no new activities and scripts up-to-date — skipping re-render"
+fi
+if [ "$_skip_render" -eq 0 ]; then
 
 # --- 4. Emit activities.json for the dashboard ----------------------------
 # Flat list of all stored activities, sorted newest-first. The browser handles
@@ -1047,5 +1069,7 @@ fi
 # --- Render all-activities heatmap (last — GPX scan is slow on flash storage) -
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-my-html-heatmap.sh"
+
+fi  # _skip_render
 
 log "done."
