@@ -66,13 +66,16 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
       - name: Count tests and update badge gist
-        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.BADGE_GIST_ID != ''
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.BADGE_GIST_ID }}
         run: |
           python3 - <<'EOF'
-          import json, os, subprocess, xml.etree.ElementTree as ET
+          import json, os, subprocess, sys, xml.etree.ElementTree as ET
+          if not os.environ.get("GIST_ID") or not os.environ.get("GIST_TOKEN"):
+              print("BADGE_GIST_ID or GIST_TOKEN secret not set — skipping badge update")
+              sys.exit(0)
 
           total, failures = 0, 0
           for f in ['shell-tests.xml', 'test-results.xml']:
