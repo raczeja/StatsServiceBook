@@ -340,7 +340,9 @@ When you finish implementing a new feature or behaviour change, always do the fo
    ```
    If any test fails, fix the regression before proceeding. Do not skip this step.
 
-3. **Consider whether new tests are needed.** If you added a new UI feature, filter, chart, button, sorting behaviour, or CGI endpoint that is not already covered by `test/functional-tests.mjs`, explicitly propose a test case to the user. Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
+3. **Consider whether new tests are needed.** Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
+   - **Shell logic changes** (parsing, calculations, POSIX functions, skip guards, store merging): propose a new suite in `test/shell-tests.sh`. Shell tests are self-contained, run without credentials, and are the right tool for any logic that lives in `.sh` files.
+   - **UI/HTML changes** (new feature, filter, chart, button, sorting, CGI endpoint): propose a new suite or assertions in `test/functional-tests.mjs`.
 
 4. **Propose README and wiki updates.** After any feature addition or behaviour change, tell the user exactly which sections of `README.md` and which wiki page(s) (`../StatsServiceBook.wiki/*.md`) need updating, and offer to write the changes. The most commonly affected pages are listed in "Editing notes" above. Never silently skip docs.
 
