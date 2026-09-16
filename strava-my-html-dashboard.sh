@@ -402,7 +402,7 @@ function drawBars(svgId, vals, selMonth, decimals, avg, tooltipData) {
     if (barH > 0) {
       var tipAttrs = tooltipData && tooltipData[i]
         ? ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()"'+
-          ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+i+')" ontouchend="setTimeout(hideTip,1500)"'+
+          ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+i+')" ontouchend="setTimeout(hideTip,3000)"'+
           ' style="cursor:pointer"'
         : '';
       html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="var(--accent)" opacity="'+opacity+'" rx="2"'+tipAttrs+'/>';
@@ -766,6 +766,7 @@ fetch("drive-status.json", { cache:"no-store" })
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
 })();
 </script>
+<div class="meta" style="text-align:center;padding:.5rem 0 1rem"><a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">StatsServiceBook on GitHub</a></div>
 </body>
 </html>
 HTML
