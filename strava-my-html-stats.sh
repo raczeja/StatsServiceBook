@@ -360,7 +360,7 @@ function drawBars(svgId, bars, viewW, viewH){
            ' onmouseenter="showTip(event,'+esc(JSON.stringify(tipTxt))+')"'+
            ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
            ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+esc(JSON.stringify(tipTxt))+')"'+
-           ' ontouchend="setTimeout(hideTip,1500)" style="cursor:default"/>'+
+           ' ontouchend="setTimeout(hideTip,3000)" style="cursor:default"/>'+
       (bh>14?'<text x="'+(x+bw/2)+'" y="'+(y-2)+'"'+
              ' text-anchor="middle" font-size="8.5" fill="var(--text-6)">'+fmtKmD(b.val||0)+'</text>':'')+
       '<text x="'+(x+bw/2)+'" y="'+(viewH-3)+'"'+
@@ -496,7 +496,7 @@ function renderGoals(goalsData){
     var _dta=' onmouseenter="showTip(event,'+_dtJ+')"'+
              ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
              ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+_dtJ+')"'+
-             ' ontouchend="setTimeout(hideTip,1500)"'+
+             ' ontouchend="setTimeout(hideTip,3000)"'+
              ' style="cursor:help"';
     h+='<div class="goal-stats"'+_dta+'><span class="goal-done">'+fmtKmD(doneKm)+' km</span> of '+fmtKmD(goal)+' km &mdash; <strong>'+pct+'%</strong>';
     if(isCurrentYear) h+=' &middot; projected <strong>'+fmtKmD(projected)+' km</strong> ('+projPct+'%)';
@@ -535,7 +535,7 @@ function renderGoals(goalsData){
       var ta=' onmouseenter="showTip(event,'+tipJ+')"'+
              ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
              ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+tipJ+')"'+
-             ' ontouchend="setTimeout(hideTip,1500)"';
+             ' ontouchend="setTimeout(hideTip,3000)"';
       h+='<div class="goal-mo '+cls+'" style="cursor:default"'+ta+'>';
       h+='<div class="goal-mo-lbl">'+moName+'</div>';
       h+='<div class="goal-mo-bar"><div class="goal-mo-fill" style="width:'+moPct+'%"></div></div>';
@@ -636,7 +636,7 @@ function render(){
       ? ' onmouseenter="showTip(event,'+esc(JSON.stringify(kp.tip))+')"'+
         ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+
         ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+esc(JSON.stringify(kp.tip))+')"'+
-        ' ontouchend="setTimeout(hideTip,1500)"'
+        ' ontouchend="setTimeout(hideTip,3000)"'
       : '';
     return '<div class="kpi"'+ta+'>'+
            '<div class="k">'+esc(kp.k)+'</div>'+
@@ -940,6 +940,7 @@ load();
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
 })();
 </script>
+<div class="meta" style="text-align:center;padding:.5rem 0 1rem"><a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">StatsServiceBook on GitHub</a></div>
 </body>
 </html>
 HTML

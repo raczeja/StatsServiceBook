@@ -664,7 +664,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 <div id="board"></div>
 <div id="ck-banner" style="display:none"></div>
 <div class="meta" id="footer-meta">
-  StravaStats for OpenWrt · <span id="footer-source"></span> · <a href="activities.json">activities.json</a><span id="footer-links"></span>
+  StravaStats for OpenWrt · <span id="footer-source"></span> · <a href="activities.json">activities.json</a><span id="footer-links"></span> · <a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">GitHub</a>
 </div>
 <script>
 "use strict";
