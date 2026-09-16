@@ -41,7 +41,8 @@
       "weathercode": 1,
       "precipitation": 0.0,
       "gpx_file": "gpx/magene_2026-07-12_50671559.gpx",
-      "detail": true
+      "detail": true,
+      "max_speed": 6.186
     },
     {
       "id": "2026-06-22-15-07-running",
@@ -59,7 +60,8 @@
       "calories": 310,
       "average_temp": 24,
       "gpx_file": "gpx/healthsync-sample.gpx",
-      "detail": true
+      "detail": true,
+      "max_speed": 3.605
     },
     {
       "id": "2026-06-22-10-30-cycling",
@@ -77,7 +79,8 @@
       "calories": 680,
       "average_temp": 24,
       "gpx_file": "gpx/2026.06.22_10.30-CYCLING.gpx",
-      "detail": true
+      "detail": true,
+      "max_speed": 6.078
     },
     {
       "id": 18784255013,
@@ -100,7 +103,8 @@
       "wind_speed": 15,
       "wind_dir": 270,
       "weathercode": 2,
-      "precipitation": 0.0
+      "precipitation": 0.0,
+      "max_speed": 5.868
     },
     {
       "id": "2026-06-10-09-00-cycling",
@@ -112,7 +116,8 @@
       "moving_time": 4800,
       "total_elevation_gain": 120.0,
       "average_speed": 6.667,
-      "average_temp": 20
+      "average_temp": 20,
+      "max_speed": 9.0
     },
     {
       "id": 1,
@@ -124,7 +129,8 @@
       "moving_time": 3679,
       "total_elevation_gain": 232.0,
       "average_speed": 4.403,
-      "average_temp": 22
+      "average_temp": 22,
+      "max_speed": 5.944
     },
     {
       "id": 2,
@@ -136,7 +142,8 @@
       "moving_time": 14061,
       "total_elevation_gain": 57.7,
       "average_speed": 6.414,
-      "average_temp": 24
+      "average_temp": 24,
+      "max_speed": 8.659
     },
     {
       "id": 3,
@@ -148,7 +155,8 @@
       "moving_time": 5198,
       "total_elevation_gain": 15.8,
       "average_speed": 1.036,
-      "average_cadence": 55
+      "average_cadence": 55,
+      "max_speed": 1.399
     },
     {
       "id": 4,
@@ -160,7 +168,8 @@
       "moving_time": 17172,
       "total_elevation_gain": 410.0,
       "average_speed": 4.426,
-      "average_temp": 19
+      "average_temp": 19,
+      "max_speed": 5.975
     },
     {
       "id": 5,
@@ -172,7 +181,8 @@
       "moving_time": 3000,
       "total_elevation_gain": 50.0,
       "average_speed": 6.667,
-      "average_temp": 18
+      "average_temp": 18,
+      "max_speed": 9.0
     },
     {
       "id": 6,
@@ -184,7 +194,8 @@
       "moving_time": 11200,
       "total_elevation_gain": 980.0,
       "average_speed": 5.759,
-      "average_temp": 16
+      "average_temp": 16,
+      "max_speed": 7.775
     },
     {
       "id": 7,
@@ -196,7 +207,8 @@
       "moving_time": 12400,
       "total_elevation_gain": 620.0,
       "average_speed": 4.218,
-      "average_temp": 14
+      "average_temp": 14,
+      "max_speed": 5.694
     },
     {
       "id": 8,
@@ -208,7 +220,8 @@
       "moving_time": 4500,
       "total_elevation_gain": 120.0,
       "average_speed": 6.244,
-      "average_temp": 13
+      "average_temp": 13,
+      "max_speed": 8.429
     },
     {
       "id": 9,
@@ -219,7 +232,8 @@
       "distance": 8200.0,
       "moving_time": 2640,
       "total_elevation_gain": 45.0,
-      "average_speed": 3.106
+      "average_speed": 3.106,
+      "max_speed": 4.193
     },
     {
       "id": 10,
@@ -231,7 +245,8 @@
       "moving_time": 15800,
       "total_elevation_gain": 1320.0,
       "average_speed": 6.481,
-      "average_temp": 11
+      "average_temp": 11,
+      "max_speed": 19.44
     },
     {
       "id": 11,
@@ -243,7 +258,8 @@
       "moving_time": 7200,
       "total_elevation_gain": 300.0,
       "average_speed": 6.944,
-      "average_temp": 9
+      "average_temp": 9,
+      "max_speed": 9.374
     },
     {
       "id": 12,
@@ -255,7 +271,8 @@
       "moving_time": 10100,
       "total_elevation_gain": 510.0,
       "average_speed": 4.139,
-      "average_temp": 7
+      "average_temp": 7,
+      "max_speed": 5.588
     },
     {
       "id": 13,
@@ -266,7 +283,8 @@
       "distance": 30000.0,
       "moving_time": 3600,
       "total_elevation_gain": 0.0,
-      "average_speed": 8.333
+      "average_speed": 8.333,
+      "max_speed": 11.25
     },
     {
       "id": 14,
@@ -278,7 +296,8 @@
       "moving_time": 3120,
       "total_elevation_gain": 48.0,
       "average_speed": 6.346,
-      "average_temp": 3
+      "average_temp": 3,
+      "max_speed": 8.567
     },
     {
       "id": 15,
@@ -290,7 +309,8 @@
       "moving_time": 16800,
       "total_elevation_gain": 740.0,
       "average_speed": 4.06,
-      "average_temp": 1
+      "average_temp": 1,
+      "max_speed": 5.481
     },
     {
       "id": 16,
@@ -302,7 +322,8 @@
       "moving_time": 7600,
       "total_elevation_gain": 380.0,
       "average_speed": 5.961,
-      "average_temp": 2
+      "average_temp": 2,
+      "max_speed": 8.047
     },
     {
       "id": 17,
@@ -314,7 +335,8 @@
       "moving_time": 10400,
       "total_elevation_gain": 420.0,
       "average_speed": 5.817,
-      "average_temp": -2
+      "average_temp": -2,
+      "max_speed": 7.853
     },
     {
       "id": 18,
@@ -326,7 +348,8 @@
       "moving_time": 9600,
       "total_elevation_gain": 450.0,
       "average_speed": 4.052,
-      "average_temp": -4
+      "average_temp": -4,
+      "max_speed": 5.47
     },
     {
       "id": 19,
@@ -338,7 +361,8 @@
       "moving_time": 9300,
       "total_elevation_gain": 510.0,
       "average_speed": 5.935,
-      "average_temp": 4
+      "average_temp": 4,
+      "max_speed": 8.012
     },
     {
       "id": 20,
@@ -349,7 +373,8 @@
       "distance": 11200.0,
       "moving_time": 9000,
       "total_elevation_gain": 620.0,
-      "average_speed": 1.244
+      "average_speed": 1.244,
+      "max_speed": 1.679
     },
     {
       "id": 21,
@@ -361,7 +386,8 @@
       "moving_time": 19800,
       "total_elevation_gain": 890.0,
       "average_speed": 4.247,
-      "average_temp": 8
+      "average_temp": 8,
+      "max_speed": 5.733
     },
     {
       "id": 22,
@@ -373,7 +399,8 @@
       "moving_time": 6800,
       "total_elevation_gain": 1100.0,
       "average_speed": 4.941,
-      "average_temp": 12
+      "average_temp": 12,
+      "max_speed": 6.67
     },
     {
       "id": 23,
@@ -385,7 +412,8 @@
       "moving_time": 12100,
       "total_elevation_gain": 640.0,
       "average_speed": 5.983,
-      "average_temp": 20
+      "average_temp": 20,
+      "max_speed": 8.077
     },
     {
       "id": 24,
@@ -397,7 +425,8 @@
       "moving_time": 11500,
       "total_elevation_gain": 580.0,
       "average_speed": 4.148,
-      "average_temp": 21
+      "average_temp": 21,
+      "max_speed": 5.6
     },
     {
       "id": 25,
@@ -408,7 +437,8 @@
       "distance": 28000.0,
       "moving_time": 4500,
       "total_elevation_gain": 120.0,
-      "average_speed": 6.222
+      "average_speed": 6.222,
+      "max_speed": 8.4
     }
   ]
 }
