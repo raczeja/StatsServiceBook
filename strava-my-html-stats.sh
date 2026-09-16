@@ -63,7 +63,7 @@ svg.bar{width:100%;display:block}
 #pbar{position:fixed;top:0;left:0;width:0;height:3px;background:var(--accent);z-index:9999;pointer-events:none}
 #theme-tog{margin-left:auto;flex-shrink:0;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text-3)}
 #yearTable,#moTable,#cmpTable,#sportTable{overflow-x:auto;-webkit-overflow-scrolling:touch}
-@media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}.kpis{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}
+@media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}.kpis{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.recs{grid-template-columns:repeat(2,1fr)}}
 .goal-wrap{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:.5rem;padding:.8rem 1rem;margin:.25rem 0}
 .goal-input-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
 .goal-input-row input{font:inherit;padding:.3rem .45rem;border:1px solid var(--border-2);border-radius:.35rem;background:var(--select-bg);color:var(--text);width:90px}
