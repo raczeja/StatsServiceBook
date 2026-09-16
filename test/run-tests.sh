@@ -71,41 +71,48 @@ done
 
 if [ "$ready" != true ]; then
   echo "==> Container logs:"
-  podman logs "$CONTAINER" || true
+  $CRUNNER logs "$CONTAINER" || true
   echo "httpd did not become ready in 20 s" >&2
-  podman stop "$CONTAINER" >/dev/null 2>&1 || true
-  podman rm   "$CONTAINER" >/dev/null 2>&1 || true
+  $CRUNNER stop "$CONTAINER" >/dev/null 2>&1 || true
+  $CRUNNER rm   "$CONTAINER" >/dev/null 2>&1 || true
   exit 1
 fi
 echo "   httpd is ready."
 
-# ---- Set up a temp npm project with puppeteer -----------------------------
-TMPDIR="$(mktemp -d)"
 cleanup() {
   echo "==> Cleaning up..."
-  podman stop "$CONTAINER" >/dev/null 2>&1 || true
-  podman rm   "$CONTAINER" >/dev/null 2>&1 || true
-  rm -rf "$TMPDIR" || true
+  $CRUNNER stop "$CONTAINER" >/dev/null 2>&1 || true
+  $CRUNNER rm   "$CONTAINER" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
-echo "==> Installing puppeteer into $TMPDIR ..."
-pushd "$TMPDIR" >/dev/null
-npm init -y >/dev/null 2>&1
-npm install --no-audit --no-fund --silent puppeteer
-cp "$TEST_DIR/functional-tests.mjs" "$TMPDIR/functional-tests.mjs"
+# Use local node_modules if present, otherwise install puppeteer into a temp dir
+if [ -d "$TEST_DIR/node_modules/puppeteer" ]; then
+  echo "==> Using local puppeteer from test/node_modules ..."
+  export TEST_PORT="$HOST_PORT"
+  node "$TEST_DIR/functional-tests.mjs" || EXIT_CODE=$?
+else
+  TMPDIR_NPM="$(mktemp -d)"
+  trap 'cleanup; rm -rf "$TMPDIR_NPM"' EXIT
+  echo "==> Installing puppeteer into $TMPDIR_NPM ..."
+  pushd "$TMPDIR_NPM" >/dev/null
+  npm init -y >/dev/null 2>&1
+  npm install --no-audit --no-fund --silent puppeteer
+  cp "$TEST_DIR/functional-tests.mjs" "$TMPDIR_NPM/functional-tests.mjs"
+  export TEST_PORT="$HOST_PORT"
+  node functional-tests.mjs || EXIT_CODE=$?
+  popd >/dev/null
+fi
 
-echo "==> Running functional tests ..."
-export TEST_PORT="$HOST_PORT"
-node functional-tests.mjs || EXIT_CODE=$?
+# ---- Run shell unit tests inside the container ----------------------------
+echo "==> Running shell unit tests ..."
+$CRUNNER exec "$CONTAINER" sh /opt/shell-tests.sh || EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -ne 0 ]; then
   echo "";
   echo "==> Container logs (on test failure):"
-  podman logs "$CONTAINER" || true
+  $CRUNNER logs "$CONTAINER" || true
 fi
-
-popd >/dev/null
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   echo "All functional tests passed."

@@ -259,7 +259,7 @@ function fmtPeriod(acts){
 
 // ---- personal records -------------------------------------------------------
 function computeRecords(acts){
-  var longest=null, longest_t=null, most_e=null, fastest=null;
+  var longest=null, longest_t=null, most_e=null, fastest=null, max_spd=null;
   var most_pow=null, most_kj=null, most_vam=null, most_steps=null;
   var weeks={}, months={}, months_count={}, dates={};
   var _stepSports={Walk:1,Hike:1};
@@ -275,6 +275,9 @@ function computeRecords(acts){
       var spd=s>0?(km/s)*3600:0;
       if(!fastest||spd>fastest.spd)  fastest  ={spd:spd,km:km,date:a.date,name:a.name,id:a.id};
     }
+    var mspd=(a.max_speed||0)*3.6;
+    if(mspd>0&&(!max_spd||mspd>max_spd.spd))
+      max_spd={spd:mspd,km:km,date:a.date,name:a.name,id:a.id};
     if(pow>0&&(!most_pow||pow>most_pow.pow))
       most_pow={pow:pow,km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(kj>0&&(!most_kj||kj>most_kj.kj))
@@ -311,7 +314,7 @@ function computeRecords(acts){
     } else { cur=1; cFrom=sorted[i]; }
   }
   return {
-    longest:longest, longest_t:longest_t, most_e:most_e, fastest:fastest,
+    longest:longest, longest_t:longest_t, most_e:most_e, fastest:fastest, max_spd:max_spd,
     most_pow:most_pow, most_kj:most_kj, most_vam:most_vam, most_steps:most_steps,
     bwk:bwk?{week:bwk,km:bwkKm}:null,
     bmo:bmo?{month:bmo,km:bmoKm}:null,
@@ -796,6 +799,9 @@ function render(){
   if(rec.fastest)
     ri.push(mkRec("Fastest avg speed", rec.fastest.spd.toFixed(1)+" km/h",
                   rec.fastest.date+"  "+fmtKmD(rec.fastest.km)+" km\n"+rec.fastest.name, _aLink(rec.fastest.id)));
+  if(rec.max_spd)
+    ri.push(mkRec("Max speed", rec.max_spd.spd.toFixed(1)+" km/h",
+                  rec.max_spd.date+"  "+fmtKmD(rec.max_spd.km)+" km\n"+rec.max_spd.name, _aLink(rec.max_spd.id)));
   if(rec.most_pow)
     ri.push(mkRec("Most power", Math.round(rec.most_pow.pow)+" W",
                   rec.most_pow.date+"  "+fmtKmD(rec.most_pow.km)+" km\n"+rec.most_pow.name, _aLink(rec.most_pow.id)));
