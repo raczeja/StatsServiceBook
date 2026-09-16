@@ -499,6 +499,10 @@ async function testStats(page, jsErrors) {
     const text = await page.$eval(".recs", (el) => el.textContent);
     assert.ok(text.includes("25.0"), `expected "25.0" km/h in .recs: ${text}`);
   });
+  await check(S, "records-max-speed-70.0", async () => {
+    const text = await page.$eval(".recs", (el) => el.textContent);
+    assert.ok(text.includes("70.0"), `expected "70.0" km/h in .recs (max speed): ${text}`);
+  });
 
   await check(S, "year-table-has-row", async () => {
     const n = await page.$$eval("#yearTable tbody tr", (rows) => rows.length);
