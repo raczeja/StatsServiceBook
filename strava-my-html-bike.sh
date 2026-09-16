@@ -1080,6 +1080,7 @@ loadAll();
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
 })();
 </script>
+<div class="meta" style="text-align:center;padding:.5rem 0 1rem"><a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">StatsServiceBook on GitHub</a></div>
 </body>
 </html>
 HTML
