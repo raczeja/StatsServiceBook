@@ -4,7 +4,6 @@ import { URLS } from "./test-urls.mjs";
 // ── My Activities ──────────────────────────────────────────────────────────────
 
 test.describe("my-activities", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -140,7 +139,6 @@ test.describe("my-activities", () => {
 // ── Empty State ────────────────────────────────────────────────────────────────
 
 test.describe("empty-state", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -185,7 +183,6 @@ test.describe("empty-state", () => {
 // ── Dashboard Best Chips ───────────────────────────────────────────────────────
 
 test.describe("dashboard-best-chips", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -238,7 +235,6 @@ test.describe("dashboard-best-chips", () => {
 // ── Activity Filtering & Refresh ───────────────────────────────────────────────
 
 test.describe("activity-filtering", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -324,7 +320,6 @@ test.describe("activity-filtering", () => {
 // ── Bike Assignment (Dropdown) ─────────────────────────────────────────────────
 
 test.describe("bike-assignment", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -400,7 +395,6 @@ test.describe("bike-assignment", () => {
 // ── Bike Odo Includes Manual Assignments ──────────────────────────────────────
 
 test.describe("bike-odo-manual-assign", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -466,7 +460,6 @@ test.describe("bike-odo-manual-assign", () => {
 // ── Sync Source Merging ────────────────────────────────────────────────────────
 
 test.describe("sync-source-merging", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -540,7 +533,6 @@ test.describe("sync-source-merging", () => {
 // ── Historical Activity Preservation ──────────────────────────────────────────
 
 test.describe("historical-preservation", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -620,7 +612,6 @@ test.describe("historical-preservation", () => {
 // ── Data Consistency Across Sources ───────────────────────────────────────────
 
 test.describe("data-consistency", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -703,7 +694,6 @@ test.describe("data-consistency", () => {
 // ── Focus Row (best-chip highlight) ───────────────────────────────────────────
 
 test.describe("focus-row", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -785,7 +775,6 @@ test.describe("focus-row", () => {
 // ── Reset Filter ───────────────────────────────────────────────────────────────
 
 test.describe("reset-filter", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -840,7 +829,6 @@ test.describe("reset-filter", () => {
 // ── Column Sorting ─────────────────────────────────────────────────────────────
 
 test.describe("column-sorting", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
