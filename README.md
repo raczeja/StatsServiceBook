@@ -68,10 +68,11 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
 
-**Section reordering**
+**Section reordering** *(desktop only)*
 - Drag any section heading (⠿ handle) to a new position on the Personal stats, Activity detail, Bike service, and Club leaderboard pages
 - ↺ Reset order button restores the default section layout
 - Order is saved per page in `localStorage` and restored on the next visit
+- Not available on touch/mobile devices (handle and reset button are hidden)
 
 **Dark mode**
 - Every page (except the always-dark heatmap) has a 🌙/☀️ toggle button in the top-right corner
