@@ -338,6 +338,7 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         fh.write(f'<div class="card-header"><h2 class="card-title">Last 30 days &mdash; {len(runs)} run(s)</h2>')
         fh.write(f'<span class="rate-pill {rate_cls}">{pass_rate}% pass rate</span></div>\n')
 
+        fh.write('<div class="section-lbl">Playwright tests</div>\n')
         fh.write('<div class="stats-row">\n')
         fh.write(f'<div class="stat-box"><div class="stat-val">{avg_total}</div><div class="stat-lbl">Avg tests/run</div></div>\n')
         fh.write(f'<div class="stat-box"><div class="stat-val">{avg_passed}</div><div class="stat-lbl">Avg passed/run</div></div>\n')
