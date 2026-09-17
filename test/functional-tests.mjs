@@ -4516,6 +4516,47 @@ async function testMobileLayout(page, jsErrors) {
   await page.setViewport({ width: 1440, height: 900 });
 }
 
+async function testMobileSectionReorder(page, jsErrors) {
+  const S = "mobile-section-reorder";
+
+  // Puppeteer does not support emulating pointer:coarse, so we verify the
+  // @media(pointer:coarse) rule is present in the page's stylesheets.
+  // If the rule exists, real mobile browsers apply it correctly.
+  const pages = [
+    { name: "stats",    url: URLS.stats,    wait: ".kpis .kpi" },
+    { name: "activity", url: URLS.activity, wait: "#content" },
+    { name: "bike",     url: URLS.bike,     wait: ".bikes" },
+    { name: "club",     url: URLS.club,     wait: ".club-section" },
+  ];
+
+  for (const pg of pages) {
+    jsErrors.length = 0;
+    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
+    try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
+
+    await check(S, `${pg.name}-has-pointer-coarse-rule`, async () => {
+      const found = await page.evaluate(() => {
+        for (const sheet of Array.from(document.styleSheets)) {
+          let rules;
+          try { rules = Array.from(sheet.cssRules || []); } catch (_) { continue; }
+          for (const rule of rules) {
+            if (rule.type === CSSRule.MEDIA_RULE &&
+                rule.conditionText && rule.conditionText.includes("pointer") &&
+                rule.conditionText.includes("coarse")) {
+              const text = rule.cssText;
+              if (text.includes(".sec-handle") && text.includes("display") && text.includes("none") &&
+                  text.includes(".sec-order-reset")) return true;
+            }
+          }
+        }
+        return false;
+      });
+      assert.ok(found, `${pg.name}: missing @media(pointer:coarse) rule hiding .sec-handle and .sec-order-reset`);
+    });
+  }
+}
+
 async function testStatsSectionOrder(page, jsErrors) {
   const S = "stats-section-order";
   jsErrors.length = 0;
@@ -4984,6 +5025,7 @@ async function main() {
 
     console.log("\n--- Mobile Layout (375px viewport) ---");
     await testMobileLayout(page, jsErrors);
+    await testMobileSectionReorder(page, jsErrors);
 
     console.log("\n--- Dark Mode Toggle ---");
     await testDarkMode(page, jsErrors);

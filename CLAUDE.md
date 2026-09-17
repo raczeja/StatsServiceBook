@@ -334,11 +334,18 @@ When you finish implementing a new feature or behaviour change, always do the fo
 
    **Why this matters:** `shell-tests.sh`'s `script-syntax-check` suite runs `sh -n` on every script at its `/usr/bin/` path. If a script is missing from `Dockerfile`, it won't be in the image and the test will fail with "not found in container", surfacing the omission before it reaches the router.
 
-2. **Run the functional test suite** to catch regressions:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
+2. **Run the functional test suite** to catch regressions — and run it yourself, do not just hand the command back to the user:
+   ```bash
+   docker build -t stravame-prod . && \
+   docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test . && \
+   docker rm -f stravame-tests 2>/dev/null; docker run -d --name stravame-tests -p 8080:8080 stravame-test && \
+   until curl -sf http://localhost:8080/strava/me/index.html > /dev/null 2>&1; do sleep 1; done && \
+   cp test/functional-tests.mjs /tmp/strava-test-run/ && \
+   cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost node functional-tests.mjs; \
+   docker stop stravame-tests && docker rm stravame-tests
    ```
-   If any test fails, fix the regression before proceeding. Do not skip this step.
+   (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save puppeteer`.)
+   If any test fails, fix the regression before proceeding. Do not skip this step. Do not ask the user to run tests for you.
 
 3. **Consider whether new tests are needed.** Don't silently assume existing tests are sufficient — the suite only proves what it asserts.
    - **Shell logic changes** (parsing, calculations, POSIX functions, skip guards, store merging): propose a new suite in `test/shell-tests.sh`. Shell tests are self-contained, run without credentials, and are the right tool for any logic that lives in `.sh` files.
