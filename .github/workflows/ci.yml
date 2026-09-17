@@ -62,7 +62,10 @@ jobs:
           npm install playwright >/dev/null
           npx playwright install chromium --with-deps >/dev/null
           cp "$GITHUB_WORKSPACE/test/functional-tests.mjs" .
-          TEST_RESULTS="$GITHUB_WORKSPACE/test-results.xml" node functional-tests.mjs
+          TEST_RESULTS="$GITHUB_WORKSPACE/test-results.xml" \
+          TEST_RESULTS_JSON="$GITHUB_WORKSPACE/test-results/results.json" \
+          PLAYWRIGHT_REPORT_DIR="$GITHUB_WORKSPACE/playwright-report" \
+          node functional-tests.mjs
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
@@ -126,6 +129,8 @@ jobs:
           path: |
             shell-tests.xml
             test-results.xml
+            test-results/results.json
+            playwright-report/
 
       - name: Stop test container
         if: always()
