@@ -1,5 +1,5 @@
 /**
- * functional-tests.mjs — Puppeteer-based regression tests for all five pages
+ * functional-tests.mjs — Playwright-based regression tests for all five pages
  * and the bike-service CGI. Runs against the local test container (port 8080).
  *
  * Usage (container must already be running on :8080):
@@ -8,7 +8,7 @@
  * Called automatically by run-tests.ps1, which starts the container first.
  * Exits 0 on all pass, 1 on any failure.
  */
-import puppeteer from "puppeteer";
+import { chromium } from "playwright";
 import fs from "fs";
 import path from "path";
 import assert from "assert/strict";
@@ -33,30 +33,6 @@ const URLS = {
 const TEST_RESULTS =
   process.env.TEST_RESULTS || path.resolve("test-results.xml");
 const START_TIME_MS = Date.now();
-
-const BROWSER_CANDIDATES = [
-  process.env.BROWSER_PATH,
-  process.env.EDGE_PATH,
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium-browser",
-  "/usr/bin/chromium",
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-].filter(Boolean);
-
-async function findBrowser() {
-  const bundled = await puppeteer.executablePath?.();
-  if (bundled && fs.existsSync(bundled)) return bundled;
-
-  for (const p of BROWSER_CANDIDATES) {
-    if (fs.existsSync(p)) return p;
-  }
-
-  throw new Error(
-    "Browser not found. Install puppeteer so it can download a browser, or set BROWSER_PATH/EDGE_PATH to a valid executable.",
-  );
-}
 
 // ── Result tracking ────────────────────────────────────────────────────────────
 
@@ -95,7 +71,7 @@ async function testClubDashboard(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.club, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.club, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector("#board tbody tr", { timeout: 10000 });
   } catch (_) {}
@@ -346,7 +322,7 @@ async function testMyActivities(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   // generatedAt is 2026-07-14 so default month is July; select June which has the full test dataset
   await page.evaluate(() => {
     const sel = document.getElementById("month");
@@ -483,7 +459,7 @@ async function testStats(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   // Default: year=2026, sport=Ride → 16 activities, 824.7 km
   try {
     await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
@@ -592,7 +568,7 @@ async function testStats(page, jsErrors) {
   await page.evaluate(() => {
     try { sessionStorage.clear(); } catch (_) {}
   });
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try { await page.waitForSelector("#cmpTable th", { timeout: 10000 }); } catch (_) {}
 
   await check(S, "cmp-table-yoy-header", async () => {
@@ -619,7 +595,7 @@ async function testActivityDetail(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.activity, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.activity, { waitUntil: "load", timeout: 20000 });
   // 18784255013.json: "West Wroclaw Sample Ride", 64 250.4 m, 612 m, 8 splits
   try {
     await page.waitForFunction(
@@ -826,7 +802,7 @@ async function testActivityDetailHealthsyncRun(page, jsErrors) {
     } catch (_) {}
   });
   await page.goto(URLS.activityHealthsyncRun, {
-    waitUntil: "networkidle0",
+    waitUntil: "load",
     timeout: 20000,
   });
   // healthsync-20260622.json: "Sample HealthSync Run", 3200 m, 18 m elevation, ~3.2 km
@@ -971,7 +947,7 @@ async function testActivityDetailHealthsyncCycling(page, jsErrors) {
     } catch (_) {}
   });
   await page.goto(URLS.activityHealthsyncCycling, {
-    waitUntil: "networkidle0",
+    waitUntil: "load",
     timeout: 20000,
   });
   // healthsync-bike.json: "CYCLING", 25120 m, 64 m elevation, ~25.1 km
@@ -1099,7 +1075,7 @@ async function testActivityDetailMagene(page, jsErrors) {
     } catch (_) {}
   });
   await page.goto(URLS.activityMagene, {
-    waitUntil: "networkidle0",
+    waitUntil: "load",
     timeout: 20000,
   });
   // magene-sample.json: "Magene C606", 84600 m, 303 m elevation, no HR
@@ -1190,7 +1166,7 @@ async function testActivityDetailWalk(page, jsErrors) {
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
   // Forest Walk: id=3, average_cadence=55, moving_time=5198
   // expected steps = Math.round(55 * 2 * 5198 / 60) = 9530
-  await page.goto(URLS.activityWalk, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.activityWalk, { waitUntil: "load", timeout: 20000 });
   try {
     await page.waitForFunction(
       () => document.getElementById("content")?.style.display !== "none",
@@ -1235,7 +1211,7 @@ async function testBikeService(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   // bike-service.sample.json: 4 bikes; Road Bike has 5 parts
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
@@ -1402,6 +1378,17 @@ async function testBikeService(page, jsErrors) {
     );
     assert.ok(headers.includes("Cost"), `expected "Cost" column header, got: ${JSON.stringify(headers)}`);
   });
+  // Ensure Road Bike is still selected and the cost block has rendered before cost checks.
+  // A deferred render() from persist() can briefly swap the panel to a no-cost bike.
+  await page.evaluate(() => {
+    const t = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find(
+      (el) => el.textContent.includes("Road Bike"),
+    );
+    if (t) t.click();
+  });
+  try {
+    await page.waitForFunction(() => !!document.querySelector(".cost-block"), { timeout: 5000 });
+  } catch (_) {}
   await check(S, "cost-total-block-shown", async () => {
     // Road Bike Chain has part cost 49.90 + service cost 5.50 = 55.40; total block must appear.
     const block = await page.$(".cost-block");
@@ -1472,7 +1459,7 @@ async function testBikeInputStepAndOdo(page, jsErrors) {
   const S = "bike-input-step-and-odo";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -1582,7 +1569,7 @@ async function testBikeServicePartReplacement(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
@@ -1668,7 +1655,7 @@ async function testSyncSourceMerging(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
@@ -1773,7 +1760,7 @@ async function testHistoricalActivityPreservation(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
@@ -1816,7 +1803,7 @@ async function testHistoricalActivityPreservation(page, jsErrors) {
         o.text.toLowerCase().includes("all"),
       );
       if (allOption) {
-        await page.select("#year", allOption.value);
+        await page.selectOption("#year", allOption.value);
         await page.waitForFunction(
           () =>
             !document.getElementById("meta")?.textContent.includes("Loading"),
@@ -1881,7 +1868,7 @@ async function testDataConsistencyAcrossSources(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
@@ -1995,7 +1982,7 @@ async function testBikeServiceNotifications(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
@@ -2032,7 +2019,7 @@ async function testBikeServiceNotifications(page, jsErrors) {
     );
 
     // Refresh page to clear errors
-    await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+    await page.reload({ waitUntil: "networkidle", timeout: 20000 });
 
     // After reload, error should be cleared
     let errAfter = await page.$eval("#err", (el) => el.textContent.trim());
@@ -2108,7 +2095,7 @@ async function testResetFilter(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
     await page.waitForFunction(
@@ -2124,7 +2111,7 @@ async function testResetFilter(page, jsErrors) {
 
   await check(S, "reset-restores-default-year", async () => {
     // Change year away from default
-    await page.select("#year", "2025");
+    await page.selectOption("#year", "2025");
     await page.waitForFunction(
       () => !document.getElementById("meta")?.textContent.includes("Loading"),
       { timeout: 5000 },
@@ -2161,7 +2148,7 @@ async function testColumnSorting(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
     await page.waitForFunction(
@@ -2255,7 +2242,7 @@ async function testStatsSportFilter(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
     await page.waitForFunction(
@@ -2460,7 +2447,7 @@ async function testFocusRow(page, jsErrors) {
   await page.evaluate(() => {
     try { sessionStorage.clear(); } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   // generatedAt is 2026-07-14 so default month is July (1 activity, no best chips); select June
   await page.evaluate(() => {
     const sel = document.getElementById("month");
@@ -2506,8 +2493,7 @@ async function testFocusRow(page, jsErrors) {
         const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
         return tr && tr.classList.contains("flash");
       },
-      { timeout: 1500 },
-      chipId,
+      chipId, { timeout: 1500 },
     );
   });
 
@@ -2527,8 +2513,7 @@ async function testFocusRow(page, jsErrors) {
         const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
         return tr && tr.classList.contains("flash");
       },
-      { timeout: 1500 },
-      chipId,
+      chipId, { timeout: 1500 },
     );
 
     // Second click while first flash is still running.
@@ -2551,8 +2536,7 @@ async function testFocusRow(page, jsErrors) {
         const tr = document.querySelector(`#board tbody tr[data-id="${id}"]`);
         return tr && tr.classList.contains("flash");
       },
-      { timeout: 1500 },
-      chipId,
+      chipId, { timeout: 1500 },
     );
   });
 }
@@ -2628,7 +2612,7 @@ async function testActivityFilteringAndRefresh(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
@@ -2647,7 +2631,7 @@ async function testActivityFilteringAndRefresh(page, jsErrors) {
     let rows2026 = await page.$$eval("#board tbody tr", (rows) => rows.length);
 
     // Change to 2025
-    await page.select("#year", "2025");
+    await page.selectOption("#year", "2025");
     await page.waitForFunction(
       () => !document.getElementById("meta")?.textContent.includes("Loading"),
       { timeout: 5000 },
@@ -2665,7 +2649,7 @@ async function testActivityFilteringAndRefresh(page, jsErrors) {
   // Test changing sport filter (Ride → Walk)
   await check(S, "sport-filter-changes", async () => {
     // Reset to 2026 for consistent test
-    await page.select("#year", "2026");
+    await page.selectOption("#year", "2026");
     await page.waitForFunction(
       () => !document.getElementById("meta")?.textContent.includes("Loading"),
       { timeout: 5000 },
@@ -2721,7 +2705,7 @@ async function testActivityFilteringAndRefresh(page, jsErrors) {
       });
 
       if (mayOpt) {
-        await page.select(".month-filter select", mayOpt);
+        await page.selectOption(".month-filter select", mayOpt);
         await page.waitForFunction(
           () =>
             !document.getElementById("meta")?.textContent.includes("Loading"),
@@ -2746,7 +2730,7 @@ async function testBikeAssignmentDropdown(page, jsErrors) {
       sessionStorage.clear();
     } catch (_) {}
   });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
 
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
@@ -2852,7 +2836,7 @@ async function testBikeOdoIncludesManualAssignments(page, jsErrors) {
   const S = "bike-odo-manual-assign";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
     await page.waitForFunction(
@@ -2923,7 +2907,7 @@ async function testEmptyState(page, jsErrors) {
   const S = "empty-state";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector("#board table", { timeout: 10000 });
     await page.waitForFunction(
@@ -2965,7 +2949,7 @@ async function testDashboardBestChips(page, jsErrors) {
   const S = "dashboard-best-chips";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.dash, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
   // generatedAt is 2026-07-14 so default month is July (1 activity, no best chips); select June
   await page.evaluate(() => {
     const sel = document.getElementById("month");
@@ -3024,7 +3008,7 @@ async function testStravaLink(page, jsErrors) {
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
 
   // Strava numeric ID → "Open on Strava" link must be present
-  await page.goto(URLS.activity, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.activity, { waitUntil: "load", timeout: 20000 });
   try {
     await page.waitForFunction(
       () => document.getElementById("content")?.style.display !== "none",
@@ -3053,7 +3037,7 @@ async function testStravaLink(page, jsErrors) {
   // HealthSync date-based ID → no Strava link
   jsErrors.length = 0;
   await page.goto(URLS.activityHealthsyncRun, {
-    waitUntil: "networkidle0",
+    waitUntil: "load",
     timeout: 20000,
   });
   try {
@@ -3117,7 +3101,7 @@ async function testStatsRecords(page, jsErrors) {
   const S = "stats-records";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
     await page.waitForFunction(
@@ -3339,7 +3323,7 @@ async function testStatsGoals(page, jsErrors) {
     body: JSON.stringify({ goals: {} }),
   }).catch(() => {});
 
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
     await page.waitForFunction(
@@ -3487,7 +3471,7 @@ async function testStatsGoals(page, jsErrors) {
   });
 
   // Goal persists across page reload
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
     await page.waitForFunction(
@@ -3574,7 +3558,7 @@ async function testBikeModalCrud(page, jsErrors) {
   const S = "bike-modal-crud";
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -3680,7 +3664,7 @@ async function testEmailAlertCheckbox(page, jsErrors) {
 
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -3837,7 +3821,7 @@ async function testEmailAlertCheckbox(page, jsErrors) {
     });
 
     // Reload and open the edit modal for that part
-    await page.reload({ waitUntil: "networkidle0" });
+    await page.reload({ waitUntil: "networkidle" });
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.evaluate(() => {
       const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
@@ -3943,7 +3927,7 @@ async function testAlertThresholds(page, jsErrors) {
 
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -4019,7 +4003,7 @@ async function testNeedsReplacement(page, jsErrors) {
 
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -4066,7 +4050,7 @@ async function testNeedsReplacement(page, jsErrors) {
   // Easier: call saveService directly with the known id
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -4094,7 +4078,7 @@ async function testNeedsReplacement(page, jsErrors) {
     });
   }
 
-  await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+  await page.reload({ waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -4172,7 +4156,7 @@ async function testServiceTypeDescription(page, jsErrors) {
 
   jsErrors.length = 0;
   await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   try {
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
@@ -4219,7 +4203,7 @@ async function testServiceTypeDescription(page, jsErrors) {
 async function testHeatmap(page, jsErrors) {
   const S = "heatmap";
   jsErrors.length = 0;
-  await page.goto(URLS.heatmap, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.heatmap, { waitUntil: "networkidle", timeout: 20000 });
 
   // heatmap.json loads via fetch; wait for count to be populated
   try {
@@ -4389,7 +4373,7 @@ async function testDarkMode(page, jsErrors) {
       try { localStorage.removeItem("theme"); } catch (_) {}
       try { sessionStorage.clear(); } catch (_) {}
     });
-    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
+    await page.goto(pg.url, { waitUntil: "networkidle", timeout: 20000 });
     try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
 
     await check(S, `${pg.name}-toggle-button-exists`, async () => {
@@ -4453,7 +4437,7 @@ async function testDarkMode(page, jsErrors) {
         `localStorage["theme"] should be "dark" after clicking to dark on ${pg.name}`);
 
       // Reload and verify the theme is still dark (anti-FOUC preserved it).
-      await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+      await page.reload({ waitUntil: "networkidle", timeout: 20000 });
       try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
 
       const theme = await page.evaluate(() => document.documentElement.dataset.theme);
@@ -4482,7 +4466,7 @@ async function testMobileLayout(page, jsErrors) {
     { name: "activity",  url: URLS.activity, wait: "#content" },
   ];
 
-  await page.setViewport({ width: 375, height: 812 });
+  await page.setViewportSize({ width: 375, height: 812 });
 
   for (const pg of pages) {
     jsErrors.length = 0;
@@ -4490,7 +4474,7 @@ async function testMobileLayout(page, jsErrors) {
       try { localStorage.removeItem("theme"); } catch (_) {}
       try { sessionStorage.clear(); } catch (_) {}
     });
-    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
+    await page.goto(pg.url, { waitUntil: "networkidle", timeout: 20000 });
     try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
 
     await check(S, `${pg.name}-no-horizontal-overflow`, async () => {
@@ -4513,15 +4497,15 @@ async function testMobileLayout(page, jsErrors) {
   }
 
   // Restore desktop viewport for subsequent test suites.
-  await page.setViewport({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1440, height: 900 });
 }
 
-async function testMobileSectionReorder(page, jsErrors) {
+async function testMobileSectionReorder(browser, jsErrors) {
   const S = "mobile-section-reorder";
+  // hasTouch: true is required for Chrome to report pointer:coarse in CSS media queries
+  const ctx = await browser.newContext({ isMobile: true, hasTouch: true, viewport: { width: 375, height: 812 } });
+  const mPage = await ctx.newPage();
 
-  // Puppeteer does not support emulating pointer:coarse, so we verify the
-  // @media(pointer:coarse) rule is present in the page's stylesheets.
-  // If the rule exists, real mobile browsers apply it correctly.
   const pages = [
     { name: "stats",    url: URLS.stats,    wait: ".kpis .kpi" },
     { name: "activity", url: URLS.activity, wait: "#content" },
@@ -4530,31 +4514,31 @@ async function testMobileSectionReorder(page, jsErrors) {
   ];
 
   for (const pg of pages) {
-    jsErrors.length = 0;
-    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-    await page.goto(pg.url, { waitUntil: "networkidle0", timeout: 20000 });
-    try { await page.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
+    await mPage.goto(pg.url, { waitUntil: "networkidle", timeout: 20000 });
+    try { await mPage.waitForSelector(pg.wait, { timeout: 10000 }); } catch (_) {}
 
-    await check(S, `${pg.name}-has-pointer-coarse-rule`, async () => {
-      const found = await page.evaluate(() => {
-        for (const sheet of Array.from(document.styleSheets)) {
-          let rules;
-          try { rules = Array.from(sheet.cssRules || []); } catch (_) { continue; }
-          for (const rule of rules) {
-            if (rule.type === CSSRule.MEDIA_RULE &&
-                rule.conditionText && rule.conditionText.includes("pointer") &&
-                rule.conditionText.includes("coarse")) {
-              const text = rule.cssText;
-              if (text.includes(".sec-handle") && text.includes("display") && text.includes("none") &&
-                  text.includes(".sec-order-reset")) return true;
-            }
-          }
-        }
-        return false;
+    await check(S, `${pg.name}-handle-hidden-on-mobile`, async () => {
+      const visible = await mPage.evaluate(() => {
+        return Array.from(document.querySelectorAll(".sec-handle")).some(el => {
+          const s = getComputedStyle(el);
+          return s.display !== "none" && s.visibility !== "hidden";
+        });
       });
-      assert.ok(found, `${pg.name}: missing @media(pointer:coarse) rule hiding .sec-handle and .sec-order-reset`);
+      assert.ok(!visible, `${pg.name}: .sec-handle should be hidden on touch viewport but is visible`);
+    });
+
+    await check(S, `${pg.name}-reset-btn-hidden-on-mobile`, async () => {
+      const visible = await mPage.evaluate(() => {
+        return Array.from(document.querySelectorAll(".sec-order-reset")).some(el => {
+          const s = getComputedStyle(el);
+          return s.display !== "none" && s.visibility !== "hidden";
+        });
+      });
+      assert.ok(!visible, `${pg.name}: .sec-order-reset should be hidden on touch viewport but is visible`);
     });
   }
+
+  await ctx.close();
 }
 
 async function testStatsSectionOrder(page, jsErrors) {
@@ -4564,7 +4548,7 @@ async function testStatsSectionOrder(page, jsErrors) {
     try { localStorage.removeItem("ssb-stats-sec"); } catch (_) {}
     try { sessionStorage.clear(); } catch (_) {}
   });
-  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
   try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
 
   await check(S, "no-js-errors", () =>
@@ -4621,7 +4605,7 @@ async function testStatsSectionOrder(page, jsErrors) {
   });
 
   await check(S, "order-restored-after-reload", async () => {
-    await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+    await page.reload({ waitUntil: "networkidle", timeout: 20000 });
     try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
     const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
       els.map((el) => el.getAttribute("data-sid")),
@@ -4655,7 +4639,7 @@ async function testDetailSectionOrder(page, jsErrors) {
     try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {}
     try { sessionStorage.clear(); } catch (_) {}
   });
-  await page.goto(URLS.activity, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.activity, { waitUntil: "load", timeout: 20000 });
   try {
     await page.waitForFunction(
       () => document.getElementById("content")?.style.display !== "none",
@@ -4742,7 +4726,7 @@ async function testBikeSectionOrder(page, jsErrors) {
   await page.evaluate(() => {
     try { localStorage.removeItem("ssb-bike-sec"); } catch (_) {}
   });
-  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
   await page.waitForSelector(".bikes .tab", { timeout: 10000 });
   await page.waitForFunction(
     () => !document.getElementById("meta")?.textContent.includes("Loading"),
@@ -4829,7 +4813,7 @@ async function testClubSectionOrder(page, jsErrors) {
   await page.evaluate(() => {
     try { localStorage.removeItem("ssb-lb-sec"); } catch (_) {}
   });
-  await page.goto(URLS.club, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(URLS.club, { waitUntil: "networkidle", timeout: 30000 });
   try {
     await page.waitForSelector(".club-section .sec[data-sid]", { timeout: 10000 });
   } catch (_) {}
@@ -4895,19 +4879,19 @@ async function testClubSectionOrder(page, jsErrors) {
 }
 
 async function main() {
-  const executablePath = await findBrowser();
-  console.log("Using browser:", executablePath);
-
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
-  });
+  // Use system Chrome/Chromium when Playwright's bundled browser isn't installed
+  // (e.g. in WSL / CI without network access to download it). Set
+  // PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH to override; otherwise fall back to
+  // channel:"chrome" which picks up any installed Google Chrome.
+  const launchOpts = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+    ? { headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+    : { headless: true, channel: "chrome" };
+  const browser = await chromium.launch(launchOpts);
 
   const jsErrors = [];
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: 1440, height: 900 });
+    await page.setViewportSize({ width: 1440, height: 900 });
     // Only track uncaught JS exceptions — not console.error network messages
     // (404s for optional resources like CDN assets or missing images are benign).
     page.on("pageerror", (err) => jsErrors.push(err));
@@ -5025,7 +5009,9 @@ async function main() {
 
     console.log("\n--- Mobile Layout (375px viewport) ---");
     await testMobileLayout(page, jsErrors);
-    await testMobileSectionReorder(page, jsErrors);
+
+    console.log("\n--- Mobile Section Reorder (pointer:coarse via isMobile context) ---");
+    await testMobileSectionReorder(browser, jsErrors);
 
     console.log("\n--- Dark Mode Toggle ---");
     await testDarkMode(page, jsErrors);
@@ -5091,7 +5077,7 @@ function writeJUnitXml(filePath) {
 }
 
 // Set exitCode rather than calling process.exit() directly — avoids a
-// libuv UV_HANDLE_CLOSING assertion on Windows when puppeteer's IPC
+// libuv UV_HANDLE_CLOSING assertion on Windows when the IPC
 // channels are still draining as the process shuts down.
 main()
   .then((code) => {
