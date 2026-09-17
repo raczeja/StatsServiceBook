@@ -283,3 +283,10 @@ jobs:
           publish_branch: gh-pages
           force_orphan: true
           commit_message: "Publish Playwright reports (run #${{ github.run_number }})"
+
+      - name: Add Pages links to summary
+        if: always()
+        run: |
+          echo "## Test Reports" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [Playwright report — run #${{ github.run_number }}](https://raczeja.github.io/StatsServiceBook/run-${{ github.run_number }}/)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [Test statistics — last 30 days](https://raczeja.github.io/StatsServiceBook/stats/)" >> "$GITHUB_STEP_SUMMARY"
