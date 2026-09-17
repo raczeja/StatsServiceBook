@@ -4,7 +4,6 @@ import { URLS } from "./test-urls.mjs";
 // ── Activity Detail (Strava) ───────────────────────────────────────────────────
 
 test.describe("activity-detail", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -211,7 +210,6 @@ test.describe("activity-detail", () => {
 // ── Detail Section Order ───────────────────────────────────────────────────────
 
 test.describe("detail-section-order", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -308,7 +306,6 @@ test.describe("detail-section-order", () => {
 // ── Activity Detail (HealthSync Run) ──────────────────────────────────────────
 
 test.describe("activity-detail-healthsync-run", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -459,7 +456,6 @@ test.describe("activity-detail-healthsync-run", () => {
 // ── Activity Detail (HealthSync Cycling) ──────────────────────────────────────
 
 test.describe("activity-detail-healthsync-cycling", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -540,7 +536,6 @@ test.describe("activity-detail-healthsync-cycling", () => {
 // ── Activity Detail (Magene) ───────────────────────────────────────────────────
 
 test.describe("activity-detail-magene", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -638,7 +633,6 @@ test.describe("activity-detail-magene", () => {
 // ── Activity Detail (Walk — steps card) ───────────────────────────────────────
 
 test.describe("activity-detail-walk", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -688,7 +682,6 @@ test.describe("activity-detail-walk", () => {
 // ── Strava Link (numeric vs HealthSync ID) ────────────────────────────────────
 
 test.describe("strava-link", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -734,7 +727,6 @@ test.describe("strava-link", () => {
 // ── Heatmap ────────────────────────────────────────────────────────────────────
 
 test.describe("heatmap", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 

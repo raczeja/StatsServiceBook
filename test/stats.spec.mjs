@@ -48,7 +48,6 @@ async function getFilterFromRecLink(page, labelFrag) {
 // ── Stats ──────────────────────────────────────────────────────────────────────
 
 test.describe("stats", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -184,7 +183,6 @@ test.describe("stats", () => {
 // ── Stats Sport Filter ─────────────────────────────────────────────────────────
 
 test.describe("stats-sport-filter", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -334,7 +332,6 @@ test.describe("stats-sport-filter", () => {
 // ── Stats Records ──────────────────────────────────────────────────────────────
 
 test.describe("stats-records", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -541,7 +538,6 @@ test.describe("stats-records", () => {
 // ── Stats Goals ────────────────────────────────────────────────────────────────
 
 test.describe("stats-goals", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -708,7 +704,6 @@ test.describe("stats-goals", () => {
 // ── Stats Section Order ────────────────────────────────────────────────────────
 
 test.describe("stats-section-order", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
