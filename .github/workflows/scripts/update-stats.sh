@@ -248,6 +248,8 @@ pass_rate      = round(100 * (1 - total_failed / max(1, sum(r.get("total", 0) fo
 
 shell_total_passed  = sum(r.get("shell_passed", 0) for r in eligible)
 shell_total_failed  = sum(r.get("shell_failed", 0) for r in eligible)
+shell_avg_passed    = round(shell_total_passed / max(1, len(eligible)), 1)
+shell_avg_failed    = round(shell_total_failed / max(1, len(eligible)), 1)
 
 # Top shell test failures across runs
 shell_fail_counts = {}
@@ -327,7 +329,7 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
   <span class="legend-item"><span class="legend-swatch sw-yellow"></span>Flaky only</span>
   <span class="legend-item"><span class="legend-swatch sw-mixed"></span>Failures + flaky</span>
   <span class="legend-item"><span class="legend-swatch sw-black"></span>All failed (excluded from stats)</span>
-  <span class="legend-note">Bars: oldest &rarr; newest. Cards sorted newest execution first.</span>
+  <span class="legend-note">Bars: oldest &rarr; newest. Each bar combines Playwright + shell failures. Cards sorted newest execution first.</span>
 </div>
 """)
 
@@ -346,30 +348,31 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         fh.write(f'<div class="stat-box stat-flaky"><div class="stat-val">{total_flaky}</div><div class="stat-lbl">Total flaky</div></div>\n')
         fh.write('</div>\n')
 
-        max_issues = max((r["failed"] + r.get("flaky_count", 0) for r in runs), default=1) or 1
-        fh.write('<div class="spark-label">Failures + flaky per run</div>\n')
+        max_issues = max((r["failed"] + r.get("flaky_count", 0) + r.get("shell_failed", 0) for r in runs), default=1) or 1
+        fh.write('<div class="spark-label">Failures + flaky per run (Playwright + shell)</div>\n')
         fh.write('<div class="sparkline" title="Failures/flaky per run (oldest → newest)">')
         for run in runs:
-            issues       = run["failed"] + run.get("flaky_count", 0)
-            h            = max(4, round(36 * issues / max_issues))
-            failed_count = run["failed"]
-            flaky_count  = run.get("flaky_count", 0)
+            pw_failed   = run["failed"]
+            pw_flaky    = run.get("flaky_count", 0)
+            sh_failed   = run.get("shell_failed", 0)
+            issues      = pw_failed + pw_flaky + sh_failed
+            h           = max(4, round(36 * issues / max_issues))
             if is_all_failed_run(run):
                 color = "#1e293b"
             elif issues == 0:
                 color = "#22c55e"
-            elif failed_count > 0 and flaky_count > 0:
-                red_pct    = round(100 * failed_count / issues, 1)
+            elif pw_failed > 0 and pw_flaky > 0:
+                red_pct    = round(100 * pw_failed / issues, 1)
                 yellow_pct = 100 - red_pct
                 color = f"linear-gradient(to top,#eab308 0%,#eab308 {yellow_pct}%,#ef4444 {yellow_pct}%)"
-            elif failed_count > 0:
+            elif pw_failed > 0 or sh_failed > 0:
                 color = "#ef4444"
             else:
                 color = "#eab308"
             label = (
-                f"Run #{run['run_id']}: {run.get('passed', 0)} passed / "
-                f"{run['failed']} failed / {run.get('flaky_count', 0)} flaky / "
-                f"{run.get('skipped', 0)} skipped / {run['total']} total"
+                f"Run #{run['run_id']} — "
+                f"Playwright: {run.get('passed', 0)} passed / {pw_failed} failed / {pw_flaky} flaky / {run.get('skipped', 0)} skipped — "
+                f"Shell: {run.get('shell_passed', 0)} passed / {sh_failed} failed"
             )
             fh.write(
                 f'<a href="{esc(run["run_url"])}" target="_blank" title="{esc(label)}">'
@@ -400,9 +403,9 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         # Shell tests section
         fh.write('<div class="section-lbl">Shell unit tests (POSIX sh)</div>\n')
         fh.write('<div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:.5rem">\n')
-        fh.write(f'<div class="stat-box"><div class="stat-val">{shell_total_passed}</div><div class="stat-lbl">Passed (total)</div></div>\n')
+        fh.write(f'<div class="stat-box"><div class="stat-val">{shell_avg_passed}</div><div class="stat-lbl">Avg passed/run</div></div>\n')
         sh_fail_cls = " stat-fail" if shell_total_failed > 0 else ""
-        fh.write(f'<div class="stat-box{sh_fail_cls}"><div class="stat-val">{shell_total_failed}</div><div class="stat-lbl">Failed (total)</div></div>\n')
+        fh.write(f'<div class="stat-box{sh_fail_cls}"><div class="stat-val">{shell_avg_failed}</div><div class="stat-lbl">Avg failed/run</div></div>\n')
         fh.write('</div>\n')
         if top_shell:
             fh.write('<table><tr><th>Shell test</th><th style="width:4rem">Fails</th></tr>\n')
