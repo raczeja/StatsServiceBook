@@ -136,7 +136,12 @@ STRAVA_KEEP_SNAPSHOTS="90"
 #      /usr/bin/strava-email-weekly) with the current month's running stats
 #      for all clubs. Sent separately to each address in STRAVA_EMAIL_WEEKLY_TO.
 #
-#   3. Cron error alerts — sent by /usr/bin/strava-cron-guard when any of the
+#   3. Yearly year-in-review email — sent on 1 January (by
+#      /usr/bin/strava-email-yearly) with club totals, top-5 athletes, and
+#      single-activity highlights for the just-ended year.
+#      Recipients: STRAVA_EMAIL_YEARLY_TO (fallback: STRAVA_EMAIL_TO).
+#
+#   4. Cron error alerts — sent by /usr/bin/strava-cron-guard when any of the
 #      three nightly scripts (strava-leaderboard, strava-my-activities,
 #      healthsync-activities) exits non-zero. Sent to STRAVA_EMAIL_ALERTS_TO.
 #
@@ -176,6 +181,11 @@ STRAVA_KEEP_SNAPSHOTS="90"
 # Sent every Monday with the current month's running leaderboard.
 # Each address receives a separate email.
 #STRAVA_EMAIL_WEEKLY_TO="alice@example.com,bob@example.com"
+
+# Yearly year-in-review recipients — comma-separated, no spaces.
+# Sent on 1 January with club totals, top-5 athletes, and single-activity highlights.
+# Falls back to STRAVA_EMAIL_TO when not set.
+#STRAVA_EMAIL_YEARLY_TO="alice@example.com,bob@example.com"
 
 # Cron error alert recipients — comma-separated, no spaces.
 # Receives an alert with the exit code and last 50 lines of output when any

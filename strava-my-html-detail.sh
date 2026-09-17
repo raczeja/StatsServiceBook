@@ -78,6 +78,13 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   #bike-status{color:var(--text-4)!important}
   #hr-zone-box{overflow-x:auto;-webkit-overflow-scrolling:touch}
   @media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}}
+  .sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--text-3);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
+  .sec-handle:hover{opacity:1;color:var(--accent)}
+  .sec-handle:active{cursor:grabbing}
+  .sec.sec-dragging{opacity:.4}
+  .sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
+  .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
+  .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -91,47 +98,49 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   <div class="desc" id="desc" style="display:none"></div>
   <div class="links" id="links"></div>
   <div id="bike-row" style="display:none;margin:.25rem 0 .75rem;font-size:.9rem"></div>
-  <div class="cards" id="cards"></div>
-  <div id="map-box">
+  <div id="sec-wrap">
+  <div class="sec cards" data-sid="cards" id="cards"></div>
+  <div class="sec" data-sid="map" id="map-box">
     <div id="map"></div>
     <div id="map-spin">Loading map…<div id="map-spin-bar"></div></div>
     <button id="map-expand-btn" onclick="toggleMapFullscreen()" title="Expand map">&#x26F6; Expand</button>
   </div>
-  <div class="box" id="elev-box" style="display:none">
+  <div class="sec box" data-sid="elev" id="elev-box" style="display:none">
     <h3>Elevation profile</h3>
     <div style="display:flex;align-items:flex-start">
       <svg id="svg-elev-yaxis" style="flex-shrink:0"></svg>
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
-  <div class="box" id="hr-box" style="display:none">
+  <div class="sec box" data-sid="hr" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
     <div style="display:flex;align-items:flex-start">
       <svg id="svg-hr-yaxis" style="flex-shrink:0"></svg>
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-hr" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
-  <div class="box" id="cad-box" style="display:none">
+  <div class="sec box" data-sid="cad" id="cad-box" style="display:none">
     <h3>Cadence</h3>
     <div style="display:flex;align-items:flex-start">
       <svg id="svg-cad-yaxis" style="flex-shrink:0"></svg>
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-cad" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
-  <div class="box" id="pwr-box" style="display:none">
+  <div class="sec box" data-sid="pwr" id="pwr-box" style="display:none">
     <h3>Power</h3>
     <div style="display:flex;align-items:flex-start">
       <svg id="svg-pwr-yaxis" style="flex-shrink:0"></svg>
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-pwr" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
-  <div class="box" id="hr-zone-box" style="display:none">
+  <div class="sec box" data-sid="hrzone" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
     <div id="hr-zone-content"></div>
   </div>
-  <div class="box" id="splits-box">
+  <div class="sec box" data-sid="splits" id="splits-box">
     <h3 id="splits-title">Splits</h3>
     <div class="chart-scroll"><svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg></div>
+  </div>
   </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -871,6 +880,8 @@ function loadBikePicker(d, actId) {
       var n = bikes[i].name || "";
       opts += '<option value="' + esc(n) + '"' + (current === n ? ' selected' : '') + '>' + esc(n) + '</option>';
     }
+    if (current && !bikes.some(function(b){ return b.name === current; }))
+      opts = '<option value="' + esc(current) + '" selected>' + esc(current) + '</option>' + opts;
     var row = document.getElementById("bike-row");
     row.innerHTML = '<label style="color:#666">Bike: '
       + '<select id="bike-sel" style="font:inherit;font-size:.9rem;border:1px solid #ccc;'
@@ -925,6 +936,7 @@ function render(d, id){
   if (isBike(d.sport_type || d.type || "")) loadBikePicker(d, id);
   renderMap(d);
   renderSplits(d);
+  if(typeof window._detailSecAfterRender==='function')window._detailSecAfterRender();
 }
 
 function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err").textContent = msg; }
@@ -938,6 +950,62 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
   syncBtn();
   btn.onclick=function(){root.dataset.theme=isDark()?'light':'dark';localStorage.setItem('theme',root.dataset.theme);syncBtn();};
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
+})();
+
+(function(){
+  var DETAIL_SEC_KEY='ssb-detail-sec';
+  var DETAIL_SEC_DEFAULT=['cards','map','elev','hr','cad','pwr','hrzone','splits'];
+  var wrap=document.getElementById('sec-wrap');
+  if(!wrap)return;
+  var dragSrc=null;
+  function getSecs(){return Array.prototype.filter.call(wrap.children,function(el){return el.classList.contains('sec');});}
+  function saveOrder(){try{localStorage.setItem(DETAIL_SEC_KEY,JSON.stringify(getSecs().map(function(s){return s.getAttribute('data-sid');})));}catch(e){}}
+  function applyOrder(){
+    var saved=null;try{saved=JSON.parse(localStorage.getItem(DETAIL_SEC_KEY));}catch(e){}
+    var order=(saved&&saved.length===DETAIL_SEC_DEFAULT.length)?saved:DETAIL_SEC_DEFAULT.slice();
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    order.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+  }
+  function doReset(){
+    try{localStorage.removeItem(DETAIL_SEC_KEY);}catch(e){}
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    DETAIL_SEC_DEFAULT.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+  }
+  function dropInto(sid,e){
+    if(!dragSrc||dragSrc===sid)return;
+    var secs=getSecs();var srcEl=null,tgtEl=null;
+    for(var i=0;i<secs.length;i++){if(secs[i].getAttribute('data-sid')===dragSrc)srcEl=secs[i];if(secs[i].getAttribute('data-sid')===sid)tgtEl=secs[i];}
+    if(!srcEl||!tgtEl)return;
+    var rect=tgtEl.getBoundingClientRect();
+    if((e.clientY||0)<rect.top+rect.height/2)wrap.insertBefore(srcEl,tgtEl);else wrap.insertBefore(srcEl,tgtEl.nextSibling);
+    getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});
+    saveOrder();
+  }
+  function ensureResetBtn(){
+    if(wrap.querySelector('.sec-order-reset'))return;
+    var rb=document.createElement('button');rb.className='sec-order-reset';rb.textContent='↺ Reset order';
+    rb.onclick=function(){doReset();injectHandles();};
+    wrap.insertBefore(rb,wrap.firstChild);
+  }
+  function injectHandles(){
+    ensureResetBtn();
+    getSecs().forEach(function(s){
+      var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
+      var sid=s.getAttribute('data-sid');
+      var handle=document.createElement('span');handle.className='sec-handle';handle.title='Drag to reorder';handle.textContent='⠿';
+      handle.setAttribute('draggable','true');
+      handle.addEventListener('dragstart',function(e){dragSrc=sid;s.classList.add('sec-dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setDragImage(s,0,0);}catch(_){}}e.stopPropagation();});
+      handle.addEventListener('dragend',function(){s.classList.remove('sec-dragging');dragSrc=null;getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});});
+      s.ondragover=function(e){if(dragSrc&&dragSrc!==sid){e.preventDefault();s.classList.add('sec-drag-over');}};
+      s.ondragleave=function(e){if(!s.contains(e.relatedTarget))s.classList.remove('sec-drag-over');};
+      s.ondrop=function(e){e.preventDefault();dropInto(sid,e);};
+      var h=s.querySelector('h3');
+      if(h)h.insertBefore(handle,h.firstChild);else s.insertBefore(handle,s.firstChild);
+    });
+  }
+  applyOrder();
+  injectHandles();
+  window._detailSecAfterRender=injectHandles;
 })();
 
 (function(){
