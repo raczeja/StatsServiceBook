@@ -3,7 +3,8 @@ import { URLS } from "./test-urls.mjs";
 
 // ── Club Dashboard ─────────────────────────────────────────────────────────────
 
-test.describe.serial("club-dashboard", () => {
+test.describe("club-dashboard", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -248,7 +249,8 @@ test.describe.serial("club-dashboard", () => {
 
 // ── Club Section Order ─────────────────────────────────────────────────────────
 
-test.describe.serial("club-section-order", () => {
+test.describe("club-section-order", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
