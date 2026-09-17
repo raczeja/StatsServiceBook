@@ -684,6 +684,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
   .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
   .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
+@media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
 </style>
 </head>
 <body>
