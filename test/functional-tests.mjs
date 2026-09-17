@@ -275,6 +275,47 @@ async function testClubDashboard(page, jsErrors) {
     }
     await page.click("#board .person-row:first-child");
   });
+  // Top-5-year section must be present and contain at least 1 item
+  await check(S, "top5-year-section-exists", async () => {
+    const n = await page.$$eval("#board .top5-item", (els) => els.length);
+    assert.ok(n >= 1, `expected >= 1 .top5-item in #board, got ${n}`);
+  });
+  // "since YYYY-MM-DD" must appear in the Top-5 section label (moved from per-athlete subtitle)
+  await check(S, "top5-since-date-in-label", async () => {
+    const label = await page.$eval("#board .top5-label", (el) => el.textContent);
+    assert.ok(/since \d{4}-\d{2}-\d{2}/.test(label), `top5 label missing "since YYYY-MM-DD", got: "${label}"`);
+  });
+  // Per-athlete subtitle must NOT contain "since" (moved to section label)
+  await check(S, "top5-sub-no-since", async () => {
+    const subs = await page.$$eval("#board .top5-sub", (els) => els.map((e) => e.textContent));
+    const hasSince = subs.some((t) => /since/.test(t));
+    assert.ok(!hasSince, `top5 per-athlete subtitle should not contain "since", got: ${JSON.stringify(subs)}`);
+  });
+  // Single-activity highlights section must be present
+  await check(S, "achieve-section-exists", async () => {
+    const n = await page.$$eval("#board .achieve-section", (els) => els.length);
+    assert.ok(n >= 1, `expected >= 1 .achieve-section, got ${n}`);
+  });
+  // achieve-section label must mention the selected period
+  await check(S, "achieve-section-label-has-period", async () => {
+    const label = await page.$eval("#board .achieve-section-label", (el) => el.textContent);
+    assert.ok(label.length > 5, `achieve-section label too short: "${label}"`);
+  });
+  // Club all-time section must be present
+  await check(S, "club-alltime-section-exists", async () => {
+    const n = await page.$$eval("#board .club-alltime", (els) => els.length);
+    assert.ok(n >= 1, `expected >= 1 .club-alltime, got ${n}`);
+  });
+  // Club all-time label must contain "since YYYY-MM-DD" (moved from tile to label)
+  await check(S, "club-alltime-label-has-since", async () => {
+    const label = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll("#board .club-alltime-label"));
+      const found = labels.find((el) => el.textContent.includes("Club all-time"));
+      return found ? found.textContent : null;
+    });
+    assert.ok(label !== null, `no "Club all-time" .club-alltime-label found in #board`);
+    assert.ok(/since \d{4}-\d{2}-\d{2}/.test(label), `club-alltime label missing "since DATE", got: "${label}"`);
+  });
   // Each club's "all-time JSON" footer link must resolve to a real file.
   // This catches the install.sh bug where leaderboard.json was symlinked instead
   // of leaderboard_<clubId>.json.
@@ -546,6 +587,28 @@ async function testStats(page, jsErrors) {
       `expected "all time · <period>" in #sportSubtitle, got: "${subtitle}"`,
     );
   });
+
+  // YoY column: reload to default year so cmpTable is rendered
+  await page.evaluate(() => {
+    try { sessionStorage.clear(); } catch (_) {}
+  });
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try { await page.waitForSelector("#cmpTable th", { timeout: 10000 }); } catch (_) {}
+
+  await check(S, "cmp-table-yoy-header", async () => {
+    const headers = await page.$$eval("#cmpTable th", (ths) => ths.map((t) => t.textContent.trim()));
+    assert.ok(headers.includes("YoY"), `expected "YoY" header in cmpTable, got: ${JSON.stringify(headers)}`);
+  });
+  await check(S, "cmp-table-yoy-cell-format", async () => {
+    const cells = await page.$$eval("#cmpTable td", (tds) => tds.map((t) => t.textContent.trim()));
+    const yoy = cells.find((c) => /^[+\-]\d/.test(c) && c.includes("km"));
+    assert.ok(yoy, `expected a YoY cell like "+N km / +N%" in cmpTable, got cells: ${JSON.stringify(cells.slice(0,10))}`);
+  });
+  await check(S, "cmp-table-total-row", async () => {
+    const rows = await page.$$eval("#cmpTable tbody tr", (trs) => trs.map((r) => r.textContent.trim()));
+    const totRow = rows.find((r) => r.startsWith("Total"));
+    assert.ok(totRow, `expected a "Total" row in cmpTable, got rows: ${JSON.stringify(rows.slice(-3))}`);
+  });
 }
 
 async function testActivityDetail(page, jsErrors) {
@@ -725,6 +788,31 @@ async function testActivityDetail(page, jsErrors) {
     assert.ok(
       text.includes("←"),
       `expected west arrow "←" in Wind card (wind_dir=270), got: ${text.slice(0, 300)}`,
+    );
+  });
+  // 18784255013.json: gear = {id:'b-anon-1', name:'Bike A'} — "Bike A" is not in
+  // bike-service at this point (bike.html auto-seed hasn't run yet).
+  // The Gear card must show the gear name, and the bike picker must select "Bike A"
+  // as a custom option rather than falling back to "— unassigned —".
+  await check(S, "gear-card-shows-name", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    assert.ok(
+      text.includes("Bike A"),
+      `expected "Bike A" in gear card, got: ${text.slice(0, 400)}`,
+    );
+  });
+  await check(S, "bike-picker-selects-gear-name", async () => {
+    // Wait for the async bike picker to render.
+    try {
+      await page.waitForSelector("#bike-sel", { timeout: 5000 });
+    } catch (_) {
+      assert.fail("#bike-sel did not appear — bike picker not rendered for Ride activity");
+    }
+    const selected = await page.$eval("#bike-sel", (el) => el.value);
+    assert.equal(
+      selected,
+      "Bike A",
+      `expected bike picker to show "Bike A" (gear name not in bike-service), got "${selected}"`,
     );
   });
 }
@@ -1224,6 +1312,40 @@ async function testBikeService(page, jsErrors) {
     );
     const km = parseFloat(text.replace(/[\s,]/g, "").replace(",", "."));
     assert.ok(km > 0, `expected Road Bike odo > 0 km, got "${text}"`);
+  });
+  await check(S, "top-panel-extra-stats", async () => {
+    // Elevation, Avg Ride, Services, Parts should appear as .odo > div > .k labels
+    // when the bike has rides; Road Bike in sample data does.
+    const labels = await page.$$eval(
+      "#bikepanel .odo .k",
+      (els) => els.map((el) => el.textContent.trim()),
+    );
+    assert.ok(labels.includes("Elevation"),  `expected "Elevation" in odo labels, got: ${JSON.stringify(labels)}`);
+    assert.ok(labels.includes("Avg Ride"),   `expected "Avg Ride" in odo labels, got: ${JSON.stringify(labels)}`);
+    assert.ok(labels.includes("Services"),   `expected "Services" in odo labels, got: ${JSON.stringify(labels)}`);
+    assert.ok(labels.includes("Parts"),      `expected "Parts" in odo labels, got: ${JSON.stringify(labels)}`);
+  });
+  await check(S, "bike-stats-comparison-table", async () => {
+    // Comparison table (2+ bikes in sample) must be after archived section.
+    // "Bike Statistics" h2 must appear after at least one parts table.
+    const headings = await page.$$eval("#bikepanel h2", (els) => els.map((el) => el.textContent.trim()));
+    assert.ok(
+      headings.some((h) => h.includes("Bike Statistics")),
+      `expected "Bike Statistics" h2, got: ${JSON.stringify(headings)}`,
+    );
+    // The comparison table's Distance row must have at least one positive km value.
+    const rows = await page.$$eval(
+      "#bikepanel table tbody tr",
+      (trs) => trs
+        .filter((r) => !r.classList.contains("ridesrow") && !r.classList.contains("archived"))
+        .map((r) => Array.from(r.querySelectorAll("td")).map((td) => td.textContent.trim())),
+    );
+    const distRow = rows.find((r) => r[0] === "Distance");
+    assert.ok(distRow, `expected a "Distance" row in the Bike Statistics table`);
+    const hasPositive = distRow.slice(1).some(function(cell) {
+      return parseFloat(cell.replace(/[\s]/g, "")) > 0;
+    });
+    assert.ok(hasPositive, `expected at least one positive Distance value, got: ${JSON.stringify(distRow)}`);
   });
   await check(S, "parts-table-has-rows", async () => {
     const n = await page.$$eval(
@@ -4394,6 +4516,343 @@ async function testMobileLayout(page, jsErrors) {
   await page.setViewport({ width: 1440, height: 900 });
 }
 
+async function testStatsSectionOrder(page, jsErrors) {
+  const S = "stats-section-order";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try { localStorage.removeItem("ssb-stats-sec"); } catch (_) {}
+    try { sessionStorage.clear(); } catch (_) {}
+  });
+  await page.goto(URLS.stats, { waitUntil: "networkidle0", timeout: 20000 });
+  try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
+
+  await check(S, "no-js-errors", () =>
+    assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
+  );
+
+  await check(S, "all-sections-present", async () => {
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    const expected = ["kpis", "goals", "records", "year", "monthly-chart", "monthly-table", "comparison", "sport", "dow"];
+    assert.deepEqual(sids, expected, `sections: ${JSON.stringify(sids)}`);
+  });
+
+  await check(S, "drag-handles-present", async () => {
+    const n = await page.$$eval("#sec-wrap .sec .sec-handle", (els) => els.length);
+    assert.equal(n, 9, `expected 9 .sec-handle elements, got ${n}`);
+  });
+
+  await check(S, "reset-button-present", async () => {
+    const n = await page.$$eval("#sec-wrap .sec-order-reset", (els) => els.length);
+    assert.equal(n, 1, `expected 1 .sec-order-reset button, got ${n}`);
+  });
+
+  // Drag records (index 2) to before kpis (index 0) by dropping above midpoint of kpis
+  await check(S, "drag-to-reorder-works", async () => {
+    await page.evaluate(() => {
+      const wrap = document.getElementById("sec-wrap");
+      const secs = Array.from(wrap.querySelectorAll(".sec[data-sid]"));
+      const src = secs.find((s) => s.getAttribute("data-sid") === "records");
+      const tgt = secs.find((s) => s.getAttribute("data-sid") === "kpis");
+      const handle = src ? src.querySelector(".sec-handle") : null;
+      if (!handle || !tgt) return;
+      handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      const rect = tgt.getBoundingClientRect();
+      // clientY = rect.top + 1 → insert BEFORE kpis
+      tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + 1 }));
+      handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.equal(sids[0], "records", `expected "records" first after drag, got "${sids[0]}"`);
+    assert.equal(sids[1], "kpis", `expected "kpis" second after drag, got "${sids[1]}"`);
+  });
+
+  await check(S, "order-persisted-in-localstorage", async () => {
+    const saved = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem("ssb-stats-sec")); } catch (_) { return null; }
+    });
+    assert.ok(Array.isArray(saved) && saved.length === 9, "saved order should be 9-element array");
+    assert.equal(saved[0], "records", `expected "records" first in saved, got "${saved[0]}"`);
+  });
+
+  await check(S, "order-restored-after-reload", async () => {
+    await page.reload({ waitUntil: "networkidle0", timeout: 20000 });
+    try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.equal(sids[0], "records", `after reload, expected "records" first, got "${sids[0]}"`);
+  });
+
+  await check(S, "reset-button-restores-default-order", async () => {
+    await page.evaluate(() => {
+      const rb = document.querySelector("#sec-wrap .sec-order-reset");
+      if (rb) rb.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.equal(sids[0], "kpis", `after reset, expected "kpis" first, got "${sids[0]}"`);
+    const saved = await page.evaluate(() => {
+      try { return localStorage.getItem("ssb-stats-sec"); } catch (_) { return "x"; }
+    });
+    assert.equal(saved, null, `expected localStorage cleared after reset, got: ${saved}`);
+  });
+
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-stats-sec"); } catch (_) {} });
+}
+
+async function testDetailSectionOrder(page, jsErrors) {
+  const S = "detail-section-order";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {}
+    try { sessionStorage.clear(); } catch (_) {}
+  });
+  await page.goto(URLS.activity, { waitUntil: "networkidle0", timeout: 20000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+
+  await check(S, "no-js-errors", () => {
+    const real = jsErrors.filter(
+      (e) =>
+        !e.message?.toLowerCase().includes("leaflet") &&
+        !e.message?.toLowerCase().includes("unpkg.com"),
+    );
+    assert.equal(real.length, 0, real.map((e) => e.message).join("; "));
+  });
+
+  await check(S, "all-sections-present", async () => {
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    const expected = ["cards", "map", "elev", "hr", "cad", "pwr", "hrzone", "splits"];
+    assert.deepEqual(sids, expected, `sections: ${JSON.stringify(sids)}`);
+  });
+
+  await check(S, "drag-handles-present", async () => {
+    const n = await page.$$eval("#sec-wrap .sec .sec-handle", (els) => els.length);
+    assert.equal(n, 8, `expected 8 .sec-handle elements, got ${n}`);
+  });
+
+  await check(S, "reset-button-present", async () => {
+    const n = await page.$$eval("#sec-wrap .sec-order-reset", (els) => els.length);
+    assert.equal(n, 1, `expected 1 .sec-order-reset button, got ${n}`);
+  });
+
+  // Drag splits (last) to before hrzone (second-to-last)
+  await check(S, "drag-to-reorder-works", async () => {
+    await page.evaluate(() => {
+      const wrap = document.getElementById("sec-wrap");
+      const secs = Array.from(wrap.querySelectorAll(".sec[data-sid]"));
+      const src = secs.find((s) => s.getAttribute("data-sid") === "splits");
+      const tgt = secs.find((s) => s.getAttribute("data-sid") === "hrzone");
+      const handle = src ? src.querySelector(".sec-handle") : null;
+      if (!handle || !tgt) return;
+      handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      const rect = tgt.getBoundingClientRect();
+      // clientY = rect.top + 1 → insert BEFORE target
+      tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + 1 }));
+      handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.equal(sids[sids.length - 2], "splits", `expected "splits" second-to-last, got "${sids[sids.length - 2]}"`);
+    assert.equal(sids[sids.length - 1], "hrzone", `expected "hrzone" last, got "${sids[sids.length - 1]}"`);
+  });
+
+  await check(S, "order-persisted-in-localstorage", async () => {
+    const saved = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem("ssb-detail-sec")); } catch (_) { return null; }
+    });
+    assert.ok(Array.isArray(saved) && saved.length === 8, "saved order should be 8-element array");
+    assert.equal(saved[saved.length - 2], "splits", `expected "splits" second-to-last in saved`);
+  });
+
+  await check(S, "reset-button-restores-default-order", async () => {
+    await page.evaluate(() => {
+      const rb = document.querySelector("#sec-wrap .sec-order-reset");
+      if (rb) rb.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.equal(sids[sids.length - 1], "splits", `after reset, expected "splits" last, got "${sids[sids.length - 1]}"`);
+  });
+
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
+}
+
+async function testBikeSectionOrder(page, jsErrors) {
+  const S = "bike-section-order";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try { localStorage.removeItem("ssb-bike-sec"); } catch (_) {}
+  });
+  await page.goto(URLS.bike, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+  await page.waitForFunction(
+    () => !document.getElementById("meta")?.textContent.includes("Loading"),
+    { timeout: 10000 },
+  );
+  // Select Road Bike tab so panel is populated
+  await page.evaluate(() => {
+    const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
+    const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
+    if (t) t.click();
+  });
+  try {
+    await page.waitForSelector("#bikepanel .sec[data-sid]", { timeout: 8000 });
+  } catch (_) {}
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+
+  await check(S, "no-js-errors", () =>
+    assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
+  );
+
+  await check(S, "parts-section-present", async () => {
+    const sid = await page.$eval("#bikepanel .sec[data-sid='parts']", (el) =>
+      el.getAttribute("data-sid"),
+    );
+    assert.equal(sid, "parts", "expected 'parts' section in bikepanel");
+  });
+
+  await check(S, "drag-handles-present", async () => {
+    const n = await page.$$eval("#bikepanel .sec .sec-handle", (els) => els.length);
+    assert.ok(n >= 1, `expected at least 1 .sec-handle in bikepanel, got ${n}`);
+  });
+
+  await check(S, "reset-button-present", async () => {
+    const n = await page.$$eval("#bikepanel .sec-order-reset", (els) => els.length);
+    assert.equal(n, 1, `expected 1 .sec-order-reset in bikepanel, got ${n}`);
+  });
+
+  // If 2+ sections exist, drag the first to after the second
+  await check(S, "drag-to-reorder-works-when-multiple-sections", async () => {
+    const secCount = await page.$$eval("#bikepanel .sec[data-sid]", (els) => els.length);
+    if (secCount < 2) return; // only one section — nothing to drag
+    await page.evaluate(() => {
+      const panel = document.getElementById("bikepanel");
+      const secs = Array.from(panel.querySelectorAll(".sec[data-sid]"));
+      if (secs.length < 2) return;
+      const src = secs[0], tgt = secs[1];
+      const handle = src.querySelector(".sec-handle");
+      if (!handle) return;
+      handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      const rect = tgt.getBoundingClientRect();
+      tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + rect.height - 1 }));
+      handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#bikepanel .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    const saved = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem("ssb-bike-sec")); } catch (_) { return null; }
+    });
+    assert.ok(Array.isArray(saved) && saved.length >= 1, "expected saved order in localStorage");
+    assert.equal(saved[0], sids[0], `saved[0] should match DOM order[0]: "${sids[0]}"`);
+  });
+
+  await check(S, "reset-button-restores-default-order", async () => {
+    await page.evaluate(() => {
+      const rb = document.querySelector("#bikepanel .sec-order-reset");
+      if (rb) rb.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const sids = await page.$$eval("#bikepanel .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    // After reset, "parts" must be first (it is always present and always default-first)
+    assert.equal(sids[0], "parts", `after reset, expected "parts" first, got "${sids[0]}"`);
+  });
+
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-bike-sec"); } catch (_) {} });
+}
+
+async function testClubSectionOrder(page, jsErrors) {
+  const S = "club-section-order";
+  jsErrors.length = 0;
+  await page.evaluate(() => {
+    try { localStorage.removeItem("ssb-lb-sec"); } catch (_) {}
+  });
+  await page.goto(URLS.club, { waitUntil: "networkidle0", timeout: 30000 });
+  try {
+    await page.waitForSelector(".club-section .sec[data-sid]", { timeout: 10000 });
+  } catch (_) {}
+
+  await check(S, "no-js-errors", () =>
+    assert.equal(jsErrors.length, 0, jsErrors.map((e) => e.message).join("; ")),
+  );
+
+  await check(S, "sections-present-in-club", async () => {
+    const n = await page.$$eval(".club-section .sec[data-sid]", (els) => els.length);
+    assert.ok(n >= 1, `expected at least 1 .sec[data-sid] in .club-section, got ${n}`);
+  });
+
+  await check(S, "drag-handles-present", async () => {
+    const n = await page.$$eval(".club-section .sec .sec-handle", (els) => els.length);
+    assert.ok(n >= 1, `expected at least 1 .sec-handle in .club-section, got ${n}`);
+  });
+
+  await check(S, "reset-button-present", async () => {
+    const n = await page.$$eval(".sec-order-reset", (els) => els.length);
+    assert.equal(n, 1, `expected 1 .sec-order-reset on leaderboard page, got ${n}`);
+  });
+
+  // Drag the first section of the first club to after the second section
+  await check(S, "drag-to-reorder-works", async () => {
+    const secCount = await page.$$eval(".club-section:first-child .sec[data-sid]", (els) => els.length);
+    if (secCount < 2) return;
+    await page.evaluate(() => {
+      const cs = document.querySelector(".club-section");
+      if (!cs) return;
+      const secs = Array.from(cs.querySelectorAll(".sec[data-sid]"));
+      if (secs.length < 2) return;
+      const src = secs[0], tgt = secs[1];
+      const handle = src.querySelector(".sec-handle");
+      if (!handle) return;
+      handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      const rect = tgt.getBoundingClientRect();
+      tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + rect.height - 1 }));
+      handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const saved = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem("ssb-lb-sec")); } catch (_) { return null; }
+    });
+    assert.ok(Array.isArray(saved) && saved.length >= 1, "expected saved order in localStorage after drag");
+  });
+
+  await check(S, "reset-button-restores-order", async () => {
+    await page.evaluate(() => {
+      const rb = document.querySelector(".sec-order-reset");
+      if (rb) rb.click();
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    // After reset, "table" section should be first in first club
+    const sids = await page.$$eval(".club-section .sec[data-sid]", (els) =>
+      els.map((el) => el.getAttribute("data-sid")),
+    );
+    assert.ok(sids.length >= 1, "expected at least one .sec in club after reset");
+    assert.equal(sids[0], "table", `after reset, expected "table" first in club, got "${sids[0]}"`);
+  });
+
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-lb-sec"); } catch (_) {} });
+}
+
 async function main() {
   const executablePath = await findBrowser();
   console.log("Using browser:", executablePath);
@@ -4466,8 +4925,14 @@ async function main() {
     console.log("\n--- Stats Goals & Progress ---");
     await testStatsGoals(page, jsErrors);
 
+    console.log("\n--- Stats Section Order ---");
+    await testStatsSectionOrder(page, jsErrors);
+
     console.log("\n--- Activity Detail ---");
     await testActivityDetail(page, jsErrors);
+
+    console.log("\n--- Detail Section Order ---");
+    await testDetailSectionOrder(page, jsErrors);
 
     console.log("\n--- Activity Detail (HealthSync Run) ---");
     await testActivityDetailHealthsyncRun(page, jsErrors);
@@ -4483,6 +4948,12 @@ async function main() {
 
     console.log("\n--- Strava Link (numeric vs HealthSync ID) ---");
     await testStravaLink(page, jsErrors);
+
+    console.log("\n--- Bike Section Order ---");
+    await testBikeSectionOrder(page, jsErrors);
+
+    console.log("\n--- Club Section Order ---");
+    await testClubSectionOrder(page, jsErrors);
 
     console.log("\n--- Bike Service (UI) ---");
     await testBikeService(page, jsErrors);

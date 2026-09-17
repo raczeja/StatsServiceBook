@@ -650,7 +650,40 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .detail-table th{background:var(--detail-th);color:var(--text-2);font-weight:600;padding:.3rem .6rem}
   .detail-table td{padding:.3rem .6rem;border-bottom:1px solid var(--detail-th)}
   .detail-table td.num{text-align:right}
+  .club-alltime{margin:.5rem 0 .75rem}
+  .club-alltime-label{font-size:.75rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem}
+  .stat-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));gap:.4rem;margin:.35rem 0 .75rem}
+  .stat-tile{background:var(--surface-2);border:1px solid var(--border);border-radius:.5rem;padding:.5rem .7rem;text-align:center}
+  .stat-tile .stv{font-size:1.2rem;font-weight:700;color:#fc4c02}
+  .stat-tile .stl{font-size:.72rem;color:var(--text-3);margin-top:.1rem}
+  .achieve-section{margin:.25rem 0 .75rem}
+  .achieve-section-label{font-size:.75rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem}
+  .achieve-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.4rem}
+  .achieve-item{background:var(--surface-2);border:1px solid var(--border);border-radius:.5rem;padding:.5rem .75rem;display:flex;align-items:flex-start;gap:.45rem}
+  .achieve-icon{font-size:1.2rem;flex-shrink:0;line-height:1.3}
+  .achieve-body .abl{font-size:.78rem;color:var(--text-3)}
+  .achieve-body .abv{font-weight:600;font-size:.88rem}
+  .top5-section{margin:.5rem 0 .75rem}
+  .top5-label{font-size:.75rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem}
+  .top5-since{font-weight:400;text-transform:none;letter-spacing:0;font-size:.7rem}
+  .top5-list{display:flex;flex-direction:column;gap:.3rem}
+  .top5-item{display:flex;align-items:center;gap:.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:.4rem;padding:.4rem .7rem}
+  .top5-rank{font-weight:700;font-size:.9rem;color:var(--text-3);min-width:1.4rem;text-align:right;flex-shrink:0}
+  .top5-rank.r1{color:#fc4c02}
+  .top5-avatar{width:1.8rem;height:1.8rem;border-radius:50%;object-fit:cover;flex-shrink:0}
+  .top5-avatar-ph{width:1.8rem;height:1.8rem;border-radius:50%;background:var(--border-2);flex-shrink:0}
+  .top5-name{font-size:.9rem;font-weight:500}
+  .top5-dist{font-weight:700;color:#fc4c02;font-size:.9rem;font-variant-numeric:tabular-nums}
+  .top5-sub{font-size:.75rem;color:var(--text-3)}
+  .top5-bar{height:3px;background:#fc4c02;border-radius:2px;margin-top:2px;opacity:.6}
   #theme-tog{margin-left:auto;flex-shrink:0;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text-3)}
+  .sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--text-3);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
+  .sec-handle:hover{opacity:1;color:var(--accent)}
+  .sec-handle:active{cursor:grabbing}
+  .sec.sec-dragging{opacity:.4}
+  .sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
+  .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
+  .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -677,7 +710,8 @@ var board = document.getElementById("board");
 var footerLinks = document.getElementById("footer-links");
 var DATA = null;
 
-function fmtKm(m){ return (m/1000).toFixed(1); }
+function fmtKm(m){ var s=(m/1000).toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+function fmtNum(n){ return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
 function fmtTime(s){ return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m"; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
@@ -829,7 +863,7 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
       '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'<span class="expand-btn">▾</span></td>'+
       '<td class="num">'+fmtKm(m.distance)+' km<div class="bar" style="width:'+pct+'%"></div></td>'+
       '<td class="num">'+fmtTime(m.moving_time)+'</td>'+
-      '<td class="num">'+Math.floor(m.elev)+'</td>'+
+      '<td class="num">'+fmtNum(m.elev)+'</td>'+
       '<td class="num">'+m.count+'</td>'+
       '<td class="num">'+avg.toFixed(1)+'</td>'+
       (lastWeek?'<td class="num">'+fmtKm(lw)+' km</td>':'')+
@@ -846,13 +880,141 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
           '<td>'+esc(a.sport_type||'')+'</td>'+
           '<td class="num">'+fmtKm(a.distance||0)+' km</td>'+
           '<td class="num">'+fmtTime(a.moving_time||0)+'</td>'+
-          '<td class="num">'+Math.floor(a.total_elevation_gain||0)+'</td>'+
+          '<td class="num">'+fmtNum(a.total_elevation_gain||0)+'</td>'+
           '<td class="num">'+aspd+'</td></tr>';
       });
     html += '</tbody></table></td></tr>';
   });
   html += '</tbody></table>';
   return html;
+}
+
+function renderThisYearTiles(allActs){
+  var curYear=new Date().getFullYear();
+  var allTimeFirst=allActs.reduce(function(mn,a){ return a.date&&(!mn||a.date<mn)?a.date:mn; },'');
+  var clubStartedThisYear=allTimeFirst && allTimeFirst.slice(0,4)===String(curYear);
+  var acts=allActs.filter(function(a){ return a.date && +a.date.slice(0,4)===curYear; });
+  if(acts.length===0) return '';
+  var dist=0,time=0,elev=0,ath={},firstDate='';
+  acts.forEach(function(a){
+    dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
+    ath[a.firstname+'|'+a.lastname]=true;
+    if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
+  });
+  var avg=time>0?(dist/time*3.6):0;
+  var sinceStr=(clubStartedThisYear && firstDate)
+    ? ' <span class="top5-since">since '+esc(firstDate)+'</span>' : '';
+  return '<div class="club-alltime">'+
+    '<div class="club-alltime-label">This year ('+curYear+')'+sinceStr+'</div>'+
+    '<div class="stat-tiles">'+
+    '<div class="stat-tile"><div class="stv">'+fmtKm(dist)+'</div><div class="stl">km</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+acts.length+'</div><div class="stl">activities</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+fmtNum(elev)+'</div><div class="stl">m elevation</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+Object.keys(ath).length+'</div><div class="stl">athletes</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+avg.toFixed(1)+'</div><div class="stl">avg km/h</div></div>'+
+    '</div></div>';
+}
+
+function renderClubAlltimeTiles(allActs){
+  if(!allActs || allActs.length===0) return '';
+  var dist=0,time=0,elev=0,ath={},firstDate=null;
+  allActs.forEach(function(a){
+    dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
+    ath[a.firstname+'|'+a.lastname]=true;
+    if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
+  });
+  var sinceAlltime=firstDate?' <span class="top5-since">since '+esc(firstDate)+'</span>':'';
+  return '<div class="club-alltime">'+
+    '<div class="club-alltime-label">Club all-time'+sinceAlltime+'</div>'+
+    '<div class="stat-tiles">'+
+    '<div class="stat-tile"><div class="stv">'+fmtKm(dist)+'</div><div class="stl">km total</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+allActs.length+'</div><div class="stl">activities</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+fmtNum(elev)+'</div><div class="stl">m elevation</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+Object.keys(ath).length+'</div><div class="stl">athletes</div></div>'+
+    '</div></div>';
+}
+
+function renderTop5Year(allActs,year){
+  var acts=allActs.filter(function(a){ return a.date && +a.date.slice(0,4)===year; });
+  if(acts.length===0) return '';
+  // Earliest date across all history (not just this year)
+  var allTimeFirst=allActs.reduce(function(mn,a){ return a.date&&(!mn||a.date<mn)?a.date:mn; },'');
+  var clubStartedThisYear=allTimeFirst && allTimeFirst.slice(0,4)===String(year);
+  var map={},firstDate='';
+  acts.forEach(function(a){
+    var k=a.firstname+'|'+a.lastname;
+    if(!map[k]) map[k]={fn:a.firstname,ln:a.lastname,dist:0,cnt:0,pm:a.profile_medium||''};
+    map[k].dist+=a.distance||0; map[k].cnt++;
+    if(a.profile_medium && !map[k].pm) map[k].pm=a.profile_medium;
+    if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
+  });
+  var top=Object.keys(map).map(function(k){return map[k];})
+    .sort(function(a,b){return b.dist-a.dist;}).slice(0,5);
+  if(top.length===0) return '';
+  var maxDist=top[0].dist||1;
+  var sinceStr=(clubStartedThisYear && firstDate)
+    ? ' <span class="top5-since">since '+esc(firstDate)+'</span>' : '';
+  var h='<div class="top5-section"><div class="top5-label">Top 5 &middot; '+year+sinceStr+'</div><div class="top5-list">';
+  top.forEach(function(m,i){
+    var rank=i+1;
+    var av=m.pm
+      ? '<img class="top5-avatar" src="'+esc(m.pm)+'" alt="">'
+      : '<div class="top5-avatar-ph"></div>';
+    var pct=Math.max(5,Math.round(m.dist/maxDist*100));
+    h+='<div class="top5-item">'+
+      '<span class="top5-rank'+(rank===1?' r1':'')+'">#'+rank+'</span>'+
+      av+
+      '<div style="flex:1;min-width:0"><div class="top5-name">'+esc(m.fn)+' '+esc(m.ln)+'</div>'+
+      '<div class="top5-bar" style="width:'+pct+'%"></div></div>'+
+      '<div style="text-align:right;flex-shrink:0"><div class="top5-dist">'+fmtKm(m.dist)+' km</div>'+
+      '<div class="top5-sub">'+m.cnt+' activities</div></div>'+
+      '</div>';
+  });
+  h+='</div></div>';
+  return h;
+}
+
+function renderPeriodTiles(acts,label){
+  if(acts.length===0) return '';
+  var dist=0,time=0,elev=0,ath={};
+  acts.forEach(function(a){
+    dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
+    ath[a.firstname+'|'+a.lastname]=true;
+  });
+  var avg=time>0?(dist/time*3.6):0;
+  return '<div class="club-alltime"><div class="club-alltime-label">'+esc(label)+'</div><div class="stat-tiles">'+
+    '<div class="stat-tile"><div class="stv">'+fmtKm(dist)+'</div><div class="stl">km</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+acts.length+'</div><div class="stl">activities</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+fmtNum(elev)+'</div><div class="stl">m elevation</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+Object.keys(ath).length+'</div><div class="stl">athletes</div></div>'+
+    '<div class="stat-tile"><div class="stv">'+avg.toFixed(1)+'</div><div class="stl">avg km/h</div></div>'+
+    '</div></div>';
+}
+
+function renderAchievements(acts,label){
+  if(acts.length<1) return '';
+  var fastest=null,fastSpd=0,longest=null,longestD=0,topElev=null,topElevD=0;
+  acts.forEach(function(a){
+    if((a.moving_time||0)>0&&(a.distance||0)>1000){
+      var spd=a.distance/a.moving_time*3.6;
+      if(spd>fastSpd){fastSpd=spd;fastest=a;}
+    }
+    if((a.distance||0)>longestD){longestD=a.distance;longest=a;}
+    if((a.total_elevation_gain||0)>topElevD){topElevD=a.total_elevation_gain;topElev=a;}
+  });
+  if(!fastest&&!longest&&!topElev) return '';
+  function ai(icon,lbl,val,sub){
+    return '<div class="achieve-item"><div class="achieve-icon">'+icon+'</div>'+
+      '<div class="achieve-body"><div class="abl">'+esc(lbl)+'</div>'+
+      '<div class="abv">'+val+'</div>'+(sub?'<div class="abl">'+esc(sub)+'</div>':'')+
+      '</div></div>';
+  }
+  var h='<div class="achieve-section"><div class="achieve-section-label">Single activity highlights &middot; '+esc(label)+'</div><div class="achieve-grid">';
+  if(fastest) h+=ai('&#9889;','Fastest',esc(fastest.firstname)+' '+esc(fastest.lastname)+' &mdash; '+fastSpd.toFixed(1)+' km/h',fastest.sport_type||'');
+  if(longest) h+=ai('&#128207;','Longest',esc(longest.firstname)+' '+esc(longest.lastname)+' &mdash; '+fmtKm(longestD)+' km',longest.sport_type||'');
+  if(topElev) h+=ai('&#127956;','Most elevation',esc(topElev.firstname)+' '+esc(topElev.lastname)+' &mdash; '+fmtNum(topElevD)+' m',topElev.sport_type||'');
+  h+='</div></div>';
+  return h;
 }
 
 function render(){
@@ -892,7 +1054,18 @@ function render(){
     if(info.sport_type) sub.push(esc(info.sport_type));
     if(sub.length) html += '<p class="club-sub">'+sub.join(' · ')+'</p>';
     if(info.description) html += '<p class="club-desc">'+esc(info.description)+'</p>';
-    html += renderClubTable(acts, esc(club.clubId||String(i)), club.activities||[], lastWeek);
+    var _tbl=renderClubTable(acts, esc(club.clubId||String(i)), club.activities||[], lastWeek);
+    var _top5=renderTop5Year(club.activities||[],year);
+    var _period=renderPeriodTiles(acts,label);
+    var _achieve=renderAchievements(acts,label);
+    var _thisyr=renderThisYearTiles(club.activities||[]);
+    var _alltime=renderClubAlltimeTiles(club.activities||[]);
+    html += '<div class="sec" data-sid="table">'+_tbl+'</div>';
+    if(_top5) html += '<div class="sec" data-sid="top5">'+_top5+'</div>';
+    if(_period) html += '<div class="sec" data-sid="period">'+_period+'</div>';
+    if(_achieve) html += '<div class="sec" data-sid="achievements">'+_achieve+'</div>';
+    if(_thisyr) html += '<div class="sec" data-sid="thisyear">'+_thisyr+'</div>';
+    if(_alltime) html += '<div class="sec" data-sid="alltime">'+_alltime+'</div>';
     html += '</section>';
   });
 
@@ -900,6 +1073,7 @@ function render(){
     totalActs+" activities · "+fmtKm(totalDist)+" km total · "+esc(label)+
     " · generated "+esc(DATA.generatedAt||"");
   board.innerHTML = html;
+  if(typeof window._lbSecAfterRender==='function')window._lbSecAfterRender();
 }
 
 fetch("activities.json",{cache:"no-store"})
@@ -920,6 +1094,73 @@ fetch("activities.json",{cache:"no-store"})
   syncBtn();
   btn.onclick=function(){root.dataset.theme=isDark()?'light':'dark';localStorage.setItem('theme',root.dataset.theme);syncBtn();};
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
+})();
+(function(){
+  var LB_SEC_KEY='ssb-lb-sec';
+  var LB_SEC_DEFAULT=['table','top5','period','achievements','thisyear','alltime'];
+  var board=document.getElementById('board');
+  if(!board)return;
+  var dragSrc=null;
+  function getSecs(wrap){return Array.prototype.filter.call(wrap.children,function(el){return el.classList&&el.classList.contains('sec');});}
+  function saveOrder(wrap){try{localStorage.setItem(LB_SEC_KEY,JSON.stringify(getSecs(wrap).map(function(s){return s.getAttribute('data-sid');})));}catch(e){}}
+  function getOrder(allSids){
+    var saved=null;try{saved=JSON.parse(localStorage.getItem(LB_SEC_KEY));}catch(e){}
+    var order=[];
+    if(saved){saved.forEach(function(sid){if(allSids.indexOf(sid)>=0)order.push(sid);});allSids.forEach(function(sid){if(order.indexOf(sid)<0)order.push(sid);});}
+    else{LB_SEC_DEFAULT.forEach(function(sid){if(allSids.indexOf(sid)>=0)order.push(sid);});allSids.forEach(function(sid){if(order.indexOf(sid)<0)order.push(sid);});}
+    return order;
+  }
+  function doReset(){
+    try{localStorage.removeItem(LB_SEC_KEY);}catch(e){}
+    var clubSecs=board.querySelectorAll('.club-section');
+    for(var i=0;i<clubSecs.length;i++){
+      var wrap=clubSecs[i];
+      var allSids=getSecs(wrap).map(function(s){return s.getAttribute('data-sid');});
+      var secMap={};getSecs(wrap).forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+      LB_SEC_DEFAULT.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+      allSids.forEach(function(sid){if(secMap[sid]&&LB_SEC_DEFAULT.indexOf(sid)<0)wrap.appendChild(secMap[sid]);});
+    }
+  }
+  function applyOrderAndInject(wrap){
+    var allSids=getSecs(wrap).map(function(s){return s.getAttribute('data-sid');});
+    var order=getOrder(allSids);
+    var secMap={};getSecs(wrap).forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    order.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+    getSecs(wrap).forEach(function(s){
+      var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
+      var sid=s.getAttribute('data-sid');
+      var handle=document.createElement('span');handle.className='sec-handle';handle.title='Drag to reorder';handle.textContent='⠿';
+      handle.setAttribute('draggable','true');
+      handle.addEventListener('dragstart',function(e){dragSrc={wrap:wrap,sid:sid};s.classList.add('sec-dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setDragImage(s,0,0);}catch(_){}}e.stopPropagation();});
+      handle.addEventListener('dragend',function(){s.classList.remove('sec-dragging');dragSrc=null;getSecs(wrap).forEach(function(x){x.classList.remove('sec-drag-over');});});
+      s.ondragover=function(e){if(dragSrc&&dragSrc.wrap===wrap&&dragSrc.sid!==sid){e.preventDefault();s.classList.add('sec-drag-over');}};
+      s.ondragleave=function(e){if(!s.contains(e.relatedTarget))s.classList.remove('sec-drag-over');};
+      s.ondrop=function(e){
+        e.preventDefault();
+        if(!dragSrc||dragSrc.wrap!==wrap||dragSrc.sid===sid)return;
+        var secs=getSecs(wrap);var srcEl=null,tgtEl=null;
+        for(var i=0;i<secs.length;i++){if(secs[i].getAttribute('data-sid')===dragSrc.sid)srcEl=secs[i];if(secs[i].getAttribute('data-sid')===sid)tgtEl=secs[i];}
+        if(!srcEl||!tgtEl)return;
+        var rect=tgtEl.getBoundingClientRect();
+        if((e.clientY||0)<rect.top+rect.height/2)wrap.insertBefore(srcEl,tgtEl);else wrap.insertBefore(srcEl,tgtEl.nextSibling);
+        getSecs(wrap).forEach(function(x){x.classList.remove('sec-drag-over');});
+        saveOrder(wrap);
+      };
+      s.insertBefore(handle,s.firstChild);
+    });
+  }
+  function ensureResetBtn(){
+    if(board.previousElementSibling&&board.previousElementSibling.classList.contains('sec-order-reset'))return;
+    var rb=document.createElement('button');rb.className='sec-order-reset';rb.textContent='↺ Reset section order';
+    rb.onclick=function(){doReset();injectAll();};
+    board.parentNode.insertBefore(rb,board);
+  }
+  function injectAll(){
+    ensureResetBtn();
+    var clubSecs=board.querySelectorAll('.club-section');
+    for(var i=0;i<clubSecs.length;i++)applyOrderAndInject(clubSecs[i]);
+  }
+  window._lbSecAfterRender=injectAll;
 })();
 </script>
 </body>

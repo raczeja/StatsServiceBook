@@ -25,6 +25,7 @@ const BASE = `http://${HOST}:${PORT}/strava/me`;
 
 const PAGES = [
   { name: "club-dashboard",      url: `http://${HOST}:${PORT}/strava/index.html`, dark: false },
+  { name: "club-dashboard-dark", url: `http://${HOST}:${PORT}/strava/index.html`, dark: true  },
   { name: "my-activities",       url: `${BASE}/index.html`,                       dark: false },
   { name: "stats",               url: `${BASE}/stats.html`,                       dark: false },
   { name: "heatmap",             url: `${BASE}/heatmap.html`,                     dark: false },
@@ -198,6 +199,88 @@ try {
   await page.waitForSelector("#r-note", { timeout: 3000 });
   await shot(page, "bike-modal-replace-part");
   await page.evaluate(() => closeModal());
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+
+  // ── Multi-bike overview screenshots (all bike tabs visible) ──────────────────
+  async function shotMultiBike(darkMode, shotName) {
+    await page.evaluate((isDark) => {
+      try { if (isDark) localStorage.setItem("theme", "dark"); else localStorage.removeItem("theme"); } catch (_) {}
+    }, darkMode);
+    await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle0", timeout: 20000 });
+    await page.waitForSelector(".bikes .tab", { timeout: 10000 });
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
+    const file = path.join(outDir, `${shotName}.png`);
+    await page.screenshot({ path: file, fullPage: true });
+    console.log(`  saved ${file}`);
+  }
+
+  console.log("  → bike-stats-multi");
+  await shotMultiBike(false, "bike-stats-multi");
+
+  console.log("  → bike-stats-multi-dark");
+  await shotMultiBike(true, "bike-stats-multi-dark");
+
+  // ── Section-reorder screenshots ──────────────────────────────────────────────
+  // Stats page: move kpis section down one position so records appears first.
+  console.log("→ stats-section-reorder");
+  await page.evaluate(() => { try { localStorage.removeItem("theme"); localStorage.removeItem("ssb-stats-sec"); } catch (_) {} });
+  await page.goto(`${BASE}/stats.html`, { waitUntil: "networkidle0", timeout: 30000 });
+  try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
+  try {
+    await page.waitForFunction(
+      () => !document.getElementById("meta")?.textContent.includes("Loading"),
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  // Drag kpis (first) to after records (second)
+  await page.evaluate(() => {
+    const wrap = document.getElementById("sec-wrap");
+    const secs = Array.from(wrap ? wrap.querySelectorAll(".sec[data-sid]") : []);
+    const src = secs.find((s) => s.getAttribute("data-sid") === "kpis");
+    const tgt = secs.find((s) => s.getAttribute("data-sid") === "records");
+    const handle = src ? src.querySelector(".sec-handle") : null;
+    if (!handle || !tgt) return;
+    handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+    const rect = tgt.getBoundingClientRect();
+    tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + rect.height - 1 }));
+    handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+  await shot(page, "stats-section-reorder");
+  // Restore default order in localStorage
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-stats-sec"); } catch (_) {} });
+
+  // Activity detail: move splits up one position
+  console.log("→ detail-section-reorder");
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
+  await page.goto(`${BASE}/activity.html?id=18784255013`, { waitUntil: "networkidle0", timeout: 30000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  // Drag splits (last) to before hrzone (second-to-last)
+  await page.evaluate(() => {
+    const wrap = document.getElementById("sec-wrap");
+    const secs = Array.from(wrap ? wrap.querySelectorAll(".sec[data-sid]") : []);
+    const src = secs.find((s) => s.getAttribute("data-sid") === "splits");
+    const tgt = secs.find((s) => s.getAttribute("data-sid") === "hrzone");
+    const handle = src ? src.querySelector(".sec-handle") : null;
+    if (!handle || !tgt) return;
+    handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+    const rect = tgt.getBoundingClientRect();
+    tgt.dispatchEvent(new MouseEvent("drop", { bubbles: true, cancelable: true, clientY: rect.top + 1 }));
+    handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+  await shot(page, "detail-section-reorder");
+  // Restore default order
+  await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
 
 } finally {
   await browser.close();

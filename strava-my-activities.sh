@@ -67,6 +67,7 @@ BIKE_EMAIL_STATE="${STRAVA_MY_BIKE_EMAIL_STATE:-$STATE_DIR/bike-email-state.json
 DETAIL_DIR="${STRAVA_MY_DETAIL_DIR:-$WEB_DIR/details}"        # one <id>.json per activity
 DETAIL_MAX_PER_RUN="${STRAVA_MY_DETAIL_MAX_PER_RUN:-40}"      # cap detail fetches per run; 0 disables
 DETAIL_SLEEP="${STRAVA_MY_DETAIL_SLEEP:-1}"                   # seconds between detail fetches (be gentle)
+GPX_MAX_PER_RUN="${STRAVA_MY_GPX_MAX_PER_RUN:-5}"            # cap GPX-only retries per run (spread over days)
 DETAIL_SKIP="$STATE_DIR/detail-skip.txt"                     # ids Strava said are gone; never retried
 
 # Historical sync (see section 3): each run rebuilds the store from the feed so
@@ -590,6 +591,8 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           else
             log "detail backfill: GPX discarded for activity $id (HTTP $_gpx_code, no track points)"
             rm -f "$_gpx_tmp" "$WEB_DIR/gpx/$id.gpx"
+            grep -qxF "$id" "$STATE_DIR/gpx-no-gps.txt" 2>/dev/null \
+              || echo "$id" >> "$STATE_DIR/gpx-no-gps.txt"
           fi
         fi
         ;;
@@ -625,10 +628,31 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
     [ "$DETAIL_SLEEP" -gt 0 ] && sleep "$DETAIL_SLEEP"
   done < "$TMP/ids.txt"
 
-  # --- 3b-ii. GPX retry for activities that hit 429 on a prior run ----------
+  # --- 3b-ii. GPX queue backfill: historical details missing their GPX --------
+  # Detail JSONs saved before GPX download was implemented, or in API mode,
+  # have no gpx_file field.  Queue them so the retry block below can fill them
+  # in without re-fetching the detail.  Skips known-no-GPS and already-pending.
+  if [ "$STRAVA_SOURCE" = "scrape" ] && [ -d "$DETAIL_DIR" ]; then
+    _gpx_queued=0
+    for _dj in "$DETAIL_DIR"/*.json; do
+      [ -f "$_dj" ] || continue
+      _did="$(basename "$_dj" .json)"
+      jq -e '.gpx_file' "$_dj" >/dev/null 2>&1 && continue
+      [ -f "$WEB_DIR/gpx/$_did.gpx" ] && continue
+      grep -qxF "$_did" "$STATE_DIR/gpx-no-gps.txt" 2>/dev/null && continue
+      grep -qxF "$_did" "$STATE_DIR/gpx-pending.txt" 2>/dev/null && continue
+      echo "$_did" >> "$STATE_DIR/gpx-pending.txt"
+      _gpx_queued=$((_gpx_queued + 1))
+    done
+    [ "$_gpx_queued" -gt 0 ] && log "detail backfill: queued $_gpx_queued historical activities for GPX download"
+  fi
+
+  # --- 3b-iii. GPX retry for activities that hit 429 on a prior run ----------
   GPX_PENDING="$STATE_DIR/gpx-pending.txt"
   if [ -f "$GPX_PENDING" ] && [ -s "$GPX_PENDING" ] && [ "$STRAVA_SOURCE" = "scrape" ]; then
     _gpx_retried=0
+    _gpx_tried=0
+    _gpx_rate_limited=0   # set to 1 on 429; remaining IDs kept in queue, no more downloads
     _gpx_still_pending=""
     while IFS= read -r _gpx_id; do
       [ -n "$_gpx_id" ] || continue
@@ -641,6 +665,14 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
         fi
         continue   # drop from pending — no need to rewrite it
       fi
+      # Cap hit or rate limited: keep in queue, skip download, continue loop to
+      # preserve all remaining IDs (avoids the data loss a bare `break` would cause).
+      if [ "$_gpx_rate_limited" = "1" ] || { [ "$GPX_MAX_PER_RUN" -gt 0 ] && [ "$_gpx_tried" -ge "$GPX_MAX_PER_RUN" ]; }; then
+        _gpx_still_pending="${_gpx_still_pending}${_gpx_id}
+"
+        continue
+      fi
+      _gpx_tried=$((_gpx_tried + 1))
       _gpx_tmp="$TMP/$_gpx_id.gpx"
       log "detail backfill: GPX retry for activity $_gpx_id..."
       _gpx_code="$(curl_retry -sS \
@@ -660,18 +692,22 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
         log "detail backfill: GPX retry succeeded for activity $_gpx_id"
       elif [ "$_gpx_code" = "429" ]; then
         rm -f "$_gpx_tmp"
+        _gpx_rate_limited=1
         _gpx_still_pending="${_gpx_still_pending}${_gpx_id}
 "
-        log "detail backfill: GPX retry still rate limited for activity $_gpx_id; keeping in queue"
-        break
+        log "detail backfill: GPX retry rate limited for activity $_gpx_id; keeping queue for next run"
       else
         rm -f "$_gpx_tmp"
         log "detail backfill: GPX retry for activity $_gpx_id — HTTP $_gpx_code; discarding from queue"
+        grep -qxF "$_gpx_id" "$STATE_DIR/gpx-no-gps.txt" 2>/dev/null \
+          || echo "$_gpx_id" >> "$STATE_DIR/gpx-no-gps.txt"
       fi
       [ "$DETAIL_SLEEP" -gt 0 ] && sleep "$DETAIL_SLEEP"
     done < "$GPX_PENDING"
     printf '%s' "$_gpx_still_pending" > "$GPX_PENDING"
-    [ "$_gpx_retried" -gt 0 ] && log "detail backfill: GPX retry: $_gpx_retried saved"
+    _gpx_queue_left="$(grep -c . "$GPX_PENDING" 2>/dev/null || echo 0)"
+    [ "$_gpx_retried" -gt 0 ] && log "detail backfill: GPX retry: $_gpx_retried saved; $_gpx_queue_left remaining in queue"
+    [ "$_gpx_retried" -eq 0 ] && [ "$_gpx_queue_left" -gt 0 ] && log "detail backfill: GPX retry: cap reached ($GPX_MAX_PER_RUN/run); $_gpx_queue_left remaining will continue on later runs"
   fi
 
   DETAIL_HAVE="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.json$' || true)"
@@ -690,19 +726,26 @@ TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 # Re-renders when: new/changed/deleted activities, new detail files, weather backfill,
 # bike-assign written via CGI (bike-assign newer than activities.json), or helper scripts updated.
 _skip_render=0
+o# Compute md5 of all helper scripts — more reliable than mtime across scp
+_scripts_md5=""
+for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
+            "$STRAVA_LIBDIR/strava-my-html-detail.sh" \
+            "$STRAVA_LIBDIR/strava-my-html-bike.sh" \
+            "$STRAVA_LIBDIR/strava-my-html-stats.sh" \
+            "$STRAVA_LIBDIR/strava-my-html-heatmap.sh" \
+            "$STRAVA_LIBDIR/strava-lib.sh"; do
+    [ -f "$_hs" ] && _scripts_md5="$_scripts_md5$(md5sum "$_hs")"
+done
+_scripts_md5=$(printf '%s' "$_scripts_md5" | md5sum | cut -d' ' -f1)
 if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
    [ -f "$WEB_DIR/index.html" ] && \
    [ -f "$BIKE_ASSIGN" ] && [ "$WEB_DIR/activities.json" -nt "$BIKE_ASSIGN" ]; then
-    _skip_render=1
-    for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
-                "$STRAVA_LIBDIR/strava-my-html-detail.sh" \
-                "$STRAVA_LIBDIR/strava-my-html-bike.sh" \
-                "$STRAVA_LIBDIR/strava-my-html-stats.sh" \
-                "$STRAVA_LIBDIR/strava-my-html-heatmap.sh" \
-                "$STRAVA_LIBDIR/strava-lib.sh"; do
-        [ -f "$_hs" ] && [ "$_hs" -nt "$WEB_DIR/index.html" ] && _skip_render=0 && break
-    done
-    [ "$_skip_render" -eq 1 ] && log "no new activities and scripts up-to-date — skipping re-render"
+    _stored_md5=""
+    [ -f "$STATE_DIR/scripts.md5" ] && _stored_md5=$(cat "$STATE_DIR/scripts.md5")
+    if [ "$_scripts_md5" = "$_stored_md5" ]; then
+        _skip_render=1
+        log "no new activities and scripts up-to-date — skipping re-render"
+    fi
 fi
 if [ "$_skip_render" -eq 0 ]; then
 
@@ -754,7 +797,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         kilojoules:             (.kilojoules // null),
         average_temp:           (.average_temp // null),
         suffer_score:           (.suffer_score // null),
-        calories:               (.calories // null)
+        calories:               (.calories // null),
+        gear_id:                (.gear.id // null)
       }
     }) | add // {}
   ' "$DETAIL_DIR"/*.json > "$TMP/enrich.json"
@@ -796,7 +840,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
     activities: [
       .[]
       | ($enrich[(.id | tostring)] // {}) as $e
-      | ($A[(.id | tostring)] // .gear_id) as $bike
+      | ($A[(.id | tostring)] // .gear_id // $e.gear_id) as $bike
       | ($W[(.id | tostring)]) as $wc
       | (if ($wc | type) == "number" then $wc
          elif ($wc | type) == "object" then ($wc.t // null)
@@ -1081,6 +1125,8 @@ fi
 # --- Render all-activities heatmap (last — GPX scan is slow on flash storage) -
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-my-html-heatmap.sh"
+
+printf '%s\n' "$_scripts_md5" > "$STATE_DIR/scripts.md5"
 
 fi  # _skip_render
 

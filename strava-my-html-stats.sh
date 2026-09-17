@@ -48,6 +48,11 @@ tr.hi td{background:var(--hi-row)!important;font-weight:600}
 [data-theme=light] .cmp td.c1{background:#ffeee6;color:#222}
 [data-theme=light] .cmp td.c2{background:#ffcaab;color:#222}
 [data-theme=light] .cmp td.c3{background:#ff9a6c;color:#222}
+.cmp td.yoy-pos{color:#1a7a3a;font-weight:600}
+.cmp td.yoy-neg{color:#c62828;font-weight:600}
+@media(prefers-color-scheme:dark){.cmp td.yoy-pos{color:#4caf72}.cmp td.yoy-neg{color:#ef9a9a}}
+[data-theme=dark] .cmp td.yoy-pos{color:#4caf72}
+[data-theme=dark] .cmp td.yoy-neg{color:#ef9a9a}
 .chart-box{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:.5rem;padding:.65rem .9rem;margin:.25rem 0}
 .chart-box h3{margin:0 0 .4rem;font-size:.75rem;color:var(--text-4);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 svg.bar{width:100%;display:block}
@@ -85,6 +90,13 @@ svg.bar{width:100%;display:block}
 .mo-past .goal-mo-fill{background:#60a5fa}
 .mo-fut  .goal-mo-fill{background:var(--border-2)}
 .goal-mo-num{color:var(--text-5);font-size:.67rem;white-space:nowrap}
+.sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--text-3);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
+.sec-handle:hover{opacity:1;color:var(--accent)}
+.sec-handle:active{cursor:grabbing}
+.sec.sec-dragging{opacity:.4}
+.sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
+.sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
+.sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -99,28 +111,48 @@ svg.bar{width:100%;display:block}
   <label>Year&nbsp;<select id="yearSel"></select></label>
 </div>
 
+<div id="sec-wrap">
+<div class="sec" data-sid="kpis">
 <div class="kpis" id="kpis"></div>
+</div>
+<div class="sec" data-sid="goals">
 <div id="goalsSection"></div>
+</div>
 
+<div class="sec" data-sid="records">
 <h2>Personal records <span id="recsSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time &middot; all sports</span></h2>
 <div class="recs" id="recs"></div>
+</div>
 
+<div class="sec" data-sid="year">
 <h2>Year overview</h2>
 <div id="yearTable"></div>
+</div>
 
+<div class="sec" data-sid="monthly-chart">
 <h2 id="moTitle">Monthly breakdown</h2>
 <div class="meta" id="moDesc" style="margin:.1rem 0 .5rem"></div>
 <div class="chart-box"><h3 id="moChartTitle">Distance per month (km)</h3><svg class="bar" id="moSvg" viewBox="0 0 480 130" preserveAspectRatio="none"></svg></div>
+</div>
+<div class="sec" data-sid="monthly-table">
 <div id="moTable"></div>
+</div>
 
+<div class="sec" data-sid="comparison">
 <h2>Year comparison <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; km per month</span></h2>
 <div id="cmpTable"></div>
+</div>
 
+<div class="sec" data-sid="sport">
 <h2>By sport <span id="sportSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time</span></h2>
 <div id="sportTable"></div>
+</div>
 
+<div class="sec" data-sid="dow">
 <h2>Average per day of week <span id="dowSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; selected sport &middot; all years</span></h2>
 <div class="chart-box"><h3>Avg distance per weekday (km)</h3><svg class="bar" id="dowSvg" viewBox="0 0 280 120" preserveAspectRatio="none"></svg></div>
+</div>
+</div>
 
 <div class="meta" style="margin-top:1.5rem">
   StravaStats for OpenWrt &middot; <a href="index.html">My Activities</a> &middot;
@@ -757,16 +789,33 @@ function render(){
       if(r<0.70) return "c3";
       return "c4";
     }
-    var cmpHead='<tr><th>Month</th>'+cmpYears.map(function(y){return '<th>'+y+'</th>';}).join("")+'</tr>';
+    var cmpCurY=cmpYears[0], cmpPrevY=cmpYears[1];
+    var cmpHead='<tr><th>Month</th><th>YoY</th>'+cmpYears.map(function(y){return '<th>'+y+'</th>';}).join("")+'</tr>';
     var cmpRows=MONTHS_S.map(function(mo,i){
       var cells=cmpYears.map(function(y){
         var v=cmpData[y][i];
         return '<td class="num '+heatCls(v)+'">'+(v?fmtKmD(v):'—')+'</td>';
       }).join("");
-      return '<tr><td>'+mo+'</td>'+cells+'</tr>';
+      var vCur=cmpData[cmpCurY][i], vPrev=cmpData[cmpPrevY][i];
+      var isFuture=cmpCurY===curY&&i>curMo;
+      var yoyCell;
+      if(isFuture||(!vCur&&!vPrev)){
+        yoyCell='<td class="num" style="color:var(--text-4)">—</td>';
+      } else {
+        var d=vCur-vPrev, sign=d>=0?'+':'', cls=d>0?'yoy-pos':d<0?'yoy-neg':'';
+        var pct=vPrev>0?(d/vPrev*100):0;
+        yoyCell='<td class="num '+cls+'" style="line-height:1.5">'+sign+fmtKmD(d)+' km<br>'+sign+pct.toFixed(1)+'%</td>';
+      }
+      return '<tr><td>'+mo+'</td>'+yoyCell+cells+'</tr>';
     }).join("");
+    var cmpTots=cmpYears.map(function(y){return cmpData[y].reduce(function(s,v){return s+(v||0);},0);});
+    var cmpTotCells=cmpYears.map(function(y,i){return '<td class="num"><strong>'+fmtKmD(cmpTots[i])+'</strong></td>';}).join("");
+    var tD=cmpTots[0]-cmpTots[1], tSign=tD>=0?'+':'', tCls=tD>0?'yoy-pos':tD<0?'yoy-neg':'';
+    var tPct=cmpTots[1]>0?(tD/cmpTots[1]*100):0;
+    var cmpTotYoy='<td class="num '+tCls+'" style="line-height:1.5"><strong>'+tSign+fmtKmD(tD)+' km</strong><br>'+tSign+tPct.toFixed(1)+'%</td>';
+    var cmpTotRow='<tr style="border-top:2px solid var(--border-2)"><td><strong>Total</strong></td>'+cmpTotYoy+cmpTotCells+'</tr>';
     document.getElementById("cmpTable").innerHTML=
-      '<table class="cmp"><thead>'+cmpHead+'</thead><tbody>'+cmpRows+'</tbody></table>';
+      '<table class="cmp"><thead>'+cmpHead+'</thead><tbody>'+cmpRows+cmpTotRow+'</tbody></table>';
   } else {
     document.getElementById("cmpTable").innerHTML=
       '<div class="empty">Need at least 2 years of data for comparison.</div>';
@@ -887,6 +936,7 @@ function render(){
 
   // goals section renders from cached data (loaded once in load())
   if(_goalsCache) renderGoals(_goalsCache);
+  if(typeof window._statsSecAfterRender==='function')window._statsSecAfterRender();
 }
 
 // ---- init -------------------------------------------------------------------
@@ -936,6 +986,61 @@ function load(){
 document.getElementById("sportSel").addEventListener("change",function(){ selSport=this.value; render(); });
 document.getElementById("yearSel").addEventListener("change",function(){ selYear=this.value; render(); });
 load();
+(function(){
+  var STATS_SEC_KEY='ssb-stats-sec';
+  var STATS_SEC_DEFAULT=['kpis','goals','records','year','monthly-chart','monthly-table','comparison','sport','dow'];
+  var wrap=document.getElementById('sec-wrap');
+  if(!wrap)return;
+  var dragSrc=null;
+  function getSecs(){return Array.prototype.filter.call(wrap.children,function(el){return el.classList.contains('sec');});}
+  function saveOrder(){try{localStorage.setItem(STATS_SEC_KEY,JSON.stringify(getSecs().map(function(s){return s.getAttribute('data-sid');})));}catch(e){}}
+  function applyOrder(){
+    var saved=null;try{saved=JSON.parse(localStorage.getItem(STATS_SEC_KEY));}catch(e){}
+    var order=(saved&&saved.length===STATS_SEC_DEFAULT.length)?saved:STATS_SEC_DEFAULT.slice();
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    order.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+  }
+  function doReset(){
+    try{localStorage.removeItem(STATS_SEC_KEY);}catch(e){}
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    STATS_SEC_DEFAULT.forEach(function(sid){if(secMap[sid])wrap.appendChild(secMap[sid]);});
+  }
+  function dropInto(sid,e){
+    if(!dragSrc||dragSrc===sid)return;
+    var secs=getSecs();var srcEl=null,tgtEl=null;
+    for(var i=0;i<secs.length;i++){if(secs[i].getAttribute('data-sid')===dragSrc)srcEl=secs[i];if(secs[i].getAttribute('data-sid')===sid)tgtEl=secs[i];}
+    if(!srcEl||!tgtEl)return;
+    var rect=tgtEl.getBoundingClientRect();
+    if((e.clientY||0)<rect.top+rect.height/2)wrap.insertBefore(srcEl,tgtEl);else wrap.insertBefore(srcEl,tgtEl.nextSibling);
+    getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});
+    saveOrder();
+  }
+  function ensureResetBtn(){
+    if(wrap.querySelector('.sec-order-reset'))return;
+    var rb=document.createElement('button');rb.className='sec-order-reset';rb.textContent='↺ Reset order';
+    rb.onclick=function(){doReset();injectHandles();};
+    wrap.insertBefore(rb,wrap.firstChild);
+  }
+  function injectHandles(){
+    ensureResetBtn();
+    getSecs().forEach(function(s){
+      var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
+      var sid=s.getAttribute('data-sid');
+      var handle=document.createElement('span');handle.className='sec-handle';handle.title='Drag to reorder';handle.textContent='⠿';
+      handle.setAttribute('draggable','true');
+      handle.addEventListener('dragstart',function(e){dragSrc=sid;s.classList.add('sec-dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setDragImage(s,0,0);}catch(_){}}e.stopPropagation();});
+      handle.addEventListener('dragend',function(){s.classList.remove('sec-dragging');dragSrc=null;getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});});
+      s.ondragover=function(e){if(dragSrc&&dragSrc!==sid){e.preventDefault();s.classList.add('sec-drag-over');}};
+      s.ondragleave=function(e){if(!s.contains(e.relatedTarget))s.classList.remove('sec-drag-over');};
+      s.ondrop=function(e){e.preventDefault();dropInto(sid,e);};
+      var h=s.querySelector('h2');
+      if(h)h.insertBefore(handle,h.firstChild);else s.insertBefore(handle,s.firstChild);
+    });
+  }
+  applyOrder();
+  injectHandles();
+  window._statsSecAfterRender=injectHandles;
+})();
 (function(){
   var root=document.documentElement;
   var btn=document.getElementById('theme-tog');
