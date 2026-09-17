@@ -29,6 +29,9 @@ export default defineConfig({
   use: {
     baseURL: `http://${HOST}:${PORT}`,
     viewport: { width: 1440, height: 900 },
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
 });
