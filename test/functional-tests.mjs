@@ -5028,6 +5028,14 @@ async function main() {
   console.log("\n" + "=".repeat(50));
   console.log(`Results: ${passed} passed, ${failed} failed`);
   writeJUnitXml(TEST_RESULTS);
+  writeJsonReport(
+    process.env.TEST_RESULTS_JSON ||
+      path.join(path.dirname(TEST_RESULTS), "results.json"),
+  );
+  writeHtmlReport(process.env.PLAYWRIGHT_REPORT_DIR || "playwright-report");
+  if (process.env.CI) {
+    writeGithubActionsReport();
+  }
   if (failed > 0) {
     console.error("\nFailed tests:");
     results
@@ -5074,6 +5082,82 @@ function writeJUnitXml(filePath) {
   xml += `</testsuite>\n</testsuites>\n`;
   fs.writeFileSync(filePath, xml, "utf8");
   console.log(`JUnit XML test report written to ${filePath}`);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function writeJsonReport(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const report = {
+    stats: { passed, failed, total: results.length },
+    tests: results.map((r) => ({
+      suite: r.suite,
+      name: r.name,
+      ok: r.ok,
+      error: r.ok ? null : (r.error?.message ?? String(r.error)),
+    })),
+  };
+  fs.writeFileSync(filePath, JSON.stringify(report, null, 2), "utf8");
+  console.log(`JSON test report written to ${filePath}`);
+}
+
+function writeHtmlReport(outputFolder) {
+  fs.mkdirSync(outputFolder, { recursive: true });
+  const duration = ((Date.now() - START_TIME_MS) / 1000).toFixed(1);
+  const rows = results
+    .map((r) => {
+      const status = r.ok ? "pass" : "fail";
+      const error = r.ok
+        ? ""
+        : `<pre class="err">${escapeHtml(r.error?.message ?? String(r.error))}</pre>`;
+      return `<tr class="${status}"><td>${escapeHtml(r.suite)}</td><td>${escapeHtml(r.name)}</td><td>${status.toUpperCase()}</td><td>${error}</td></tr>`;
+    })
+    .join("\n");
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Playwright report</title>
+<style>
+  body{font-family:sans-serif;margin:2rem}h1{margin-bottom:.25rem}
+  .summary{margin-bottom:1rem;color:#555}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}
+  th{background:#f4f4f4}
+  tr.pass td:nth-child(3){color:green}
+  tr.fail td:nth-child(3){color:red}
+  pre.err{margin:0;white-space:pre-wrap;font-size:.8em;color:red}
+</style>
+</head>
+<body>
+<h1>Playwright Results</h1>
+<p class="summary">${passed} passed, ${failed} failed &mdash; ${duration}s</p>
+<table>
+<thead><tr><th>Suite</th><th>Test</th><th>Status</th><th>Error</th></tr></thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+</body>
+</html>`;
+  fs.writeFileSync(path.join(outputFolder, "index.html"), html, "utf8");
+  console.log(`HTML report written to ${outputFolder}/index.html`);
+}
+
+function writeGithubActionsReport() {
+  const env = process.env.NODE_ENV || "test";
+  const title = `Playwright results (ENV=${env})`;
+  console.log(`\n::group::${title}`);
+  results.forEach((r) => {
+    if (!r.ok) {
+      const msg = (r.error?.message ?? String(r.error)).replace(/\n/g, " ");
+      console.log(`::error::FAIL ${r.suite} / ${r.name}: ${msg}`);
+    }
+  });
+  console.log("::endgroup::");
 }
 
 // Set exitCode rather than calling process.exit() directly — avoids a
