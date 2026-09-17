@@ -1,3 +1,7 @@
+# SSH deploy keys — never commit
+gh-pages-deploy-key
+gh-pages-deploy-key.pub
+
 # Local config files — contain secrets, never commit
 *.conf
 !docker/lighttpd.conf
