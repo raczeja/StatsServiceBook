@@ -109,7 +109,17 @@ details.cost-yr[open] summary::before{content:"▾ "}
 @media(prefers-color-scheme:dark){#modal input,#modal select,#modal textarea,.st-block input,.st-block select{background:var(--input-bg)!important;color:var(--text)!important;border-color:var(--border-2)!important}}
 [data-theme=dark] #modal input,[data-theme=dark] #modal select,[data-theme=dark] #modal textarea,[data-theme=dark] .st-block input,[data-theme=dark] .st-block select{background:#252525!important;color:#e0e0e0!important;border-color:#3a3a3a!important}
 [data-theme=light] #modal input,[data-theme=light] #modal select,[data-theme=light] #modal textarea,[data-theme=light] .st-block input,[data-theme=light] .st-block select{background:#fff!important;color:#222!important;border-color:#ccc!important}
+.bike-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.75rem 1.5rem;padding:.1rem 0}
+.bike-stat-val{font-size:1.4rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
+.bike-stat-k{color:var(--text-4);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.1rem}
 @media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}#bikepanel table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+.sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--text-3);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
+.sec-handle:hover{opacity:1;color:var(--accent)}
+.sec-handle:active{cursor:grabbing}
+.sec.sec-dragging{opacity:.4}
+.sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
+.sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
+.sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -903,14 +913,30 @@ function render(){
   if (b.gearId && b.isDefault) gearName += " + untagged rides";
   var span = fmtSpan(tot.first, tot.last);
   var subStats = tot.time > 0
-    ? fmtTime(tot.time) + ' · ' + fmtInt(tot.elev) + ' m elev' + (span ? ' · ' + span : '')
+    ? fmtTime(tot.time) + (span ? ' · ' + span : '')
     : (span ? span : '');
+
+  var bsRideCount = 0, bsRideKm = 0;
+  for (var i=0;i<RIDES.length;i++){
+    if (rideMatchesBike(RIDES[i], b)){ bsRideCount++; bsRideKm += RIDES[i].km; }
+  }
+  var bsAvgRide = bsRideCount > 0 ? bsRideKm / bsRideCount : 0;
+  var bsTotalSvc = 0, bsActiveParts = 0;
+  b.parts.forEach(function(p){
+    if (p.status !== "archived") bsActiveParts++;
+    (p.serviceTypes||[]).forEach(function(st){ bsTotalSvc += (st.services||[]).length; });
+  });
 
   var html = '<div class="panel">'+
     '<div class="odo"><div><div class="k">Current mileage</div><div class="big">'+fmtKm(tot.km)+' km</div>'+
       (subStats?'<div class="odo-sub">'+esc(subStats)+'</div>':'')+
     '</div>'+
-    '<div><div class="k">Mileage source</div><div>'+esc(gearName)+(b.baseMileage?(' + '+fmtKm(b.baseMileage)+' km base'):'')+'</div></div></div>'+
+    '<div><div class="k">Mileage source</div><div>'+esc(gearName)+(b.baseMileage?(' + '+fmtKm(b.baseMileage)+' km base'):'')+'</div></div>'+
+    (tot.elev>0?'<div><div class="k">Elevation</div><div class="big" style="font-size:1.2rem">'+fmtInt(Math.round(tot.elev))+' m</div></div>':'')+
+    (bsAvgRide>0?'<div><div class="k">Avg Ride</div><div class="big" style="font-size:1.2rem">'+fmtKm(bsAvgRide)+' km</div></div>':'')+
+    (bsTotalSvc>0?'<div><div class="k">Services</div><div class="big" style="font-size:1.2rem">'+bsTotalSvc+'</div></div>':'')+
+    (bsActiveParts>0?'<div><div class="k">Parts</div><div class="big" style="font-size:1.2rem">'+bsActiveParts+'</div></div>':'')+
+    '</div>'+
     '<div><button class="btn primary" onclick="showAddPart()">＋ Add part</button> '+
     '<button class="btn sm" onclick="editBike(\''+b.id+'\')">Edit bike</button> '+
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
@@ -959,6 +985,7 @@ function render(){
   var archived = b.parts.filter(function(p){ return p.status === "archived"; });
 
   // active parts
+  html += '<div class="sec" data-sid="parts">';
   html += '<h2>Parts in use</h2>';
   if (!active.length){
     html += '<div class="panel empty">No active parts. Add a chain, tyres, brake pads… each tracks the km ridden since you fitted it.</div>';
@@ -1036,9 +1063,11 @@ function render(){
     });
     html += '</tbody></table>';
   }
+  html += '</div>';
 
   // archived parts
   if (archived.length){
+    html += '<div class="sec" data-sid="archived">';
     html += '<h2>Archived (replaced)</h2>';
     html += '<table><thead><tr><th>Part</th><th>Lifespan</th><th>Distance on part</th><th>Services</th><th>Cost</th></tr></thead><tbody>';
     archived.sort(function(a,c){ return (c.archivedDate||"") < (a.archivedDate||"") ? -1 : 1; });
@@ -1063,9 +1092,54 @@ function render(){
       html += '<tr class="ridesrow archived"><td colspan="5">'+ridesBlock(partRides(b, p))+'</td></tr>';
     });
     html += '</tbody></table>';
+    html += '</div>';
+  }
+
+  // comparison table — 2+ bikes, at least one non-zero value across all bikes
+  if (MODEL.bikes.length > 1) {
+    var cmpData = MODEL.bikes.map(function(bk){
+      var ct = bikeTotals(bk, now);
+      var crc = 0, crkm = 0;
+      for (var i=0;i<RIDES.length;i++){
+        if (rideMatchesBike(RIDES[i], bk)){ crc++; crkm += RIDES[i].km; }
+      }
+      var csvc = 0;
+      bk.parts.forEach(function(p){
+        (p.serviceTypes||[]).forEach(function(st){ csvc += (st.services||[]).length; });
+      });
+      var cpts = bk.parts.filter(function(p){ return p.status !== "archived"; }).length;
+      return { id:bk.id, name:bk.name, km:ct.km, hours:Math.round(ct.time/3600), elev:Math.round(ct.elev), avgRide:crc>0?crkm/crc:0, svc:csvc, parts:cpts };
+    });
+    var cmpHasAny = cmpData.some(function(s){ return s.km>0 || s.hours>0 || s.elev>0 || s.svc>0 || s.parts>0; });
+    if (cmpHasAny) {
+      var cmpRows = [
+        ['Distance',      function(s){ return fmtKm(s.km)+' km'; }],
+        ['Ride Time',     function(s){ return fmtInt(s.hours)+' h'; }],
+        ['Elevation',     function(s){ return fmtInt(s.elev)+' m'; }],
+        ['Avg Ride',      function(s){ return fmtKm(s.avgRide)+' km'; }],
+        ['Services',      function(s){ return String(s.svc); }],
+        ['Current Parts', function(s){ return String(s.parts); }],
+      ];
+      var cmpHead = cmpData.map(function(s){
+        return '<th'+(s.id===selBike?' style="outline:2px solid rgba(255,255,255,.45);outline-offset:-2px"':'')+'>'+esc(s.name)+'</th>';
+      }).join('');
+      var cmpBody = cmpRows.map(function(row){
+        var cells = cmpData.map(function(s){
+          return '<td class="num"'+(s.id===selBike?' style="font-weight:700;color:var(--accent)"':'')+'>'+row[1](s)+'</td>';
+        }).join('');
+        return '<tr><td>'+esc(row[0])+'</td>'+cells+'</tr>';
+      }).join('');
+      html += '<div class="sec" data-sid="stats">';
+      html += '<h2>Bike Statistics</h2>'+
+        '<div style="overflow-x:auto;margin:.3rem 0">'+
+        '<table style="margin:0"><thead><tr><th>Metric</th>'+cmpHead+'</tr></thead>'+
+        '<tbody>'+cmpBody+'</tbody></table></div>';
+      html += '</div>';
+    }
   }
 
   panel.innerHTML = html;
+  if(typeof window._bikeSecAfterRender==='function')window._bikeSecAfterRender();
 }
 
 document.getElementById("ovl").addEventListener("click", function(e){ if (e.target === this) closeModal(); });
@@ -1078,6 +1152,61 @@ loadAll();
   syncBtn();
   btn.onclick=function(){root.dataset.theme=isDark()?'light':'dark';localStorage.setItem('theme',root.dataset.theme);syncBtn();};
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
+})();
+(function(){
+  var BIKE_SEC_KEY='ssb-bike-sec';
+  var BIKE_SEC_DEFAULT=['parts','archived','stats'];
+  var panel=document.getElementById('bikepanel');
+  if(!panel)return;
+  var dragSrc=null;
+  function getSecs(){return Array.prototype.filter.call(panel.children,function(el){return el.classList&&el.classList.contains('sec');});}
+  function saveOrder(){try{localStorage.setItem(BIKE_SEC_KEY,JSON.stringify(getSecs().map(function(s){return s.getAttribute('data-sid');})));}catch(e){}}
+  function applyOrder(){
+    var saved=null;try{saved=JSON.parse(localStorage.getItem(BIKE_SEC_KEY));}catch(e){}
+    var allSids=getSecs().map(function(s){return s.getAttribute('data-sid');});
+    var order=[];
+    if(saved){saved.forEach(function(sid){if(allSids.indexOf(sid)>=0)order.push(sid);});allSids.forEach(function(sid){if(order.indexOf(sid)<0)order.push(sid);});}
+    else{BIKE_SEC_DEFAULT.forEach(function(sid){if(allSids.indexOf(sid)>=0)order.push(sid);});allSids.forEach(function(sid){if(order.indexOf(sid)<0)order.push(sid);});}
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    order.forEach(function(sid){if(secMap[sid])panel.appendChild(secMap[sid]);});
+  }
+  function doReset(){
+    try{localStorage.removeItem(BIKE_SEC_KEY);}catch(e){}
+    var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
+    BIKE_SEC_DEFAULT.forEach(function(sid){if(secMap[sid])panel.appendChild(secMap[sid]);});
+  }
+  function dropInto(sid,e){
+    if(!dragSrc||dragSrc===sid)return;
+    var secs=getSecs();var srcEl=null,tgtEl=null;
+    for(var i=0;i<secs.length;i++){if(secs[i].getAttribute('data-sid')===dragSrc)srcEl=secs[i];if(secs[i].getAttribute('data-sid')===sid)tgtEl=secs[i];}
+    if(!srcEl||!tgtEl)return;
+    var rect=tgtEl.getBoundingClientRect();
+    if((e.clientY||0)<rect.top+rect.height/2)panel.insertBefore(srcEl,tgtEl);else panel.insertBefore(srcEl,tgtEl.nextSibling);
+    getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});
+    saveOrder();
+  }
+  function injectHandles(){
+    if(!panel.querySelector('.sec-order-reset')){
+      var rb=document.createElement('button');rb.className='sec-order-reset';rb.textContent='↺ Reset order';
+      rb.onclick=function(){doReset();injectHandles();};
+      panel.insertBefore(rb,panel.firstChild);
+    }
+    getSecs().forEach(function(s){
+      var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
+      var sid=s.getAttribute('data-sid');
+      var handle=document.createElement('span');handle.className='sec-handle';handle.title='Drag to reorder';handle.textContent='⠿';
+      handle.setAttribute('draggable','true');
+      handle.addEventListener('dragstart',function(e){dragSrc=sid;s.classList.add('sec-dragging');if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setDragImage(s,0,0);}catch(_){}}e.stopPropagation();});
+      handle.addEventListener('dragend',function(){s.classList.remove('sec-dragging');dragSrc=null;getSecs().forEach(function(x){x.classList.remove('sec-drag-over');});});
+      s.ondragover=function(e){if(dragSrc&&dragSrc!==sid){e.preventDefault();s.classList.add('sec-drag-over');}};
+      s.ondragleave=function(e){if(!s.contains(e.relatedTarget))s.classList.remove('sec-drag-over');};
+      s.ondrop=function(e){e.preventDefault();dropInto(sid,e);};
+      var h=s.querySelector('h2');
+      if(h)h.insertBefore(handle,h.firstChild);else s.insertBefore(handle,s.firstChild);
+    });
+  }
+  function init(){applyOrder();injectHandles();}
+  window._bikeSecAfterRender=init;
 })();
 </script>
 <div class="meta" style="text-align:center;padding:.5rem 0 1rem"><a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">StatsServiceBook on GitHub</a></div>

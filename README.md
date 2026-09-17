@@ -38,6 +38,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 **Club leaderboard**
 - Month/year filter, multiple clubs (`STRAVA_CLUB_IDS`), ranked by distance with avg speed
+- Per-club sections: filtered-period tiles, Top 5 year athletes, single-activity highlights (fastest / longest / most elevation), this-year summary, all-time club totals
 - Accumulating store — deduplicated daily, filter back through full history
 
 **Personal stats**
@@ -56,6 +57,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
+- **Bike comparison** — when 2+ bikes exist, a "Bike Statistics" section compares all bikes side by side (distance, ride time, elevation, avg ride, services, current parts)
 - **Cost tracking** — optional purchase price per part and cost per service; total and per-year summary shown in the bike header; currency set via `STRAVA_MY_CURRENCY` in the config (default `PLN`)
 - **Email alerts** — per-part checkbox in the Edit modal; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue
 - Saves via a small CGI — daily cron never touches your data
@@ -65,6 +67,11 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Per-activity detail backfill: fetches full activity JSON (`/activities/{id}`) gradually over nightly runs
 - Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
+
+**Section reordering**
+- Drag any section heading (⠿ handle) to a new position on the Personal stats, Activity detail, Bike service, and Club leaderboard pages
+- ↺ Reset order button restores the default section layout
+- Order is saved per page in `localStorage` and restored on the next visit
 
 **Dark mode**
 - Every page (except the always-dark heatmap) has a 🌙/☀️ toggle button in the top-right corner
@@ -215,7 +222,7 @@ Full instructions for running with real credentials, HealthSync, or Windows WSL:
 | [Data-Source-HealthSync](https://github.com/raczeja/StatsServiceBook/wiki/Data-Source-HealthSync) | Google Drive OAuth, HealthSync setup, Magene FIT, dual-source detection |
 | [Docker](https://github.com/raczeja/StatsServiceBook/wiki/Docker) | Docker Hub quick start, config templates, docker-compose, publishing |
 | [Running-Locally](https://github.com/raczeja/StatsServiceBook/wiki/Running-Locally) | Docker preview, real-data Docker, WSL, HealthSync local test |
-| [Email-Notifications](https://github.com/raczeja/StatsServiceBook/wiki/Email-Notifications) | Bike service alerts, monthly leaderboard email, cron error alerts, Gmail App Password |
+| [Email-Notifications](https://github.com/raczeja/StatsServiceBook/wiki/Email-Notifications) | Bike service alerts, monthly/weekly/yearly leaderboard email, cron error alerts, Gmail App Password |
 | [Upgrading](https://github.com/raczeja/StatsServiceBook/wiki/Upgrading) | Binary-only scp deploy, full reinstall, surviving sysupgrade |
 | [Switching-Data-Sources](https://github.com/raczeja/StatsServiceBook/wiki/Switching-Data-Sources) | API → scrape mode, Strava → HealthSync migration steps |
 | [Operations](https://github.com/raczeja/StatsServiceBook/wiki/Operations) | Full file/URL reference, limitations, rate limits |

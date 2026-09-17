@@ -14,11 +14,13 @@ CONF_HS="/etc/healthsync-activities.conf"
 BIN_GUARD="/usr/bin/strava-cron-guard"
 BIN_EMAIL="/usr/bin/strava-email-monthly"
 BIN_EMAIL_WEEKLY="/usr/bin/strava-email-weekly"
+BIN_EMAIL_YEARLY="/usr/bin/strava-email-yearly"
 CRON_TIME="${CRON_TIME:-50 23 * * *}"               # leaderboard:  daily at 23:50 local time
 CRON_TIME_ME="${CRON_TIME_ME:-55 23 * * *}"         # my-activities: daily at 23:55 local time
 CRON_TIME_HS="${CRON_TIME_HS:-55 23 * * *}"         # healthsync:    daily at 23:55 (replaces my-activities when Strava API ends)
 CRON_TIME_EMAIL="${CRON_TIME_EMAIL:-0 8 1 * *}"     # monthly email: 1st of each month at 08:00
 CRON_TIME_EMAIL_WEEKLY="${CRON_TIME_EMAIL_WEEKLY:-0 8 * * 1}" # weekly email:  every Monday at 08:00
+CRON_TIME_EMAIL_YEARLY="${CRON_TIME_EMAIL_YEARLY:-0 9 1 1 *}" # yearly email:  1 January at 09:00
 # POSIX TZ for Europe/Warsaw incl. DST (CET/CEST). Override with TZ_POSIX="" to skip.
 TZ_POSIX="${TZ_POSIX:-CET-1CEST,M3.5.0,M10.5.0/3}"
 
@@ -62,6 +64,8 @@ cp "$SRC_DIR/strava-email-monthly.sh" "$BIN_EMAIL"
 chmod 0755 "$BIN_EMAIL"
 cp "$SRC_DIR/strava-email-monthly.sh" "$BIN_EMAIL_WEEKLY"
 chmod 0755 "$BIN_EMAIL_WEEKLY"
+cp "$SRC_DIR/strava-email-monthly.sh" "$BIN_EMAIL_YEARLY"
+chmod 0755 "$BIN_EMAIL_YEARLY"
 
 echo "==> installing shared library and HTML helpers"
 cp "$SRC_DIR/strava-lib.sh"               /usr/bin/strava-lib.sh
@@ -188,12 +192,13 @@ if command -v uci >/dev/null 2>&1 && uci -q get uhttpd.main >/dev/null 2>&1; the
   fi
 fi
 
-echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_TIME_ME', healthsync '$CRON_TIME_HS', monthly-email '$CRON_TIME_EMAIL', weekly-email '$CRON_TIME_EMAIL_WEEKLY'"
+echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_TIME_ME', healthsync '$CRON_TIME_HS', monthly-email '$CRON_TIME_EMAIL', weekly-email '$CRON_TIME_EMAIL_WEEKLY', yearly-email '$CRON_TIME_EMAIL_YEARLY'"
 CRON_LINE="$CRON_TIME $BIN_GUARD strava-leaderboard >> /var/log/strava-leaderboard.log 2>&1"
 CRON_LINE_ME="$CRON_TIME_ME $BIN_GUARD strava-my-activities >> /var/log/strava-my-activities.log 2>&1"
 CRON_LINE_HS="$CRON_TIME_HS $BIN_GUARD healthsync-activities >> /var/log/healthsync-activities.log 2>&1"
 CRON_LINE_EMAIL="$CRON_TIME_EMAIL $BIN_GUARD strava-email-monthly >> /var/log/strava-email-monthly.log 2>&1"
 CRON_LINE_EMAIL_WEEKLY="$CRON_TIME_EMAIL_WEEKLY $BIN_GUARD strava-email-weekly >> /var/log/strava-email-weekly.log 2>&1"
+CRON_LINE_EMAIL_YEARLY="$CRON_TIME_EMAIL_YEARLY $BIN_GUARD strava-email-yearly >> /var/log/strava-email-yearly.log 2>&1"
 {
   crontab -l 2>/dev/null \
     | grep -v 'strava-leaderboard' \
@@ -201,12 +206,14 @@ CRON_LINE_EMAIL_WEEKLY="$CRON_TIME_EMAIL_WEEKLY $BIN_GUARD strava-email-weekly >
     | grep -v 'healthsync-activities' \
     | grep -v 'strava-email-monthly' \
     | grep -v 'strava-email-weekly' \
+    | grep -v 'strava-email-yearly' \
     || true
   echo "$CRON_LINE"
   echo "$CRON_LINE_ME"
   echo "$CRON_LINE_HS"
   echo "$CRON_LINE_EMAIL"
   echo "$CRON_LINE_EMAIL_WEEKLY"
+  echo "$CRON_LINE_EMAIL_YEARLY"
 } | crontab -
 /etc/init.d/cron enable
 /etc/init.d/cron restart

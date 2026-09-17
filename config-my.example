@@ -122,6 +122,13 @@ STRAVA_MY_DETAIL_MAX_PER_RUN="40"
 # Seconds to pause between detail fetches, so a burst doesn't trip the limit.
 STRAVA_MY_DETAIL_SLEEP="1"
 
+# How many GPX files to download per run when back-filling historical activities
+# that are missing their GPX track (e.g. fetched before GPX download was added).
+# Kept deliberately low (default 5) so the backfill spreads across many days
+# rather than triggering Strava's rate limiter in a single run.
+# Set to 0 to disable GPX-only retries entirely.
+STRAVA_MY_GPX_MAX_PER_RUN="5"
+
 # --- Historical sync --------------------------------------------------------
 # Each run rebuilds the store from the feed so edits propagate (a renamed ride, a
 # corrected sport type, a recalculated distance) and activities you delete on

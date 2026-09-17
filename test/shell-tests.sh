@@ -2180,6 +2180,127 @@ S="heatmap-skip-guard"
         "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
 }
 
+# ── yearly-email-jq ──────────────────────────────────────────────────────────
+# Verifies the three jq queries used by strava-email-yearly (totals, top-5,
+# highlights) against a small synthetic NDJSON store.  Catches undefined-
+# function errors (notExcluded, applyMerge) and wrong-year filtering.
+S="yearly-email-jq"
+{
+    _yej_nd="$TMP/yej_acts.ndjson"
+    # Alex R: 2x 2026 runs (50 km + 10 km = 60 km total; 4500 s; 600 m elev)
+    # Marta K: 1x 2026 ride (30 km; 2700 s; 300 m elev)
+    # Bob X: 1x 2025 run (20 km) — must be excluded by year filter
+    printf '%s\n' \
+        '{"firstname":"Alex","lastname":"R","distance":50000,"moving_time":3600,"total_elevation_gain":500,"firstSeen":"2026-06-01","sport_type":"Run"}' \
+        '{"firstname":"Alex","lastname":"R","distance":10000,"moving_time":900,"total_elevation_gain":100,"firstSeen":"2026-07-15","sport_type":"Run"}' \
+        '{"firstname":"Marta","lastname":"K","distance":30000,"moving_time":2700,"total_elevation_gain":300,"firstSeen":"2026-07-01","sport_type":"Ride"}' \
+        '{"firstname":"Bob","lastname":"X","distance":20000,"moving_time":1800,"total_elevation_gain":200,"firstSeen":"2025-12-01","sport_type":"Run"}' \
+        > "$_yej_nd"
+
+    # Load JQ_MERGE_FUNC from the installed lib; fall back to the source copy.
+    _yej_mf=""
+    for _yej_lib in /usr/bin/strava-lib.sh /opt/strava-lib.sh; do
+        [ -f "$_yej_lib" ] && _yej_mf="$(. "$_yej_lib" 2>/dev/null; printf '%s' "$JQ_MERGE_FUNC")" && break
+    done
+    _yej_excl='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
+
+    # --- totals: 3 acts, 90 km, 900 m elev, 2 athletes -----------------------
+    _yej_tot="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_yej_mf}${_yej_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] as $all |
+        ($all | length) as $acts |
+        ($all | map(.distance // 0) | add // 0) as $dist_m |
+        ($all | map(.total_elevation_gain // 0) | add // 0) as $elev |
+        ($all | map(.moving_time // 0) | add // 0) as $time_s |
+        ($all | group_by("\(.firstname)|\(.lastname)") | length) as $ath |
+        [(($dist_m / 1000 * 10 | round) / 10 | tostring),
+         ($acts | tostring), ($elev | round | tostring), ($ath | tostring)] | @tsv' \
+        "$_yej_nd" 2>&1)"
+    assert_eq "$S" "totals-km"       "$(printf '%s' "$_yej_tot" | cut -f1)" "90"
+    assert_eq "$S" "totals-acts"     "$(printf '%s' "$_yej_tot" | cut -f2)" "3"
+    assert_eq "$S" "totals-elev"     "$(printf '%s' "$_yej_tot" | cut -f3)" "900"
+    assert_eq "$S" "totals-athletes" "$(printf '%s' "$_yej_tot" | cut -f4)" "2"
+
+    # --- top-5: Alex first (60 km), Marta second (30 km) ---------------------
+    _yej_top="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_yej_mf}${_yej_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))]
+        | group_by("\(.firstname)|\(.lastname)")
+        | map({name: "\(.[0].firstname) \(.[0].lastname)",
+               dist: (([.[].distance // 0] | add) / 1000),
+               cnt:  length})
+        | sort_by(-.dist) | .[0:5] | to_entries[]
+        | [(.key + 1 | tostring), .value.name,
+           ((.value.dist * 10 | round) / 10 | tostring), (.value.cnt | tostring)] | @tsv' \
+        "$_yej_nd" 2>&1)"
+    assert_eq "$S" "top5-rank1-name" "$(printf '%s' "$_yej_top" | awk -F'\t' 'NR==1{print $2}')" "Alex R"
+    assert_eq "$S" "top5-rank1-km"   "$(printf '%s' "$_yej_top" | awk -F'\t' 'NR==1{print $3}')" "60"
+    assert_eq "$S" "top5-rank2-name" "$(printf '%s' "$_yej_top" | awk -F'\t' 'NR==2{print $2}')" "Marta K"
+    assert_eq "$S" "top5-row-count"  "$(printf '%s\n' "$_yej_top" | wc -l | tr -d ' ')" "2"
+
+    # --- top-5 with exclusion: exclude Alex → only Marta remains -------------
+    _yej_excl_cnt="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "Alex R" \
+        "${_yej_mf}${_yej_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))]
+        | group_by("\(.firstname)|\(.lastname)") | length | tostring' \
+        "$_yej_nd" 2>&1)"
+    assert_eq "$S" "top5-exclude-reduces-count" "$_yej_excl_cnt" "1"
+
+    # --- year filter: 2025 data → Bob only (1 act) ---------------------------
+    _yej_2025="$(jq -rn \
+        --arg year "2025" --arg merge "" --arg exclude "" \
+        "${_yej_mf}${_yej_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))]
+        | length | tostring' \
+        "$_yej_nd" 2>&1)"
+    assert_eq "$S" "year-filter-2025" "$_yej_2025" "1"
+
+    # --- highlights: fastest / longest / most-elevation (5 lines per highlight) -
+    # Output format: type, name, value, unit, sport — each on its own line.
+    _yej_hl="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_yej_mf}${_yej_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year)) | select((.distance // 0) > 1000)] as $all |
+        ($all | sort_by(if (.moving_time // 0) > 0 then -(.distance / .moving_time) else 0 end) | .[0]) as $fast |
+        ($all | sort_by(-(.distance // 0)) | .[0]) as $long |
+        ($all | sort_by(-(.total_elevation_gain // 0)) | .[0]) as $elev |
+        (if $fast != null then
+          "fastest",
+          (("\($fast.firstname // "") \($fast.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+          (if ($fast.moving_time // 0) > 0 then ($fast.distance / $fast.moving_time * 3.6 * 10 | round) / 10 else 0 end | tostring),
+          "km/h",
+          (($fast.sport_type // "") | @html)
+        else empty end),
+        (if $long != null then
+          "longest",
+          (("\($long.firstname // "") \($long.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+          ((($long.distance // 0) / 1000 * 10 | round) / 10 | tostring),
+          "km",
+          (($long.sport_type // "") | @html)
+        else empty end),
+        (if $elev != null then
+          "mostelev",
+          (("\($elev.firstname // "") \($elev.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+          (($elev.total_elevation_gain // 0) | round | tostring),
+          "m",
+          (($elev.sport_type // "") | @html)
+        else empty end)' \
+        "$_yej_nd" 2>&1)"
+    # Each highlight = 5 consecutive lines: type / name / value / unit / sport
+    assert_eq "$S" "highlights-line-count"  "$(printf '%s\n' "$_yej_hl" | wc -l | tr -d ' ')" "15"
+    assert_eq "$S" "highlights-fastest-type" "$(printf '%s\n' "$_yej_hl" | sed -n '1p')" "fastest"
+    assert_eq "$S" "highlights-fastest-name" "$(printf '%s\n' "$_yej_hl" | sed -n '2p')" "Alex R"
+    assert_eq "$S" "highlights-fastest-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '4p')" "km/h"
+    assert_eq "$S" "highlights-longest-type" "$(printf '%s\n' "$_yej_hl" | sed -n '6p')" "longest"
+    assert_eq "$S" "highlights-longest-name" "$(printf '%s\n' "$_yej_hl" | sed -n '7p')" "Alex R"
+    assert_eq "$S" "highlights-longest-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '9p')" "km"
+    assert_eq "$S" "highlights-mostelev-type" "$(printf '%s\n' "$_yej_hl" | sed -n '11p')" "mostelev"
+    assert_eq "$S" "highlights-mostelev-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '14p')" "m"
+}
+
 # ── script-syntax-check ──────────────────────────────────────────────────────
 # Runs sh -n on every .sh script deployed into /opt/ so that:
 #   (a) any syntax error in a changed script is caught here, and
@@ -2211,6 +2332,55 @@ for _f in \
     fi
     rm -f /tmp/sn_err_$$
 done
+
+# ── skip-render-guard (md5 checksum) ─────────────────────────────────────────
+# Verifies the logic added to strava-my-activities.sh: skip render only when
+# the combined md5 of all helper scripts is unchanged since the last render.
+S="skip-render-guard"
+
+_SKIP_TMP="$(mktemp -d)"
+printf '#!/bin/sh\necho a\n' > "$_SKIP_TMP/a.sh"
+printf '#!/bin/sh\necho b\n' > "$_SKIP_TMP/b.sh"
+
+_skip_hash() {
+    _sh_acc=""
+    for _sf in "$_SKIP_TMP/a.sh" "$_SKIP_TMP/b.sh"; do
+        [ -f "$_sf" ] && _sh_acc="$_sh_acc$(md5sum "$_sf")"
+    done
+    printf '%s' "$_sh_acc" | md5sum | cut -d' ' -f1
+}
+
+_h1="$(_skip_hash)"
+
+# Stored hash matches current → guard should skip
+printf '%s\n' "$_h1" > "$_SKIP_TMP/scripts.md5"
+_stored1="$(cat "$_SKIP_TMP/scripts.md5")"
+if [ "$_h1" = "$_stored1" ]; then
+    ok "$S" "matching-hash-skips"
+else
+    err "$S" "matching-hash-skips" "expected match: '$_h1' vs '$_stored1'"
+fi
+
+# Script content changes → hash changes → guard should re-render
+printf '#!/bin/sh\necho CHANGED\n' > "$_SKIP_TMP/a.sh"
+_h2="$(_skip_hash)"
+if [ "$_h1" != "$_h2" ]; then
+    ok "$S" "changed-script-rerenders"
+else
+    err "$S" "changed-script-rerenders" "hash unchanged after script edit: '$_h1'"
+fi
+
+# No stored hash file (e.g. first run, or new script deployed) → should re-render
+rm -f "$_SKIP_TMP/scripts.md5"
+_stored2=""
+[ -f "$_SKIP_TMP/scripts.md5" ] && _stored2="$(cat "$_SKIP_TMP/scripts.md5")"
+if [ "$_h2" != "$_stored2" ]; then
+    ok "$S" "missing-hash-file-rerenders"
+else
+    err "$S" "missing-hash-file-rerenders" "missing scripts.md5 must not match"
+fi
+
+rm -rf "$_SKIP_TMP"
 
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
