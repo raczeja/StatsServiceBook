@@ -3,7 +3,8 @@ import { URLS } from "./test-urls.mjs";
 
 // ── Activity Detail (Strava) ───────────────────────────────────────────────────
 
-test.describe.serial("activity-detail", () => {
+test.describe("activity-detail", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -209,7 +210,8 @@ test.describe.serial("activity-detail", () => {
 
 // ── Detail Section Order ───────────────────────────────────────────────────────
 
-test.describe.serial("detail-section-order", () => {
+test.describe("detail-section-order", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -305,7 +307,8 @@ test.describe.serial("detail-section-order", () => {
 
 // ── Activity Detail (HealthSync Run) ──────────────────────────────────────────
 
-test.describe.serial("activity-detail-healthsync-run", () => {
+test.describe("activity-detail-healthsync-run", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -455,7 +458,8 @@ test.describe.serial("activity-detail-healthsync-run", () => {
 
 // ── Activity Detail (HealthSync Cycling) ──────────────────────────────────────
 
-test.describe.serial("activity-detail-healthsync-cycling", () => {
+test.describe("activity-detail-healthsync-cycling", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -535,7 +539,8 @@ test.describe.serial("activity-detail-healthsync-cycling", () => {
 
 // ── Activity Detail (Magene) ───────────────────────────────────────────────────
 
-test.describe.serial("activity-detail-magene", () => {
+test.describe("activity-detail-magene", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -632,7 +637,8 @@ test.describe.serial("activity-detail-magene", () => {
 
 // ── Activity Detail (Walk — steps card) ───────────────────────────────────────
 
-test.describe.serial("activity-detail-walk", () => {
+test.describe("activity-detail-walk", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -681,7 +687,8 @@ test.describe.serial("activity-detail-walk", () => {
 
 // ── Strava Link (numeric vs HealthSync ID) ────────────────────────────────────
 
-test.describe.serial("strava-link", () => {
+test.describe("strava-link", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -726,7 +733,8 @@ test.describe.serial("strava-link", () => {
 
 // ── Heatmap ────────────────────────────────────────────────────────────────────
 
-test.describe.serial("heatmap", () => {
+test.describe("heatmap", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
