@@ -3,7 +3,8 @@ import { CGI } from "./test-urls.mjs";
 
 // ── CGI: Bike Service ─────────────────────────────────────────────────────────
 
-test.describe.serial("cgi-bike-service", () => {
+test.describe("cgi-bike-service", () => {
+  test.describe.configure({ mode: 'serial' });
   const ENDPOINT = `${CGI}/bike-service`;
 
   test("GET-returns-json", async () => {
@@ -67,7 +68,8 @@ test.describe.serial("cgi-bike-service", () => {
 
 // ── CGI: Ride Goals ───────────────────────────────────────────────────────────
 
-test.describe.serial("cgi-ride-goals", () => {
+test.describe("cgi-ride-goals", () => {
+  test.describe.configure({ mode: 'serial' });
   const ENDPOINT = `${CGI}/ride-goals`;
 
   test.beforeAll(async () => {

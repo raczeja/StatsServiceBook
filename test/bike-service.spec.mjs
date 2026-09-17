@@ -5,7 +5,8 @@ const BIKE_CGI = `${CGI}/bike-service`;
 
 // ── Bike Service ───────────────────────────────────────────────────────────────
 
-test.describe.serial("bike-service", () => {
+test.describe("bike-service", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -238,7 +239,8 @@ test.describe.serial("bike-service", () => {
 
 // ── Bike Input Step and Odo ────────────────────────────────────────────────────
 
-test.describe.serial("bike-input-step-and-odo", () => {
+test.describe("bike-input-step-and-odo", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -344,7 +346,8 @@ test.describe.serial("bike-input-step-and-odo", () => {
 
 // ── Bike Service Part Replacement ─────────────────────────────────────────────
 
-test.describe.serial("bike-service-parts", () => {
+test.describe("bike-service-parts", () => {
+  test.describe.configure({ mode: 'serial' });
   let page, partsBefore;
   const jsErrors = [];
 
@@ -406,7 +409,8 @@ test.describe.serial("bike-service-parts", () => {
 
 // ── Bike Service Notifications ─────────────────────────────────────────────────
 
-test.describe.serial("bike-service-notifications", () => {
+test.describe("bike-service-notifications", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -467,7 +471,8 @@ test.describe.serial("bike-service-notifications", () => {
 
 // ── Bike Modal CRUD ────────────────────────────────────────────────────────────
 
-test.describe.serial("bike-modal-crud", () => {
+test.describe("bike-modal-crud", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
   let testBikeName;
@@ -567,7 +572,8 @@ test.describe.serial("bike-modal-crud", () => {
 
 // ── Email Alert Checkbox ───────────────────────────────────────────────────────
 
-test.describe.serial("email-alert-checkbox", () => {
+test.describe("email-alert-checkbox", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -679,7 +685,8 @@ test.describe.serial("email-alert-checkbox", () => {
 
 // ── Alert Thresholds ──────────────────────────────────────────────────────────
 
-test.describe.serial("alert-thresholds", () => {
+test.describe("alert-thresholds", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   let originalAlertKm;
   let skipSuite = false;
@@ -771,7 +778,8 @@ test.describe.serial("alert-thresholds", () => {
 
 // ── Needs Replacement ──────────────────────────────────────────────────────────
 
-test.describe.serial("needs-replacement", () => {
+test.describe("needs-replacement", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   let skipSuite = false;
   const jsErrors = [];
@@ -893,7 +901,8 @@ test.describe.serial("needs-replacement", () => {
 
 // ── Service Type Description ───────────────────────────────────────────────────
 
-test.describe.serial("service-type-description", () => {
+test.describe("service-type-description", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   let skipSuite = false;
   let testPartId, testDesc, origDesc;
@@ -972,7 +981,8 @@ test.describe.serial("service-type-description", () => {
 
 // ── Bike Section Order ─────────────────────────────────────────────────────────
 
-test.describe.serial("bike-section-order", () => {
+test.describe("bike-section-order", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -1064,7 +1074,8 @@ test.describe.serial("bike-section-order", () => {
 
 // ── Mobile Layout ──────────────────────────────────────────────────────────────
 
-test.describe.serial("mobile-layout", () => {
+test.describe("mobile-layout", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -1112,7 +1123,8 @@ test.describe.serial("mobile-layout", () => {
 
 // ── Mobile Section Reorder ────────────────────────────────────────────────────
 
-test.describe.serial("mobile-section-reorder", () => {
+test.describe("mobile-section-reorder", () => {
+  test.describe.configure({ mode: 'serial' });
   let ctx, mPage;
 
   test.beforeAll(async ({ browser }) => {
@@ -1156,7 +1168,8 @@ test.describe.serial("mobile-section-reorder", () => {
 
 // ── Dark Mode ──────────────────────────────────────────────────────────────────
 
-test.describe.serial("dark-mode", () => {
+test.describe("dark-mode", () => {
+  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
