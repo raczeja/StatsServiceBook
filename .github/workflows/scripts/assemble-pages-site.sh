@@ -92,19 +92,29 @@ else
 fi
 
 # Copy the downloaded Playwright report to site/run-N/
+# download-artifact v4+ places files directly into the target dir (no subdir wrapper).
 found=0
 if [ -d downloaded-report ]; then
-  for d in downloaded-report/*/; do
-    [ -d "$d" ] || continue
-    [ -f "${d}index.html" ] || continue
-    local_size="$(du -sh "$d" 2>/dev/null | awk '{print $1}' || echo '?')"
-    echo "[add] Publishing report: ${d} → site/${RUN_FOLDER} (source size: ${local_size})"
+  if [ -f "downloaded-report/index.html" ]; then
+    local_size="$(du -sh downloaded-report 2>/dev/null | awk '{print $1}' || echo '?')"
+    echo "[add] Publishing report: downloaded-report/ → site/${RUN_FOLDER} (source size: ${local_size})"
     rm -rf "site/$RUN_FOLDER"
-    cp -r "$d" "site/$RUN_FOLDER"
+    cp -r downloaded-report "site/$RUN_FOLDER"
     echo "[add] Copied. Site size now: $(site_size_mb)"
     found=1
-    break  # only one report per run
-  done
+  else
+    for d in downloaded-report/*/; do
+      [ -d "$d" ] || continue
+      [ -f "${d}index.html" ] || continue
+      local_size="$(du -sh "$d" 2>/dev/null | awk '{print $1}' || echo '?')"
+      echo "[add] Publishing report: ${d} → site/${RUN_FOLDER} (source size: ${local_size})"
+      rm -rf "site/$RUN_FOLDER"
+      cp -r "$d" "site/$RUN_FOLDER"
+      echo "[add] Copied. Site size now: $(site_size_mb)"
+      found=1
+      break
+    done
+  fi
 fi
 
 if [ "$found" -eq 0 ]; then
