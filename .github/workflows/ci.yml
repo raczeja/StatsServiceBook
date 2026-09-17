@@ -59,13 +59,15 @@ jobs:
           TMP_DIR=$(mktemp -d)
           pushd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install playwright >/dev/null
+          npm install playwright @playwright/test @estruyf/github-actions-reporter >/dev/null
           npx playwright install chromium --with-deps >/dev/null
-          cp "$GITHUB_WORKSPACE/test/functional-tests.mjs" .
-          TEST_RESULTS="$GITHUB_WORKSPACE/test-results.xml" \
-          TEST_RESULTS_JSON="$GITHUB_WORKSPACE/test-results/results.json" \
-          PLAYWRIGHT_REPORT_DIR="$GITHUB_WORKSPACE/playwright-report" \
-          node functional-tests.mjs
+          cp "$GITHUB_WORKSPACE/test/"*.spec.mjs .
+          cp "$GITHUB_WORKSPACE/test/test-urls.mjs" .
+          cp "$GITHUB_WORKSPACE/test/playwright.config.mjs" .
+          mkdir -p test-results playwright-report
+          CI=true npx playwright test --config playwright.config.mjs
+          cp -r test-results "$GITHUB_WORKSPACE/test-results" 2>/dev/null || true
+          cp -r playwright-report "$GITHUB_WORKSPACE/playwright-report" 2>/dev/null || true
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
@@ -82,7 +84,7 @@ jobs:
               sys.exit(0)
 
           total, failures = 0, 0
-          for f in ['shell-tests.xml', 'test-results.xml']:
+          for f in ['shell-tests.xml', 'test-results/junit.xml']:
               try:
                   root = ET.parse(f).getroot()
                   suites = root.findall('testsuite') if root.tag == 'testsuites' else [root]
@@ -117,7 +119,7 @@ jobs:
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
         with:
           name: all-tests
-          path: 'shell-tests.xml,test-results.xml'
+          path: 'shell-tests.xml,test-results/junit.xml'
           reporter: java-junit
           fail-on-error: false
 
@@ -128,8 +130,7 @@ jobs:
           name: test-reports
           path: |
             shell-tests.xml
-            test-results.xml
-            test-results/results.json
+            test-results/
             playwright-report/
 
       - name: Stop test container
