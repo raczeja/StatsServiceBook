@@ -6,7 +6,6 @@ const BIKE_CGI = `${CGI}/bike-service`;
 // ── Bike Service ───────────────────────────────────────────────────────────────
 
 test.describe("bike-service", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -240,7 +239,6 @@ test.describe("bike-service", () => {
 // ── Bike Input Step and Odo ────────────────────────────────────────────────────
 
 test.describe("bike-input-step-and-odo", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -347,7 +345,6 @@ test.describe("bike-input-step-and-odo", () => {
 // ── Bike Service Part Replacement ─────────────────────────────────────────────
 
 test.describe("bike-service-parts", () => {
-  test.describe.configure({ mode: 'serial' });
   let page, partsBefore;
   const jsErrors = [];
 
@@ -410,7 +407,6 @@ test.describe("bike-service-parts", () => {
 // ── Bike Service Notifications ─────────────────────────────────────────────────
 
 test.describe("bike-service-notifications", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -472,7 +468,6 @@ test.describe("bike-service-notifications", () => {
 // ── Bike Modal CRUD ────────────────────────────────────────────────────────────
 
 test.describe("bike-modal-crud", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
   let testBikeName;
@@ -573,7 +568,6 @@ test.describe("bike-modal-crud", () => {
 // ── Email Alert Checkbox ───────────────────────────────────────────────────────
 
 test.describe("email-alert-checkbox", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -686,7 +680,6 @@ test.describe("email-alert-checkbox", () => {
 // ── Alert Thresholds ──────────────────────────────────────────────────────────
 
 test.describe("alert-thresholds", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   let originalAlertKm;
   let skipSuite = false;
@@ -779,7 +772,6 @@ test.describe("alert-thresholds", () => {
 // ── Needs Replacement ──────────────────────────────────────────────────────────
 
 test.describe("needs-replacement", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   let skipSuite = false;
   const jsErrors = [];
@@ -902,7 +894,6 @@ test.describe("needs-replacement", () => {
 // ── Service Type Description ───────────────────────────────────────────────────
 
 test.describe("service-type-description", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   let skipSuite = false;
   let testPartId, testDesc, origDesc;
@@ -982,7 +973,6 @@ test.describe("service-type-description", () => {
 // ── Bike Section Order ─────────────────────────────────────────────────────────
 
 test.describe("bike-section-order", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -1075,7 +1065,6 @@ test.describe("bike-section-order", () => {
 // ── Mobile Layout ──────────────────────────────────────────────────────────────
 
 test.describe("mobile-layout", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 
@@ -1124,7 +1113,6 @@ test.describe("mobile-layout", () => {
 // ── Mobile Section Reorder ────────────────────────────────────────────────────
 
 test.describe("mobile-section-reorder", () => {
-  test.describe.configure({ mode: 'serial' });
   let ctx, mPage;
 
   test.beforeAll(async ({ browser }) => {
@@ -1169,7 +1157,6 @@ test.describe("mobile-section-reorder", () => {
 // ── Dark Mode ──────────────────────────────────────────────────────────────────
 
 test.describe("dark-mode", () => {
-  test.describe.configure({ mode: 'serial' });
   let page;
   const jsErrors = [];
 

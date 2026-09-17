@@ -4,7 +4,6 @@ import { CGI } from "./test-urls.mjs";
 // ── CGI: Bike Service ─────────────────────────────────────────────────────────
 
 test.describe("cgi-bike-service", () => {
-  test.describe.configure({ mode: 'serial' });
   const ENDPOINT = `${CGI}/bike-service`;
 
   test("GET-returns-json", async () => {
@@ -69,7 +68,6 @@ test.describe("cgi-bike-service", () => {
 // ── CGI: Ride Goals ───────────────────────────────────────────────────────────
 
 test.describe("cgi-ride-goals", () => {
-  test.describe.configure({ mode: 'serial' });
   const ENDPOINT = `${CGI}/ride-goals`;
 
   test.beforeAll(async () => {
