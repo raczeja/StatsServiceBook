@@ -153,14 +153,24 @@ them on a Windows dev box. To validate changes:
   `# shellcheck disable=` pragmas). Otherwise `sh -n strava-leaderboard.sh`.
   Claude Code runs `sh -n` automatically after every `.sh` edit via the
   `.claude/settings.json` hook and will remind you to run the full suite.
-- **Functional regression tests (HTML + JS + CGI):** run the Puppeteer test suite
+- **Functional regression tests (HTML + JS + CGI):** run the Playwright test suite
   against the local container — this is the primary way to catch breakage in the
   HTML helper scripts:
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
+  ```bash
+  # First-time setup (once):
+  mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save playwright && npx playwright install chromium
+
+  # Each run:
+  docker build -t stravame-prod . && docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test .
+  docker rm -f stravame-tests 2>/dev/null; docker run -d --name stravame-tests -p 8080:8080 stravame-test
+  until curl -sf http://localhost:8080/strava/me/index.html > /dev/null 2>&1; do sleep 1; done
+  cp /home/raczeja/projects/OS/StatsServiceBook/test/functional-tests.mjs /tmp/strava-test-run/
+  cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost node functional-tests.mjs
+  docker stop stravame-tests && docker rm stravame-tests
   ```
-  107 assertions across all five pages and the bike-service CGI. Exits 0 on pass.
-  Requires Podman, Node.js ≥ 18, and Microsoft Edge.
+  Uses system Chrome (`channel: "chrome"`) — requires Google Chrome installed. 373+ assertions across all five pages and the bike-service CGI. Exits 0 on pass. Requires Docker and Node.js ≥ 18.
+
+  If Playwright's bundled Chromium can't be downloaded (network-restricted WSL), set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome` as an alternative.
 
   **Running a single test suite:** Neither test runner has a per-suite CLI flag.
   - `shell-tests.sh` — only supports `--junit <file>` (JUnit XML output); to isolate one suite, comment out the others in the file temporarily.
@@ -340,11 +350,11 @@ When you finish implementing a new feature or behaviour change, always do the fo
    docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test . && \
    docker rm -f stravame-tests 2>/dev/null; docker run -d --name stravame-tests -p 8080:8080 stravame-test && \
    until curl -sf http://localhost:8080/strava/me/index.html > /dev/null 2>&1; do sleep 1; done && \
-   cp test/functional-tests.mjs /tmp/strava-test-run/ && \
+   cp /home/raczeja/projects/OS/StatsServiceBook/test/functional-tests.mjs /tmp/strava-test-run/ && \
    cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost node functional-tests.mjs; \
    docker stop stravame-tests && docker rm stravame-tests
    ```
-   (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save puppeteer`.)
+   (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save playwright && npx playwright install chromium`.)
    If any test fails, fix the regression before proceeding. Do not skip this step. Do not ask the user to run tests for you.
 
 3. **Consider whether new tests are needed.** Don't silently assume existing tests are sufficient — the suite only proves what it asserts.

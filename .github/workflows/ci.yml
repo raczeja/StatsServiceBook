@@ -59,7 +59,8 @@ jobs:
           TMP_DIR=$(mktemp -d)
           pushd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install puppeteer >/dev/null
+          npm install playwright >/dev/null
+          npx playwright install chromium --with-deps >/dev/null
           cp "$GITHUB_WORKSPACE/test/functional-tests.mjs" .
           TEST_RESULTS="$GITHUB_WORKSPACE/test-results.xml" node functional-tests.mjs
         env:
