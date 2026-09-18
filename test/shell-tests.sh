@@ -624,10 +624,10 @@ jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json"
 # Feed: act-111 (known→skip), act-222 (new), GroupActivity (skip), act-222 again (dedup).
 cat > "$TMP/sc_feed.json" << 'FEED'
 [
-  {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","athleteName":"Alice Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","lastName":"Smith","avatarUrl":"https://example.com/alice.jpg"},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
   {"entity":"GroupActivity","activity":{"id":"act-333","activityName":"Filtered Out"}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
 ]
 FEED
 
@@ -653,6 +653,8 @@ _scrape_dedup() {
         | [ $fetched[0][]
             | select(.entity == "Activity")
             | .activity
+            | . + {athlete: ((.athlete // {}) + {
+                              athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
             | (.stats | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
             | (.stats | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
             | (.stats | map(select(.key == "stat_three")) | .[0].value // "") as $s3
@@ -700,8 +702,8 @@ printf '[]\n' > "$TMP/sc_known.json"
 # Feed: act-old (2026-06-01) and act-recent (2026-06-20), both unknown.
 cat > "$TMP/sc_feed.json" << 'FEED'
 [
-  {"entity":"Activity","activity":{"id":"act-old","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","athleteName":"Alice Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
-  {"entity":"Activity","activity":{"id":"act-recent","activityName":"Recent Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-20T09:00:00Z","athlete":{"firstName":"Bob","athleteName":"Bob Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+  {"entity":"Activity","activity":{"id":"act-old","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","lastName":"Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-recent","activityName":"Recent Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-20T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
 ]
 FEED
 
@@ -725,6 +727,197 @@ assert_eq "$S" "cutoff-excludes-all"       "$(printf '%s' "$_sd_all" | jq 'lengt
 
 # Restore the known store for the cursor / meta tests that follow.
 jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json" 2>/dev/null || printf '[]\n' > "$TMP/sc_known.json"
+
+# ── scrape-athlete-normalization ───────────────────────────────────────────────
+# Activity entities use firstName+lastName; GroupActivity uses athleteName.
+# Both must yield the same firstname/lastname/profile_medium shape after the
+# normalization step added to the Activity branch.
+S="scrape-athlete-normalization"
+
+printf '[]\n' > "$TMP/sc_known.json"
+
+cat > "$TMP/sc_norm_feed.json" << 'FEED'
+{"fetched":[
+  {"entity":"Activity","activity":{
+    "id":"norm-act-1","activityName":"Solo Ride","elapsedTime":3600,"type":"Ride",
+    "startDate":"2026-07-01T08:00:00Z",
+    "athlete":{"firstName":"Piotr","lastName":"Król","avatarUrl":"https://example.com/piotr.jpg"},
+    "stats":[{"key":"stat_one","value":"30.00"},{"key":"stat_two","value":"200"},{"key":"stat_three","value":"1h"}]
+  }},
+  {"entity":"GroupActivity","rowData":{"activities":[
+    {"entity_id_str":"norm-grp-1","name":"Group Ride","type":"Ride",
+     "start_date":"2026-07-02T09:00:00Z","elapsed_time":7200,
+     "athlete_firstname":"Anna","athlete_name":"Anna Nowak","athlete_avatar_url":"https://example.com/anna.jpg",
+     "stats":[{"key":"stat_one","value":"50.00"},{"key":"stat_two","value":"500"},{"key":"stat_three","value":"2h"}]}
+  ]}}
+]}
+FEED
+
+_norm_parse() {
+    jq -c '
+    def _n: if (. == null or . == "") then 0 else tonumber end;
+    def strip_html:
+      [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+    def digits:
+      [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+    def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+    def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
+    def parse_time:
+      strip_html | . as $t |
+      (if ($t|contains("h")) then ($t|split("h")[0]|digits|_n) else 0 end) * 3600 +
+      (if ($t|contains("m"))
+       then ((if ($t|contains("h")) then $t|split("h")[1] else $t end)|split("m")[0]|digits|_n)
+       else 0 end) * 60 +
+      (if ($t|contains("s"))
+       then ((if ($t|contains("m")) then $t|split("m")[1] else
+              if ($t|contains("h")) then $t|split("h")[1] else $t end end)|split("s")[0]|digits|_n)
+       else 0 end);
+    [ .fetched[]
+      | select(.entity == "Activity" or .entity == "GroupActivity")
+      | (if .entity == "GroupActivity"
+         then (.rowData.activities // [])[]
+              | {id: (.entity_id_str // ""),
+                 stats: (.stats // []),
+                 athlete: {firstName: (.athlete_firstname // ""),
+                           athleteName: (.athlete_name // ""),
+                           avatarUrl: (.athlete_avatar_url // "")},
+                 activityName: (.name // ""),
+                 type: (.type // ""),
+                 startDate: (.start_date // ""),
+                 elapsedTime: (.elapsed_time // 0)}
+         else .activity
+              | . + {athlete: ((.athlete // {}) + {
+                                athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+         end)
+      | select(. != null and (.id // "") != "")
+      | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+      | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+      | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+      | (.athlete.firstName // "") as $fn
+      | (.athlete.athleteName // "") as $an
+      | {
+          s:             .id,
+          firstname:     $fn,
+          lastname:      ($an | ltrimstr($fn) | ltrimstr(" ")),
+          profile_medium: (.athlete.avatarUrl // ""),
+          name:          (.activityName // ""),
+          distance:      ($s1 | parse_km),
+          moving_time:   ($s3 | parse_time),
+          elapsed_time:  (.elapsedTime // 0),
+          total_elevation_gain: ($s2 | parse_elev),
+          type:          (.type // ""),
+          sport_type:    (.type // ""),
+          firstSeen:     (.startDate // "" | split("T")[0])
+        }
+    ]' "$TMP/sc_norm_feed.json"
+}
+
+_norm="$(_norm_parse)"
+
+# Activity entity: lastName → lastname
+_norm_act="$(printf '%s' "$_norm" | jq '.[] | select(.s == "norm-act-1")')"
+assert_eq "$S" "activity-firstname"     "$(printf '%s' "$_norm_act" | jq -r '.firstname')"     "Piotr"
+assert_eq "$S" "activity-lastname"      "$(printf '%s' "$_norm_act" | jq -r '.lastname')"      "Król"
+assert_eq "$S" "activity-avatar"        "$(printf '%s' "$_norm_act" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
+
+# GroupActivity entity: athleteName → lastname (existing path, unchanged)
+_norm_grp="$(printf '%s' "$_norm" | jq '.[] | select(.s == "norm-grp-1")')"
+assert_eq "$S" "group-firstname"        "$(printf '%s' "$_norm_grp" | jq -r '.firstname')"     "Anna"
+assert_eq "$S" "group-lastname"         "$(printf '%s' "$_norm_grp" | jq -r '.lastname')"      "Nowak"
+assert_eq "$S" "group-avatar"           "$(printf '%s' "$_norm_grp" | jq -r '.profile_medium')" "https://example.com/anna.jpg"
+
+# Both entities present in result
+assert_eq "$S" "both-entities-present"  "$(printf '%s' "$_norm" | jq 'length')" "2"
+
+# ── scrape-name-backfill ───────────────────────────────────────────────────────
+# Mirrors the backfill step in strava-leaderboard.sh: existing store entries
+# with blank lastname/profile_medium are patched from the current feed's name map
+# when their activity ID appears in the feed.
+S="scrape-name-backfill"
+
+# Store: two pre-existing entries — one with blank lastname/pm (old bug), one OK.
+cat > "$TMP/bf_store_pre.ndjson" << 'STORE'
+{"signature":"bf-act-1","firstname":"Piotr","lastname":"","profile_medium":"","name":"Old Ride","distance":30000,"moving_time":3600,"elapsed_time":3600,"total_elevation_gain":200,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-01"}
+{"signature":"bf-act-2","firstname":"Anna","lastname":"Nowak","profile_medium":"https://example.com/anna.jpg","name":"Another Ride","distance":20000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":100,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-02"}
+STORE
+
+# New entries from this run (empty — nothing new).
+: > "$TMP/bf_new.ndjson"
+
+# Feed contains bf-act-1 (now with proper lastName) and bf-act-3 (unknown, no store entry).
+cat > "$TMP/bf_merge_input.json" << 'FEED'
+{"known":["bf-act-1","bf-act-2"],"fetched":[
+  {"entity":"Activity","activity":{
+    "id":"bf-act-1","activityName":"Old Ride","elapsedTime":3600,"type":"Ride",
+    "startDate":"2026-05-01T08:00:00Z",
+    "athlete":{"firstName":"Piotr","lastName":"Król","avatarUrl":"https://example.com/piotr.jpg"},
+    "stats":[{"key":"stat_one","value":"30.00"},{"key":"stat_two","value":"200"},{"key":"stat_three","value":"1h"}]
+  }},
+  {"entity":"Activity","activity":{
+    "id":"bf-act-3","activityName":"New Ride","elapsedTime":1800,"type":"Ride",
+    "startDate":"2026-06-01T08:00:00Z",
+    "athlete":{"firstName":"Tom","lastName":"Jones","avatarUrl":"https://example.com/tom.jpg"},
+    "stats":[{"key":"stat_one","value":"15.00"},{"key":"stat_two","value":"50"},{"key":"stat_three","value":"30m"}]
+  }}
+]}
+FEED
+
+_bf_apply() {
+    # Mirrors the backfill jq pipeline from strava-leaderboard.sh.
+    _nm="$(jq -c '
+      def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+      def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+      [ .fetched[]
+        | select(.entity == "Activity" or .entity == "GroupActivity")
+        | (if .entity == "GroupActivity"
+           then (.rowData.activities // [])[]
+                | {id: (.entity_id_str // ""),
+                   athlete: {firstName: (.athlete_firstname // ""),
+                             athleteName: (.athlete_name // ""),
+                             avatarUrl: (.athlete_avatar_url // "")}}
+           else .activity
+                | . + {athlete: ((.athlete // {}) + {
+                                  athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+                | {id: .id, athlete: .athlete}
+           end)
+        | select((.id // "") != "")
+        | (.athlete.firstName // "") as $fn
+        | (.athlete.athleteName // "") as $an
+        | {id: .id, fn: $fn, ln: ($an | ltrimstr($fn) | ltrimstr(" ")),
+           pm: (.athlete.avatarUrl // "")}
+        | select(.ln != "" or .pm != "")
+      ]
+      | map({(.id): .}) | add // {}
+    ' "$TMP/bf_merge_input.json")"
+    jq -sc --argjson nm "${_nm}" '
+      [ .[]
+        | if ($nm[.signature] != null) then
+            (if (.lastname == "" or .lastname == null) and ($nm[.signature].ln // "") != ""
+             then {lastname: $nm[.signature].ln} else {} end) as $ln |
+            (if (.profile_medium == "" or .profile_medium == null) and ($nm[.signature].pm // "") != ""
+             then {profile_medium: $nm[.signature].pm} else {} end) as $pm |
+            . + $ln + $pm
+          else .
+          end
+      ] | .[]
+    ' "$TMP/bf_store_pre.ndjson"
+}
+
+_bf_result="$(_bf_apply)"
+
+# bf-act-1: blank lastname patched from feed
+_bf_act1="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-1")')"
+assert_eq "$S" "act1-lastname-patched"    "$(printf '%s' "$_bf_act1" | jq -r '.lastname')"       "Król"
+assert_eq "$S" "act1-avatar-patched"      "$(printf '%s' "$_bf_act1" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
+assert_eq "$S" "act1-firstname-preserved" "$(printf '%s' "$_bf_act1" | jq -r '.firstname')"      "Piotr"
+
+# bf-act-2: already had a lastname — must not be touched
+_bf_act2="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-2")')"
+assert_eq "$S" "act2-lastname-unchanged"  "$(printf '%s' "$_bf_act2" | jq -r '.lastname')"       "Nowak"
+assert_eq "$S" "act2-avatar-unchanged"    "$(printf '%s' "$_bf_act2" | jq -r '.profile_medium')" "https://example.com/anna.jpg"
+
+# Both pre-existing entries survive in output (no rows lost)
+assert_eq "$S" "pre-entries-preserved"   "$(printf '%s' "$_bf_result" | jq -s 'length')"         "2"
 
 # ── scrape-cursor ─────────────────────────────────────────────────────────────
 # Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
