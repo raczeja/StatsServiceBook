@@ -148,6 +148,32 @@ fi
 
 touch site/.nojekyll
 
+cat > site/404.html <<'HTML'
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="3;url=./..">
+<title>Report not found — StatsServiceBook</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f0f2f5;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#1a1a2e;color:#fff;padding:.75rem 2rem}
+.topbar-title{font-weight:700;font-size:1rem}
+.page{max-width:36rem;margin:4rem auto;padding:0 2rem;text-align:center}
+h1{font-size:1.5rem;color:#1a1a2e}
+p{color:#64748b}
+a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</head><body>
+<div class="topbar"><span class="topbar-title">StatsServiceBook &middot; Test Reports</span></div>
+<div class="page">
+<h1>Report not found</h1>
+<p>This run has been pruned (only the last 3 are kept).</p>
+<p>Redirecting to <a href="./..">&larr; all reports</a>&hellip;</p>
+</div>
+<script>setTimeout(function(){window.location.href='./..'},3000)</script>
+</body></html>
+HTML
+
 prune_reports site "$DEFAULT_MAX_REPORTS"
 echo "[size] Site size before size-limit enforcement: $(site_size_mb)"
 enforce_site_size_limit
