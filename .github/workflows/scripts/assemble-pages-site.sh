@@ -118,8 +118,32 @@ if [ -d downloaded-report ]; then
 fi
 
 if [ "$found" -eq 0 ]; then
-  echo "[site] No report found in downloaded-report — creating placeholder"
+  echo "[site] No report found in downloaded-report — creating placeholder page"
   mkdir -p "site/$RUN_FOLDER"
+  cat > "site/$RUN_FOLDER/index.html" <<HTML
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run #${GITHUB_RUN_NUMBER} — Report unavailable</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f0f2f5;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#1a1a2e;color:#fff;padding:.75rem 2rem}
+.topbar-title{font-weight:700;font-size:1rem}
+.page{max-width:36rem;margin:4rem auto;padding:0 2rem;text-align:center}
+h1{font-size:1.5rem;color:#1a1a2e}
+p{color:#64748b}
+a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</head><body>
+<div class="topbar"><span class="topbar-title">StatsServiceBook &middot; Test Reports</span></div>
+<div class="page">
+<h1>Report not available</h1>
+<p>The Playwright report for run #${GITHUB_RUN_NUMBER} was not captured &mdash;
+the CI job may have been cancelled or the artifact upload may have failed.</p>
+<p><a href="../">&larr; Back to all reports</a></p>
+</div>
+</body></html>
+HTML
 fi
 
 touch site/.nojekyll
