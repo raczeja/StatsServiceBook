@@ -328,7 +328,10 @@ while IFS= read -r club_id; do
                        type: (.type // ""),
                        startDate: (.start_date // ""),
                        elapsedTime: (.elapsed_time // 0)}
-               else .activity end)
+               else .activity
+                    | . + {athlete: ((.athlete // {}) + {
+                                      athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+               end)
             | select(. != null and (.id // "") != "")
             | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
             | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
@@ -376,6 +379,64 @@ while IFS= read -r club_id; do
   case "$STRAVA_SOURCE" in
     api)    log "club $club_id: +$ADDED new (firstSeen $FIRST_SEEN), $(wc -l < "$CLUB_STORE" | tr -d ' ') total" ;;
     scrape) log "club $club_id: +$ADDED new (actual dates), $(wc -l < "$CLUB_STORE" | tr -d ' ') total" ;;
+  esac
+
+  # Backfill: for scrape mode, patch any existing store entries that have a blank
+  # lastname or missing profile_medium, using name/avatar data from the current
+  # feed.  This self-heals entries stored before the Activity-entity lastName fix.
+  # Only entries whose activity ID appears in this run's feed can be patched;
+  # older entries no longer in the feed remain unchanged.
+  case "$STRAVA_SOURCE" in
+    scrape)
+      _bf_any="$(grep -c '"lastname":""' "$CLUB_STORE" 2>/dev/null || printf '0')"
+      if [ "${_bf_any:-0}" -gt 0 ]; then
+        jq -c '
+          def strip_html:
+            [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+          def digits:
+            [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+          [ .fetched[]
+            | select(.entity == "Activity" or .entity == "GroupActivity")
+            | (if .entity == "GroupActivity"
+               then (.rowData.activities // [])[]
+                    | {id: (.entity_id_str // ""),
+                       athlete: {firstName: (.athlete_firstname // ""),
+                                 athleteName: (.athlete_name // ""),
+                                 avatarUrl: (.athlete_avatar_url // "")}}
+               else .activity
+                    | . + {athlete: ((.athlete // {}) + {
+                                      athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+                    | {id: .id, athlete: .athlete}
+               end)
+            | select((.id // "") != "")
+            | (.athlete.firstName // "") as $fn
+            | (.athlete.athleteName // "") as $an
+            | {id: .id, fn: $fn, ln: ($an | ltrimstr($fn) | ltrimstr(" ")),
+               pm: (.athlete.avatarUrl // "")}
+            | select(.ln != "" or .pm != "")
+          ]
+          | map({(.id): .}) | add // {}
+        ' "$TMP/merge_input.json" > "$TMP/name_map.json"
+        _nm_count="$(jq 'length' "$TMP/name_map.json")"
+        if [ "${_nm_count:-0}" -gt 0 ]; then
+          jq -sc --argjson nm "$(cat "$TMP/name_map.json")" '
+            [ .[]
+              | if ($nm[.signature] != null) then
+                  (if (.lastname == "" or .lastname == null) and ($nm[.signature].ln // "") != ""
+                   then {lastname: $nm[.signature].ln} else {} end) as $ln |
+                  (if (.profile_medium == "" or .profile_medium == null) and ($nm[.signature].pm // "") != ""
+                   then {profile_medium: $nm[.signature].pm} else {} end) as $pm |
+                  . + $ln + $pm
+                else .
+                end
+            ] | .[]
+          ' "$TMP/store_pre_${club_id}.ndjson" > "$TMP/store_backfilled.ndjson"
+          cat "$TMP/new.ndjson" >> "$TMP/store_backfilled.ndjson"
+          mv "$TMP/store_backfilled.ndjson" "$CLUB_STORE"
+          log "club $club_id: backfilled names/avatars for existing entries (${_bf_any} blank)"
+        fi
+      fi
+      ;;
   esac
 
   # Rebuild the grep-filtered view of the store after merge (new entries are valid
