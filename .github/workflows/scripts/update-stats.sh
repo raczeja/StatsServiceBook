@@ -101,11 +101,11 @@ if shell_tests_xml and os.path.exists(shell_tests_xml):
         suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
         for suite in suites:
             suite_name = suite.get("name", "")
-            shell_passed  += int(suite.get("tests", 0)) - int(suite.get("failures", 0)) - int(suite.get("errors", 0)) - int(suite.get("skipped", 0))
-            shell_failed  += int(suite.get("failures", 0)) + int(suite.get("errors", 0))
-            shell_skipped += int(suite.get("skipped", 0))
             for tc in suite.findall("testcase"):
-                if tc.find("failure") is not None or tc.find("error") is not None:
+                if tc.find("skipped") is not None:
+                    shell_skipped += 1
+                elif tc.find("failure") is not None or tc.find("error") is not None:
+                    shell_failed += 1
                     elem = tc.find("failure") or tc.find("error")
                     msg = (elem.get("message", "") or elem.text or "")[:300]
                     shell_failed_tests.append({
@@ -113,6 +113,8 @@ if shell_tests_xml and os.path.exists(shell_tests_xml):
                         "file":  tc.get("classname", ""),
                         "error": msg,
                     })
+                else:
+                    shell_passed += 1
         print(f"[stats] Shell tests: passed={shell_passed} failed={shell_failed} skipped={shell_skipped}")
         if shell_failed_tests:
             print(f"[stats] Shell test failures ({len(shell_failed_tests)}):")
@@ -301,7 +303,7 @@ body{{font-family:system-ui,-apple-system,Arial,sans-serif;margin:0;background:#
 .stat-fail .stat-val{{color:#dc2626}}
 .stat-flaky .stat-val{{color:#d97706}}
 .spark-label{{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.3rem}}
-.sparkline{{height:44px;display:flex;align-items:flex-end;gap:3px;padding:.25rem 0;border-bottom:1px solid #f1f5f9;overflow:hidden;margin-bottom:.875rem}}
+.sparkline{{height:72px;display:flex;align-items:flex-end;gap:3px;padding:.25rem 0;border-bottom:1px solid #f1f5f9;overflow:hidden;margin-bottom:.875rem}}
 .sparkline a{{flex:0 0 auto;display:flex;align-items:flex-end}}
 .bar{{width:7px;border-radius:2px 2px 0 0}}
 .bar:hover{{opacity:.7}}
@@ -329,7 +331,7 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
   <span class="legend-item"><span class="legend-swatch sw-yellow"></span>Flaky only</span>
   <span class="legend-item"><span class="legend-swatch sw-mixed"></span>Failures + flaky</span>
   <span class="legend-item"><span class="legend-swatch sw-black"></span>All failed (excluded from stats)</span>
-  <span class="legend-note">Bars: oldest &rarr; newest. Each bar combines Playwright + shell failures. Cards sorted newest execution first.</span>
+  <span class="legend-note">Bars: oldest &rarr; newest. Bar height = total tests run (Playwright + shell); color = pass/fail status. Cards sorted newest execution first.</span>
 </div>
 """)
 
@@ -348,15 +350,16 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         fh.write(f'<div class="stat-box stat-flaky"><div class="stat-val">{total_flaky}</div><div class="stat-lbl">Total flaky</div></div>\n')
         fh.write('</div>\n')
 
-        max_issues = max((r["failed"] + r.get("flaky_count", 0) + r.get("shell_failed", 0) for r in runs), default=1) or 1
-        fh.write('<div class="spark-label">Failures + flaky per run (Playwright + shell)</div>\n')
-        fh.write('<div class="sparkline" title="Failures/flaky per run (oldest → newest)">')
+        max_total = max((r.get("total", 0) + r.get("shell_passed", 0) + r.get("shell_failed", 0) for r in runs), default=1) or 1
+        fh.write('<div class="spark-label">Tests per run (Playwright + shell) — color shows pass/fail</div>\n')
+        fh.write('<div class="sparkline" title="Total tests per run (oldest → newest)">')
         for run in runs:
             pw_failed   = run["failed"]
             pw_flaky    = run.get("flaky_count", 0)
             sh_failed   = run.get("shell_failed", 0)
             issues      = pw_failed + pw_flaky + sh_failed
-            h           = max(4, round(36 * issues / max_issues))
+            run_total   = run.get("total", 0) + run.get("shell_passed", 0) + sh_failed
+            h           = max(8, round(60 * run_total / max_total))
             if is_all_failed_run(run):
                 color = "#1e293b"
             elif issues == 0:
