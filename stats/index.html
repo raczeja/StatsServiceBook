@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Statistics — StatsServiceBook</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Arial,sans-serif;margin:0;background:#f0f2f5;color:#1a1a2e;min-height:100vh}
+.topbar{background:#1a1a2e;color:#fff;padding:.75rem 2rem;display:flex;align-items:center;gap:1rem}
+.topbar a{color:#93c5fd;text-decoration:none;font-size:.875rem}
+.topbar a:hover{text-decoration:underline}
+.topbar-title{font-weight:700;font-size:1rem;flex:1}
+.topbar-meta{font-size:.78rem;color:#94a3b8}
+.page{max-width:60rem;margin:0 auto;padding:1.5rem 2rem 3rem}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1.25rem;margin-bottom:1.25rem;padding:.75rem 1rem;background:#fff;border:1px solid #e2e8f0;border-radius:.625rem;font-size:.8rem;color:#475569}
+.legend-item{display:inline-flex;align-items:center;gap:.375rem}
+.legend-note{width:100%;color:#94a3b8;font-size:.75rem;margin-top:.2rem}
+.legend-swatch{width:.75rem;height:.75rem;border-radius:2px;display:inline-block;flex-shrink:0;border:1px solid rgba(0,0,0,.1)}
+.sw-green{background:#22c55e}.sw-red{background:#ef4444}.sw-yellow{background:#eab308}
+.sw-mixed{background:linear-gradient(to top,#eab308 0%,#eab308 50%,#ef4444 50%)}
+.sw-black{background:#1e293b}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;margin-bottom:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.card-title{font-size:1rem;font-weight:700;color:#1a1a2e;margin:0}
+.rate-pill{font-size:.875rem;font-weight:700;padding:.2rem .65rem;border-radius:999px}
+.rate-ok{background:#dcfce7;color:#15803d}
+.rate-warn{background:#fef9c3;color:#854d0e}
+.rate-bad{background:#fee2e2;color:#b91c1c}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.625rem;margin-bottom:.875rem}
+.stat-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.5rem;padding:.6rem .5rem;text-align:center}
+.stat-val{font-size:1.15rem;font-weight:700;color:#1a1a2e;line-height:1.2}
+.stat-lbl{font-size:.68rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-top:.15rem}
+.stat-fail .stat-val{color:#dc2626}
+.stat-flaky .stat-val{color:#d97706}
+.spark-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.3rem}
+.sparkline{height:72px;display:flex;align-items:flex-end;gap:3px;padding:.25rem 0;border-bottom:1px solid #f1f5f9;overflow:hidden;margin-bottom:.875rem}
+.sparkline a{flex:0 0 auto;display:flex;align-items:flex-end}
+.bar{width:7px;border-radius:2px 2px 0 0}
+.bar:hover{opacity:.7}
+.section-lbl{font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0 .35rem}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:.3rem .4rem;color:#94a3b8;font-weight:600;border-bottom:2px solid #e2e8f0;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+td{padding:.3rem .4rem;border-bottom:1px solid #f8fafc;word-break:break-word;color:#374151}
+td:last-child{text-align:right;font-weight:700;color:#dc2626;white-space:nowrap}
+.flaky-list{margin:.35rem 0 0;padding-left:1rem;font-size:.8rem;color:#374151}
+.flaky-list li{margin:.2rem 0}
+.flaky-list strong{color:#d97706}
+a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}
+.empty{text-align:center;padding:4rem;color:#94a3b8}
+</style>
+</head><body>
+<div class="topbar">
+  <span class="topbar-title">StatsServiceBook &middot; Test Statistics</span>
+  <a href="../">&larr; All reports</a>
+  <span class="topbar-meta">Last 30 days &middot; Updated 2026-09-19 11:52 CEST (09:52 UTC)</span>
+</div>
+<div class="page">
+<div class="legend" aria-label="Sparkline legend">
+  <span class="legend-item"><span class="legend-swatch sw-green"></span>All passed</span>
+  <span class="legend-item"><span class="legend-swatch sw-red"></span>Failures</span>
+  <span class="legend-item"><span class="legend-swatch sw-yellow"></span>Flaky only</span>
+  <span class="legend-item"><span class="legend-swatch sw-mixed"></span>Failures + flaky</span>
+  <span class="legend-item"><span class="legend-swatch sw-black"></span>All failed (excluded from stats)</span>
+  <span class="legend-note">Bars: oldest &rarr; newest. Bar height = total tests run (Playwright + shell); color = pass/fail status. Cards sorted newest execution first.</span>
+</div>
+<div class="card">
+<div class="card-header"><h2 class="card-title">Last 30 days &mdash; 13 run(s)</h2><span class="rate-pill rate-ok">100.0% pass rate</span></div>
+<div class="section-lbl">Playwright tests</div>
+<div class="stats-row">
+<div class="stat-box"><div class="stat-val">333.0</div><div class="stat-lbl">Avg tests/run</div></div>
+<div class="stat-box"><div class="stat-val">333.0</div><div class="stat-lbl">Avg passed/run</div></div>
+<div class="stat-box stat-fail"><div class="stat-val">0</div><div class="stat-lbl">Total failures</div></div>
+<div class="stat-box stat-flaky"><div class="stat-val">0</div><div class="stat-lbl">Total flaky</div></div>
+</div>
+<div class="spark-label">Tests per run (Playwright + shell) — color shows pass/fail</div>
+<div class="sparkline" title="Total tests per run (oldest → newest)"><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35277264667" target="_blank" title="Run #139 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 334 passed / 0 failed"><div class="bar" style="height:59px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35278016246" target="_blank" title="Run #140 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 334 passed / 0 failed"><div class="bar" style="height:59px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35278226415" target="_blank" title="Run #141 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 334 passed / 0 failed"><div class="bar" style="height:59px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35279128639" target="_blank" title="Run #142 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 334 passed / 0 failed"><div class="bar" style="height:59px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35309598466" target="_blank" title="Run #143 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 334 passed / 0 failed"><div class="bar" style="height:59px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35311856124" target="_blank" title="Run #144 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35312777690" target="_blank" title="Run #145 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35315212939" target="_blank" title="Run #146 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35333256013" target="_blank" title="Run #147 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35333260121" target="_blank" title="Run #148 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35390479999" target="_blank" title="Run #149 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35435797297" target="_blank" title="Run #151 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a><a href="https://github.com/raczeja/StatsServiceBook/actions/runs/35435794727" target="_blank" title="Run #150 — Playwright: 333 passed / 0 failed / 0 flaky / 0 skipped — Shell: 347 passed / 0 failed"><div class="bar" style="height:60px;background:#22c55e"></div></a></div>
+<div class="section-lbl">Shell unit tests (POSIX sh)</div>
+<div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:.5rem">
+<div class="stat-box"><div class="stat-val">342.0</div><div class="stat-lbl">Avg passed/run</div></div>
+<div class="stat-box"><div class="stat-val">0.0</div><div class="stat-lbl">Avg failed/run</div></div>
+</div>
+<p style="font-size:.8rem;color:#94a3b8;margin:.25rem 0">No shell test failures recorded.</p>
+</div>
+</div></body></html>
