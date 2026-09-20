@@ -215,6 +215,21 @@ test.describe("club-dashboard", () => {
     expect(label.length > 5, `achieve-section label too short: "${label}"`).toBeTruthy();
   });
 
+  test("achieve-section-label-is-highlights", async () => {
+    const label = await page.$eval("#board .achieve-section-label", (el) => el.textContent);
+    expect(label.startsWith("Highlights"), `expected label to start with "Highlights", got "${label}"`).toBeTruthy();
+  });
+
+  test("achieve-most-active-card-exists", async () => {
+    const labels = await page.$$eval("#board .achieve-item .abl", (els) => els.map((e) => e.textContent));
+    expect(labels.some((l) => l === "Most active"), `"Most active" card not found; labels: ${labels.join(", ")}`).toBeTruthy();
+  });
+
+  test("achieve-top-climber-card-exists", async () => {
+    const labels = await page.$$eval("#board .achieve-item .abl", (els) => els.map((e) => e.textContent));
+    expect(labels.some((l) => l === "Top climber"), `"Top climber" card not found; labels: ${labels.join(", ")}`).toBeTruthy();
+  });
+
   test("club-alltime-section-exists", async () => {
     const n = await page.$$eval("#board .club-alltime", (els) => els.length);
     expect(n >= 1, `expected >= 1 .club-alltime, got ${n}`).toBeTruthy();
