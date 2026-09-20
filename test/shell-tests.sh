@@ -2451,15 +2451,36 @@ S="yearly-email-jq"
         "$_yej_nd" 2>&1)"
     assert_eq "$S" "year-filter-2025" "$_yej_2025" "1"
 
-    # --- highlights: fastest / longest / most-elevation (5 lines per highlight) -
+    # --- highlights: mostactive / topclimber / fastest / longest / mostelev ----
     # Output format: type, name, value, unit, sport — each on its own line.
+    # 5 highlights × 5 lines = 25 lines total.
+    # Test data: Alex 2 acts (60 km, 600 m elev), Marta 1 act (30 km, 300 m elev)
+    # → mostactive=Alex(2), topclimber=Alex(600m), fastest=Alex(10km/900s=40kmh),
+    #   longest=Alex(50km), mostelev=Alex(500m)
     _yej_hl="$(jq -rn \
         --arg year "2026" --arg merge "" --arg exclude "" \
         "${_yej_mf}${_yej_excl}"'
-        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year)) | select((.distance // 0) > 1000)] as $all |
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] as $yr_all |
+        ($yr_all | map(select((.distance // 0) > 1000))) as $all |
+        ($yr_all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
+        ($yr_all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
         ($all | sort_by(if (.moving_time // 0) > 0 then -(.distance / .moving_time) else 0 end) | .[0]) as $fast |
         ($all | sort_by(-(.distance // 0)) | .[0]) as $long |
         ($all | sort_by(-(.total_elevation_gain // 0)) | .[0]) as $elev |
+        (if $mact != null then
+          "mostactive",
+          (("\($mact[0].firstname // "") \($mact[0].lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+          ($mact | length | tostring),
+          "activities",
+          ""
+        else empty end),
+        (if $tclimb != null and ($tclimb.elev // 0) > 0 then
+          "topclimber",
+          ($tclimb.name | @html),
+          ($tclimb.elev | round | tostring),
+          "m total",
+          ""
+        else empty end),
         (if $fast != null then
           "fastest",
           (("\($fast.firstname // "") \($fast.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
@@ -2482,16 +2503,23 @@ S="yearly-email-jq"
           (($elev.sport_type // "") | @html)
         else empty end)' \
         "$_yej_nd" 2>&1)"
-    # Each highlight = 5 consecutive lines: type / name / value / unit / sport
-    assert_eq "$S" "highlights-line-count"  "$(printf '%s\n' "$_yej_hl" | wc -l | tr -d ' ')" "15"
-    assert_eq "$S" "highlights-fastest-type" "$(printf '%s\n' "$_yej_hl" | sed -n '1p')" "fastest"
-    assert_eq "$S" "highlights-fastest-name" "$(printf '%s\n' "$_yej_hl" | sed -n '2p')" "Alex R"
-    assert_eq "$S" "highlights-fastest-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '4p')" "km/h"
-    assert_eq "$S" "highlights-longest-type" "$(printf '%s\n' "$_yej_hl" | sed -n '6p')" "longest"
-    assert_eq "$S" "highlights-longest-name" "$(printf '%s\n' "$_yej_hl" | sed -n '7p')" "Alex R"
-    assert_eq "$S" "highlights-longest-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '9p')" "km"
-    assert_eq "$S" "highlights-mostelev-type" "$(printf '%s\n' "$_yej_hl" | sed -n '11p')" "mostelev"
-    assert_eq "$S" "highlights-mostelev-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '14p')" "m"
+    # Each highlight = 5 lines: type / name / value / unit / sport
+    assert_eq "$S" "highlights-line-count"      "$(printf '%s\n' "$_yej_hl" | wc -l | tr -d ' ')" "25"
+    assert_eq "$S" "highlights-mostactive-type" "$(printf '%s\n' "$_yej_hl" | sed -n '1p')"  "mostactive"
+    assert_eq "$S" "highlights-mostactive-name" "$(printf '%s\n' "$_yej_hl" | sed -n '2p')"  "Alex R"
+    assert_eq "$S" "highlights-mostactive-val"  "$(printf '%s\n' "$_yej_hl" | sed -n '3p')"  "2"
+    assert_eq "$S" "highlights-mostactive-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '4p')"  "activities"
+    assert_eq "$S" "highlights-topclimber-type" "$(printf '%s\n' "$_yej_hl" | sed -n '6p')"  "topclimber"
+    assert_eq "$S" "highlights-topclimber-name" "$(printf '%s\n' "$_yej_hl" | sed -n '7p')"  "Alex R"
+    assert_eq "$S" "highlights-topclimber-unit" "$(printf '%s\n' "$_yej_hl" | sed -n '9p')"  "m total"
+    assert_eq "$S" "highlights-fastest-type"    "$(printf '%s\n' "$_yej_hl" | sed -n '11p')" "fastest"
+    assert_eq "$S" "highlights-fastest-name"    "$(printf '%s\n' "$_yej_hl" | sed -n '12p')" "Alex R"
+    assert_eq "$S" "highlights-fastest-unit"    "$(printf '%s\n' "$_yej_hl" | sed -n '14p')" "km/h"
+    assert_eq "$S" "highlights-longest-type"    "$(printf '%s\n' "$_yej_hl" | sed -n '16p')" "longest"
+    assert_eq "$S" "highlights-longest-name"    "$(printf '%s\n' "$_yej_hl" | sed -n '17p')" "Alex R"
+    assert_eq "$S" "highlights-longest-unit"    "$(printf '%s\n' "$_yej_hl" | sed -n '19p')" "km"
+    assert_eq "$S" "highlights-mostelev-type"   "$(printf '%s\n' "$_yej_hl" | sed -n '21p')" "mostelev"
+    assert_eq "$S" "highlights-mostelev-unit"   "$(printf '%s\n' "$_yej_hl" | sed -n '24p')" "m"
 }
 
 # ── script-syntax-check ──────────────────────────────────────────────────────

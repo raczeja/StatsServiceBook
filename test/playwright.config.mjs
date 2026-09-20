@@ -33,5 +33,17 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        browserName: "chromium",
+        // Allow overriding with a system Chrome when bundled Chromium can't be downloaded
+        // (e.g. network-restricted WSL). Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome.
+        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
+          : {}),
+      },
+    },
+  ],
 });
