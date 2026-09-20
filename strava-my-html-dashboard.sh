@@ -196,7 +196,7 @@ function saveFilter(){
   try { sessionStorage.setItem("activityFilter",JSON.stringify({year:yearSel.value,month:monthSel.value,sport:sportSel.value,sortCol:sortCol,sortAsc:sortAsc})); } catch(e){}
 }
 
-function fmtKm(m){ return (m/1000).toFixed(1); }
+function fmtKm(m){ var s=(m/1000).toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g," "); }
 function fmtTime(s){
   var d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
   if (d > 0) return d + "d " + h + "h " + m + "m";
@@ -475,7 +475,7 @@ function renderCharts(rows, selMonth, year) {
     var el = document.getElementById(id);
     if (!el) return;
     var avgStr = avg != null && avg > 0
-      ? ', <span style="color:#f5c400;font-weight:400">avg ' + (decimals ? avg.toFixed(1) : Math.round(avg)) + '</span>'
+      ? ', <span style="color:#f5c400;font-weight:400">avg ' + (decimals ? avg.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g," ") : fmtInt(avg)) + '</span>'
       : '';
     el.innerHTML = base + avgStr;
   }
@@ -484,14 +484,14 @@ function renderCharts(rows, selMonth, year) {
   setChartTitle("title-elev", "Elevation (m)", elevAvg, 0);
 
   var avgLine = distAvg != null
-    ? ' &nbsp;<span style="color:#f5c400">avg ' + distAvg.toFixed(1) + ' km</span>'
+    ? ' &nbsp;<span style="color:#f5c400">avg ' + distAvg.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g," ") + ' km</span>'
     : '';
   var tooltipData = monthly.map(function(m, i) {
     if (m.dist === 0) return null;
     var tip = '<strong>' + MONTHS[i] + '</strong>' +
-      'Distance: ' + (m.dist / 1000).toFixed(1) + ' km' + avgLine + '<br>' +
+      'Distance: ' + (m.dist / 1000).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g," ") + ' km' + avgLine + '<br>' +
       'Time: ' + fmtTime(m.time) + '<br>' +
-      'Elevation: ' + Math.round(m.elev) + ' m';
+      'Elevation: ' + fmtInt(m.elev) + ' m';
     if (i === curMonthIdx) {
       tip += '<br><span style="color:#aaa">in progress · week ' + weeksElapsed +
         ' of ' + weeksInMonth + '</span>';
