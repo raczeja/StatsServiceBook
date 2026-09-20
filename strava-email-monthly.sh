@@ -313,10 +313,31 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-            [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year)) | select((.distance // 0) > 1000)] as $all |
+            [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] as $yr_all |
+            ($yr_all | map(select((.distance // 0) > 1000))) as $all |
+            ($yr_all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
+            ($yr_all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
             ($all | sort_by(if (.moving_time // 0) > 0 then -(.distance / .moving_time) else 0 end) | .[0]) as $fast |
             ($all | sort_by(-(.distance // 0)) | .[0]) as $long |
             ($all | sort_by(-(.total_elevation_gain // 0)) | .[0]) as $elev |
+            (
+              if $mact != null then
+                "mostactive",
+                (("\($mact[0].firstname // "") \($mact[0].lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+                ($mact | length | tostring),
+                "activities",
+                ""
+              else empty end
+            ),
+            (
+              if $tclimb != null and ($tclimb.elev // 0) > 0 then
+                "topclimber",
+                ($tclimb.name | @html),
+                ($tclimb.elev | round | tostring),
+                "m total",
+                ""
+              else empty end
+            ),
             (
               if $fast != null then
                 "fastest",
@@ -401,7 +422,7 @@ for club_id in $CLUB_IDS; do
         if [ -s "$YHL" ]; then
             {
                 printf '<div style="padding:0 16px 14px">'
-                printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Single Activity Highlights</div>'
+                printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Highlights</div>'
                 printf '<table style="width:100%%;border-collapse:collapse"><tr>'
             } >> "$BODY"
 
@@ -411,10 +432,12 @@ for club_id in $CLUB_IDS; do
                   IFS= read -r _hunit && \
                   IFS= read -r _hsport; do
                 case "$_htype" in
-                    fastest)  _hicon="&#9889;" ; _hlabel="Fastest"        ;;
-                    longest)  _hicon="&#128207;"; _hlabel="Longest"        ;;
-                    mostelev) _hicon="&#127956;"; _hlabel="Most Elevation"  ;;
-                    *)        _hicon="&#9679;"  ; _hlabel="$_htype"         ;;
+                    mostactive) _hicon="&#128293;"; _hlabel="Most Active"      ;;
+                    topclimber) _hicon="&#128304;"; _hlabel="Top Climber"      ;;
+                    fastest)    _hicon="&#9889;" ; _hlabel="Fastest Single"    ;;
+                    longest)    _hicon="&#128207;"; _hlabel="Longest Single"   ;;
+                    mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
+                    *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
                 esac
                 printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>' \
                     "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
@@ -429,6 +452,7 @@ for club_id in $CLUB_IDS; do
     # ---- End yearly rendering ------------------------------------------------
 
     TABLE="$TMP/table_${club_id}.tsv"
+    MHL="$TMP/mhl_${club_id}.txt"
     if [ "$_mode" = "weekly" ]; then
         jq -rn \
             --arg month "$TARGET_MONTH" \
@@ -495,6 +519,65 @@ for club_id in $CLUB_IDS; do
     fi
     log "club $club_id: $(wc -l < "$TABLE" 2>/dev/null | tr -d ' ') athletes in table"
 
+    # Monthly/weekly highlights: most-active / top-climber / fastest / longest / most-elevation
+    jq -rn \
+        --arg month "$TARGET_MONTH" \
+        --arg merge "$MERGE_ATHLETES" \
+        --arg exclude "$EXCLUDE_ATHLETES" \
+        "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
+        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))] as $all |
+        ($all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
+        ($all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
+        ($all | map(select((.moving_time // 0) > 0 and (.distance // 0) > 1000)) | sort_by(-(.distance / .moving_time)) | .[0]) as $fast |
+        ($all | sort_by(-(.distance // 0)) | .[0]) as $long |
+        ($all | sort_by(-(.total_elevation_gain // 0)) | .[0]) as $elev |
+        (
+          if $mact != null then
+            "mostactive",
+            (("\($mact[0].firstname // "") \($mact[0].lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+            ($mact | length | tostring),
+            "activities",
+            ""
+          else empty end
+        ),
+        (
+          if $tclimb != null and ($tclimb.elev // 0) > 0 then
+            "topclimber",
+            ($tclimb.name | @html),
+            ($tclimb.elev | round | tostring),
+            "m total",
+            ""
+          else empty end
+        ),
+        (
+          if $fast != null then
+            "fastest",
+            (("\($fast.firstname // "") \($fast.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+            (($fast.distance / $fast.moving_time * 3.6 * 10 | round) / 10 | tostring),
+            "km/h",
+            (($fast.sport_type // "") | @html)
+          else empty end
+        ),
+        (
+          if $long != null then
+            "longest",
+            (("\($long.firstname // "") \($long.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+            ((($long.distance // 0) / 1000 * 10 | round) / 10 | tostring),
+            "km",
+            (($long.sport_type // "") | @html)
+          else empty end
+        ),
+        (
+          if $elev != null then
+            "mostelev",
+            (("\($elev.firstname // "") \($elev.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
+            (($elev.total_elevation_gain // 0) | round | tostring),
+            "m",
+            (($elev.sport_type // "") | @html)
+          else empty end
+        )' \
+        "$NDJSON" > "$MHL" || log "WARNING: jq failed building monthly highlights for club $club_id"
+
     if [ ! -s "$TABLE" ]; then
         printf '<p class="nd">No activities%s %s.</p>' \
             "$_no_data_msg_suffix" "$MONTH_LABEL" >> "$BODY"
@@ -529,6 +612,33 @@ for club_id in $CLUB_IDS; do
     done < "$TABLE"
 
     printf '</tbody>\n</table>\n' >> "$BODY"
+
+    # Highlights block
+    if [ -s "$MHL" ]; then
+        {
+            printf '<div style="padding:0 16px 14px">'
+            printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Highlights</div>'
+            printf '<table style="width:100%%;border-collapse:collapse"><tr>'
+        } >> "$BODY"
+        while IFS= read -r _htype && \
+              IFS= read -r _hname && \
+              IFS= read -r _hval  && \
+              IFS= read -r _hunit && \
+              IFS= read -r _hsport; do
+            case "$_htype" in
+                mostactive) _hicon="&#128293;"; _hlabel="Most Active"       ;;
+                topclimber) _hicon="&#128304;"; _hlabel="Top Climber"       ;;
+                fastest)    _hicon="&#9889;" ; _hlabel="Fastest Single"     ;;
+                longest)    _hicon="&#128207;"; _hlabel="Longest Single"    ;;
+                mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
+                *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
+            esac
+            printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>' \
+                "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
+                "$([ -n "$_hsport" ] && printf '<div style="font-size:9px;color:#aaa">%s</div>' "$_hsport")" >> "$BODY"
+        done < "$MHL"
+        printf '</tr></table></div>\n' >> "$BODY"
+    fi
 done
 IFS="$old_IFS"
 

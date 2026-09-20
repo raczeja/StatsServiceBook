@@ -158,23 +158,25 @@ them on a Windows dev box. To validate changes:
   HTML helper scripts:
   ```bash
   # First-time setup (once):
-  mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save playwright && npx playwright install chromium
+  mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save @playwright/test && npx playwright install chromium
 
   # Each run:
   docker build -t stravame-prod . && docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test .
   docker rm -f stravame-tests 2>/dev/null; docker run -d --name stravame-tests -p 8080:8080 stravame-test
   until curl -sf http://localhost:8080/strava/me/index.html > /dev/null 2>&1; do sleep 1; done
-  cp /home/raczeja/projects/OS/StatsServiceBook/test/functional-tests.mjs /tmp/strava-test-run/
-  cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost node functional-tests.mjs
+  cp /home/raczeja/projects/OS/StatsServiceBook/test/*.spec.mjs /home/raczeja/projects/OS/StatsServiceBook/test/test-urls.mjs /home/raczeja/projects/OS/StatsServiceBook/test/playwright.config.mjs /tmp/strava-test-run/
+  cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test
   docker stop stravame-tests && docker rm stravame-tests
   ```
-  Uses system Chrome (`channel: "chrome"`) — requires Google Chrome installed. 373+ assertions across all five pages and the bike-service CGI. Exits 0 on pass. Requires Docker and Node.js ≥ 18.
+  Requires Docker and Node.js ≥ 18. Uses Playwright's bundled Chromium (downloaded by `npx playwright install chromium`).
 
-  If Playwright's bundled Chromium can't be downloaded (network-restricted WSL), set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome` as an alternative.
+  If Chromium can't be downloaded (network-restricted WSL), install Google Chrome and set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome`.
 
-  **Running a single test suite:** Neither test runner has a per-suite CLI flag.
-  - `shell-tests.sh` — only supports `--junit <file>` (JUnit XML output); to isolate one suite, comment out the others in the file temporarily.
-  - `functional-tests.mjs` — comment out the unwanted suite calls in `main()`. Suite functions: `testClubDashboard`, `testMyActivities`, `testStats`, `testActivityDetail`, `testActivityDetailHealthsyncRun`, `testActivityDetailHealthsyncCycling`, `testActivityDetailMagene`, `testBikeService`, `testBikeServicePartReplacement`, `testSyncSourceMerging`, `testHistoricalActivityPreservation`, `testDataConsistencyAcrossSources`.
+  **Running a single spec file:**
+  ```bash
+  cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test mobile.spec.mjs
+  ```
+  Spec files: `club-dashboard.spec.mjs`, `my-activities.spec.mjs`, `stats.spec.mjs`, `activity-detail.spec.mjs`, `bike-service.spec.mjs`, `cgi.spec.mjs`, `mobile.spec.mjs`.
 
   **How the test container gets its HTML:** `test/run.sh` (the container entrypoint) re-extracts each page's HTML from the production helper script's `<<'HTML'` heredoc via `awk` at startup — there are no separate HTML fixtures. This means the test always runs against the live heredoc content; changing a heredoc is reflected immediately in the next container run.
 - **Screenshots of all pages** (saves PNGs to `test/screenshots/`):
@@ -350,11 +352,11 @@ When you finish implementing a new feature or behaviour change, always do the fo
    docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test . && \
    docker rm -f stravame-tests 2>/dev/null; docker run -d --name stravame-tests -p 8080:8080 stravame-test && \
    until curl -sf http://localhost:8080/strava/me/index.html > /dev/null 2>&1; do sleep 1; done && \
-   cp /home/raczeja/projects/OS/StatsServiceBook/test/functional-tests.mjs /tmp/strava-test-run/ && \
-   cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost node functional-tests.mjs; \
+   cp /home/raczeja/projects/OS/StatsServiceBook/test/*.spec.mjs /home/raczeja/projects/OS/StatsServiceBook/test/test-urls.mjs /home/raczeja/projects/OS/StatsServiceBook/test/playwright.config.mjs /tmp/strava-test-run/ && \
+   cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test; \
    docker stop stravame-tests && docker rm stravame-tests
    ```
-   (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save playwright && npx playwright install chromium`.)
+   (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save @playwright/test && npx playwright install chromium`.)
    If any test fails, fix the regression before proceeding. Do not skip this step. Do not ask the user to run tests for you.
 
 3. **Consider whether new tests are needed.** Don't silently assume existing tests are sufficient — the suite only proves what it asserts.

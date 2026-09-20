@@ -1056,6 +1056,7 @@ function renderPeriodTiles(acts,label){
 function renderAchievements(acts,label){
   if(acts.length<1) return '';
   var fastest=null,fastSpd=0,longest=null,longestD=0,topElev=null,topElevD=0;
+  var athCount={},athElev={};
   acts.forEach(function(a){
     if((a.moving_time||0)>0&&(a.distance||0)>1000){
       var spd=a.distance/a.moving_time*3.6;
@@ -1063,18 +1064,28 @@ function renderAchievements(acts,label){
     }
     if((a.distance||0)>longestD){longestD=a.distance;longest=a;}
     if((a.total_elevation_gain||0)>topElevD){topElevD=a.total_elevation_gain;topElev=a;}
+    var key=(a.firstname||'')+'|'+(a.lastname||'');
+    athCount[key]=(athCount[key]||0)+1;
+    athElev[key]=(athElev[key]||0)+(a.total_elevation_gain||0);
   });
-  if(!fastest&&!longest&&!topElev) return '';
+  var mostActiveKey=null,mostActiveN=0;
+  Object.keys(athCount).forEach(function(k){if(athCount[k]>mostActiveN){mostActiveN=athCount[k];mostActiveKey=k;}});
+  var topClimberKey=null,topClimberM=0;
+  Object.keys(athElev).forEach(function(k){if(athElev[k]>topClimberM){topClimberM=athElev[k];topClimberKey=k;}});
+  if(!fastest&&!longest&&!topElev&&!mostActiveKey) return '';
   function ai(icon,lbl,val,sub){
     return '<div class="achieve-item"><div class="achieve-icon">'+icon+'</div>'+
       '<div class="achieve-body"><div class="abl">'+esc(lbl)+'</div>'+
       '<div class="abv">'+val+'</div>'+(sub?'<div class="abl">'+esc(sub)+'</div>':'')+
       '</div></div>';
   }
-  var h='<div class="achieve-section"><div class="achieve-section-label">Single activity highlights &middot; '+esc(label)+'</div><div class="achieve-grid">';
-  if(fastest) h+=ai('&#9889;','Fastest',esc(fastest.firstname)+' '+esc(fastest.lastname)+' &mdash; '+fastSpd.toFixed(1)+' km/h',fastest.sport_type||'');
-  if(longest) h+=ai('&#128207;','Longest',esc(longest.firstname)+' '+esc(longest.lastname)+' &mdash; '+fmtKm(longestD)+' km',longest.sport_type||'');
-  if(topElev) h+=ai('&#127956;','Most elevation',esc(topElev.firstname)+' '+esc(topElev.lastname)+' &mdash; '+fmtNum(topElevD)+' m',topElev.sport_type||'');
+  function keyName(k){var p=k.split('|');return esc(p[0])+' '+esc(p[1]);}
+  var h='<div class="achieve-section"><div class="achieve-section-label">Highlights &middot; '+esc(label)+'</div><div class="achieve-grid">';
+  if(mostActiveKey) h+=ai('&#128293;','Most active',keyName(mostActiveKey)+' &mdash; '+mostActiveN+' '+(mostActiveN===1?'activity':'activities'),'');
+  if(topClimberKey&&topClimberM>0) h+=ai('&#128304;','Top climber',keyName(topClimberKey)+' &mdash; '+fmtNum(topClimberM)+' m total','');
+  if(fastest) h+=ai('&#9889;','Fastest single',esc(fastest.firstname)+' '+esc(fastest.lastname)+' &mdash; '+fastSpd.toFixed(1)+' km/h',fastest.sport_type||'');
+  if(longest) h+=ai('&#128207;','Longest single',esc(longest.firstname)+' '+esc(longest.lastname)+' &mdash; '+fmtKm(longestD)+' km',longest.sport_type||'');
+  if(topElev) h+=ai('&#127956;','Best elevation single',esc(topElev.firstname)+' '+esc(topElev.lastname)+' &mdash; '+fmtNum(topElevD)+' m',topElev.sport_type||'');
   h+='</div></div>';
   return h;
 }
