@@ -583,21 +583,16 @@ test.describe("historical-preservation", () => {
     expect(rowCount > 0, "no activities shown for all years").toBeTruthy();
   });
 
-  test("historical-activities-have-detail", async () => {
-    const has2025Activity = await page
-      .$eval("#board tbody tr", (row) => {
-        const cells = row.querySelectorAll("td");
-        const dateText = cells[1]?.textContent || "";
-        return dateText.includes("2025") || dateText.includes("2024");
-      })
-      .catch(() => false);
-    if (has2025Activity) {
-      const detailLinks = await page.$$eval(
-        "#board tbody tr a[href*='activity.html']",
-        (links) => links.length,
-      );
-      expect(detailLinks > 0, "historical activities should have detail links").toBeTruthy();
-    }
+  test("all-activities-have-detail-link", async () => {
+    const { rows, links } = await page.$$eval("#board tbody tr", (rows) => ({
+      rows: rows.length,
+      links: rows.filter((r) => r.querySelector("a[href*='activity.html']")).length,
+    }));
+    expect(rows, "board must have at least one activity row").toBeGreaterThan(0);
+    expect(
+      links,
+      `every activity row must have a detail link — ${rows - links} row(s) missing a link`,
+    ).toBe(rows);
   });
 
   test("total-count-accessible", async () => {
