@@ -439,7 +439,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
   tried=0      # API requests spent this run (caps against the rate limit)
   while IFS= read -r id; do
     [ -n "$id" ] || continue
-    [ -f "$DETAIL_DIR/$id.json" ] && continue                 # already have it
+    [ -f "$DETAIL_DIR/$id.json" ] && [ ! -f "$DETAIL_DIR/$id.minimal" ] && continue  # have full detail
     grep -qxF "$id" "$DETAIL_SKIP" && continue                # known gone, skip
     if [ "$tried" -ge "$DETAIL_MAX_PER_RUN" ]; then
       log "detail backfill: hit cap ($DETAIL_MAX_PER_RUN requests); remaining will continue next run"
@@ -602,6 +602,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
         # Validate it parses before committing it to the (web-served) detail dir.
         if jq -e . "$TMP/detail.json" >/dev/null 2>&1; then
           mv "$TMP/detail.json" "$DETAIL_DIR/$id.json"
+          rm -f "$DETAIL_DIR/$id.minimal"   # upgraded from minimal to full
           saved=$((saved + 1))
         else
           log "detail backfill: activity $id returned unparseable body; will retry next run"
@@ -722,11 +723,31 @@ else
 fi
 TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 
+# Write a minimal detail file (from store record) for any activity without one.
+# Skip list is NOT respected here: skipped activities still get a minimal file so
+# the dashboard can always link to activity.html (showing basic store stats even
+# when the full Strava detail is unavailable).  Section 3b will not overwrite
+# skip-listed activities; others get the full response on subsequent runs.
+mkdir -p "$DETAIL_DIR"
+_pre_minimal="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.minimal$' || echo 0)"
+jq -c '. | select(.id != null)' "$STORE" 2>/dev/null | while IFS= read -r _mdrec; do
+  _mdid="$(printf '%s' "$_mdrec" | jq -r '.id')"
+  [ -n "$_mdid" ] || continue
+  [ -f "$DETAIL_DIR/$_mdid.json" ] && continue
+  printf '%s\n' "$_mdrec" > "$DETAIL_DIR/$_mdid.json"
+  touch "$DETAIL_DIR/$_mdid.minimal"
+done
+_post_minimal="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.minimal$' || echo 0)"
+# If new minimal files were created, bump ADDED so the skip-render guard
+# triggers a re-emit of activities.json (pipe runs in subshell; use file counts).
+[ "$_post_minimal" -gt "$_pre_minimal" ] && \
+  ADDED=$((ADDED + _post_minimal - _pre_minimal))
+
 # Skip re-render when nothing changed and no helper scripts were updated since last render.
 # Re-renders when: new/changed/deleted activities, new detail files, weather backfill,
 # bike-assign written via CGI (bike-assign newer than activities.json), or helper scripts updated.
 _skip_render=0
-o# Compute md5 of all helper scripts — more reliable than mtime across scp
+# Compute md5 of all helper scripts — more reliable than mtime across scp
 _scripts_md5=""
 for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
             "$STRAVA_LIBDIR/strava-my-html-detail.sh" \
