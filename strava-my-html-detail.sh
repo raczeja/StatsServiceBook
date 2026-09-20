@@ -191,7 +191,7 @@ function hideMapSpin(){
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
-function fmtKm(m){ return (m/1000).toFixed(2); }
+function fmtKm(m){ var s=(m/1000).toFixed(2); return s.replace(/\B(?=(\d{3})+(?!\d))/g," "); }
 function fmtTime(s){
   s = Math.round(s);
   var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
