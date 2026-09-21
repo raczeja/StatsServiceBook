@@ -13,7 +13,7 @@ const reporters = [
 if (process.env.CI) {
   reporters.push([
     "@estruyf/github-actions-reporter",
-    { title: "Playwright results", useDetails: true, showError: true },
+    { title: "Playwright results", useDetails: true, showError: true, summary: false },
   ]);
 }
 
