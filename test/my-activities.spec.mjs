@@ -684,6 +684,11 @@ test.describe("data-consistency", () => {
     );
     expect(activityIds.length > 0, "should have clickable activities with data-id attributes").toBeTruthy();
   });
+
+  test("fmtKm-thousand-separator", async () => {
+    const formatted = await page.evaluate(() => fmtKm(1234567));
+    expect(formatted, "fmtKm(1234567) should use space as thousand separator").toBe("1 234.6");
+  });
 });
 
 // ── Focus Row (best-chip highlight) ───────────────────────────────────────────

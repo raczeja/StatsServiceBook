@@ -2802,6 +2802,104 @@ fi
 
 rm -rf "$_SKIP_TMP"
 
+# ── scrape-time-fallback ──────────────────────────────────────────────────────
+# The leaderboard scrape parser pre-computes $pt3=parse_time(stat_three) and
+# $pt2=parse_time(stat_two).  moving_time uses $pt3 if > 0, then $pt2 if > 0,
+# then (.elapsedTime // 0).  total_elevation_gain is zeroed when $pt3==0 and
+# $pt2>0 (stat_two held time, not elevation).
+# The Activity-entity branch also now propagates .elapsed_time → .elapsedTime.
+S="scrape-time-fallback"
+
+# Shared helper: parse an Activity-entity array with the fallback logic.
+_stf_parse() {
+    jq -c '
+      def _n: if (. == null or . == "") then 0 else tonumber end;
+      def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+      def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+      def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+      def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
+      def parse_time:
+        strip_html | . as $t |
+        (if ($t|contains("h")) then ($t|split("h")[0]|digits|_n) else 0 end) * 3600 +
+        (if ($t|contains("m"))
+         then ((if ($t|contains("h")) then $t|split("h")[1] else $t end)|split("m")[0]|digits|_n)
+         else 0 end) * 60 +
+        (if ($t|contains("s"))
+         then ((if ($t|contains("m")) then $t|split("m")[1] else
+                if ($t|contains("h")) then $t|split("h")[1] else $t end end)|split("s")[0]|digits|_n)
+         else 0 end);
+      [ .[]
+        | select(.entity == "Activity")
+        | .activity
+        | . + {athlete: ((.athlete // {}) + {
+                          athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // ""))
+                                       | ltrimstr(" ") | rtrimstr(" "))}),
+               elapsedTime: (.elapsed_time // 0)}
+        | select(. != null and (.id // "") != "")
+        | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+        | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+        | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+        | ($s3 | parse_time) as $pt3
+        | ($s2 | parse_time) as $pt2
+        | (.athlete.firstName // "") as $fn
+        | (.athlete.athleteName // "") as $an
+        | {
+            s:           .id,
+            firstname:   $fn,
+            lastname:    ($an | ltrimstr($fn) | ltrimstr(" ")),
+            distance:    ($s1 | parse_km),
+            moving_time: (if $pt3 > 0 then $pt3
+                          elif $pt2 > 0 then $pt2
+                          else (.elapsedTime // 0) end),
+            elapsed_time: (.elapsedTime // 0),
+            total_elevation_gain: (if ($pt3 == 0) and ($pt2 > 0) then 0
+                                   else ($s2 | parse_elev) end)
+          }
+      ]' "$1"
+}
+
+# Case 1 — Normal: stat_three = time ("1h 30m"), stat_two = elevation ("250").
+cat > "$TMP/stf_normal.json" << 'FEED'
+[{"entity":"Activity","activity":{"id":"tf-normal","activityName":"Ride","elapsed_time":5400,"type":"Ride","startDate":"2026-09-01T08:00:00Z","athlete":{"firstName":"A","lastName":"B","avatarUrl":""},"stats":[{"key":"stat_one","value":"30.00"},{"key":"stat_two","value":"250"},{"key":"stat_three","value":"1h 30m"}]}}]
+FEED
+_stf_n="$(_stf_parse "$TMP/stf_normal.json")"
+_stf_n0="$(printf '%s' "$_stf_n" | jq '.[0]')"
+assert_eq "$S" "normal-moving-time"  "$(printf '%s' "$_stf_n0" | jq '.moving_time')"          "5400"
+assert_eq "$S" "normal-elev"         "$(printf '%s' "$_stf_n0" | jq '.total_elevation_gain')" "250"
+assert_eq "$S" "normal-elapsed"      "$(printf '%s' "$_stf_n0" | jq '.elapsed_time')"         "5400"
+
+# Case 2 — Fallback: stat_three is blank, stat_two holds time ("1h 45m").
+# Expected: moving_time = 6300 (from stat_two), total_elevation_gain = 0 (stat_two was time, not elev).
+cat > "$TMP/stf_fallback.json" << 'FEED'
+[{"entity":"Activity","activity":{"id":"tf-fallback","activityName":"Ride","elapsed_time":3600,"type":"Ride","startDate":"2026-09-02T08:00:00Z","athlete":{"firstName":"C","lastName":"D","avatarUrl":""},"stats":[{"key":"stat_one","value":"20.00"},{"key":"stat_two","value":"1h 45m"},{"key":"stat_three","value":""}]}}]
+FEED
+_stf_f="$(_stf_parse "$TMP/stf_fallback.json")"
+_stf_f0="$(printf '%s' "$_stf_f" | jq '.[0]')"
+assert_eq "$S" "fallback-moving-time" "$(printf '%s' "$_stf_f0" | jq '.moving_time')"          "6300"
+assert_eq "$S" "fallback-elev-zero"   "$(printf '%s' "$_stf_f0" | jq '.total_elevation_gain')" "0"
+assert_eq "$S" "fallback-elapsed"     "$(printf '%s' "$_stf_f0" | jq '.elapsed_time')"         "3600"
+
+# Case 3 — Elapsed-time fallback: both stat_two and stat_three are blank.
+# Expected: moving_time = elapsed_time from the activity.
+cat > "$TMP/stf_elapsed.json" << 'FEED'
+[{"entity":"Activity","activity":{"id":"tf-elapsed","activityName":"Ride","elapsed_time":7200,"type":"Ride","startDate":"2026-09-03T08:00:00Z","athlete":{"firstName":"E","lastName":"F","avatarUrl":""},"stats":[{"key":"stat_one","value":"15.00"},{"key":"stat_two","value":""},{"key":"stat_three","value":""}]}}]
+FEED
+_stf_e="$(_stf_parse "$TMP/stf_elapsed.json")"
+_stf_e0="$(printf '%s' "$_stf_e" | jq '.[0]')"
+assert_eq "$S" "elapsed-fallback-moving-time" "$(printf '%s' "$_stf_e0" | jq '.moving_time')"  "7200"
+assert_eq "$S" "elapsed-fallback-elapsed"     "$(printf '%s' "$_stf_e0" | jq '.elapsed_time')" "7200"
+
+# Case 4 — elapsedTime propagated from Activity branch .elapsed_time field.
+# The non-GroupActivity branch now explicitly sets elapsedTime from .elapsed_time.
+# Verify the value round-trips correctly even when it differs from stat-derived time.
+cat > "$TMP/stf_elapcheck.json" << 'FEED'
+[{"entity":"Activity","activity":{"id":"tf-elap","activityName":"Ride","elapsed_time":9999,"type":"Ride","startDate":"2026-09-04T08:00:00Z","athlete":{"firstName":"G","lastName":"H","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"2h"}]}}]
+FEED
+_stf_ec="$(_stf_parse "$TMP/stf_elapcheck.json")"
+_stf_ec0="$(printf '%s' "$_stf_ec" | jq '.[0]')"
+assert_eq "$S" "elapsed-from-activity-field" "$(printf '%s' "$_stf_ec0" | jq '.elapsed_time')" "9999"
+assert_eq "$S" "stat3-time-still-preferred"  "$(printf '%s' "$_stf_ec0" | jq '.moving_time')"  "7200"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
