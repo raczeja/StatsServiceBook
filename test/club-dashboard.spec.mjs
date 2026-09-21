@@ -97,12 +97,29 @@ test.describe("club-dashboard", () => {
       "#board .detail-row .detail-table tbody",
       (tbody) => Array.from(tbody.querySelectorAll("tr")).map((tr) => {
         const cells = tr.querySelectorAll("td");
-        return cells[cells.length - 1]?.textContent.trim();
+        // avg speed is second-to-last; last cell is the Strava ID link
+        return cells[cells.length - 2]?.textContent.trim();
       }),
     );
     for (let i = 0; i < speeds.length; i++) {
       const n = parseFloat(speeds[i]);
       expect(!isNaN(n) && n > 0, `detail row ${i} avg speed "${speeds[i]}" is not a positive number`).toBeTruthy();
+    }
+    await page.click("#board .person-row:first-child");
+  });
+
+  test("detail-activity-strava-link", async () => {
+    await page.click("#board .person-row:first-child");
+    const hrefs = await page.$eval(
+      "#board .detail-row .detail-table tbody",
+      (tbody) => Array.from(tbody.querySelectorAll("tr")).map((tr) => {
+        const a = tr.querySelector("td:last-child a");
+        return a ? a.getAttribute("href") : null;
+      }),
+    );
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const href of hrefs) {
+      expect(href, "Strava link should point to strava.com/activities/").toContain("strava.com/activities/");
     }
     await page.click("#board .person-row:first-child");
   });

@@ -387,12 +387,22 @@ JQ_MERGE_FUNC=$(cat <<'JQ'
               | from_entries
            end) as $mergeMap |
 def applyMerge:
-  ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
+  ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) | rtrimstr(" ") ) as $fn
   | if ($mergeMap | has($fn)) then
       ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
       . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
             lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
     else . end;
+def normArr:
+  . as $arr |
+  ($arr | map(select((.lastname // "") != "")) | group_by(.firstname)
+   | map(select((map(.lastname) | unique | length) == 1))
+   | map({(.[0].firstname // ""): .[0].lastname}) | add // {}) as $fn_map |
+  $arr | map(
+    if (.lastname // "") == "" and ($fn_map[.firstname // ""] // "") != ""
+    then . + {lastname: $fn_map[.firstname // ""]}
+    else . end
+  );
 JQ
 )
 

@@ -832,19 +832,26 @@ assert_eq "$S" "both-entities-present"  "$(printf '%s' "$_norm" | jq 'length')" 
 # ── scrape-name-backfill ───────────────────────────────────────────────────────
 # Mirrors the backfill step in strava-leaderboard.sh: existing store entries
 # with blank lastname/profile_medium are patched from the current feed's name map
-# when their activity ID appears in the feed.
+# when their activity ID appears in the feed (nm path) OR when the firstname
+# unambiguously maps to a known lastname via fn_map (covers old activities no
+# longer in the Strava feed).
 S="scrape-name-backfill"
 
-# Store: two pre-existing entries — one with blank lastname/pm (old bug), one OK.
+# Store: three pre-existing entries.
+# bf-act-1: ID still in feed → patched via nm path.
+# bf-act-old: ID NOT in feed (scrolled off) but same firstname as act-1 → patched via fn_map path.
+# bf-act-2: already has a correct lastname → must not be touched.
 cat > "$TMP/bf_store_pre.ndjson" << 'STORE'
 {"signature":"bf-act-1","firstname":"Piotr","lastname":"","profile_medium":"","name":"Old Ride","distance":30000,"moving_time":3600,"elapsed_time":3600,"total_elevation_gain":200,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-01"}
+{"signature":"bf-act-old","firstname":"Piotr","lastname":"","profile_medium":"","name":"Very Old Ride","distance":25000,"moving_time":3300,"elapsed_time":3300,"total_elevation_gain":150,"type":"Ride","sport_type":"Ride","firstSeen":"2026-03-10"}
 {"signature":"bf-act-2","firstname":"Anna","lastname":"Nowak","profile_medium":"https://example.com/anna.jpg","name":"Another Ride","distance":20000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":100,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-02"}
 STORE
 
 # New entries from this run (empty — nothing new).
 : > "$TMP/bf_new.ndjson"
 
-# Feed contains bf-act-1 (now with proper lastName) and bf-act-3 (unknown, no store entry).
+# Feed contains bf-act-1 (with proper lastName) and bf-act-3 (unknown, no store entry).
+# bf-act-old is NOT in the feed (it has scrolled off Strava's club feed).
 cat > "$TMP/bf_merge_input.json" << 'FEED'
 {"known":["bf-act-1","bf-act-2"],"fetched":[
   {"entity":"Activity","activity":{
@@ -864,7 +871,7 @@ FEED
 
 _bf_apply() {
     # Mirrors the backfill jq pipeline from strava-leaderboard.sh.
-    _nm="$(jq -c '
+    _maps="$(jq -c '
       def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
       def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
       [ .fetched[]
@@ -886,16 +893,35 @@ _bf_apply() {
         | {id: .id, fn: $fn, ln: ($an | ltrimstr($fn) | ltrimstr(" ")),
            pm: (.athlete.avatarUrl // "")}
         | select(.ln != "" or .pm != "")
-      ]
-      | map({(.id): .}) | add // {}
+      ] as $ents
+      | {
+          nm: ($ents | map({(.id): .}) | add // {}),
+          fn_map: (
+            $ents | map(select(.ln != "")) | group_by(.fn)
+            | map(select((map(.ln) | unique | length) == 1))
+            | map({(.[0].fn): {
+                ln: .[0].ln,
+                pm: ([.[].pm] | map(select(. != "")) | if length > 0 then .[0] else "" end)
+              }})
+            | add // {}
+          )
+        }
     ' "$TMP/bf_merge_input.json")"
-    jq -sc --argjson nm "${_nm}" '
+    jq -sc --argjson maps "${_maps}" '
+      ($maps.nm // {}) as $nm | ($maps.fn_map // {}) as $fn_map |
       [ .[]
-        | if ($nm[.signature] != null) then
-            (if (.lastname == "" or .lastname == null) and ($nm[.signature].ln // "") != ""
-             then {lastname: $nm[.signature].ln} else {} end) as $ln |
-            (if (.profile_medium == "" or .profile_medium == null) and ($nm[.signature].pm // "") != ""
-             then {profile_medium: $nm[.signature].pm} else {} end) as $pm |
+        | ($nm[.signature]) as $m
+        | if $m != null then
+            (if (.lastname == "" or .lastname == null) and ($m.ln // "") != ""
+             then {lastname: $m.ln} else {} end) as $ln |
+            (if (.profile_medium == "" or .profile_medium == null) and ($m.pm // "") != ""
+             then {profile_medium: $m.pm} else {} end) as $pm |
+            . + $ln + $pm
+          elif (.lastname == "" or .lastname == null) and ($fn_map[.firstname] != null) then
+            ($fn_map[.firstname]) as $f |
+            (if ($f.ln // "") != "" then {lastname: $f.ln} else {} end) as $ln |
+            (if (.profile_medium == "" or .profile_medium == null) and ($f.pm // "") != ""
+             then {profile_medium: $f.pm} else {} end) as $pm |
             . + $ln + $pm
           else .
           end
@@ -905,19 +931,192 @@ _bf_apply() {
 
 _bf_result="$(_bf_apply)"
 
-# bf-act-1: blank lastname patched from feed
+# bf-act-1: blank lastname patched from feed via exact activity-ID match (nm path)
 _bf_act1="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-1")')"
 assert_eq "$S" "act1-lastname-patched"    "$(printf '%s' "$_bf_act1" | jq -r '.lastname')"       "Król"
 assert_eq "$S" "act1-avatar-patched"      "$(printf '%s' "$_bf_act1" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
 assert_eq "$S" "act1-firstname-preserved" "$(printf '%s' "$_bf_act1" | jq -r '.firstname')"      "Piotr"
+
+# bf-act-old: ID not in current feed — patched via fn_map (firstname-based fallback)
+_bf_old="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-old")')"
+assert_eq "$S" "old-lastname-fn-patched"  "$(printf '%s' "$_bf_old" | jq -r '.lastname')"       "Król"
+assert_eq "$S" "old-avatar-fn-patched"    "$(printf '%s' "$_bf_old" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
 
 # bf-act-2: already had a lastname — must not be touched
 _bf_act2="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-2")')"
 assert_eq "$S" "act2-lastname-unchanged"  "$(printf '%s' "$_bf_act2" | jq -r '.lastname')"       "Nowak"
 assert_eq "$S" "act2-avatar-unchanged"    "$(printf '%s' "$_bf_act2" | jq -r '.profile_medium')" "https://example.com/anna.jpg"
 
-# Both pre-existing entries survive in output (no rows lost)
-assert_eq "$S" "pre-entries-preserved"   "$(printf '%s' "$_bf_result" | jq -s 'length')"         "2"
+# All three pre-existing entries survive in output (no rows lost)
+assert_eq "$S" "pre-entries-preserved"   "$(printf '%s' "$_bf_result" | jq -s 'length')"         "3"
+
+# ── normArr ───────────────────────────────────────────────────────────────────
+# Verifies the normArr jq function added to JQ_MERGE_FUNC in strava-lib.sh.
+# normArr patches blank lastnames when firstname maps unambiguously to one known
+# non-empty lastname within the same array.
+S="normArr"
+
+# Write the normArr jq filter to a tmp file to avoid heredoc-inside-$() issues.
+cat > "$TMP/normArr.jq" << 'JQ'
+def normArr:
+  . as $arr |
+  ($arr | map(select((.lastname // "") != "")) | group_by(.firstname)
+   | map(select((map(.lastname) | unique | length) == 1))
+   | map({(.[0].firstname // ""): .[0].lastname}) | add // {}) as $fn_map |
+  $arr | map(
+    if (.lastname // "") == "" and ($fn_map[.firstname // ""] // "") != ""
+    then . + {lastname: $fn_map[.firstname // ""]}
+    else . end
+  );
+. | normArr
+JQ
+
+_na_result="$(jq -f "$TMP/normArr.jq" << 'JSON'
+[
+  {"firstname":"Jacek","lastname":"","distance":10000},
+  {"firstname":"Jacek","lastname":"Kolonko","distance":20000},
+  {"firstname":"Anna","lastname":"Nowak","distance":5000},
+  {"firstname":"Piotr","lastname":"","distance":8000},
+  {"firstname":"Piotr","lastname":"Lewandowski","distance":9000},
+  {"firstname":"Tom","lastname":"","distance":3000},
+  {"firstname":"Tom","lastname":"Jones","distance":4000},
+  {"firstname":"Amy","lastname":"","distance":1000}
+]
+JSON
+)"
+
+# Blank "Jacek" gets patched to "Kolonko" (unambiguous mapping)
+assert_eq "$S" "blank-patched-to-kolonko" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Jacek" and .distance==10000)) | .[0].lastname')" \
+  "Kolonko"
+
+# Existing "Jacek Kolonko" entry unchanged
+assert_eq "$S" "existing-kolonko-unchanged" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Jacek" and .distance==20000)) | .[0].lastname')" \
+  "Kolonko"
+
+# Anna with correct lastname unchanged
+assert_eq "$S" "anna-unchanged" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Anna")) | .[0].lastname')" \
+  "Nowak"
+
+# Piotr and Tom also patched (both have one non-empty lastname each)
+assert_eq "$S" "piotr-patched" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Piotr" and .distance==8000)) | .[0].lastname')" \
+  "Lewandowski"
+assert_eq "$S" "tom-patched" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Tom" and .distance==3000)) | .[0].lastname')" \
+  "Jones"
+
+# Amy has no entry with a non-empty lastname at all — stays blank
+assert_eq "$S" "amy-stays-blank" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Amy")) | .[0].lastname')" \
+  ""
+
+# Total entry count unchanged
+assert_eq "$S" "count-unchanged" \
+  "$(printf '%s' "$_na_result" | jq 'length')" \
+  "8"
+
+# ── applyMerge-trim ───────────────────────────────────────────────────────────
+# Verifies that the rtrimstr(" ") fix in applyMerge allows aliases with a blank
+# lastname (e.g. canonical "Jacek Kolonko", alias "Jacek" with no lastname) to
+# match an activity that has firstname="Jacek" and lastname="".
+S="applyMerge-trim"
+
+cat > "$TMP/applyMerge.jq" << 'JQ'
+($merge | if . == "" then {}
+           else split(",") | map(split("=")) | map(select(length == 2))
+              | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
+                       value: (.[0] | ltrimstr(" ") | rtrimstr(" ")) })
+              | from_entries
+           end) as $mergeMap |
+def applyMerge:
+  ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) | rtrimstr(" ") ) as $fn
+  | if ($mergeMap | has($fn)) then
+      ($mergeMap[$fn]) as $c | ($c | index(" ") // -1) as $sp |
+      . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
+            lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
+    else . end;
+. | applyMerge
+JQ
+
+# Entry with blank lastname matches alias "Jacek" → canonical "Jacek Kolonko"
+_amt_blank="$(printf '{"firstname":"Jacek","lastname":""}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Jacek Kolonko=Jacek")"
+assert_eq "$S" "blank-lastname-alias-matches" \
+  "$(printf '%s' "$_amt_blank" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
+  "Jacek Kolonko"
+
+# Entry with correct lastname is not re-mapped (it's not the alias "Jacek")
+_amt_ok="$(printf '{"firstname":"Jacek","lastname":"Kolonko"}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Jacek Kolonko=Jacek")"
+assert_eq "$S" "correct-entry-not-remapped" \
+  "$(printf '%s' "$_amt_ok" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
+  "Jacek Kolonko"
+
+# Entry not in merge map is left untouched
+_amt_other="$(printf '{"firstname":"Anna","lastname":"Nowak"}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Jacek Kolonko=Jacek")"
+assert_eq "$S" "unrelated-entry-untouched" \
+  "$(printf '%s' "$_amt_other" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
+  "Anna Nowak"
+
+# ── scrape-distance-sanity ─────────────────────────────────────────────────────
+# Verifies that the distance > 2 000 000 m filter rejects impossible entries
+# from the scrape merge step before they enter the store.
+S="scrape-distance-sanity"
+
+# Inline the relevant part of the scrape merge jq: entries with distance > 2 000 000 m must be dropped.
+_ds_input='{"known":[],"fetched":[
+  {"entity":"Activity","activity":{"id":"good-1","activityName":"Normal Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-09-01T08:00:00Z","athlete":{"firstName":"Piotr","lastName":"Krol","avatarUrl":""},"stats":[{"key":"stat_one","value":"50.00"},{"key":"stat_two","value":"500"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"Activity","activity":{"id":"bad-1","activityName":"Impossible Ride","elapsedTime":9000,"type":"Ride","startDate":"2026-09-02T08:00:00Z","athlete":{"firstName":"Jacek","lastName":"K","avatarUrl":""},"stats":[{"key":"stat_one","value":"5047.00"},{"key":"stat_two","value":"583"},{"key":"stat_three","value":"2h 31m"}]}}
+]}'
+
+_ds_new="$(printf '%s' "$_ds_input" | jq -c --arg cutoff "" '
+  def _n: if (. == null or . == "") then 0 else tonumber end;
+  def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+  def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+  def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+  def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
+  def parse_time:
+    strip_html | . as $t |
+    (if ($t|contains("h")) then ($t|split("h")[0]|digits|_n) else 0 end) * 3600 +
+    (if ($t|contains("m")) then ((if ($t|contains("h")) then $t|split("h")[1] else $t end)|split("m")[0]|digits|_n) else 0 end) * 60;
+  ( (.known // []) | map({ (.): true }) | add // {} ) as $seen
+  | [ .fetched[]
+      | select(.entity == "Activity")
+      | .activity
+      | . + {athlete: ((.athlete // {}) + {athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+      | select(. != null and (.id // "") != "")
+      | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
+      | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
+      | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+      | (.athlete.firstName // "") as $fn
+      | (.athlete.athleteName // "") as $an
+      | {s: .id, firstname: $fn, lastname: ($an | ltrimstr($fn) | ltrimstr(" ")),
+         distance: ($s1 | parse_km), total_elevation_gain: ($s2 | parse_elev),
+         moving_time: ($s3 | parse_time), firstSeen: (.startDate // "" | split("T")[0])}
+    ]
+  | unique_by(.s)
+  | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff) and (.distance <= 2000000)))
+  | .[]
+' 2>/dev/null)"
+
+# good-1 with 50 km should be accepted
+assert_eq "$S" "normal-ride-accepted" \
+  "$(printf '%s' "$_ds_new" | jq -r 'select(.s=="good-1") | .s')" \
+  "good-1"
+
+# bad-1 with 5047 km should be rejected (absent from output)
+assert_eq "$S" "impossible-ride-rejected" \
+  "$(printf '%s\n' "$_ds_new" | grep -c '"s":"bad-1"' || true)" \
+  "0"
+
+# good-1 distance is stored in metres (50 km = 50 000 m)
+assert_eq "$S" "normal-ride-distance-metres" \
+  "$(printf '%s' "$_ds_new" | jq -r 'select(.s=="good-1") | .distance | tostring')" \
+  "50000"
 
 # ── scrape-cursor ─────────────────────────────────────────────────────────────
 # Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
