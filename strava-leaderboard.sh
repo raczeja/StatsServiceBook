@@ -52,6 +52,7 @@ SNAPSHOT_DIR="$STATE_DIR/snapshots"
 KEEP_SNAPSHOTS="${STRAVA_KEEP_SNAPSHOTS:-90}"
 EXCLUDE_ATHLETES="${STRAVA_EXCLUDE_ATHLETES:-}"   # comma-separated "Firstname Lastname" to hide
 MERGE_ATHLETES="${STRAVA_MERGE_ATHLETES:-}"     # comma-separated "Canonical=Alias" pairs to merge
+ELEV_FETCH_MAX="${STRAVA_ELEV_FETCH_MAX:-20}"   # max Run elevation page-fetches per club per run (scrape mode)
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -352,7 +353,7 @@ while IFS= read -r club_id; do
                               elif $pt2 > 0 then $pt2
                               else (.elapsedTime // 0) end),
                 elapsed_time: (.elapsedTime // 0),
-                total_elevation_gain: (if ($pt3 == 0) and ($pt2 > 0) then 0
+                total_elevation_gain: (if (($pt3 == 0) and ($pt2 > 0)) or ($s2 | strip_html | contains("/")) then 0
                                        else ($s2 | parse_elev) end),
                 type:      (.type // ""),
                 sport_type: (.type // ""),
@@ -460,6 +461,57 @@ while IFS= read -r club_id; do
           mv "$TMP/store_backfilled.ndjson" "$CLUB_STORE"
           log "club $club_id: backfilled names/avatars for existing entries (${_bf_any} blank)"
         fi
+      fi
+      ;;
+  esac
+
+  # Backfill: for scrape mode, fetch elevation from individual activity pages
+  # for Run activities where the club feed only shows pace as stat_two.
+  # Results are cached in run_elev_cache.json so each activity is fetched once.
+  case "$STRAVA_SOURCE" in
+    scrape)
+      ELEV_CACHE="$STATE_DIR/run_elev_cache.json"
+      [ -f "$ELEV_CACHE" ] || printf '{}' > "$ELEV_CACHE"
+      jq -r --argjson cache "$(cat "$ELEV_CACHE")" '
+        select(.sport_type == "Run" and (.total_elevation_gain // 0) == 0)
+        | .signature
+        | select($cache[.] == null)
+      ' "$CLUB_STORE" | sort -u | head -"$ELEV_FETCH_MAX" > "$TMP/needs_elev.txt" 2>/dev/null || :
+      _ef_count="$(wc -l < "$TMP/needs_elev.txt" | tr -d ' ')"
+      if [ "${_ef_count:-0}" -gt 0 ]; then
+        log "club $club_id: fetching elevation for $_ef_count Run activities (max $ELEV_FETCH_MAX)..."
+        ensure_session_cookie
+        _ef_ok=0
+        while IFS= read -r _ef_sig; do
+          _ef_page="$TMP/act_${_ef_sig}.html"
+          if curl_retry -s -L -b "$STATE_DIR/strava_cookies.txt" \
+            "https://www.strava.com/activities/${_ef_sig}" \
+            -o "$_ef_page" 2>/dev/null; then
+            _ef_elev="$(sed -n 's/^[[:space:]]*elev_gain: \([0-9][0-9]*\).*/\1/p' \
+              "$_ef_page" 2>/dev/null | head -1)"
+            if [ -n "$_ef_elev" ]; then
+              jq -c --arg s "$_ef_sig" --argjson e "$_ef_elev" \
+                '. + {($s): $e}' "$ELEV_CACHE" > "$ELEV_CACHE.tmp" \
+                && mv "$ELEV_CACHE.tmp" "$ELEV_CACHE"
+              _ef_ok=$(( _ef_ok + 1 ))
+            else
+              jq -c --arg s "$_ef_sig" '. + {($s): -1}' \
+                "$ELEV_CACHE" > "$ELEV_CACHE.tmp" \
+                && mv "$ELEV_CACHE.tmp" "$ELEV_CACHE"
+            fi
+            rm -f "$_ef_page"
+          fi
+          sleep 2
+        done < "$TMP/needs_elev.txt"
+        log "club $club_id: elevation fetched for $_ef_ok/$_ef_count Run activities"
+        jq -c --argjson cache "$(cat "$ELEV_CACHE")" '
+          if .sport_type == "Run" and (.total_elevation_gain // 0) == 0
+             and ($cache[.signature] != null) and ($cache[.signature] > 0)
+          then .total_elevation_gain = $cache[.signature]
+          else .
+          end
+        ' "$CLUB_STORE" > "$TMP/store_elev.ndjson" \
+          && mv "$TMP/store_elev.ndjson" "$CLUB_STORE"
       fi
       ;;
   esac
