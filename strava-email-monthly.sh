@@ -252,7 +252,7 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-            [inputs | applyMerge | select(notExcluded)] as $store |
+            [inputs | applyMerge | select(notExcluded)] | normArr as $store |
             ($store | map(select(.firstSeen | startswith($year)))) as $all |
             ($all | length) as $acts |
             ($all | map(.distance // 0) | add // 0) as $dist_m |
@@ -280,7 +280,7 @@ for club_id in $CLUB_IDS; do
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
             [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))]
-            | group_by("\(.firstname)|\(.lastname)")
+            | normArr | group_by("\(.firstname)|\(.lastname)")
             | map({
                 name: "\(.[0].firstname) \(.[0].lastname)",
                 dist: (([.[].distance // 0] | add) / 1000),
@@ -313,7 +313,7 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-            [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] as $yr_all |
+            ([inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] | normArr) as $yr_all |
             ($yr_all | map(select((.distance // 0) > 1000))) as $all |
             ($yr_all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
             ($yr_all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
@@ -460,7 +460,7 @@ for club_id in $CLUB_IDS; do
             --arg wto   "$LAST_WEEK_TO" \
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
-            "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[ inputs | applyMerge | select(notExcluded) ] as $all
+            "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[ inputs | applyMerge | select(notExcluded) ] | normArr as $all
              | ($all | map(select(.firstSeen | startswith($month)))) as $ma
              | ($all | map(select(.firstSeen >= $wfrom and .firstSeen <= $wto))) as $wa
              | ($ma | group_by("\(.firstname)|\(.lastname)")
@@ -495,7 +495,7 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))]
-             | group_by("\(.firstname)|\(.lastname)")
+             | normArr | group_by("\(.firstname)|\(.lastname)")
              | map({
                  name: "\(.[0].firstname) \(.[0].lastname)",
                  dist: (([.[].distance] | add) / 1000),
@@ -525,7 +525,7 @@ for club_id in $CLUB_IDS; do
         --arg merge "$MERGE_ATHLETES" \
         --arg exclude "$EXCLUDE_ATHLETES" \
         "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-        [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))] as $all |
+        ([inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))] | normArr) as $all |
         ($all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
         ($all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
         ($all | map(select((.moving_time // 0) > 0 and (.distance // 0) > 1000)) | sort_by(-(.distance / .moving_time)) | .[0]) as $fast |

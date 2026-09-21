@@ -330,12 +330,15 @@ while IFS= read -r club_id; do
                        elapsedTime: (.elapsed_time // 0)}
                else .activity
                     | . + {athlete: ((.athlete // {}) + {
-                                      athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))})}
+                                      athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))}),
+                           elapsedTime: (.elapsed_time // 0)}
                end)
             | select(. != null and (.id // "") != "")
             | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
             | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
             | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+            | ($s3 | parse_time) as $pt3
+            | ($s2 | parse_time) as $pt2
             | (.athlete.firstName // "") as $fn
             | (.athlete.athleteName // "") as $an
             | {
@@ -345,16 +348,19 @@ while IFS= read -r club_id; do
                 profile_medium: (.athlete.avatarUrl // ""),
                 name:      (.activityName // ""),
                 distance:  ($s1 | parse_km),
-                moving_time: ($s3 | parse_time),
+                moving_time: (if $pt3 > 0 then $pt3
+                              elif ($s3 == "") and ($pt2 > 0) then $pt2
+                              else (.elapsedTime // 0) end),
                 elapsed_time: (.elapsedTime // 0),
-                total_elevation_gain: ($s2 | parse_elev),
+                total_elevation_gain: (if ($s3 == "") and ($pt2 > 0) then 0
+                                       else ($s2 | parse_elev) end),
                 type:      (.type // ""),
                 sport_type: (.type // ""),
                 firstSeen: (.startDate // "" | split("T")[0])
               }
           ]
         | unique_by(.s)
-        | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff)))
+        | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff) and (.distance <= 2000000)))
         | .[]
         | {
             signature:    .s,
@@ -414,18 +420,37 @@ while IFS= read -r club_id; do
             | {id: .id, fn: $fn, ln: ($an | ltrimstr($fn) | ltrimstr(" ")),
                pm: (.athlete.avatarUrl // "")}
             | select(.ln != "" or .pm != "")
-          ]
-          | map({(.id): .}) | add // {}
+          ] as $ents
+          | {
+              nm: ($ents | map({(.id): .}) | add // {}),
+              fn_map: (
+                $ents | map(select(.ln != "")) | group_by(.fn)
+                | map(select((map(.ln) | unique | length) == 1))
+                | map({(.[0].fn): {
+                    ln: .[0].ln,
+                    pm: ([.[].pm] | map(select(. != "")) | if length > 0 then .[0] else "" end)
+                  }})
+                | add // {}
+              )
+            }
         ' "$TMP/merge_input.json" > "$TMP/name_map.json"
-        _nm_count="$(jq 'length' "$TMP/name_map.json")"
+        _nm_count="$(jq '(.nm | length) + (.fn_map | length)' "$TMP/name_map.json")"
         if [ "${_nm_count:-0}" -gt 0 ]; then
-          jq -sc --argjson nm "$(cat "$TMP/name_map.json")" '
+          jq -sc --argjson maps "$(cat "$TMP/name_map.json")" '
+            ($maps.nm // {}) as $nm | ($maps.fn_map // {}) as $fn_map |
             [ .[]
-              | if ($nm[.signature] != null) then
-                  (if (.lastname == "" or .lastname == null) and ($nm[.signature].ln // "") != ""
-                   then {lastname: $nm[.signature].ln} else {} end) as $ln |
-                  (if (.profile_medium == "" or .profile_medium == null) and ($nm[.signature].pm // "") != ""
-                   then {profile_medium: $nm[.signature].pm} else {} end) as $pm |
+              | ($nm[.signature]) as $m
+              | if $m != null then
+                  (if (.lastname == "" or .lastname == null) and ($m.ln // "") != ""
+                   then {lastname: $m.ln} else {} end) as $ln |
+                  (if (.profile_medium == "" or .profile_medium == null) and ($m.pm // "") != ""
+                   then {profile_medium: $m.pm} else {} end) as $pm |
+                  . + $ln + $pm
+                elif (.lastname == "" or .lastname == null) and ($fn_map[.firstname] != null) then
+                  ($fn_map[.firstname]) as $f |
+                  (if ($f.ln // "") != "" then {lastname: $f.ln} else {} end) as $ln |
+                  (if (.profile_medium == "" or .profile_medium == null) and ($f.pm // "") != ""
+                   then {profile_medium: $f.pm} else {} end) as $pm |
                   . + $ln + $pm
                 else .
                 end
@@ -467,12 +492,12 @@ while IFS= read -r club_id; do
         profile_medium: ($info.profile_medium // null),
         sport_type:     ($info.sport_type     // null)
       },
-      activities: [
-        .[]
+      activities: ([ .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
         | applyMerge
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
+      ] | normArr | [.[]
         | {
             date:                 .firstSeen,
             firstname:            .firstname,
@@ -481,9 +506,10 @@ while IFS= read -r club_id; do
             distance:             (.distance // 0),
             moving_time:          (.moving_time // 0),
             total_elevation_gain: (.total_elevation_gain // 0),
-            sport_type:           .sport_type
+            sport_type:           .sport_type,
+            signature:            .signature
           }
-      ]
+      ])
     }
   ' "$TMP/store_${club_id}.json" > "$TMP/clubdata_${club_id}.json"
 
@@ -502,6 +528,7 @@ while IFS= read -r club_id; do
         | ( (.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase) ) as $fn
         | select( ($excl | length) == 0 or ([$excl[] | select(. == $fn)] | length == 0) )
       ]
+      | normArr
       | group_by(athleteKey)
       | map({
           firstname: .[0].firstname,
@@ -889,12 +916,40 @@ function toggleDetail(id){
   if(el) el.style.display = el.style.display==='none' ? '' : 'none';
 }
 
-function renderClubTable(acts, tablePrefix, allActs, lastWeek){
+function hasLetter(s){return !!(s&&s.replace(/[\s.,\-]/g,'').length>0);}
+function pickLastname(ln1,ln2){
+  if(hasLetter(ln1)) return ln1;
+  if(hasLetter(ln2)) return ln2;
+  return ln1;
+}
+function buildAthReg(allActs){
+  var n2p={};
+  (allActs||[]).forEach(function(a){
+    var pm=a.profile_medium||'', fn=a.firstname||'', ln=a.lastname||'';
+    if(!pm||!fn) return;
+    if(hasLetter(ln)&&!n2p[fn+'|'+ln]) n2p[fn+'|'+ln]=pm;
+    if(!n2p[fn+'|']) n2p[fn+'|']=pm;
+  });
+  return n2p;
+}
+function athKey(a,n2p){
+  var pm=a.profile_medium||'';
+  if(pm) return pm;
+  var fn=a.firstname||'', ln=a.lastname||'';
+  if(n2p){
+    var rp=n2p[hasLetter(ln)?fn+'|'+ln:fn+'|'];
+    if(rp) return rp;
+  }
+  return fn+'|'+ln;
+}
+
+function renderClubTable(acts, tablePrefix, allActs, lastWeek, n2p){
   var map = {};
   acts.forEach(function(a){
-    var k = a.firstname+"|"+a.lastname;
+    var k = athKey(a,n2p);
     var e = map[k];
     if(!e){ e=map[k]={_key:k,firstname:a.firstname,lastname:a.lastname,distance:0,moving_time:0,elev:0,count:0,items:[]}; }
+    else { e.lastname=pickLastname(e.lastname,a.lastname); }
     e.distance+=a.distance||0;
     e.moving_time+=a.moving_time||0;
     e.elev+=a.total_elevation_gain||0;
@@ -904,7 +959,7 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   var lwMap = {};
   (allActs||[]).forEach(function(a){
     if(a.date && lastWeek && a.date>=lastWeek.from && a.date<=lastWeek.to){
-      var k=a.firstname+"|"+a.lastname;
+      var k=athKey(a,n2p);
       lwMap[k]=(lwMap[k]||0)+(a.distance||0);
     }
   });
@@ -932,18 +987,22 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
       '</tr>';
     html += '<tr id="'+did+'" class="detail-row" style="display:none"><td colspan="'+(lastWeek?8:7)+'">';
     html += '<table class="detail-table"><thead><tr>'+
-      '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th><th>Avg km/h</th>'+
+      '<th>Date</th><th>Sport</th><th>Distance</th><th>Time</th><th>Elev (m)</th><th>Avg km/h</th><th>Strava</th>'+
       '</tr></thead><tbody>';
     m.items.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); })
       .forEach(function(a){
         var aspd = (a.moving_time||0)>0 ? ((a.distance||0)/(a.moving_time)*3.6).toFixed(1) : '–';
+        var sid = (a.signature && /^\d+$/.test(a.signature))
+          ? '<a href="https://www.strava.com/activities/'+esc(a.signature)+'" target="_blank" rel="noopener">'+esc(a.signature)+'</a>'
+          : '';
         html += '<tr>'+
           '<td>'+esc(a.date||'')+'</td>'+
           '<td>'+esc(a.sport_type||'')+'</td>'+
           '<td class="num">'+fmtKm(a.distance||0)+' km</td>'+
           '<td class="num">'+fmtTime(a.moving_time||0)+'</td>'+
           '<td class="num">'+fmtNum(a.total_elevation_gain||0)+'</td>'+
-          '<td class="num">'+aspd+'</td></tr>';
+          '<td class="num">'+aspd+'</td>'+
+          '<td>'+sid+'</td></tr>';
       });
     html += '</tbody></table></td></tr>';
   });
@@ -951,7 +1010,7 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek){
   return html;
 }
 
-function renderThisYearTiles(allActs){
+function renderThisYearTiles(allActs,n2p){
   var curYear=new Date().getFullYear();
   var allTimeFirst=allActs.reduce(function(mn,a){ return a.date&&(!mn||a.date<mn)?a.date:mn; },'');
   var clubStartedThisYear=allTimeFirst && allTimeFirst.slice(0,4)===String(curYear);
@@ -960,7 +1019,7 @@ function renderThisYearTiles(allActs){
   var dist=0,time=0,elev=0,ath={},firstDate='';
   acts.forEach(function(a){
     dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
-    ath[a.firstname+'|'+a.lastname]=true;
+    ath[athKey(a,n2p)]=true;
     if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
   });
   var avg=time>0?(dist/time*3.6):0;
@@ -977,12 +1036,12 @@ function renderThisYearTiles(allActs){
     '</div></div>';
 }
 
-function renderClubAlltimeTiles(allActs){
+function renderClubAlltimeTiles(allActs,n2p){
   if(!allActs || allActs.length===0) return '';
   var dist=0,time=0,elev=0,ath={},firstDate=null;
   allActs.forEach(function(a){
     dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
-    ath[a.firstname+'|'+a.lastname]=true;
+    ath[athKey(a,n2p)]=true;
     if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
   });
   var sinceAlltime=firstDate?' <span class="top5-since">since '+esc(firstDate)+'</span>':'';
@@ -996,7 +1055,7 @@ function renderClubAlltimeTiles(allActs){
     '</div></div>';
 }
 
-function renderTop5Year(allActs,year){
+function renderTop5Year(allActs,year,n2p){
   var acts=allActs.filter(function(a){ return a.date && +a.date.slice(0,4)===year; });
   if(acts.length===0) return '';
   // Earliest date across all history (not just this year)
@@ -1004,8 +1063,9 @@ function renderTop5Year(allActs,year){
   var clubStartedThisYear=allTimeFirst && allTimeFirst.slice(0,4)===String(year);
   var map={},firstDate='';
   acts.forEach(function(a){
-    var k=a.firstname+'|'+a.lastname;
+    var k=athKey(a,n2p);
     if(!map[k]) map[k]={fn:a.firstname,ln:a.lastname,dist:0,cnt:0,pm:a.profile_medium||''};
+    else { map[k].ln=pickLastname(map[k].ln,a.lastname); }
     map[k].dist+=a.distance||0; map[k].cnt++;
     if(a.profile_medium && !map[k].pm) map[k].pm=a.profile_medium;
     if(a.date && (!firstDate || a.date<firstDate)) firstDate=a.date;
@@ -1036,12 +1096,12 @@ function renderTop5Year(allActs,year){
   return h;
 }
 
-function renderPeriodTiles(acts,label){
+function renderPeriodTiles(acts,label,n2p){
   if(acts.length===0) return '';
   var dist=0,time=0,elev=0,ath={};
   acts.forEach(function(a){
     dist+=a.distance||0; time+=a.moving_time||0; elev+=a.total_elevation_gain||0;
-    ath[a.firstname+'|'+a.lastname]=true;
+    ath[athKey(a,n2p)]=true;
   });
   var avg=time>0?(dist/time*3.6):0;
   return '<div class="club-alltime"><div class="club-alltime-label">'+esc(label)+'</div><div class="stat-tiles">'+
@@ -1053,10 +1113,10 @@ function renderPeriodTiles(acts,label){
     '</div></div>';
 }
 
-function renderAchievements(acts,label){
+function renderAchievements(acts,label,n2p){
   if(acts.length<1) return '';
   var fastest=null,fastSpd=0,longest=null,longestD=0,topElev=null,topElevD=0;
-  var athCount={},athElev={};
+  var athCount={},athElev={},athDname={};
   acts.forEach(function(a){
     if((a.moving_time||0)>0&&(a.distance||0)>1000){
       var spd=a.distance/a.moving_time*3.6;
@@ -1064,9 +1124,11 @@ function renderAchievements(acts,label){
     }
     if((a.distance||0)>longestD){longestD=a.distance;longest=a;}
     if((a.total_elevation_gain||0)>topElevD){topElevD=a.total_elevation_gain;topElev=a;}
-    var key=(a.firstname||'')+'|'+(a.lastname||'');
+    var key=athKey(a,n2p);
     athCount[key]=(athCount[key]||0)+1;
     athElev[key]=(athElev[key]||0)+(a.total_elevation_gain||0);
+    if(!athDname[key]){athDname[key]={fn:a.firstname||'',ln:a.lastname||''};}
+    else{athDname[key].ln=pickLastname(athDname[key].ln,a.lastname||'');}
   });
   var mostActiveKey=null,mostActiveN=0;
   Object.keys(athCount).forEach(function(k){if(athCount[k]>mostActiveN){mostActiveN=athCount[k];mostActiveKey=k;}});
@@ -1079,7 +1141,7 @@ function renderAchievements(acts,label){
       '<div class="abv">'+val+'</div>'+(sub?'<div class="abl">'+esc(sub)+'</div>':'')+
       '</div></div>';
   }
-  function keyName(k){var p=k.split('|');return esc(p[0])+' '+esc(p[1]);}
+  function keyName(k){var d=athDname[k]||{fn:'',ln:''};return esc(d.fn)+' '+esc(d.ln);}
   var h='<div class="achieve-section"><div class="achieve-section-label">Highlights &middot; '+esc(label)+'</div><div class="achieve-grid">';
   if(mostActiveKey) h+=ai('&#128293;','Most active',keyName(mostActiveKey)+' &mdash; '+mostActiveN+' '+(mostActiveN===1?'activity':'activities'),'');
   if(topClimberKey&&topClimberM>0) h+=ai('&#128304;','Top climber',keyName(topClimberKey)+' &mdash; '+fmtNum(topClimberM)+' m total','');
@@ -1104,7 +1166,9 @@ function render(){
   var html = "";
 
   clubs.forEach(function(club, i){
-    var acts = (club.activities||[]).filter(function(a){
+    var clubAllActs = club.activities||[];
+    var n2p = buildAthReg(clubAllActs);
+    var acts = clubAllActs.filter(function(a){
       if(!a.date) return false;
       if(+a.date.slice(0,4)!==year) return false;
       if(month!=="all" && +a.date.slice(5,7)!==+month) return false;
@@ -1127,12 +1191,12 @@ function render(){
     if(info.sport_type) sub.push(esc(info.sport_type));
     if(sub.length) html += '<p class="club-sub">'+sub.join(' · ')+'</p>';
     if(info.description) html += '<p class="club-desc">'+esc(info.description)+'</p>';
-    var _tbl=renderClubTable(acts, esc(club.clubId||String(i)), club.activities||[], lastWeek);
-    var _top5=renderTop5Year(club.activities||[],year);
-    var _period=renderPeriodTiles(acts,label);
-    var _achieve=renderAchievements(acts,label);
-    var _thisyr=renderThisYearTiles(club.activities||[]);
-    var _alltime=renderClubAlltimeTiles(club.activities||[]);
+    var _tbl=renderClubTable(acts, esc(club.clubId||String(i)), clubAllActs, lastWeek, n2p);
+    var _top5=renderTop5Year(clubAllActs,year,n2p);
+    var _period=renderPeriodTiles(acts,label,n2p);
+    var _achieve=renderAchievements(acts,label,n2p);
+    var _thisyr=renderThisYearTiles(clubAllActs,n2p);
+    var _alltime=renderClubAlltimeTiles(clubAllActs,n2p);
     html += '<div class="sec" data-sid="table">'+_tbl+'</div>';
     if(_top5) html += '<div class="sec" data-sid="top5">'+_top5+'</div>';
     if(_period) html += '<div class="sec" data-sid="period">'+_period+'</div>';
