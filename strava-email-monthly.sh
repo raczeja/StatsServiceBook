@@ -439,7 +439,7 @@ for club_id in $CLUB_IDS; do
                     mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
                     *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
                 esac
-                printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>' \
+                printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
                     "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
                     "$([ -n "$_hsport" ] && printf '<div style="font-size:9px;color:#aaa">%s</div>' "$_hsport")" >> "$BODY"
             done < "$YHL"
@@ -633,7 +633,7 @@ for club_id in $CLUB_IDS; do
                 mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
                 *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
             esac
-            printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>' \
+            printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
                 "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
                 "$([ -n "$_hsport" ] && printf '<div style="font-size:9px;color:#aaa">%s</div>' "$_hsport")" >> "$BODY"
         done < "$MHL"

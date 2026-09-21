@@ -354,6 +354,7 @@ while IFS= read -r club_id; do
                 elapsed_time: (.elapsedTime // 0),
                 total_elevation_gain: (if ($s3 == "") and ($pt2 > 0) then 0
                                        else ($s2 | parse_elev) end),
+                _dbg_s2: $s2, _dbg_s3: $s3,
                 type:      (.type // ""),
                 sport_type: (.type // ""),
                 firstSeen: (.startDate // "" | split("T")[0])
