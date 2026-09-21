@@ -2900,6 +2900,64 @@ _stf_ec0="$(printf '%s' "$_stf_ec" | jq '.[0]')"
 assert_eq "$S" "elapsed-from-activity-field" "$(printf '%s' "$_stf_ec0" | jq '.elapsed_time')" "9999"
 assert_eq "$S" "stat3-time-still-preferred"  "$(printf '%s' "$_stf_ec0" | jq '.moving_time')"  "7200"
 
+# ── scrape-run-elevation ──────────────────────────────────────────────────────
+# Verifies that Run activities (where Strava club feed shows pace as stat_two,
+# e.g. "7:20 /km") produce total_elevation_gain == 0 via the contains("/") guard,
+# while Ride activities with a real elevation stat are parsed correctly.
+S="scrape-run-elevation"
+
+_check_elev_gain() {
+    # Args: stat_two stat_three
+    jq -rn --arg s2 "$1" --arg s3 "$2" '
+        def strip_html: gsub("<[^>]*>"; "");
+        def _n: if (. == null or . == "") then 0 else tonumber end;
+        def parse_time:
+          strip_html |
+          capture("(?:(?<h>[0-9]+)\\s*h)?\\s*(?:(?<m>[0-9]+)\\s*m)?\\s*(?:(?<s>[0-9]+)\\s*s)?") |
+          ((.h | _n) * 3600) + ((.m | _n) * 60) + (.s | _n);
+        def parse_elev:
+          strip_html | gsub("[^0-9.]"; "") |
+          if . == "" or . == "." then 0 else tonumber end;
+        ($s3 | parse_time) as $pt3 |
+        ($s2 | parse_time) as $pt2 |
+        if (($pt3 == 0) and ($pt2 > 0)) or ($s2 | strip_html | contains("/")) then 0
+        else ($s2 | parse_elev)
+        end'
+}
+
+# Run activity: stat_two is pace → elevation must be 0
+assert_eq "$S" "pace-km-zeroed" \
+    "$(_check_elev_gain '7:20 /km' '0h 30m')" "0"
+assert_eq "$S" "pace-mi-zeroed" \
+    "$(_check_elev_gain '11:46 /mi' '0h 30m')" "0"
+assert_eq "$S" "pace-html-zeroed" \
+    "$(_check_elev_gain '5:30<abbr class="unit">/km</abbr>' '0h 45m')" "0"
+
+# Ride activity: stat_two is elevation → value parsed correctly
+assert_eq "$S" "ride-elev-with-html" \
+    "$(_check_elev_gain '387<abbr class="unit" title="meters"> m</abbr>' '4h 10m')" "387"
+assert_eq "$S" "ride-elev-plain" \
+    "$(_check_elev_gain '108' '1h 27m')" "108"
+assert_eq "$S" "ride-elev-zero" \
+    "$(_check_elev_gain '0' '1h')" "0"
+
+# ── scrape-run-elev-page-parse ────────────────────────────────────────────────
+# Verifies the sed pattern used to extract elevation from a Strava activity page.
+# The target line looks like:  "   elev_gain: 29.0824,"  (unquoted JS variable).
+# JSON segment keys like  '"elev_gain":17.1'  must NOT match.
+S="scrape-run-elev-page-parse"
+
+_parse_page_elev() {
+    printf '%s\n' "$1" | sed -n 's/^[[:space:]]*elev_gain: \([0-9][0-9]*\).*/\1/p' | head -1
+}
+
+assert_eq "$S" "decimal-truncated" "$(_parse_page_elev '   elev_gain: 29.0824,')"  "29"
+assert_eq "$S" "integer-value"     "$(_parse_page_elev '   elev_gain: 387,')"      "387"
+assert_eq "$S" "zero-value"        "$(_parse_page_elev '   elev_gain: 0,')"        "0"
+assert_eq "$S" "no-match-other"    "$(_parse_page_elev '   some_other: 29,')"      ""
+assert_eq "$S" "no-match-quoted"   "$(_parse_page_elev '   "elev_gain": 29.0,')"   ""
+assert_eq "$S" "no-match-json"     "$(_parse_page_elev '"elev_gain":17.1,')"       ""
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
