@@ -276,6 +276,14 @@ test.describe("club-dashboard", () => {
       expect(status, `leaderboard JSON at ${href} returned ${status}`).toBe(200);
     }
   });
+
+  test("fmtKm-thousand-separator", async () => {
+    // Club leaderboard fmtKm uses narrow no-break space (U+202F) as thousands separator.
+    const formatted = await page.evaluate(() => fmtKm(1234567));
+    const stripped = [...formatted].map((c) => c.charCodeAt(0) === 0x202f ? " " : c).join("");
+    expect(stripped, "fmtKm(1234567) should insert a thousands separator").toBe("1 234.6");
+    expect(formatted, "fmtKm should not use plain ASCII space (expects narrow no-break space U+202F)").not.toBe("1 234.6");
+  });
 });
 
 // ── Club Section Order ─────────────────────────────────────────────────────────
