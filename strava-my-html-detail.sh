@@ -321,9 +321,12 @@ function renderCards(d){
     html += cardTip("Max HR", Math.round(d.max_heartrate) + " bpm", mhrTip);
   }
   if (d.average_cadence)   html += card("Avg cadence", Math.round(d.average_cadence));
-  if (d.average_cadence && (d.sport_type === "Walk" || d.sport_type === "Hike"))
+  if (d.step_count) {
+    html += card("Steps", Math.round(d.step_count).toLocaleString());
+  } else if (d.average_cadence && isFoot(sport)) {
     html += cardTip("Steps", Math.round(d.average_cadence * 2 * d.moving_time / 60).toLocaleString(),
       "Estimated total steps: avg cadence (strides/min) × 2 × moving time.");
+  }
   if (d.average_watts)     html += card("Avg power", Math.round(d.average_watts) + " W");
   // Normalized power (weighted average) + Variability Index = NP / avg.
   if (d.weighted_average_watts) {
@@ -681,9 +684,15 @@ function renderGpxMap(gpxUrl){
     });
 }
 
-// --- GPX elevation + heart rate + cadence charts (healthsync activities) -----
-// Fetches the GPX once and populates elev-box, hr-box, hr-zone-box, and cad-box when data is present.
-function renderGpxCharts(gpxUrl, maxHR, movingTime) {
+function haversineM(lat1, lon1, lat2, lon2) {
+  var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// --- GPX elevation + heart rate + cadence charts (healthsync / scrape activities) -----
+// Fetches the GPX once, populates elev-box, hr-box, hr-zone-box, cad-box, and splits-box.
+function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
   fetch(gpxUrl)
     .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
     .then(function(txt){
@@ -740,6 +749,58 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime) {
         document.getElementById("cad-box").style.display = "";
         drawLineSvg("svg-cad", sc, "#8e24aa", "rpm");
       }
+
+      // Per-km splits computed from trkpts (lat/lon + time + ele + HR + cad)
+      if (trkpts.length > 1) {
+        var gpxSplits = [], KM = 1000;
+        var segDist = 0, segTime = 0, segEle0 = null, segEleEnd = null;
+        var segHrSum = 0, segHrN = 0, segCadSum = 0, segCadN = 0;
+        var prevLat = null, prevLon = null, prevT = null;
+        function ptEle(pt) { var el = pt.getElementsByTagNameNS("*","ele")[0]; return el ? parseFloat(el.textContent) : null; }
+        function ptTime(pt) { var el = pt.getElementsByTagNameNS("*","time")[0]; return el ? new Date(el.textContent).getTime()/1000 : null; }
+        function ptHr(pt) { var el = pt.getElementsByTagNameNS("*","hr")[0]||pt.getElementsByTagNameNS("*","heartrate")[0]; return el ? parseFloat(el.textContent)||0 : 0; }
+        function ptCad(pt) { var el = pt.getElementsByTagNameNS("*","cad")[0]||pt.getElementsByTagNameNS("*","cadence")[0]; return el ? parseFloat(el.textContent)||0 : 0; }
+        function flushSeg() {
+          if (segDist < 50) return;
+          gpxSplits.push({
+            distance: segDist, moving_time: Math.round(segTime),
+            elevation_difference: (segEle0 !== null && segEleEnd !== null) ? segEleEnd - segEle0 : null,
+            average_heartrate: segHrN > 0 ? segHrSum / segHrN : null,
+            average_cadence: segCadN > 0 ? segCadSum / segCadN : null
+          });
+        }
+        for (i = 0; i < trkpts.length; i++) {
+          var pt = trkpts[i];
+          var lat = parseFloat(pt.getAttribute("lat")), lon = parseFloat(pt.getAttribute("lon"));
+          var t = ptTime(pt), ele = ptEle(pt), hr = ptHr(pt), cad = ptCad(pt);
+          if (segEle0 === null && ele !== null) segEle0 = ele;
+          if (ele !== null) segEleEnd = ele;
+          if (hr > 0) { segHrSum += hr; segHrN++; }
+          if (cad > 0) { segCadSum += cad; segCadN++; }
+          if (prevLat !== null) {
+            var d2 = haversineM(prevLat, prevLon, lat, lon);
+            var dt = (t !== null && prevT !== null) ? Math.max(0, t - prevT) : 0;
+            segDist += d2; segTime += dt;
+            if (segDist >= KM) {
+              flushSeg();
+              segDist = 0; segTime = 0; segEle0 = ele; segEleEnd = ele;
+              segHrSum = 0; segHrN = 0; segCadSum = 0; segCadN = 0;
+            }
+          }
+          prevLat = lat; prevLon = lon; prevT = t;
+        }
+        flushSeg(); // last partial km
+        if (gpxSplits.length) {
+          var splitsBox = document.getElementById("splits-box");
+          splitsBox.style.display = "";
+          var splitsNote = document.getElementById("gpx-splits-note");
+          if (splitsNote) splitsNote.remove();
+          renderSplitsFromArray(gpxSplits, sport || "");
+        } else {
+          var splitsNote2 = document.getElementById("gpx-splits-note");
+          if (splitsNote2) splitsNote2.textContent = "No GPS track points available for splits.";
+        }
+      }
     })
     .catch(function(e){
       var box = document.getElementById("elev-box");
@@ -782,20 +843,11 @@ function renderMap(d){
   }
 }
 
-function renderSplits(d){
-  // GPX activities: elevation + HR charts are rendered from renderGpxCharts (called below);
-  // there are no km splits to show, so hide that box.
-  if (d.gpx_file) { renderGpxCharts(d.gpx_file, d.max_heartrate || 0, d.moving_time || 0); document.getElementById("splits-box").style.display = "none"; return; }
-  var box = document.getElementById("splits-box");
-  var splits = d.splits_metric || [];
-  if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
-
-  var sport = d.sport_type || d.type || "";
+function renderSplitsFromArray(splits, sport) {
+  if (!splits.length) return;
   var foot = isFoot(sport);
   document.getElementById("splits-title").innerHTML = foot ? "Per-km pace" : "Per-km speed";
 
-  // Bar height is always proportional to speed, so taller = faster regardless
-  // of sport; the label/tooltip shows pace for foot sports, km/h otherwise.
   var speeds = splits.map(function(s){
     return (s.moving_time > 0) ? (s.distance / s.moving_time) : (s.average_speed || 0);
   });
@@ -835,6 +887,24 @@ function renderSplits(d){
     html += '<text x="'+(x+barW/2)+'" y="'+(H-3)+'" text-anchor="middle" font-size="9" fill="var(--text-4)">'+(i+1)+'</text>';
   }
   svg.innerHTML = html;
+}
+
+function renderSplits(d){
+  var sport = d.sport_type || d.type || "";
+  // GPX activities: renderGpxCharts computes per-km splits from the track and fills splits-box.
+  if (d.gpx_file) {
+    var splitsBox = document.getElementById("splits-box");
+    splitsBox.innerHTML = '<h3 id="splits-title">Per-km splits</h3>'
+      + '<div class="chart-scroll"><svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg></div>'
+      + '<div id="gpx-splits-note" class="note">Computing from GPS track…</div>';
+    renderGpxCharts(d.gpx_file, d.max_heartrate || 0, d.moving_time || 0, sport);
+    return;
+  }
+  var box = document.getElementById("splits-box");
+  var splits = d.splits_metric || [];
+  if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
+
+  renderSplitsFromArray(splits, sport);
 
   // Elevation, heart rate, cadence, and power charts from splits data (when available).
   renderElevFromSplits(splits);

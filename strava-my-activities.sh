@@ -538,12 +538,121 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
                                            then ($v.avg_watts * $v.moving_time / 1000 | round)
                                            else null end),
                     calories:              ($v.calories         | if . != null then floor else null end),
-                    suffer_score:          ($v.suffer_score     // null),
+                    step_count:            ($v.steps            // null),
+                    suffer_score:          ($v.suffer_score     // $v.relative_effort // null),
                     average_temp:          ($v.avg_temp         // null),
+                    elev_high:             ($v.elev_high        // null),
+                    elev_low:              ($v.elev_low         // null),
+                    device_name:           ($e.device_name      // $sad.device_name // null),
+                    description:           ($e.activity_description // null),
+                    start_latlng:          (if ($e.start_lat // null) != null and ($e.start_lng // null) != null
+                                           then [$e.start_lat, $e.start_lng] else null end),
+                    map:                   (if ($e.map_polyline // $e.summary_polyline // null) != null
+                                           then {summary_polyline: ($e.map_polyline // $e.summary_polyline)}
+                                           else null end),
                     gear_id:               $gid,
                     gear:                  (if $has_bike then {id: $gid, name: $bname} else null end)
                   }
               ' > "$TMP/detail.json" 2>/dev/null || true
+          fi
+
+          # Fallback for similarActivitiesData(null): Strava passes null when the
+          # activity has no similar-activities comparison (no subscription, certain types).
+          # Extract metrics from the multi-line pageView.activity().set({distance:...}) block
+          # and supplementary fields from the rendered HTML.
+          if ! jq -e '.id' "$TMP/detail.json" >/dev/null 2>&1 \
+            && grep -qE '\.similarActivitiesData\(null\)' "$TMP/sc_detail.html" 2>/dev/null; then
+            log "detail backfill scrape: activity $id — similarActivitiesData(null); using pageView.activity fallback"
+            # Capture the metrics set({distance:...}) block using awk brace-counting.
+            # There are multiple set({...}) calls; we want the one that contains "distance:".
+            awk '
+              /pageView\.activity\(\)\.set\(\{/ { in_b=1; brace=0; buf="" }
+              in_b {
+                for(i=1;i<=length($0);i++){
+                  c=substr($0,i,1)
+                  if(c=="{") brace++
+                  else if(c=="}"){ brace--
+                    if(brace<=0){
+                      buf=buf substr($0,1,i)
+                      if(buf ~ /distance:/) print buf
+                      in_b=0; buf=""; break
+                    }
+                  }
+                }
+                if(in_b) buf=buf $0 "\n"
+              }
+            ' "$TMP/sc_detail.html" > "$TMP/pv_block.txt" 2>/dev/null || true
+            # Extract numeric fields — each appears as "key: number" in the block.
+            _pv_n() { grep -oE "$1:[[:space:]]*-?[0-9]+\.?[0-9]*" "$TMP/pv_block.txt" | head -1 \
+                       | sed "s/$1:[[:space:]]*//" | tr -d ' '; }
+            _pv_dist="$(_pv_n distance)"
+            _pv_mt="$(_pv_n moving_time)"
+            _pv_spd="$(_pv_n avg_speed)"
+            _pv_hr="$(_pv_n avg_hr)"
+            _pv_cad="$(_pv_n avg_cadence)"
+            _pv_elevg="$(_pv_n elev_gain)"
+            _pv_cals_raw="$(grep -oE "calories:[[:space:]]*[0-9]+\.?[0-9]*" "$TMP/pv_block.txt" \
+                             | head -1 | sed 's/calories:[[:space:]]*//' | tr -d ' ')"
+            _pv_temp_raw="$(grep -oE "avg_temp:[[:space:]]*(null|-?[0-9]+\.?[0-9]*)" "$TMP/pv_block.txt" \
+                             | head -1 | sed 's/avg_temp:[[:space:]]*//')"
+            # Steps: scrape from rendered HTML — "Steps</div>...<strong>6,488</strong>"
+            _pv_steps="$(awk '
+              /spans5.*>Steps</{found=1;next}
+              found && /<strong>/{
+                match($0,/[0-9,]+/)
+                if(RSTART>0){s=substr($0,RSTART,RLENGTH);gsub(",","",s);print s;exit}
+              }
+              found && ++n>6{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_steps=""
+            # Activity name: from <h1 class='...activity-name'>
+            _pv_name="$(grep -oE "class='[^']*activity-name[^']*'>[^<]+" "$TMP/sc_detail.html" \
+                         | head -1 | sed "s/.*'[^']*'>//" | xargs 2>/dev/null)" || _pv_name=""
+            [ -n "$_pv_name" ] || _pv_name="$(sed -n 's/.*<title>\([^|]*\)|.*/\1/p' \
+                         "$TMP/sc_detail.html" | head -1 | xargs 2>/dev/null)" || _pv_name="Activity $id"
+            # Date: Strava renders "H:MM AM/PM on Day, Month DD, YYYY"
+            _pv_date="$(awk '
+              /[AP]M on /{
+                match($0,/[A-Za-z]+ [0-9]+, [0-9]+/)
+                if(RSTART>0){
+                  s=substr($0,RSTART,RLENGTH); n=split(s,a,/[, ]+/)
+                  mo=a[1]; dy=a[2]; yr=a[3]
+                  mnames="JanFebMarAprMayJunJulAugSepOctNovDec"
+                  m=(index(mnames,substr(mo,1,3))+2)/3
+                  printf "%s-%02d-%02d\n",yr,m,dy; exit
+                }
+              }
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_date=""
+            [ -n "$_pv_date" ] || _pv_date="$(date +%Y-%m-%d)"
+            jq -n \
+              --arg  id    "$id" \
+              --arg  name  "$_pv_name" \
+              --arg  sport "$_sc_sport" \
+              --arg  date  "${_pv_date}T00:00:00Z" \
+              --arg  dist  "${_pv_dist:-0}" \
+              --arg  mt    "${_pv_mt:-0}" \
+              --arg  spd   "${_pv_spd:-0}" \
+              --arg  hr    "${_pv_hr:-}" \
+              --arg  cad   "${_pv_cad:-}" \
+              --arg  elevg "${_pv_elevg:-0}" \
+              --arg  cals  "${_pv_cals_raw:-}" \
+              --arg  temp  "${_pv_temp_raw:-null}" \
+              --arg  steps "${_pv_steps:-}" \
+              '{
+                id:                   ($id   | tonumber),
+                name:                 $name,
+                sport_type:           $sport,
+                start_date_local:     $date,
+                start_date:           $date,
+                distance:             ($dist  | if .=="" then 0 else tonumber end),
+                moving_time:          ($mt    | if .=="" then 0 else tonumber|floor end),
+                total_elevation_gain: ($elevg | if .=="" then 0 else tonumber end),
+                average_speed:        ($spd   | if .=="" then 0 else tonumber end),
+                average_heartrate:    ($hr    | if .=="" then null else tonumber end),
+                average_cadence:      ($cad   | if .=="" then null else tonumber end),
+                calories:             ($cals  | if .=="" then null else tonumber|floor end),
+                average_temp:         ($temp  | if .=="null" or .=="" then null else tonumber end),
+                step_count:           ($steps | if .=="" then null else tonumber end)
+              }' > "$TMP/detail.json" 2>/dev/null || true
           fi
 
           if ! jq -e '.id' "$TMP/detail.json" >/dev/null 2>&1; then
@@ -552,7 +661,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
               break
             fi
             _sc_detail_sample="$(head -c 300 "$TMP/sc_detail.html" | tr '\n\r' '  ')"
-            log "LAYOUT CHANGE DETECTED: detail backfill scrape: activity $id — similarActivitiesData not found in page (Strava may have changed their activity page bootstrap format); response starts: ${_sc_detail_sample}; skipping"
+            log "LAYOUT CHANGE DETECTED: detail backfill scrape: activity $id — neither similarActivitiesData nor pageView fallback produced data; response starts: ${_sc_detail_sample}; skipping"
             continue   # page loaded but parse failed — skip this activity, don't abort the run
           fi
 
