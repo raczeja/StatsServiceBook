@@ -12,5 +12,6 @@
   "max_heartrate": 112,
   "calories": 320,
   "start_date_local": "2026-06-05T09:00:00Z",
-  "start_date": "2026-06-05T07:00:00Z"
+  "start_date": "2026-06-05T07:00:00Z",
+  "step_count": 9530
 }
