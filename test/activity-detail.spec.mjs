@@ -447,9 +447,9 @@ test.describe("activity-detail-healthsync-run", () => {
     ).toBeTruthy();
   });
 
-  test("splits-box-hidden", async () => {
+  test("splits-box-visible", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
-    expect(display, `#splits-box should be hidden for HealthSync activity, got "${display}"`).toBe("none");
+    expect(display !== "none", `#splits-box should be visible for GPX activity (GPS splits computed)`).toBeTruthy();
   });
 });
 
@@ -527,9 +527,9 @@ test.describe("activity-detail-healthsync-cycling", () => {
     expect(n >= 2, `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`).toBeTruthy();
   });
 
-  test("splits-box-hidden", async () => {
+  test("splits-box-visible", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
-    expect(display, `#splits-box should be hidden for HealthSync activity, got "${display}"`).toBe("none");
+    expect(display !== "none", `#splits-box should be visible for GPX activity (GPS splits computed)`).toBeTruthy();
   });
 });
 
@@ -624,9 +624,9 @@ test.describe("activity-detail-magene", () => {
     expect(n > 0, `expected LINE_TIPS['svg-elev'] to have entries, got ${n}`).toBeTruthy();
   });
 
-  test("splits-box-hidden", async () => {
+  test("splits-box-visible", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
-    expect(display, `#splits-box should be hidden for Magene activity, got "${display}"`).toBe("none");
+    expect(display !== "none", `#splits-box should be visible for GPX activity (GPS splits computed)`).toBeTruthy();
   });
 });
 
@@ -666,7 +666,16 @@ test.describe("activity-detail-walk", () => {
     const digits = text.replace(/[,.\s]/g, "");
     expect(
       text.includes("Steps") && digits.includes("9530"),
-      `expected Steps card with ~9530 in .cards: ${text.slice(0, 300)}`,
+      `expected Steps card with 9530 in .cards: ${text.slice(0, 300)}`,
+    ).toBeTruthy();
+  });
+
+  test("steps-card-actual-not-estimated", async () => {
+    // walk-sample.json has step_count set, so the card should NOT show a tooltip hint
+    const tipText = await page.$eval(".cards", el => el.innerHTML);
+    expect(
+      !tipText.includes("Estimated total steps"),
+      `steps card should show actual count (no estimation tooltip), got: ${tipText.slice(0, 300)}`,
     ).toBeTruthy();
   });
 
