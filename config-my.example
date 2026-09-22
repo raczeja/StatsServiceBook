@@ -85,12 +85,15 @@ STRAVA_MY_CGI_DIR="/www/cgi-bin"
 # only the first-time default.
 STRAVA_MY_DEFAULT_BIKE_NAME="My Bike"
 
-# Email address(es) to notify when a bike part's service threshold is crossed.
-# Comma-separated for multiple recipients. Leave empty to disable email alerts.
-# When set, a checkbox appears in the "Add/edit part" modal so you can enable
-# alerts per-part. Sends a WARNING at >= 90% and an ALERT at >= 100%.
-# Each threshold tier fires once; ALERT emails re-send every 7 days while
-# the part stays overdue. Requires STRAVA_EMAIL_SMTP and STRAVA_EMAIL_USER below.
+# Email address(es) for operational alerts. Comma-separated for multiple recipients.
+# Controls two types of alerts:
+#   1. Bike-service threshold alerts — WARNING at >= 90%, ALERT at >= 100% of limit.
+#      Each tier fires once; ALERT emails re-send every 7 days while overdue.
+#      Per-part opt-in via the "Add/edit part" modal checkbox.
+#   2. Scrape health alerts (scrape mode only) — one email per day when any of the
+#      following is detected: Strava layout change (detail parse failed), session
+#      cookie expiry mid-backfill, or activity list normalization failure.
+# Requires STRAVA_EMAIL_SMTP and STRAVA_EMAIL_USER below.
 #STRAVA_MY_BIKE_EMAIL="you@example.com"
 
 # SMTP credentials for bike-service email alerts.
