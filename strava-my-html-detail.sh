@@ -149,7 +149,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 <script>
 "use strict";
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
-var _pbar=null,_pbarTick=null,_pbarPct=0;
+var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 var leafletMap=null,leafletLine=null;
 function toggleMapFullscreen(){
   var box=document.getElementById("map-box");
@@ -168,7 +168,7 @@ document.addEventListener("keydown",function(e){
 });
 function progressStart(){
   if(!_pbar)_pbar=document.getElementById("pbar");
-  clearInterval(_pbarTick);_pbarPct=0;
+  clearInterval(_pbarTick);_pbarPct=0;_pbarT0=Date.now();
   _pbar.style.cssText="width:0%;opacity:1;transition:none";
   _pbarTick=setInterval(function(){
     _pbarPct+=(_pbarPct<70?3:_pbarPct<85?1:0.2);
@@ -177,12 +177,16 @@ function progressStart(){
     _pbar.style.width=_pbarPct+"%";
   },300);
 }
-function progressDone(){
+function _progressFinish(){
   if(!_pbar)_pbar=document.getElementById("pbar");
   clearInterval(_pbarTick);
   _pbar.style.transition="width .15s ease";
   _pbar.style.width="100%";
   setTimeout(function(){_pbar.style.transition="opacity .4s ease";_pbar.style.opacity="0";},200);
+}
+function progressDone(){
+  var wait=350-Math.min(350,Date.now()-_pbarT0);
+  if(wait>0){setTimeout(_progressFinish,wait);}else{_progressFinish();}
 }
 function hideMapSpin(){
   var s=document.getElementById("map-spin");
