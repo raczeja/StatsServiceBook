@@ -250,8 +250,10 @@ pass_rate      = round(100 * (1 - total_failed / max(1, sum(r.get("total", 0) fo
 
 shell_total_passed  = sum(r.get("shell_passed", 0) for r in eligible)
 shell_total_failed  = sum(r.get("shell_failed", 0) for r in eligible)
+shell_total_skipped = sum(r.get("shell_skipped", 0) for r in eligible)
 shell_avg_passed    = round(shell_total_passed / max(1, len(eligible)), 1)
 shell_avg_failed    = round(shell_total_failed / max(1, len(eligible)), 1)
+shell_avg_total     = round((shell_total_passed + shell_total_failed + shell_total_skipped) / max(1, len(eligible)), 1)
 
 # Top shell test failures across runs
 shell_fail_counts = {}
@@ -405,10 +407,12 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
 
         # Shell tests section
         fh.write('<div class="section-lbl">Shell unit tests (POSIX sh)</div>\n')
-        fh.write('<div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:.5rem">\n')
+        fh.write('<div class="stats-row" style="margin-bottom:.5rem">\n')
+        fh.write(f'<div class="stat-box"><div class="stat-val">{shell_avg_total}</div><div class="stat-lbl">Avg tests/run</div></div>\n')
         fh.write(f'<div class="stat-box"><div class="stat-val">{shell_avg_passed}</div><div class="stat-lbl">Avg passed/run</div></div>\n')
         sh_fail_cls = " stat-fail" if shell_total_failed > 0 else ""
-        fh.write(f'<div class="stat-box{sh_fail_cls}"><div class="stat-val">{shell_avg_failed}</div><div class="stat-lbl">Avg failed/run</div></div>\n')
+        fh.write(f'<div class="stat-box{sh_fail_cls}"><div class="stat-val">{shell_total_failed}</div><div class="stat-lbl">Total failures</div></div>\n')
+        fh.write(f'<div class="stat-box"><div class="stat-val">{shell_total_skipped}</div><div class="stat-lbl">Total skipped</div></div>\n')
         fh.write('</div>\n')
         if top_shell:
             fh.write('<table><tr><th>Shell test</th><th style="width:4rem">Fails</th></tr>\n')
