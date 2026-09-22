@@ -104,6 +104,11 @@ fi
 printf '%s\n' "$$" > "$LOCKFILE/pid"
 trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-my-activities exited with code $_rc"' EXIT
 
+# Scrape-health counters — incremented in §2 and §3b; emailed at end of run.
+_sc_norm_fail=0       # jq normalization failures on list pages (activities missing)
+_sc_cookie_expired=0  # session cookie expired mid detail-backfill
+_sc_layout_fail=0     # detail page layout change (parse produced no data)
+
 if [ "$IMPORT_ENABLED" != "0" ]; then
 
 # --- 1. Authenticate -------------------------------------------------------
@@ -260,7 +265,7 @@ case "$STRAVA_SOURCE" in
             elev_low:             (.elev_low // .elevLow // null)
           }
         | select(.id != null)
-      ' "$TMP/sc_acts.ndjson" >> "$TMP/all.ndjson" || log "WARNING: jq scrape normalization failed (page $page) — activities may be missing"
+      ' "$TMP/sc_acts.ndjson" >> "$TMP/all.ndjson" || { log "WARNING: jq scrape normalization failed (page $page) — activities may be missing"; _sc_norm_fail=$((_sc_norm_fail+1)); }
 
       log "  page $page: $count activities (scrape)"
       [ "$count" -lt "$_sc_per_page" ] && { log "  short page, stopping"; reached_end=1; break; }
@@ -658,10 +663,12 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
           if ! jq -e '.id' "$TMP/detail.json" >/dev/null 2>&1; then
             if grep -qiE 'Log In to Strava|id="login-form"|action="/session"' "$TMP/sc_detail.html" 2>/dev/null; then
               log "detail backfill scrape: activity $id — Strava returned the login page (cookie expired); stopping detail backfill"
+              _sc_cookie_expired=1
               break
             fi
             _sc_detail_sample="$(head -c 300 "$TMP/sc_detail.html" | tr '\n\r' '  ')"
             log "LAYOUT CHANGE DETECTED: detail backfill scrape: activity $id — neither similarActivitiesData nor pageView fallback produced data; response starts: ${_sc_detail_sample}; skipping"
+            _sc_layout_fail=$((_sc_layout_fail+1))
             continue   # page loaded but parse failed — skip this activity, don't abort the run
           fi
 
@@ -830,6 +837,88 @@ fi
 else
   log "import disabled (STRAVA_MY_IMPORT_ENABLED=0) — re-rendering from existing store"
 fi
+
+# --- 3c. Scrape health alert --------------------------------------------------
+# Three conditions that individually don't abort the run (exit 0) but need admin
+# attention: layout change, cookie expiry mid-backfill, and list normalization
+# failures. Sends one consolidated email per day; rate-limited by
+# $STATE_DIR/scrape-alert.txt. Reuses STRAVA_EMAIL_SMTP/USER and BIKE_EMAIL
+# (STRAVA_MY_BIKE_EMAIL) from the config — no new config keys required.
+if [ "$STRAVA_SOURCE" = "scrape" ]; then
+  _sc_any=$((_sc_norm_fail + _sc_layout_fail + _sc_cookie_expired))
+  if [ "$_sc_any" -gt 0 ]; then
+    if [ -z "${STRAVA_EMAIL_SMTP:-}" ] || [ -z "${STRAVA_EMAIL_USER:-}" ] || [ -z "${BIKE_EMAIL:-}" ]; then
+      log "scrape alert: $_sc_any issue(s) detected — STRAVA_EMAIL_SMTP/USER/STRAVA_MY_BIKE_EMAIL not fully configured, skipping email"
+    else
+      _sc_today="$(date +%Y-%m-%d)"
+      _sc_state="$STATE_DIR/scrape-alert.txt"
+      _sc_last="$(cat "$_sc_state" 2>/dev/null || printf '')"
+      if [ "$_sc_last" = "$_sc_today" ]; then
+        log "scrape alert: $_sc_any issue(s) but already alerted today — skipping email"
+      else
+        _sc_body=""
+        if [ "$_sc_layout_fail" -gt 0 ]; then
+          _sc_body="${_sc_body}[LAYOUT CHANGE] $_sc_layout_fail activit$([ "$_sc_layout_fail" -eq 1 ] && printf 'y' || printf 'ies') could not be parsed.
+Strava's page structure may have changed. Update the scrape parser in strava-my-activities.sh.
+"
+        fi
+        if [ "$_sc_cookie_expired" -gt 0 ]; then
+          _sc_body="${_sc_body}[COOKIE EXPIRED] Session cookie expired during detail backfill.
+Copy a fresh _strava4_session value from browser DevTools (Application > Cookies > strava.com).
+"
+        fi
+        if [ "$_sc_norm_fail" -gt 0 ]; then
+          _sc_body="${_sc_body}[PARSE FAILURE] $_sc_norm_fail activit$([ "$_sc_norm_fail" -eq 1 ] && printf 'y page' || printf 'y pages') failed jq normalization.
+Some activities may be missing from the dashboard.
+"
+        fi
+        _sc_smtp="${STRAVA_EMAIL_SMTP}"
+        _sc_auth="${_sc_smtp#*://}"
+        _sc_host="${_sc_auth%%:*}"
+        _sc_port="${_sc_auth##*:}"
+        [ "$_sc_port" = "$_sc_auth" ] && _sc_port="465"
+        _sc_starttls="off"
+        case "$_sc_smtp" in smtp://*) _sc_starttls="on" ;; esac
+        _sc_user="${STRAVA_EMAIL_USER%%:*}"
+        _sc_pass="${STRAVA_EMAIL_USER#*:}"
+        _sc_from="${STRAVA_EMAIL_FROM:-$_sc_user}"
+        _sc_subj="[ALERT] Strava scrape issue(s) detected — $_sc_today"
+        _sc_sent=0
+        old_IFS="$IFS"; IFS=","
+        for _sc_addr in $BIKE_EMAIL; do
+          _sc_addr="$(printf '%s' "$_sc_addr" | tr -d ' \t')"
+          [ -n "$_sc_addr" ] || continue
+          {
+            printf 'From: %s\r\n' "$_sc_from"
+            printf 'To: %s\r\n' "$_sc_addr"
+            printf 'Subject: %s\r\n' "$_sc_subj"
+            printf 'Date: %s\r\n' "$(date '+%a, %d %b %Y %H:%M:%S %z')"
+            printf 'MIME-Version: 1.0\r\n'
+            printf 'Content-Type: text/plain; charset=utf-8\r\n'
+            printf '\r\n'
+            printf 'StatsServiceBook — Strava scrape alert — %s\r\n\r\n' "$_sc_today"
+            printf '%s' "$_sc_body" | while IFS= read -r _sc_l; do printf '%s\r\n' "$_sc_l"; done
+            printf '\r\nCheck the router log for lines starting with LAYOUT CHANGE DETECTED / cookie expired / WARNING for details.\r\n'
+          } | msmtp \
+              --host="$_sc_host" \
+              --port="$_sc_port" \
+              --tls \
+              --tls-starttls="$_sc_starttls" \
+              --auth=plain \
+              --user="$_sc_user" \
+              --passwordeval="printf '%s' '$_sc_pass'" \
+              --from="$_sc_from" \
+              "$_sc_addr" \
+            && { log "scrape alert: sent to $_sc_addr"; _sc_sent=1; } \
+            || log "scrape alert: failed to send to $_sc_addr"
+        done
+        IFS="$old_IFS"
+        [ "$_sc_sent" -gt 0 ] && printf '%s\n' "$_sc_today" > "$_sc_state"
+      fi
+    fi
+  fi
+fi
+
 TOTAL_STORED="$(wc -l < "$STORE" 2>/dev/null | tr -d ' ' || echo 0)"
 
 # Write a minimal detail file (from store record) for any activity without one.
