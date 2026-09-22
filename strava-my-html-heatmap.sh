@@ -82,9 +82,11 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
      color:#888;font-size:.9rem;text-align:center;pointer-events:none;
      background:rgba(0,0,0,.5);padding:.6rem 1.2rem;border-radius:.4rem}
+#pbar{position:fixed;top:0;left:0;width:0;height:3px;background:#fc4c02;z-index:9999;pointer-events:none}
 </style>
 </head>
 <body>
+<div id="pbar"></div>
 <div id="bar">
   <span class="crumbs"><a href="index.html">&#8592; Dashboard</a></span>
   <h1>&#128506; Heatmap</h1>
@@ -98,6 +100,29 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 "use strict";
+var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
+function progressStart(){
+  if(!_pbar)_pbar=document.getElementById("pbar");
+  clearInterval(_pbarTick);_pbarPct=0;_pbarT0=Date.now();
+  _pbar.style.cssText="width:0%;opacity:1;transition:none";
+  _pbarTick=setInterval(function(){
+    _pbarPct+=(_pbarPct<70?3:_pbarPct<85?1:0.2);
+    if(_pbarPct>90)_pbarPct=90;
+    _pbar.style.transition="width .3s ease";
+    _pbar.style.width=_pbarPct+"%";
+  },300);
+}
+function _progressFinish(){
+  if(!_pbar)_pbar=document.getElementById("pbar");
+  clearInterval(_pbarTick);
+  _pbar.style.transition="width .15s ease";
+  _pbar.style.width="100%";
+  setTimeout(function(){_pbar.style.transition="opacity .4s ease";_pbar.style.opacity="0";},200);
+}
+function progressDone(){
+  var wait=350-Math.min(350,Date.now()-_pbarT0);
+  if(wait>0){setTimeout(_progressFinish,wait);}else{_progressFinish();}
+}
 var map = L.map('map',{zoomControl:true}).setView([48,15],4);
 
 // Esri World Dark Gray Base — free, no API key. maxZoom 16 is fine for a heatmap.
@@ -188,10 +213,12 @@ function applyFilter(periodVal){
     (pts.length ? ' · ' + pts.length.toLocaleString() + ' pts' : '');
 }
 
+progressStart();
 fetch('heatmap.json')
   .then(function(r){ return r.json(); })
   .then(function(data){
     allData = data;
+    progressDone();
     var el = document.getElementById('msg');
     if(el) el.style.display = 'none';
 
@@ -241,6 +268,7 @@ fetch('heatmap.json')
     applyFilter('w90');
   })
   .catch(function(){
+    progressDone();
     var el = document.getElementById('msg');
     if(el) el.textContent = 'Failed to load heatmap.json';
   });
