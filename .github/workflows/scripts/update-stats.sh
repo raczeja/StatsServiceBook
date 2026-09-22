@@ -410,9 +410,8 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         fh.write('<div class="stats-row" style="margin-bottom:.5rem">\n')
         fh.write(f'<div class="stat-box"><div class="stat-val">{shell_avg_total}</div><div class="stat-lbl">Avg tests/run</div></div>\n')
         fh.write(f'<div class="stat-box"><div class="stat-val">{shell_avg_passed}</div><div class="stat-lbl">Avg passed/run</div></div>\n')
-        sh_fail_cls = " stat-fail" if shell_total_failed > 0 else ""
-        fh.write(f'<div class="stat-box{sh_fail_cls}"><div class="stat-val">{shell_total_failed}</div><div class="stat-lbl">Total failures</div></div>\n')
-        fh.write(f'<div class="stat-box"><div class="stat-val">{shell_total_skipped}</div><div class="stat-lbl">Total skipped</div></div>\n')
+        fh.write(f'<div class="stat-box stat-fail"><div class="stat-val">{shell_total_failed}</div><div class="stat-lbl">Total failures</div></div>\n')
+        fh.write(f'<div class="stat-box stat-flaky"><div class="stat-val">{shell_total_skipped}</div><div class="stat-lbl">Total skipped</div></div>\n')
         fh.write('</div>\n')
         if top_shell:
             fh.write('<table><tr><th>Shell test</th><th style="width:4rem">Fails</th></tr>\n')
