@@ -44,16 +44,59 @@ if [ -f "$WEB_DIR/activities.json" ]; then
       awk 'NR%10==1{split($0,a,"\""); printf "%s[%.4f,%.4f]",(f++ ? "," : ""),a[2]+0,a[4]+0}')"
     [ -z "$_hm_pts" ] && continue
     printf '{"d":"%s","s":"%s","p":[%s]}\n' "$_hm_date" "$_hm_sport" "$_hm_pts"
-  done | jq -s '(. // [])' > "$WEB_DIR/heatmap.json" 2>/dev/null \
-        || printf '[]' > "$WEB_DIR/heatmap.json"
+  done | jq -s '(. // [])' > "$WEB_DIR/heatmap.json.tmp" 2>/dev/null \
+        && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json" \
+        || { printf '[]' > "$WEB_DIR/heatmap.json.tmp" && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json"; }
   unset _hm_tab _hm_gpx _hm_date _hm_sport _hm_path _hm_pts
 else
-  printf '[]' > "$WEB_DIR/heatmap.json"
+  printf '[]' > "$WEB_DIR/heatmap.json.tmp" && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json"
 fi
 fi  # _hm_skip
 unset _hm_skip
 
-# --- 7b. Write heatmap.html -------------------------------------------------
+# --- 7b. Fetch city markers from Overpass (population > 15 000) --------------
+# Computes the bbox of all GPS points in heatmap.json, queries Overpass for
+# city/town nodes that have a population tag, filters to > 15 000 with jq,
+# and writes cities.json.  Regenerated only when heatmap.json was regenerated
+# (guarded by _hm_skip above).  On Overpass failure the previous cities.json
+# is kept; on the very first run an empty array is written so the JS skips silently.
+if [ -f "$WEB_DIR/heatmap.json" ]; then
+  _ov_size="$(wc -c < "$WEB_DIR/heatmap.json" 2>/dev/null || printf 0)"
+  if [ "${_ov_size:-0}" -gt 10 ]; then
+    _ov_bbox="$(jq -r '
+      {
+        s: ([.[] | .p[] | .[0]] | min - 0.5),
+        n: ([.[] | .p[] | .[0]] | max + 0.5),
+        w: ([.[] | .p[] | .[1]] | min - 0.6),
+        e: ([.[] | .p[] | .[1]] | max + 0.6)
+      } | "\(.s),\(.w),\(.n),\(.e)"
+    ' "$WEB_DIR/heatmap.json" 2>/dev/null)"
+    if [ -n "$_ov_bbox" ]; then
+      _ov_q='[out:json][timeout:25];node["place"~"city|town"]["population"]('"$_ov_bbox"');out;'
+      _ov_res="$(curl_retry -sf --max-time 30 \
+        --data-urlencode "data=${_ov_q}" \
+        'https://overpass-api.de/api/interpreter' 2>/dev/null || true)"
+      if [ -n "$_ov_res" ]; then
+        printf '%s' "$_ov_res" | jq -c '[.elements[] |
+          select(.tags.name != null and (.tags.population | tonumber? // 0) > 15000) |
+          {n: .tags.name, lat: .lat, lon: .lon}]' \
+          > "$WEB_DIR/cities.json" 2>/dev/null \
+          && log "html: cities.json written (Overpass, bbox=$_ov_bbox)" \
+          || log "html: cities.json jq parse failed — keeping previous"
+      else
+        log "html: Overpass unreachable — keeping previous cities.json"
+        [ -f "$WEB_DIR/cities.json" ] || printf '[]' > "$WEB_DIR/cities.json"
+      fi
+      unset _ov_q _ov_res
+    fi
+    unset _ov_bbox
+  else
+    [ -f "$WEB_DIR/cities.json" ] || printf '[]' > "$WEB_DIR/cities.json"
+  fi
+  unset _ov_size
+fi
+
+# --- 7c. Write heatmap.html -------------------------------------------------
 log "html: writing heatmap.html..."
 cat > "$WEB_DIR/heatmap.html" <<'HTML'
 <!doctype html>
@@ -83,6 +126,8 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
      color:#888;font-size:.9rem;text-align:center;pointer-events:none;
      background:rgba(0,0,0,.5);padding:.6rem 1.2rem;border-radius:.4rem}
 #pbar{position:fixed;top:0;left:0;width:0;height:3px;background:#fc4c02;z-index:9999;pointer-events:none}
+.city-lbl{font-size:.7rem;font-weight:600;color:#eee;text-shadow:0 0 3px #000,0 0 3px #000;
+          white-space:nowrap;pointer-events:none;padding-left:6px}
 </style>
 </head>
 <body>
@@ -148,6 +193,17 @@ var _labelTile = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:16, attribution:'', pane:'labels'}
 ).addTo(map);
+
+// City markers — loaded from cities.json (written by the shell script via Overpass,
+// population > 15 000, bbox of activity GPS points).  Silently skipped if absent.
+fetch('cities.json').then(function(r){ return r.ok ? r.json() : []; })
+  .then(function(cs){
+    for(var _ci=0;_ci<cs.length;_ci++){
+      var _c=cs[_ci];
+      L.circleMarker([_c.lat,_c.lon],{radius:3,color:'#eee',fillColor:'#ccc',fillOpacity:1,weight:1,pane:'labels',interactive:false}).addTo(map);
+      L.marker([_c.lat,_c.lon],{icon:L.divIcon({className:'city-lbl',html:_c.n,iconSize:null,iconAnchor:[-3,5]}),interactive:false,pane:'labels'}).addTo(map);
+    }
+  }).catch(function(){});
 
 _baseTile.on('tileerror',function(){
   if(_heatTileSwitching||_heatTileIdx+1>=_heatTileProviders.length) return;
