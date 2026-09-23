@@ -124,11 +124,21 @@ try {
         const psel = document.getElementById("period");
         if (psel) { psel.value = "all"; psel.dispatchEvent(new Event("change", { bubbles: true })); }
       });
-      // Wait for at least one map tile to paint before screenshotting.
+      // Wait for all map tiles to finish loading after the filter change triggers
+      // a fitBounds + tile reload.  waitForSelector finds the first already-loaded
+      // tile (which may pre-date the filter change), so instead poll until there
+      // are no tiles still in-flight.
       try {
-        await page.waitForSelector(".leaflet-tile-loaded", { timeout: 10000 });
-      } catch (_) { console.warn("  No tiles loaded — map may be tile-less in screenshot"); }
-      await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+        await page.waitForFunction(
+          () => {
+            const loaded  = document.querySelectorAll(".leaflet-tile-loaded");
+            const loading = document.querySelectorAll(".leaflet-tile:not(.leaflet-tile-loaded)");
+            return loaded.length > 0 && loading.length === 0;
+          },
+          { timeout: 20000 },
+        );
+      } catch (_) { console.warn("  Tiles still loading after 20 s — taking screenshot anyway"); }
+      await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)));
     }
 
     await shot(page, name);
