@@ -1,14 +1,12 @@
 /**
- * screenshot.mjs — takes screenshots of the club and My Activities pages,
- * plus bike-service modal states (add/edit bike, add/edit/service part).
+ * screenshot.mjs — takes screenshots of all pages and bike-service modal states.
  * Called by make-screenshots.ps1 after the Podman test container is running.
+ * Uses Playwright (installed in the same dir as the functional test suite).
  *
  * Usage:
  *   node screenshot.mjs <outputDir>
- *
- * Requires puppeteer (installed by make-screenshots.ps1 into a temp dir).
  */
-import puppeteer from "puppeteer";
+import { chromium } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 
@@ -24,40 +22,33 @@ const HOST = process.env.TEST_HOST || "localhost";
 const BASE = `http://${HOST}:${PORT}/strava/me`;
 
 const PAGES = [
-  { name: "club-dashboard",      url: `http://${HOST}:${PORT}/strava/index.html`, dark: false },
-  { name: "club-dashboard-dark", url: `http://${HOST}:${PORT}/strava/index.html`, dark: true  },
-  { name: "my-activities",       url: `${BASE}/index.html`,                       dark: false },
-  { name: "stats",               url: `${BASE}/stats.html`,                       dark: false },
-  { name: "heatmap",             url: `${BASE}/heatmap.html`,                     dark: false },
-  { name: "activity-detail",     url: `${BASE}/activity.html?id=18784255013`,     dark: false },
-  { name: "bike-service",        url: `${BASE}/bike.html`,                        dark: false },
+  { name: "club-dashboard",       url: `http://${HOST}:${PORT}/strava/index.html`, dark: false },
+  { name: "club-dashboard-dark",  url: `http://${HOST}:${PORT}/strava/index.html`, dark: true  },
+  { name: "my-activities",        url: `${BASE}/index.html`,                       dark: false },
+  { name: "stats",                url: `${BASE}/stats.html`,                       dark: false },
+  { name: "heatmap",              url: `${BASE}/heatmap.html`,                     dark: false },
+  { name: "activity-detail",      url: `${BASE}/activity.html?id=18784255013`,     dark: false },
+  { name: "bike-service",         url: `${BASE}/bike.html`,                        dark: false },
   // Dark mode variants
-  { name: "my-activities-dark",  url: `${BASE}/index.html`,                       dark: true },
-  { name: "stats-dark",          url: `${BASE}/stats.html`,                       dark: true },
-  { name: "activity-detail-dark",url: `${BASE}/activity.html?id=18784255013`,     dark: true },
-  { name: "bike-service-dark",   url: `${BASE}/bike.html`,                        dark: true },
+  { name: "my-activities-dark",   url: `${BASE}/index.html`,                       dark: true  },
+  { name: "stats-dark",           url: `${BASE}/stats.html`,                       dark: true  },
+  { name: "activity-detail-dark", url: `${BASE}/activity.html?id=18784255013`,     dark: true  },
+  { name: "bike-service-dark",    url: `${BASE}/bike.html`,                        dark: true  },
 ];
 
-const BROWSER_CANDIDATES = [
-  process.env.EDGE_PATH,
-  process.env.BROWSER_PATH,
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium-browser",
-  "/usr/bin/chromium",
-].filter(Boolean);
+// Navigate to url briefly to establish origin, then set localStorage theme.
+// The caller does the full navigation separately so waits can be customised.
+async function setTheme(page, url, dark) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await page.evaluate((isDark) => {
+    if (isDark) localStorage.setItem("theme", "dark"); else localStorage.removeItem("theme");
+  }, dark);
+}
 
-async function findBrowser() {
-  const bundled = await puppeteer.executablePath?.();
-  if (bundled && fs.existsSync(bundled)) return bundled;
-
-  for (const p of BROWSER_CANDIDATES) {
-    if (fs.existsSync(p)) return p;
-  }
-
-  throw new Error(
-    "Browser not found. Set EDGE_PATH/BROWSER_PATH to a browser executable, or install puppeteer so it can download a browser.",
-  );
+async function shot(page, name) {
+  const file = path.join(outDir, `${name}.png`);
+  await page.screenshot({ path: file, fullPage: false });
+  console.log(`  saved ${file}`);
 }
 
 async function waitBikeReady(page) {
@@ -66,7 +57,6 @@ async function waitBikeReady(page) {
     () => !document.getElementById("meta")?.textContent.includes("Loading"),
     { timeout: 10000 },
   );
-  // Select Road Bike tab
   await page.evaluate(() => {
     const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
     const t = Array.from(tabs).find((el) => el.textContent.includes("Road Bike"));
@@ -76,39 +66,19 @@ async function waitBikeReady(page) {
   await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
 }
 
-async function shot(page, name) {
-  const file = path.join(outDir, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: false });
-  console.log(`  saved ${file}`);
-}
-
-const executablePath = await findBrowser();
-console.log("Using browser:", executablePath);
-
-const browser = await puppeteer.launch({
-  executablePath,
-  headless: true,
-  args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
-});
-
+const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   // ── Standard full-page screenshots ───────────────────────────────────────────
   for (const { name, url, dark } of PAGES) {
     console.log(`→ ${name}: ${url}${dark ? " [dark]" : ""}`);
-    // Set theme in localStorage before navigation so the anti-FOUC script picks it up.
-    await page.evaluate((isDark) => {
-      try { if (isDark) localStorage.setItem("theme", "dark"); else localStorage.removeItem("theme"); } catch (_) {}
-    }, dark);
-    // Heatmap uses networkidle2 (allows ≤2 in-flight requests) so tile loading
-    // doesn't block indefinitely, while still letting CDN scripts finish loading.
-    const waitFor = name === "heatmap" ? "networkidle2" : "networkidle0";
-    await page.goto(url, { waitUntil: waitFor, timeout: 45000 });
+    await setTheme(page, url, dark);
 
     if (name === "heatmap") {
-      // Wait for Leaflet library to be available, then for heatmap data and tiles.
+      // Use 'load' — map tiles keep requests in flight so networkidle would block.
+      await page.goto(url, { waitUntil: "load", timeout: 45000 });
       try {
         await page.waitForFunction(() => typeof L !== "undefined", { timeout: 15000 });
       } catch (_) { console.warn("  Leaflet did not load from CDN"); }
@@ -124,10 +94,7 @@ try {
         const psel = document.getElementById("period");
         if (psel) { psel.value = "all"; psel.dispatchEvent(new Event("change", { bubbles: true })); }
       });
-      // Wait for all map tiles to finish loading after the filter change triggers
-      // a fitBounds + tile reload.  waitForSelector finds the first already-loaded
-      // tile (which may pre-date the filter change), so instead poll until there
-      // are no tiles still in-flight.
+      // Wait for all tiles to finish after fitBounds + tile reload from filter change.
       try {
         await page.waitForFunction(
           () => {
@@ -139,6 +106,8 @@ try {
         );
       } catch (_) { console.warn("  Tiles still loading after 20 s — taking screenshot anyway"); }
       await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)));
+    } else {
+      await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
     }
 
     await shot(page, name);
@@ -147,10 +116,9 @@ try {
   // ── Bike-service modal screenshots (light mode) ──────────────────────────────
   console.log("→ bike modal screenshots");
   await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
-  await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle0", timeout: 20000 });
+  await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle", timeout: 20000 });
   await waitBikeReady(page);
 
-  // Add bike modal
   console.log("  → bike-modal-add-bike");
   await page.evaluate(() => showAddBike());
   await page.waitForSelector("#b-name", { timeout: 3000 });
@@ -158,7 +126,6 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // Edit bike modal (Road Bike)
   console.log("  → bike-modal-edit-bike");
   await page.evaluate(() => {
     const btns = document.querySelectorAll("#bikepanel .btn.sm");
@@ -170,7 +137,6 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // Add part modal
   console.log("  → bike-modal-add-part");
   await page.evaluate(() => showAddPart());
   await page.waitForSelector("#p-name", { timeout: 3000 });
@@ -178,7 +144,6 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // Edit part modal (first active part = Chain, which is flagged needsReplacement)
   console.log("  → bike-modal-edit-part");
   await page.evaluate(() => {
     const btns = document.querySelectorAll('#bikepanel tbody tr:not(.ridesrow) button[onclick*="editPart"]');
@@ -189,7 +154,6 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // Service part modal (first active part = Chain — shows pre-checked "Needs replacement")
   console.log("  → bike-modal-service-part");
   await page.evaluate(() => {
     const btns = document.querySelectorAll('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showService"]');
@@ -200,7 +164,6 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // Replace part modal (first active part = Chain)
   console.log("  → bike-modal-replace-part");
   await page.evaluate(() => {
     const btns = document.querySelectorAll('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showReplace"]');
@@ -211,12 +174,12 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
-  // ── Multi-bike overview screenshots (all bike tabs visible) ──────────────────
+  // ── Multi-bike overview screenshots ──────────────────────────────────────────
   async function shotMultiBike(darkMode, shotName) {
     await page.evaluate((isDark) => {
       try { if (isDark) localStorage.setItem("theme", "dark"); else localStorage.removeItem("theme"); } catch (_) {}
     }, darkMode);
-    await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle0", timeout: 20000 });
+    await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle", timeout: 20000 });
     await page.waitForSelector(".bikes .tab", { timeout: 10000 });
     await page.waitForFunction(
       () => !document.getElementById("meta")?.textContent.includes("Loading"),
@@ -235,10 +198,9 @@ try {
   await shotMultiBike(true, "bike-stats-multi-dark");
 
   // ── Section-reorder screenshots ──────────────────────────────────────────────
-  // Stats page: move kpis section down one position so records appears first.
   console.log("→ stats-section-reorder");
   await page.evaluate(() => { try { localStorage.removeItem("theme"); localStorage.removeItem("ssb-stats-sec"); } catch (_) {} });
-  await page.goto(`${BASE}/stats.html`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(`${BASE}/stats.html`, { waitUntil: "networkidle", timeout: 30000 });
   try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
   try {
     await page.waitForFunction(
@@ -246,7 +208,6 @@ try {
       { timeout: 10000 },
     );
   } catch (_) {}
-  // Drag kpis (first) to after records (second)
   await page.evaluate(() => {
     const wrap = document.getElementById("sec-wrap");
     const secs = Array.from(wrap ? wrap.querySelectorAll(".sec[data-sid]") : []);
@@ -261,20 +222,17 @@ try {
   });
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
   await shot(page, "stats-section-reorder");
-  // Restore default order in localStorage
   await page.evaluate(() => { try { localStorage.removeItem("ssb-stats-sec"); } catch (_) {} });
 
-  // Activity detail: move splits up one position
   console.log("→ detail-section-reorder");
   await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
-  await page.goto(`${BASE}/activity.html?id=18784255013`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(`${BASE}/activity.html?id=18784255013`, { waitUntil: "networkidle", timeout: 30000 });
   try {
     await page.waitForFunction(
       () => document.getElementById("content")?.style.display !== "none",
       { timeout: 10000 },
     );
   } catch (_) {}
-  // Drag splits (last) to before hrzone (second-to-last)
   await page.evaluate(() => {
     const wrap = document.getElementById("sec-wrap");
     const secs = Array.from(wrap ? wrap.querySelectorAll(".sec[data-sid]") : []);
@@ -289,7 +247,6 @@ try {
   });
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
   await shot(page, "detail-section-reorder");
-  // Restore default order
   await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
 
 } finally {

@@ -1,14 +1,15 @@
 # make-screenshots.ps1 — build the test container, run it, take screenshots of
-# the club dashboard and all My Activities pages, save to test/screenshots/, stop the container.
+# all pages and bike-service modal states, save to test/screenshots/, stop the container.
 #
 # Run from anywhere (uses $PSScriptRoot):
-#   powershell -ExecutionPolicy Bypass -File openwrt/test/make-screenshots.ps1
+#   powershell -ExecutionPolicy Bypass -File test\make-screenshots.ps1
 #
-# Requires: Podman (running machine), Node.js >= 18, Microsoft Edge.
+# Requires: Podman (running machine), Node.js >= 18.
+# Reuses the Playwright install from run-tests.ps1 (strava-test-run in %TEMP%).
 
 $ErrorActionPreference = 'Stop'
-$TestDir    = $PSScriptRoot                          # openwrt/test/
-$ScriptDir  = Split-Path -Parent $TestDir            # openwrt/  (Podman build context)
+$TestDir    = $PSScriptRoot                          # test/
+$ScriptDir  = Split-Path -Parent $TestDir            # repo root (Podman build context)
 $OutDir     = Join-Path $TestDir 'screenshots'
 $Container  = 'stravame-screenshots'
 $Image      = 'stravame-test'
@@ -54,16 +55,15 @@ if (-not $env:TEST_HOST) {
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
 # ---- 4. Wait for httpd to become ready ------------------------------------------
-# Probe from inside the container (wget on localhost:8080) so Windows→WSL2 port
-# forwarding issues can't cause a false timeout.  Fall back to a host-side check
-# only when the inner probe says it is ready, confirming external reachability.
 Write-Host "==> Waiting for httpd to become ready ..."
 $ready = $false
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
-    $probe = & podman exec $Container wget -qO /dev/null http://localhost:8080/strava/me/index.html 2>&1
-    if ($LASTEXITCODE -eq 0) { $ready = $true; break }
-    Write-Host "  [$i] not yet ready ..."
+    try {
+        $null = Invoke-WebRequest -Uri "http://${TestHost}:$HostPort/strava/me/index.html" `
+                                  -UseBasicParsing -TimeoutSec 2
+        $ready = $true; break
+    } catch { Write-Host "  [$i] not yet ready ..."; }
 }
 if (-not $ready) {
     Write-Host "==> Container logs:"
@@ -72,21 +72,25 @@ if (-not $ready) {
 }
 Write-Host "   httpd is ready."
 
-# ---- 4. Set up a temp npm project with puppeteer -----------------------------
-# Copy screenshot.mjs into the temp dir so Node ESM resolves bare imports
-# from co-located node_modules.
-$TmpRoot = [System.IO.Path]::GetTempPath()
-$TmpDir  = Join-Path $TmpRoot "strava-screenshots-$(Get-Date -Format 'yyyyMMddHHmmss')"
+# ---- 5. Set up Playwright (shared with run-tests.ps1) -------------------------
+# Reuse the same strava-test-run dir so Playwright/Chromium don't re-download.
+$TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "strava-test-run"
 New-Item -ItemType Directory -Force $TmpDir | Out-Null
-Write-Host "==> Installing puppeteer into $TmpDir ..."
+Write-Host "==> Playwright dir: $TmpDir"
 Push-Location $TmpDir
 try {
-    & npm init -y 2>&1 | Out-Null
-    & npm install --save puppeteer 2>&1 | Where-Object { $_ -match 'added|warn|error' }
-    if ($LASTEXITCODE -ne 0) { throw "npm install puppeteer failed" }
-    Copy-Item (Join-Path $TestDir 'screenshot.mjs') (Join-Path $TmpDir 'screenshot.mjs')
+    if (-not (Test-Path (Join-Path $TmpDir 'node_modules\.bin\playwright'))) {
+        Write-Host "==> Installing @playwright/test ..."
+        & npm init -y 2>&1 | Out-Null
+        & npm install --save-dev @playwright/test 2>&1 | Where-Object { $_ -match 'added|warn|error' }
+        if ($LASTEXITCODE -ne 0) { throw "npm install @playwright/test failed" }
+        Write-Host "==> Installing Chromium ..."
+        & npx playwright install chromium 2>&1 | Select-Object -Last 5
+    }
 
-    # ---- 5. Take screenshots --------------------------------------------------
+    Copy-Item (Join-Path $TestDir 'screenshot.mjs') (Join-Path $TmpDir 'screenshot.mjs') -Force
+
+    # ---- 6. Take screenshots --------------------------------------------------
     Write-Host "==> Taking screenshots ..."
     New-Item -ItemType Directory -Force $OutDir | Out-Null
     $env:TEST_PORT = $HostPort
@@ -94,15 +98,15 @@ try {
     & node screenshot.mjs $OutDir
     $LastExit = $LASTEXITCODE
     Remove-Item Env:TEST_PORT -ErrorAction SilentlyContinue
-    if ($LastExit -ne 0) { throw "screenshot.mjs failed - check Edge path and container logs" }
+    Remove-Item Env:TEST_HOST -ErrorAction SilentlyContinue
+    if ($LastExit -ne 0) { throw "screenshot.mjs failed — check container logs" }
 } finally {
     Pop-Location
-    # ---- 6. Stop the container -----------------------------------------------
+    # ---- 7. Stop the container -----------------------------------------------
     Write-Host "==> Stopping container ..."
     & podman stop $Container 2>$null | Out-Null
     & podman rm   $Container 2>$null | Out-Null
-    # ---- 7. Clean up temp dir ------------------------------------------------
-    Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
+    # Note: $TmpDir is shared with run-tests.ps1 — not cleaned up here.
 }
 
 Write-Host ""
