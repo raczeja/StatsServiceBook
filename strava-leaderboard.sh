@@ -609,7 +609,8 @@ while IFS= read -r club_id; do
   ' "$TMP/store_${club_id}.json" > "$TMP/leaderboard_${club_id}.json"
 
   cp "$TMP/leaderboard_${club_id}.json" "$SNAPSHOT_DIR/${STAMP}_${club_id}.json"
-  cp "$TMP/leaderboard_${club_id}.json" "$WEB_DIR/leaderboard_${club_id}.json"
+  cp "$TMP/leaderboard_${club_id}.json" "$WEB_DIR/leaderboard_${club_id}.json.tmp" \
+  && mv "$WEB_DIR/leaderboard_${club_id}.json.tmp" "$WEB_DIR/leaderboard_${club_id}.json"
 
   # Prune old snapshots for this club so daily runs don't fill flash.
   ls -1t "$SNAPSHOT_DIR"/*_${club_id}.json 2>/dev/null | tail -n +"$((KEEP_SNAPSHOTS + 1))" | while read -r f; do
@@ -727,7 +728,8 @@ jq -s --arg generatedAt "$GENERATED_AT" --arg sport "$SPORT_LC" \
      source: $source,
      scrapeMeta: $scrapeMeta,
      clubs: . }' \
-  $clubdata_files > "$WEB_DIR/activities.json"
+  $clubdata_files > "$WEB_DIR/activities.json.tmp" \
+  && mv "$WEB_DIR/activities.json.tmp" "$WEB_DIR/activities.json"
 
 log "wrote $WEB_DIR/activities.json and per-club leaderboard JSON (snapshot $STAMP)"
 

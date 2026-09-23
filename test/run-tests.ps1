@@ -1,16 +1,22 @@
-# run-tests.ps1 — build the test container, run it, execute functional tests,
-# stop the container. Exits 0 on all pass, 1 on any failure.
+# run-tests.ps1 — build the test container, run shell + Playwright tests, stop container.
+# Exits 0 on all pass, 1 on any failure.
 #
 # Run from anywhere (uses $PSScriptRoot):
 #   powershell -ExecutionPolicy Bypass -File test\run-tests.ps1
 #
-# Requires: Podman (running machine), Node.js >= 18, Microsoft Edge.
+# Optional: pass a single spec file name to run just that suite:
+#   powershell -ExecutionPolicy Bypass -File test\run-tests.ps1 heatmap.spec.mjs
+#
+# Requires: Podman (running machine), Node.js >= 18.
+
+param(
+    [string]$Spec = ""
+)
 
 $ErrorActionPreference = 'Stop'
-$TestDir   = $PSScriptRoot                          # openwrt/test/
-$ScriptDir = Split-Path -Parent $TestDir            # openwrt/  (Podman build context)
+$TestDir   = $PSScriptRoot
+$ScriptDir = Split-Path -Parent $TestDir
 $Container = 'stravame-tests'
-$Image     = 'stravame-test'
 $ExitCode  = 0
 $HostPort  = if ($env:STRAVA_TEST_PORT) { [int]$env:STRAVA_TEST_PORT } else {
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
@@ -18,22 +24,22 @@ $HostPort  = if ($env:STRAVA_TEST_PORT) { [int]$env:STRAVA_TEST_PORT } else {
 }
 $ContainerPort = 8080
 
-# ---- 1. Build images: production first, then test on top ---------------------
-Write-Host "==> Building production image 'stravame-prod' (context: $ScriptDir) ..."
+# ---- 1. Build images --------------------------------------------------------
+Write-Host "==> Building production image 'stravame-prod' ..."
 & podman build -t stravame-prod $ScriptDir
 if ($LASTEXITCODE -ne 0) { throw "podman build (production) failed" }
 
-Write-Host "==> Building test image '$Image' on top of 'stravame-prod' ..."
-& podman build -f "$(Join-Path $TestDir 'Containerfile')" --build-arg BASE=stravame-prod -t $Image $ScriptDir
+Write-Host "==> Building test image 'stravame-test' ..."
+& podman build -f (Join-Path $TestDir 'Containerfile') --build-arg BASE=stravame-prod -t stravame-test $ScriptDir
 if ($LASTEXITCODE -ne 0) { throw "podman build (test) failed" }
 
-# ---- 2. Start the container --------------------------------------------------
-Write-Host "==> Starting container '$Container' on :$HostPort ..."
+# ---- 2. Start container -----------------------------------------------------
+Write-Host "==> Starting container on :$HostPort ..."
 & podman rm -f $Container 2>$null
-& podman run -d --name $Container -p "${HostPort}:$ContainerPort" $Image
+& podman run -d --name $Container -p "${HostPort}:$ContainerPort" stravame-test
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
-# ---- 3. Resolve the host to use for HTTP access --------------------------------
+# ---- 3. Resolve host IP (Podman runs inside a WSL VM on Windows) ------------
 $TestHost = if ($env:TEST_HOST) { $env:TEST_HOST } else { "localhost" }
 if (-not $env:TEST_HOST) {
     try {
@@ -48,71 +54,72 @@ if (-not $env:TEST_HOST) {
 }
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
-# ---- 4. Wait for httpd to become ready ------------------------------------------
-Write-Host "==> Waiting for httpd to become ready ..."
+# ---- 4. Wait for httpd ------------------------------------------------------
+Write-Host "==> Waiting for httpd ..."
 $ready = $false
 for ($i = 0; $i -lt 30; $i++) {
-    Start-Sleep -Seconds 1
+    Start-Sleep 1
     try {
         $null = Invoke-WebRequest -Uri "http://${TestHost}:$HostPort/strava/me/index.html" `
                                   -UseBasicParsing -TimeoutSec 2
         $ready = $true; break
-    } catch { Write-Host "  [$i] not yet ready ..." }
+    } catch { Write-Host "  [$i] not ready ..." }
 }
 if (-not $ready) {
-    Write-Host "==> Container logs:"
-    & podman logs $Container
+    Write-Host "==> Container logs:"; & podman logs $Container
     throw "httpd did not become ready in 30 s"
 }
-Write-Host "   httpd is ready."
+Write-Host "   httpd ready."
 
-# ---- 4. Set up a temp npm project with puppeteer -----------------------------
-$TmpRoot = [System.IO.Path]::GetTempPath()
-$TmpDir  = Join-Path $TmpRoot "strava-tests-$(Get-Date -Format 'yyyyMMddHHmmss')"
+# ---- 5. Set up Playwright ---------------------------------------------------
+$TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "strava-test-run"
 New-Item -ItemType Directory -Force $TmpDir | Out-Null
-Write-Host "==> Installing puppeteer into $TmpDir ..."
+Write-Host "==> Playwright dir: $TmpDir"
 Push-Location $TmpDir
 try {
-    & npm init -y 2>&1 | Out-Null
-    & npm install --save puppeteer 2>&1 | Where-Object { $_ -match 'added|warn|error' }
-    if ($LASTEXITCODE -ne 0) { throw "npm install puppeteer failed" }
-    Copy-Item (Join-Path $TestDir 'functional-tests.mjs') (Join-Path $TmpDir 'functional-tests.mjs')
+    if (-not (Test-Path (Join-Path $TmpDir 'node_modules\.bin\playwright'))) {
+        Write-Host "==> Installing @playwright/test ..."
+        & npm init -y 2>&1 | Out-Null
+        & npm install --save-dev @playwright/test 2>&1 | Where-Object { $_ -match 'added|warn|error' }
+        if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+        Write-Host "==> Installing Chromium ..."
+        & npx playwright install chromium 2>&1 | Select-Object -Last 5
+    }
 
-    # ---- 5a. Run shell unit tests inside the container -----------------------
+    Write-Host "==> Copying spec files ..."
+    Copy-Item (Join-Path $TestDir '*.spec.mjs')          $TmpDir -Force
+    Copy-Item (Join-Path $TestDir 'test-urls.mjs')       $TmpDir -Force
+    Copy-Item (Join-Path $TestDir 'playwright.config.mjs') $TmpDir -Force
+
+    # ---- 5a. Shell unit tests -----------------------------------------------
     Write-Host "==> Running shell unit tests ..."
     & podman exec $Container sh /opt/shell-tests.sh
-    $ShellExitCode = $LASTEXITCODE
+    $ShellExit = $LASTEXITCODE
 
-    # ---- 5b. Run functional (Puppeteer) tests --------------------------------
-    Write-Host "==> Running functional tests ..."
+    # ---- 5b. Playwright functional tests ------------------------------------
+    Write-Host "==> Running Playwright tests (host=$TestHost port=$HostPort) ..."
     $env:TEST_PORT = $HostPort
     $env:TEST_HOST = $TestHost
-    & node functional-tests.mjs
-    $FunctionalExitCode = $LASTEXITCODE
+    if ($Spec) {
+        & npx playwright test $Spec
+    } else {
+        & npx playwright test
+    }
+    $PlaywrightExit = $LASTEXITCODE
     Remove-Item Env:TEST_PORT -ErrorAction SilentlyContinue
     Remove-Item Env:TEST_HOST -ErrorAction SilentlyContinue
 
-    $ExitCode = if ($ShellExitCode -ne 0 -or $FunctionalExitCode -ne 0) { 1 } else { 0 }
-
-    if ($ShellExitCode -ne 0 -or $FunctionalExitCode -ne 0) {
-        Write-Host ""
-        Write-Host "==> Container logs (on test failure):"
-        & podman logs $Container
+    $ExitCode = if ($ShellExit -ne 0 -or $PlaywrightExit -ne 0) { 1 } else { 0 }
+    if ($ExitCode -ne 0) {
+        Write-Host ""; Write-Host "==> Container logs (on failure):"; & podman logs $Container
     }
 } finally {
     Pop-Location
-    # ---- 6. Stop the container -----------------------------------------------
     Write-Host "==> Stopping container ..."
     & podman stop $Container 2>$null | Out-Null
     & podman rm   $Container 2>$null | Out-Null
-    # ---- 7. Clean up temp dir ------------------------------------------------
-    Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
 }
 
 Write-Host ""
-if ($ExitCode -eq 0) {
-    Write-Host "All functional tests passed."
-} else {
-    Write-Host "Functional tests FAILED (exit code $ExitCode)."
-}
+if ($ExitCode -eq 0) { Write-Host "All tests passed." } else { Write-Host "Tests FAILED (exit $ExitCode)." }
 exit $ExitCode
