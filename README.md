@@ -35,7 +35,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 **Activity detail**
 - Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
-- Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear; Walk/Hike activities additionally show **estimated total steps** (cadence × 2 × moving time)
+- Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear; Walk/Run/Hike activities show **actual device step count** when available (scrape mode), otherwise an estimate (cadence × 2 × moving time)
 - Weather: temperature, feels-like, wind speed + direction, WMO code icon, precipitation — from [Open-Meteo](https://open-meteo.com/) per activity date + GPS location
 
 **Club leaderboard**
@@ -67,7 +67,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 **Data management**
 - Historical sync: renamed rides, corrected sport types, deleted activities all reflected automatically
 - Per-activity detail backfill: fetches full activity JSON (`/activities/{id}`) gradually over nightly runs
-- Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status
+- Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status; Walk/Run/Hike detail pages show per-km splits computed from GPX; **health alert emails** sent to `STRAVA_MY_BIKE_EMAIL` on Strava layout changes, cookie expiry, or data-normalization failures (rate-limited to once/day)
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
 
 **Section reordering** *(desktop only)*
