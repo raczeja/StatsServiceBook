@@ -596,10 +596,47 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
             _pv_hr="$(_pv_n avg_hr)"
             _pv_cad="$(_pv_n avg_cadence)"
             _pv_elevg="$(_pv_n elev_gain)"
+            _pv_watts="$(_pv_n avgWatts)"    # camelCase in Strava's pv_block
+            _pv_kj="$(_pv_n kilojoules)"
             _pv_cals_raw="$(grep -oE "calories:[[:space:]]*[0-9]+\.?[0-9]*" "$TMP/pv_block.txt" \
                              | head -1 | sed 's/calories:[[:space:]]*//' | tr -d ' ')"
             _pv_temp_raw="$(grep -oE "avg_temp:[[:space:]]*(null|-?[0-9]+\.?[0-9]*)" "$TMP/pv_block.txt" \
                              | head -1 | sed 's/avg_temp:[[:space:]]*//')"
+            # HTML fallback for stats not in the pv_block: <th>Label</th><td>value</td> table
+            [ -z "$_pv_cad" ] && _pv_cad="$(awk '
+              /<th[^>]*>Cadence</{found=1;next}
+              found && /<td/{match($0,/[0-9]+/);if(RSTART>0){print substr($0,RSTART,RLENGTH);exit}}
+              found && ++n>3{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_cad=""
+            [ -z "$_pv_cals_raw" ] && _pv_cals_raw="$(awk '
+              /<th[^>]*>Calories</{found=1;next}
+              found && /<td/{line=$0;sub(/^[^>]*>/,"",line);gsub(",","",line);match(line,/[0-9]+/);if(RSTART>0){print substr(line,RSTART,RLENGTH);exit}}
+              found && ++n>3{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_cals_raw=""
+            [ -z "$_pv_temp_raw" ] && _pv_temp_raw="$(awk '
+              /<th[^>]*>Temperature</{found=1;next}
+              found && /<td/{line=$0;sub(/^[^>]*>/,"",line);match(line,/[-]?[0-9]+/);if(RSTART>0){print substr(line,RSTART,RLENGTH);exit}}
+              found && ++n>3{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_temp_raw=""
+            # Device name: <div class='device spans8'>Magene C606</div>
+            _pv_device="$(awk '
+              /class=.device spans8./{found=1;next}
+              found && /^[^<]/{gsub(/^[[:space:]]+|[[:space:]]+$/,"");if(length($0)>0){print;exit}}
+              found && /</{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_device=""
+            # Gear name: <span class='gear-name'>Kross Level 6.0 SRAM</span>
+            _pv_gear_name="$(awk '
+              /class=.gear-name./{found=1;next}
+              found && /^[^<]/{gsub(/^[[:space:]]+|[[:space:]]+$/,"");if(length($0)>0){print;exit}}
+              found && /</{exit}
+            ' "$TMP/sc_detail.html" 2>/dev/null)" || _pv_gear_name=""
+            # Resolve gear_id from bikes array already captured in sc_bikes.json
+            _pv_gear_id=""
+            if [ -n "$_pv_gear_name" ] && jq -e 'type == "array"' "$TMP/sc_bikes.json" >/dev/null 2>&1; then
+              _pv_bid="$(jq -r --arg n "$_pv_gear_name" \
+                '.[] | select(.name == $n) | .id' "$TMP/sc_bikes.json" 2>/dev/null | head -1)"
+              [ -n "$_pv_bid" ] && [ "$_pv_bid" != "null" ] && _pv_gear_id="b${_pv_bid}"
+            fi
             # Steps: scrape from rendered HTML — "Steps</div>...<strong>6,488</strong>"
             _pv_steps="$(awk '
               /spans5.*>Steps</{found=1;next}
@@ -635,13 +672,18 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
               --arg  date  "${_pv_date}T00:00:00Z" \
               --arg  dist  "${_pv_dist:-0}" \
               --arg  mt    "${_pv_mt:-0}" \
-              --arg  spd   "${_pv_spd:-0}" \
+              --arg  spd   "${_pv_spd:-}" \
               --arg  hr    "${_pv_hr:-}" \
               --arg  cad   "${_pv_cad:-}" \
               --arg  elevg "${_pv_elevg:-0}" \
               --arg  cals  "${_pv_cals_raw:-}" \
               --arg  temp  "${_pv_temp_raw:-null}" \
               --arg  steps "${_pv_steps:-}" \
+              --arg  watts  "${_pv_watts:-}" \
+              --arg  kj     "${_pv_kj:-}" \
+              --arg  device "${_pv_device:-}" \
+              --arg  gid    "${_pv_gear_id:-}" \
+              --arg  gname  "${_pv_gear_name:-}" \
               '{
                 id:                   ($id   | tonumber),
                 name:                 $name,
@@ -651,12 +693,21 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
                 distance:             ($dist  | if .=="" then 0 else tonumber end),
                 moving_time:          ($mt    | if .=="" then 0 else tonumber|floor end),
                 total_elevation_gain: ($elevg | if .=="" then 0 else tonumber end),
-                average_speed:        ($spd   | if .=="" then 0 else tonumber end),
+                average_speed:        (($spd | if .=="" then 0 else tonumber end) as $s |
+                                       if $s > 0 then $s
+                                       elif ($dist|tonumber) > 0 and ($mt|tonumber) > 0
+                                       then ($dist|tonumber) / ($mt|tonumber|floor)
+                                       else 0 end),
                 average_heartrate:    ($hr    | if .=="" then null else tonumber end),
                 average_cadence:      ($cad   | if .=="" then null else tonumber end),
+                average_watts:        ($watts | if .=="" then null else tonumber end),
+                kilojoules:           ($kj    | if .=="" then null else tonumber end),
                 calories:             ($cals  | if .=="" then null else tonumber|floor end),
                 average_temp:         ($temp  | if .=="null" or .=="" then null else tonumber end),
-                step_count:           ($steps | if .=="" then null else tonumber end)
+                step_count:           ($steps | if .=="" then null else tonumber end),
+                device_name:          (if $device=="" then null else $device end),
+                gear_id:              (if $gid==""    then null else $gid end),
+                gear:                 (if $gid==""    then null else {id: $gid, name: $gname} end)
               }' > "$TMP/detail.json" 2>/dev/null || true
           fi
 

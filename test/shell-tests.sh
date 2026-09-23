@@ -2958,6 +2958,146 @@ assert_eq "$S" "no-match-other"    "$(_parse_page_elev '   some_other: 29,')"   
 assert_eq "$S" "no-match-quoted"   "$(_parse_page_elev '   "elev_gain": 29.0,')"   ""
 assert_eq "$S" "no-match-json"     "$(_parse_page_elev '"elev_gain":17.1,')"       ""
 
+# ── scrape-pv-fallback-extraction ────────────────────────────────────────────
+# Mirrors the path-2 (similarActivitiesData(null)) extraction in strava-my-activities.sh:
+# - pv_block: avgWatts/kilojoules parsed from camelCase JS fields
+# - HTML table: calories/cadence/temp extracted from <th>Label</th><td>value</td>
+# - average_speed: computed from distance/moving_time when avg_speed absent
+S="scrape-pv-fallback-extraction"
+
+# Minimal pv_block matching what Strava actually emits for a no-subscription ride.
+cat > "$TMP/pv_block.txt" << 'PV'
+pageView.activity().set({
+   distance: 34678.4,
+   elev_gain: 77.0,
+   moving_time: 5811,
+   kilojoules: 1066.120926,
+   startDateLocal: 1790106536,
+   avgWatts: 183,
+   trainer: false,
+   ftp: 205
+ }
+PV
+
+_pv_n() { grep -oE "$1:[[:space:]]*-?[0-9]+\.?[0-9]*" "$TMP/pv_block.txt" | head -1 \
+           | sed "s/$1:[[:space:]]*//" | tr -d ' '; }
+
+assert_eq "$S" "distance-extracted"   "$(_pv_n distance)"   "34678.4"
+assert_eq "$S" "moving-time-extracted" "$(_pv_n moving_time)" "5811"
+assert_eq "$S" "elev-gain-extracted"  "$(_pv_n elev_gain)"  "77.0"
+assert_eq "$S" "kilojoules-extracted" "$(_pv_n kilojoules)" "1066.120926"
+assert_eq "$S" "avgWatts-camelCase"   "$(_pv_n avgWatts)"   "183"
+assert_eq "$S" "avg-speed-absent"     "$(_pv_n avg_speed)"  ""
+
+# avg_speed computation fallback: distance / moving_time
+_pv_spd_raw="$(_pv_n avg_speed)"
+_pv_dist="34678.4"; _pv_mt="5811"
+_pv_spd="$(jq -n --arg s "$_pv_spd_raw" --arg d "$_pv_dist" --arg t "$_pv_mt" '
+  ($s | if .=="" then 0 else tonumber end) as $sv |
+  if $sv > 0 then $sv
+  elif ($d|tonumber) > 0 and ($t|tonumber) > 0 then ($d|tonumber) / ($t|tonumber|floor)
+  else 0 end | . * 1000 | round / 1000')"
+assert_eq "$S" "speed-computed-from-dist-mt" \
+    "$(printf '%s' "$_pv_spd" | jq '. > 5 and . < 7')" "true"
+
+# HTML table extraction for calories — <th>Calories</th><td colspan='2'>1,335</td>
+# The awk must strip tag attributes (colspan='2') before matching the number.
+cat > "$TMP/sc_detail.html" << 'HTML'
+<table>
+<tbody class='show-more-block-js hidden'>
+<tr>
+<th>Cadence</th>
+<td>79</td>
+<td>105</td>
+</tr>
+<tr>
+<th>Calories</th>
+<td colspan='2'>1,335</td>
+</tr>
+<tr>
+<th>Temperature</th>
+<td colspan='2' style=''>12<abbr class='unit' title='Degrees Celsius'> ℃</abbr></td>
+</tr>
+</tbody>
+</table>
+HTML
+
+_pv_cad="$(awk '
+  /<th[^>]*>Cadence</{found=1;next}
+  found && /<td/{match($0,/[0-9]+/);if(RSTART>0){print substr($0,RSTART,RLENGTH);exit}}
+  found && ++n>3{exit}
+' "$TMP/sc_detail.html" 2>/dev/null)"
+assert_eq "$S" "cadence-from-html"     "$_pv_cad" "79"
+
+_pv_cals="$(awk '
+  /<th[^>]*>Calories</{found=1;next}
+  found && /<td/{line=$0;sub(/^[^>]*>/,"",line);gsub(",","",line);match(line,/[0-9]+/);if(RSTART>0){print substr(line,RSTART,RLENGTH);exit}}
+  found && ++n>3{exit}
+' "$TMP/sc_detail.html" 2>/dev/null)"
+assert_eq "$S" "calories-strips-colspan" "$_pv_cals" "1335"
+
+_pv_temp="$(awk '
+  /<th[^>]*>Temperature</{found=1;next}
+  found && /<td/{line=$0;sub(/^[^>]*>/,"",line);match(line,/[-]?[0-9]+/);if(RSTART>0){print substr(line,RSTART,RLENGTH);exit}}
+  found && ++n>3{exit}
+' "$TMP/sc_detail.html" 2>/dev/null)"
+assert_eq "$S" "temp-strips-colspan"   "$_pv_temp" "12"
+
+# Negative temperature — th and td must be on separate lines (matches Strava's actual HTML)
+cat > "$TMP/sc_detail_neg.html" << 'HTML'
+<table><tbody>
+<tr>
+<th>Temperature</th>
+<td colspan='2' style=''>-5<abbr class='unit'> ℃</abbr></td>
+</tr>
+</tbody></table>
+HTML
+_pv_temp_neg="$(awk '
+  /<th[^>]*>Temperature</{found=1;next}
+  found && /<td/{line=$0;sub(/^[^>]*>/,"",line);match(line,/[-]?[0-9]+/);if(RSTART>0){print substr(line,RSTART,RLENGTH);exit}}
+  found && ++n>3{exit}
+' "$TMP/sc_detail_neg.html" 2>/dev/null)"
+assert_eq "$S" "negative-temp"         "$_pv_temp_neg" "-5"
+
+# Device and gear extraction
+cat > "$TMP/sc_detail_gear.html" << 'HTML'
+<div class='section device-section'>
+<div class='row'>
+<div class='device spans8'>
+Magene C606
+</div>
+<div class='gear spans8'>
+Bike:
+<span class='gear-name'>
+Kross Level 6.0 SRAM
+</span>
+</div>
+</div>
+</div>
+HTML
+
+_pv_device="$(awk '
+  /class=.device spans8./{found=1;next}
+  found && /^[^<]/{gsub(/^[[:space:]]+|[[:space:]]+$/,"");if(length($0)>0){print;exit}}
+  found && /</{exit}
+' "$TMP/sc_detail_gear.html" 2>/dev/null)"
+assert_eq "$S" "device-name-extracted" "$_pv_device" "Magene C606"
+
+_pv_gear_name="$(awk '
+  /class=.gear-name./{found=1;next}
+  found && /^[^<]/{gsub(/^[[:space:]]+|[[:space:]]+$/,"");if(length($0)>0){print;exit}}
+  found && /</{exit}
+' "$TMP/sc_detail_gear.html" 2>/dev/null)"
+assert_eq "$S" "gear-name-extracted"   "$_pv_gear_name" "Kross Level 6.0 SRAM"
+
+# gear_id resolved from bikes JSON
+printf '[{"id":16239154,"name":"Kross Level 6.0 SRAM"},{"id":18141502,"name":"Kellys "}]' \
+    > "$TMP/sc_bikes.json"
+_pv_bid="$(jq -r --arg n "$_pv_gear_name" \
+    '.[] | select(.name == $n) | .id' "$TMP/sc_bikes.json" 2>/dev/null | head -1)"
+_pv_gear_id=""; [ -n "$_pv_bid" ] && [ "$_pv_bid" != "null" ] && _pv_gear_id="b${_pv_bid}"
+assert_eq "$S" "gear-id-resolved"      "$_pv_gear_id" "b16239154"
+
 # ── JUnit XML output ──────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
