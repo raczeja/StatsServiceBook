@@ -46,7 +46,7 @@ if [ -f "$WEB_DIR/activities.json" ]; then
     printf '{"d":"%s","s":"%s","p":[%s]}\n' "$_hm_date" "$_hm_sport" "$_hm_pts"
   done | jq -s '(. // [])' > "$WEB_DIR/heatmap.json.tmp" 2>/dev/null \
         && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json" \
-        || { printf '[]' > "$WEB_DIR/heatmap.json.tmp" && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json"; }
+        || { rm -f "$WEB_DIR/heatmap.json.tmp"; [ -f "$WEB_DIR/heatmap.json" ] || printf '[]' > "$WEB_DIR/heatmap.json"; }
   unset _hm_tab _hm_gpx _hm_date _hm_sport _hm_path _hm_pts
 else
   printf '[]' > "$WEB_DIR/heatmap.json.tmp" && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json"
@@ -80,9 +80,10 @@ if [ -f "$WEB_DIR/heatmap.json" ]; then
         printf '%s' "$_ov_res" | jq -c '[.elements[] |
           select(.tags.name != null and (.tags.population | tonumber? // 0) > 15000) |
           {n: .tags.name, lat: .lat, lon: .lon}]' \
-          > "$WEB_DIR/cities.json" 2>/dev/null \
+          > "$WEB_DIR/cities.json.tmp" 2>/dev/null \
+          && mv "$WEB_DIR/cities.json.tmp" "$WEB_DIR/cities.json" \
           && log "html: cities.json written (Overpass, bbox=$_ov_bbox)" \
-          || log "html: cities.json jq parse failed — keeping previous"
+          || { rm -f "$WEB_DIR/cities.json.tmp"; log "html: cities.json jq parse failed — keeping previous"; }
       else
         log "html: Overpass unreachable — keeping previous cities.json"
         [ -f "$WEB_DIR/cities.json" ] || printf '[]' > "$WEB_DIR/cities.json"
