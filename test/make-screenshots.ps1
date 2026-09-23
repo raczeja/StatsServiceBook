@@ -54,15 +54,16 @@ if (-not $env:TEST_HOST) {
 Write-Host "==> Using host '$TestHost' for HTTP checks ..."
 
 # ---- 4. Wait for httpd to become ready ------------------------------------------
+# Probe from inside the container (wget on localhost:8080) so Windows→WSL2 port
+# forwarding issues can't cause a false timeout.  Fall back to a host-side check
+# only when the inner probe says it is ready, confirming external reachability.
 Write-Host "==> Waiting for httpd to become ready ..."
 $ready = $false
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
-    try {
-        $null = Invoke-WebRequest -Uri "http://${TestHost}:$HostPort/strava/me/index.html" `
-                                  -UseBasicParsing -TimeoutSec 2
-        $ready = $true; break
-    } catch { Write-Host "  [$i] not yet ready ..."; }
+    $probe = & podman exec $Container wget -qO /dev/null http://localhost:8080/strava/me/index.html 2>&1
+    if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+    Write-Host "  [$i] not yet ready ..."
 }
 if (-not $ready) {
     Write-Host "==> Container logs:"
