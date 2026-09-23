@@ -975,7 +975,8 @@ jq -s \
       }
     ] | sort_by(.date) | reverse
   }
-' "$STORE" > "$WEB_DIR/activities.json"
+' "$STORE" > "$WEB_DIR/activities.json.tmp" \
+  && mv "$WEB_DIR/activities.json.tmp" "$WEB_DIR/activities.json"
 
 log "wrote $WEB_DIR/activities.json ($TOTAL activities)"
 

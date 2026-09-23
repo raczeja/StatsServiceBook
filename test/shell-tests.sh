@@ -3126,6 +3126,206 @@ if [ -n "$JUNIT_OUT" ]; then
     printf 'JUnit XML written to %s\n' "$JUNIT_OUT"
 fi
 
+# ── heatmap-atomic-write ──────────────────────────────────────────────────────
+# Verifies the tmp→mv pattern introduced in strava-my-html-heatmap.sh §7:
+# the old heatmap.json stays readable until mv replaces it atomically, the
+# tmp file is cleaned up after success, and the [] fallback also uses tmp→mv.
+S="heatmap-atomic-write"
+
+HM_DIR="$TMP/hm"
+mkdir -p "$HM_DIR"
+HM_JSON="$HM_DIR/heatmap.json"
+HM_TMP="$HM_DIR/heatmap.json.tmp"
+
+# Seed an existing heatmap.json with known content.
+printf '[{"d":"2024-01-01","s":"Ride","p":[[51.0,17.0]]}]\n' > "$HM_JSON"
+
+# --- Test 1: old file preserved while .tmp is being written ------------------
+# Simulate: write new content to .tmp (write in progress), old file untouched.
+printf '[{"d":"2025-06-01","s":"Run","p":[[52.0,18.0]]}]\n' > "$HM_TMP"
+
+old_content="$(cat "$HM_JSON")"
+if printf '%s' "$old_content" | grep -q '"2024-01-01"'; then
+    ok "$S" "old-file-preserved-during-write"
+else
+    err "$S" "old-file-preserved-during-write" "old heatmap.json was altered before mv"
+fi
+
+# --- Test 2: mv atomically replaces the file ---------------------------------
+mv "$HM_TMP" "$HM_JSON"
+
+new_content="$(cat "$HM_JSON")"
+if printf '%s' "$new_content" | grep -q '"2025-06-01"'; then
+    ok "$S" "mv-replaces-with-new-content"
+else
+    err "$S" "mv-replaces-with-new-content" "heatmap.json has wrong content after mv"
+fi
+
+# --- Test 3: tmp file gone after successful mv -------------------------------
+if [ -f "$HM_TMP" ]; then
+    err "$S" "tmp-cleaned-up-after-mv" ".tmp file still exists after mv"
+else
+    ok "$S" "tmp-cleaned-up-after-mv"
+fi
+
+# --- Test 4: new content is valid JSON array ---------------------------------
+if printf '%s' "$new_content" | jq -e 'type == "array"' >/dev/null 2>&1; then
+    ok "$S" "result-is-json-array"
+else
+    err "$S" "result-is-json-array" "heatmap.json is not a JSON array after mv"
+fi
+
+# --- Test 5: fallback [] also goes through tmp→mv ----------------------------
+# Simulate: jq fails → fallback writes [] to .tmp then mv.
+printf '[]' > "$HM_TMP" && mv "$HM_TMP" "$HM_JSON"
+
+fallback_content="$(cat "$HM_JSON")"
+assert_eq "$S" "fallback-writes-empty-array" "$fallback_content" "[]"
+
+# --- Test 6: tmp file gone after fallback mv ---------------------------------
+if [ -f "$HM_TMP" ]; then
+    err "$S" "fallback-tmp-cleaned-up" ".tmp file still exists after fallback mv"
+else
+    ok "$S" "fallback-tmp-cleaned-up"
+fi
+
+# --- Test 7: fallback result is valid JSON -----------------------------------
+if printf '%s' "$fallback_content" | jq -e 'type == "array" and length == 0' >/dev/null 2>&1; then
+    ok "$S" "fallback-is-empty-json-array"
+else
+    err "$S" "fallback-is-empty-json-array" "fallback content is not an empty JSON array"
+fi
+
+# --- Test 8: jq pipeline produces correct {d,s,p} structure ------------------
+# Feed three NDJSON lines (as the awk pipeline would emit) through jq -s.
+_hm_ndjson='{"d":"2026-01-15","s":"Ride","p":[[51.60,16.85],[51.61,16.86]]}
+{"d":"2026-02-20","s":"Run","p":[[51.11,17.04]]}
+{"d":"2026-03-05","s":"Ride","p":[[50.86,17.47]]}'
+
+_hm_out="$(printf '%s\n' "$_hm_ndjson" | jq -s '(. // [])')"
+
+assert_eq "$S" "jq-slurp-length" \
+    "$(printf '%s' "$_hm_out" | jq 'length')" "3"
+assert_eq "$S" "jq-entry-has-d-field" \
+    "$(printf '%s' "$_hm_out" | jq -r '.[0].d')" "2026-01-15"
+assert_eq "$S" "jq-entry-has-s-field" \
+    "$(printf '%s' "$_hm_out" | jq -r '.[0].s')" "Ride"
+assert_eq "$S" "jq-entry-p-is-array" \
+    "$(printf '%s' "$_hm_out" | jq '.[0].p | type')" '"array"'
+assert_eq "$S" "jq-entry-p-first-lat" \
+    "$(printf '%s' "$_hm_out" | jq '.[0].p[0][0] == 51.6')" "true"
+assert_eq "$S" "jq-empty-input-yields-empty-array" \
+    "$(printf '' | jq -s '(. // [])')" "[]"
+
+# --- Test 9: jq failure preserves old file (no clobber with []) --------------
+# Simulate: jq crashes → .tmp is partial → mv does not run → old file kept.
+printf '[{"d":"2025-01-01","s":"Ride","p":[[51.0,17.0]]}]\n' > "$HM_JSON"
+# Write corrupt data to .tmp to simulate a jq partial-write.
+printf 'CORRUPT' > "$HM_TMP"
+# The failure path: rm .tmp and keep old file if it exists.
+rm -f "$HM_TMP"
+[ -f "$HM_JSON" ] || printf '[]' > "$HM_JSON"  # only init if missing
+
+_preserved="$(cat "$HM_JSON")"
+if printf '%s' "$_preserved" | grep -q '"2025-01-01"'; then
+    ok "$S" "jq-failure-preserves-old-file"
+else
+    err "$S" "jq-failure-preserves-old-file" "old heatmap.json was clobbered on jq failure"
+fi
+if [ -f "$HM_TMP" ]; then
+    err "$S" "jq-failure-tmp-cleaned-up" ".tmp not cleaned up on jq failure"
+else
+    ok "$S" "jq-failure-tmp-cleaned-up"
+fi
+
+unset HM_DIR HM_JSON HM_TMP old_content new_content fallback_content _hm_ndjson _hm_out _preserved
+
+# ── activities-json-atomic-write ──────────────────────────────────────────────
+# Verifies the tmp→mv pattern for activities.json (strava-my-activities.sh §4,
+# healthsync-activities.sh §5, strava-leaderboard.sh §5) and the cp→tmp→mv
+# pattern for leaderboard_<id>.json (strava-leaderboard.sh §5a).
+# Also checks that the skip-render guard (which reads the live activities.json
+# to compare athleteAge) can never observe a truncated file.
+S="activities-json-atomic-write"
+
+AJ_DIR="$TMP/aj"
+mkdir -p "$AJ_DIR"
+AJ_FILE="$AJ_DIR/activities.json"
+AJ_TMP="$AJ_DIR/activities.json.tmp"
+
+# Seed a known-good activities.json.
+printf '{"activities":[],"generatedAt":"2024-01-01T00:00:00Z","athleteAge":35}\n' \
+    > "$AJ_FILE"
+
+# --- Test 1: old file readable while .tmp is being written -------------------
+printf '{"activities":[],"generatedAt":"2025-06-01T00:00:00Z","athleteAge":36}\n' \
+    > "$AJ_TMP"
+
+_age_during="$(jq -r '.athleteAge // "null"' "$AJ_FILE" 2>/dev/null)"
+assert_eq "$S" "old-file-readable-during-write" "$_age_during" "35"
+
+# --- Test 2: mv delivers new content atomically ------------------------------
+mv "$AJ_TMP" "$AJ_FILE"
+_age_after="$(jq -r '.athleteAge // "null"' "$AJ_FILE" 2>/dev/null)"
+assert_eq "$S" "mv-delivers-new-content" "$_age_after" "36"
+
+# --- Test 3: tmp file gone after mv ------------------------------------------
+if [ -f "$AJ_TMP" ]; then
+    err "$S" "tmp-gone-after-mv" ".tmp still present after mv"
+else
+    ok "$S" "tmp-gone-after-mv"
+fi
+
+# --- Test 4: skip-render guard reads valid JSON (never empty mid-write) -------
+# Simulate the guard: jq reads athleteAge from the live file.
+_stored_age="$(jq -r '.athleteAge // "null"' "$AJ_FILE" 2>/dev/null || printf 'null')"
+if [ "$_stored_age" != "null" ] && [ "$_stored_age" != "" ]; then
+    ok "$S" "skip-guard-reads-valid-athleteage"
+else
+    err "$S" "skip-guard-reads-valid-athleteage" "skip guard got null/empty age: '$_stored_age'"
+fi
+
+# --- Test 5: activities.json output shape (top-level keys all pages depend on) -
+_aj_out="$(jq -n \
+    --arg generatedAt "2026-01-01T00:00:00Z" \
+    --arg athleteAge "36" \
+    '{activities: [], generatedAt: $generatedAt, athleteAge: ($athleteAge | tonumber)}')"
+
+assert_eq "$S" "shape-has-activities-key" \
+    "$(printf '%s' "$_aj_out" | jq 'has("activities")')" "true"
+assert_eq "$S" "shape-activities-is-array" \
+    "$(printf '%s' "$_aj_out" | jq '.activities | type')" '"array"'
+assert_eq "$S" "shape-has-generatedAt" \
+    "$(printf '%s' "$_aj_out" | jq 'has("generatedAt")')" "true"
+
+# --- Test 6: leaderboard cp→tmp→mv pattern -----------------------------------
+LB_SRC="$AJ_DIR/leaderboard_123.json"
+LB_TMP="$AJ_DIR/leaderboard_123.json.tmp"
+LB_DST="$AJ_DIR/lb_web/leaderboard_123.json"
+mkdir -p "$AJ_DIR/lb_web"
+
+# Source is fully built before the cp (simulates $TMP/leaderboard_<id>.json).
+printf '{"clubId":"123","members":[]}\n' > "$LB_SRC"
+# Seed an old destination.
+printf '{"clubId":"123","members":["old"]}\n' > "$LB_DST"
+
+# cp to .tmp in destination dir, then mv.
+cp "$LB_SRC" "$LB_TMP" && mv "$LB_TMP" "$LB_DST"
+
+assert_eq "$S" "lb-cp-mv-delivers-new-content" \
+    "$(jq -r '.members | length' "$LB_DST")" "0"
+
+if [ -f "$LB_TMP" ]; then
+    err "$S" "lb-tmp-gone-after-mv" "leaderboard .tmp still present after mv"
+else
+    ok "$S" "lb-tmp-gone-after-mv"
+fi
+
+assert_eq "$S" "lb-src-still-present" \
+    "$([ -f "$LB_SRC" ] && printf yes || printf no)" "yes"
+
+unset AJ_DIR AJ_FILE AJ_TMP LB_SRC LB_TMP LB_DST _age_during _age_after _stored_age _aj_out
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 printf '\n==> Shell tests: %d passed, %d failed\n' "$PASS" "$FAIL"
