@@ -68,6 +68,7 @@ chmod 0755 /www/cgi-bin/drive-auth
 
 cp /opt/activities.sample.json "$WEB/activities.json"
 cp /opt/heatmap.sample.json    "$WEB/heatmap.json"
+cp /opt/cities.sample.json     "$WEB/cities.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
 printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
     "$(date +%s)" "$(($(date +%s) + 7200))" > "$WEB/drive-status.json"
