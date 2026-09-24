@@ -80,6 +80,20 @@ cp "$SRC_DIR/strava-my-html-stats.sh"    /usr/bin/strava-my-html-stats.sh
 chmod 0644 /usr/bin/strava-my-html-stats.sh
 cp "$SRC_DIR/strava-my-html-heatmap.sh" /usr/bin/strava-my-html-heatmap.sh
 chmod 0644 /usr/bin/strava-my-html-heatmap.sh
+cp "$SRC_DIR/strava-my-feed-api.sh"        /usr/bin/strava-my-feed-api.sh
+chmod 0644 /usr/bin/strava-my-feed-api.sh
+cp "$SRC_DIR/strava-my-feed-scrape.sh"     /usr/bin/strava-my-feed-scrape.sh
+chmod 0644 /usr/bin/strava-my-feed-scrape.sh
+cp "$SRC_DIR/strava-my-detail-backfill.sh" /usr/bin/strava-my-detail-backfill.sh
+chmod 0644 /usr/bin/strava-my-detail-backfill.sh
+cp "$SRC_DIR/strava-my-bike-alert.sh"      /usr/bin/strava-my-bike-alert.sh
+chmod 0644 /usr/bin/strava-my-bike-alert.sh
+cp "$SRC_DIR/strava-render-pages.sh"       /usr/bin/strava-render-pages.sh
+chmod 0644 /usr/bin/strava-render-pages.sh
+cp "$SRC_DIR/strava-leaderboard-html.sh"   /usr/bin/strava-leaderboard-html.sh
+chmod 0644 /usr/bin/strava-leaderboard-html.sh
+cp "$SRC_DIR/healthsync-fit-import.sh"     /usr/bin/healthsync-fit-import.sh
+chmod 0644 /usr/bin/healthsync-fit-import.sh
 
 echo "==> installing $BIN_ME"
 cp "$SRC_DIR/strava-my-activities.sh" "$BIN_ME"
