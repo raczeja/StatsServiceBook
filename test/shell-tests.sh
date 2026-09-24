@@ -2741,6 +2741,13 @@ for _f in \
     /usr/bin/strava-email-weekly \
     /usr/bin/strava-my-activities \
     /usr/bin/healthsync-activities \
+    /usr/bin/strava-my-feed-api.sh \
+    /usr/bin/strava-my-feed-scrape.sh \
+    /usr/bin/strava-my-detail-backfill.sh \
+    /usr/bin/strava-my-bike-alert.sh \
+    /usr/bin/strava-render-pages.sh \
+    /usr/bin/strava-leaderboard-html.sh \
+    /usr/bin/healthsync-fit-import.sh \
 ; do
     _name="$(basename "$_f")"
     if [ ! -f "$_f" ]; then

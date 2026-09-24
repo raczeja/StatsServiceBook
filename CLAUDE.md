@@ -17,6 +17,13 @@ A **router-native activity stats and bike service tracker** for OpenWrt. A set o
 | [strava-my-html-bike.sh](strava-my-html-bike.sh)               | Sourced by both main scripts: writes `bike.html` + installs the bike-service CGI + installs the bike-assign CGI.                                                                             |
 | [strava-my-html-stats.sh](strava-my-html-stats.sh)             | Sourced by both main scripts: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                         |
 | [strava-my-html-heatmap.sh](strava-my-html-heatmap.sh)         | Sourced by both main scripts: generates `heatmap.json` (downsampled GPS points per activity) + writes `heatmap.html` (full-viewport Leaflet.heat all-activities heatmap with period filter). |
+| [strava-my-feed-api.sh](strava-my-feed-api.sh)                 | Sourced by `strava-my-activities.sh` (§2 API branch): pages `/api/v3/athlete/activities`; appends NDJSON to `$TMP/all.ndjson`; sets `reached_end`. |
+| [strava-my-feed-scrape.sh](strava-my-feed-scrape.sh)           | Sourced by `strava-my-activities.sh` (§2 scrape branch): pages `/athlete/training_activities`; normalizes web format → store format; appends NDJSON; sets `reached_end`, increments `_sc_norm_fail`. |
+| [strava-my-detail-backfill.sh](strava-my-detail-backfill.sh)   | Sourced by `strava-my-activities.sh` (§3b): rate-limited per-activity detail JSON backfill (API + scrape `case` branch inside); increments `ADDED`, `_sc_norm_fail`, `_sc_cookie_expired`, `_sc_layout_fail`. |
+| [strava-my-bike-alert.sh](strava-my-bike-alert.sh)             | Sourced by `strava-my-activities.sh` (§6f): bike-service threshold email alerts via msmtp. |
+| [strava-render-pages.sh](strava-render-pages.sh)               | Sourced by both `strava-my-activities.sh` and `healthsync-activities.sh`: deduplication wrapper that sources the four HTML helpers (dashboard, detail, bike, stats). |
+| [strava-leaderboard-html.sh](strava-leaderboard-html.sh)       | Sourced by `strava-leaderboard.sh` (§6): writes the club leaderboard `index.html`; single-quoted heredoc. |
+| [healthsync-fit-import.sh](healthsync-fit-import.sh)           | Sourced by `healthsync-activities.sh` (§3b): Magene FIT file detection, GPS Visualizer FIT→GPX conversion, dual-source merge with watch records; increments `ADDED`. |
 | [config-my.example](config-my.example)                         | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed. |
 | [healthsync-activities.sh](healthsync-activities.sh)           | HealthSync / Google Drive data source: Drive OAuth → download CSV+GPX+TCX → parse (incl. cadence from TCX/GPX) → cache GPX → emit `activities.json` → source HTML helpers. Also processes `Magene_*.fit` files via GPS Visualizer conversion (§3b). Writes `drive-status.json` and generates the `drive-auth` re-authorization CGI (§7). Installed to `/usr/bin/healthsync-activities`. |
 | [config-healthsync.example](config-healthsync.example)         | Config template → `/etc/healthsync-activities.conf`. Holds Google OAuth credentials, Drive folder ID, `HEALTHSYNC_DEFAULT_BIKE`. |
@@ -55,6 +62,7 @@ Run from the repo root on the dev machine:
 scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
   && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh strava-my-html-heatmap.sh root@192.168.1.1:/usr/bin/ `
+  && scp strava-my-feed-api.sh strava-my-feed-scrape.sh strava-my-detail-backfill.sh strava-my-bike-alert.sh strava-render-pages.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-my-activities
 ```
 
@@ -63,6 +71,7 @@ For the HealthSync script (also push `strava-lib.sh` — it holds the shared wea
 ```powershell
 scp healthsync-activities.sh root@192.168.1.1:/usr/bin/healthsync-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
+  && scp healthsync-fit-import.sh strava-render-pages.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 healthsync-activities
 ```
 
@@ -70,6 +79,7 @@ For the club leaderboard script:
 
 ```powershell
 scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard `
+  && scp strava-leaderboard-html.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-leaderboard
 ```
 
@@ -131,6 +141,13 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
    /usr/bin/strava-my-html-bike.sh
    /usr/bin/strava-my-html-stats.sh
    /usr/bin/strava-my-html-heatmap.sh
+   /usr/bin/strava-my-feed-api.sh
+   /usr/bin/strava-my-feed-scrape.sh
+   /usr/bin/strava-my-detail-backfill.sh
+   /usr/bin/strava-my-bike-alert.sh
+   /usr/bin/strava-render-pages.sh
+   /usr/bin/strava-leaderboard-html.sh
+   /usr/bin/healthsync-fit-import.sh
    /etc/strava-leaderboard.conf
    /etc/strava-my-activities.conf
    /etc/healthsync-activities.conf
