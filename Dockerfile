@@ -31,6 +31,15 @@ COPY strava-my-html-bike.sh      /usr/bin/strava-my-html-bike.sh
 COPY strava-my-html-stats.sh     /usr/bin/strava-my-html-stats.sh
 COPY strava-my-html-heatmap.sh   /usr/bin/strava-my-html-heatmap.sh
 
+# Logic helper scripts (sourced by main scripts, not run directly)
+COPY strava-my-feed-api.sh        /usr/bin/strava-my-feed-api.sh
+COPY strava-my-feed-scrape.sh     /usr/bin/strava-my-feed-scrape.sh
+COPY strava-my-detail-backfill.sh /usr/bin/strava-my-detail-backfill.sh
+COPY strava-my-bike-alert.sh      /usr/bin/strava-my-bike-alert.sh
+COPY strava-render-pages.sh       /usr/bin/strava-render-pages.sh
+COPY strava-leaderboard-html.sh   /usr/bin/strava-leaderboard-html.sh
+COPY healthsync-fit-import.sh     /usr/bin/healthsync-fit-import.sh
+
 RUN chmod 0755 \
     /usr/bin/strava-leaderboard \
     /usr/bin/strava-my-activities \
@@ -44,7 +53,14 @@ RUN chmod 0755 \
     /usr/bin/strava-my-html-detail.sh \
     /usr/bin/strava-my-html-bike.sh \
     /usr/bin/strava-my-html-stats.sh \
-    /usr/bin/strava-my-html-heatmap.sh
+    /usr/bin/strava-my-html-heatmap.sh \
+    /usr/bin/strava-my-feed-api.sh \
+    /usr/bin/strava-my-feed-scrape.sh \
+    /usr/bin/strava-my-detail-backfill.sh \
+    /usr/bin/strava-my-bike-alert.sh \
+    /usr/bin/strava-render-pages.sh \
+    /usr/bin/strava-leaderboard-html.sh \
+    /usr/bin/healthsync-fit-import.sh
 
 COPY docker/lighttpd.conf /etc/lighttpd/lighttpd.conf
 COPY docker/entrypoint.sh /entrypoint.sh

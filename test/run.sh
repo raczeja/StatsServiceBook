@@ -12,7 +12,7 @@ DETAIL=/usr/bin/strava-my-html-detail.sh
 BIKE=/usr/bin/strava-my-html-bike.sh
 STATS=/usr/bin/strava-my-html-stats.sh
 HEATMAP=/usr/bin/strava-my-html-heatmap.sh
-CLUB=/usr/bin/strava-leaderboard
+CLUB=/usr/bin/strava-leaderboard-html.sh
 
 WEB=/www/strava/me
 DATA=/data/bike-service.json
