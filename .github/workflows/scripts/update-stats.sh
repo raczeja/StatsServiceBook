@@ -244,16 +244,16 @@ total_executed = sum(max(0, r.get("total", 0) - r.get("skipped", 0)) for r in el
 total_passed   = sum(r.get("passed", 0) + r.get("flaky_count", 0) for r in eligible)
 total_failed   = sum(r.get("failed", 0) for r in eligible)
 total_flaky    = sum(r.get("flaky_count", 0) for r in eligible)
-avg_passed     = round(total_passed / max(1, len(eligible)), 1)
-avg_total      = round(total_executed / max(1, len(eligible)), 1)
+avg_passed     = int(round(total_passed / max(1, len(eligible))))
+avg_total      = int(round(total_executed / max(1, len(eligible))))
 pass_rate      = round(100 * (1 - total_failed / max(1, sum(r.get("total", 0) for r in eligible))), 1)
 
 shell_total_passed  = sum(r.get("shell_passed", 0) for r in eligible)
 shell_total_failed  = sum(r.get("shell_failed", 0) for r in eligible)
 shell_total_skipped = sum(r.get("shell_skipped", 0) for r in eligible)
-shell_avg_passed    = round(shell_total_passed / max(1, len(eligible)), 1)
-shell_avg_failed    = round(shell_total_failed / max(1, len(eligible)), 1)
-shell_avg_total     = round((shell_total_passed + shell_total_failed + shell_total_skipped) / max(1, len(eligible)), 1)
+shell_avg_passed    = int(round(shell_total_passed / max(1, len(eligible))))
+shell_avg_failed    = int(round(shell_total_failed / max(1, len(eligible))))
+shell_avg_total     = int(round((shell_total_passed + shell_total_failed + shell_total_skipped) / max(1, len(eligible))))
 
 # Top shell test failures across runs
 shell_fail_counts = {}
