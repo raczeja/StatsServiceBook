@@ -46,7 +46,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 **Personal stats**
 - KPI cards, year overview table, monthly breakdown chart, year-over-year km/month heatmap
 - **Annual Goals** — set a yearly ride distance target per year; progress bar + projected year-end km + monthly breakdown (green = hit, orange = current, blue = past)
-- **Personal records** — longest ride, most climbing, fastest avg speed, best VAM, most power, most energy (kJ), most steps (Walk/Hike), best week, best month by km and by count, longest streak — all-time across all sports; each record links to the activity
+- **Personal records** — longest ride, most climbing, fastest avg speed, max speed, best VAM, most power, most energy (kJ), most steps (Walk/Hike), best week, best month by km and by count, longest streak — all-time across all sports; each record links to the activity
 
 **Activity heatmap**
 - Full-viewport dark map (Esri World Dark Gray + OSM fallback) showing all GPS activity routes as a heat overlay
