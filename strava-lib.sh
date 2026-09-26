@@ -59,18 +59,18 @@ fetch_weather_temp() {
   _fw_temp_source="" _fw_t=""
   _fw_apparent_temp="" _fw_wind_speed="" _fw_wind_dir="" _fw_weathercode="" _fw_precipitation=""
   log "weather: fetching archive $3 ($1,$2)..."
-  if _fw_resp=$(curl -fsS --max-time 15 \
+  if _fw_resp=$(curl_retry -fsS --max-time 15 \
     "https://archive-api.open-meteo.com/v1/archive?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
-    2>&1); then
+      ); then
     _fw_parse_weather "$_fw_resp" && _fw_temp_source="archive" || true
   else
     log "WARNING: weather archive curl failed for $3 ($1,$2)"
   fi
   if [ -z "$_fw_t" ] && [ "${_fw_archive_only:-0}" != "1" ]; then
     log "weather: archive miss, fetching forecast $3 ($1,$2)..."
-    if ! _fw_resp=$(curl -fsS --max-time 15 \
+    if ! _fw_resp=$(curl_retry -fsS --max-time 15 \
       "https://api.open-meteo.com/v1/forecast?latitude=$1&longitude=$2&start_date=$3&end_date=$3&daily=${_fw_vars}&timezone=auto" \
-      2>&1); then
+        ); then
       log "WARNING: weather forecast curl failed for $3 ($1,$2)"
       return 1
     fi
