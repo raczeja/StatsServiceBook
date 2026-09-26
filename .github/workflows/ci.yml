@@ -53,8 +53,10 @@ jobs:
 
       - name: Run shell unit tests
         run: |
-          docker exec stravame-tests sh /opt/shell-tests.sh --junit /tmp/shell-tests.xml
-          docker cp stravame-tests:/tmp/shell-tests.xml shell-tests.xml
+          docker exec stravame-tests sh /opt/shell-tests.sh --junit /tmp/shell-tests.xml || test_status=$?
+          docker cp stravame-tests:/tmp/shell-tests.xml shell-tests.xml || copy_status=$?
+          if [ "${test_status:-0}" -ne 0 ]; then exit "$test_status"; fi
+          if [ "${copy_status:-0}" -ne 0 ]; then exit "$copy_status"; fi
 
       - name: Run functional tests
         run: |
@@ -67,9 +69,12 @@ jobs:
           cp "$GITHUB_WORKSPACE/test/test-urls.mjs" .
           cp "$GITHUB_WORKSPACE/test/playwright.config.mjs" .
           mkdir -p test-results playwright-report
-          CI=true npx playwright test --config playwright.config.mjs
-          cp -r test-results "$GITHUB_WORKSPACE/test-results" 2>/dev/null || true
-          cp -r playwright-report "$GITHUB_WORKSPACE/playwright-report" 2>/dev/null || true
+          CI=true npx playwright test --config playwright.config.mjs || test_status=$?
+          cp -r test-results "$GITHUB_WORKSPACE/test-results" 2>/dev/null || results_copy_status=$?
+          cp -r playwright-report "$GITHUB_WORKSPACE/playwright-report" 2>/dev/null || report_copy_status=$?
+          if [ "${test_status:-0}" -ne 0 ]; then exit "$test_status"; fi
+          if [ "${results_copy_status:-0}" -ne 0 ]; then exit "$results_copy_status"; fi
+          if [ "${report_copy_status:-0}" -ne 0 ]; then exit "$report_copy_status"; fi
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
@@ -123,7 +128,9 @@ jobs:
           import xml.etree.ElementTree as ET, os, sys
           f = "test-results/junit.xml"
           total = passed = failed = skipped = 0
-          if os.path.exists(f):
+          if not os.path.exists(f):
+              line = "## Playwright results\n\nResults unavailable (JUnit report missing).\n"
+          else:
               root = ET.parse(f).getroot()
               suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
               for s in suites:
@@ -131,7 +138,7 @@ jobs:
                   failed  += int(s.get("failures", 0)) + int(s.get("errors", 0))
                   skipped += int(s.get("skipped",  0))
               passed = total - failed - skipped
-          line = f"## Playwright results\n\nTotal tests: {total} - Passed: {passed}\n\n{passed} passed, {failed} failed and {skipped} skipped\n"
+              line = f"## Playwright results\n\nTotal tests: {total} - Passed: {passed}\n\n{passed} passed, {failed} failed and {skipped} skipped\n"
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
               out.write(line)
           EOF
@@ -314,14 +321,15 @@ jobs:
           import xml.etree.ElementTree as ET
 
           def counts(path):
+            if not os.path.exists(path):
+              return None
             total = failed = skipped = 0
-            if os.path.exists(path):
-              root = ET.parse(path).getroot()
-              suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
-              for suite in suites:
-                total += int(suite.get("tests", 0))
-                failed += int(suite.get("failures", 0)) + int(suite.get("errors", 0))
-                skipped += int(suite.get("skipped", 0))
+            root = ET.parse(path).getroot()
+            suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
+            for suite in suites:
+              total += int(suite.get("tests", 0))
+              failed += int(suite.get("failures", 0)) + int(suite.get("errors", 0))
+              skipped += int(suite.get("skipped", 0))
             return total, total - failed - skipped, failed, skipped
 
           playwright = counts("downloaded-results/junit.xml")
@@ -329,14 +337,14 @@ jobs:
           run = os.environ["GITHUB_RUN_NUMBER"]
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
             out.write("## Test results\n\n")
-            out.write(
-              f"Playwright: **{playwright[1]} passed**, {playwright[2]} failed, "
-              f"{playwright[3]} skipped ({playwright[0]} total)\n\n"
-            )
-            out.write(
-              f"Shell: **{shell[1]} passed**, {shell[2]} failed, "
-              f"{shell[3]} skipped ({shell[0]} total)\n\n"
-            )
+            for name, result in (("Playwright", playwright), ("Shell", shell)):
+              if result is None:
+                out.write(f"{name}: **results unavailable** (JUnit report missing)\n\n")
+              else:
+                out.write(
+                  f"{name}: **{result[1]} passed**, {result[2]} failed, "
+                  f"{result[3]} skipped ({result[0]} total)\n\n"
+                )
             out.write("## Test reports\n\n")
             out.write(
               f"- [Playwright report — run #{run}]"

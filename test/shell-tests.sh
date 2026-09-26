@@ -3105,34 +3105,6 @@ _pv_bid="$(jq -r --arg n "$_pv_gear_name" \
 _pv_gear_id=""; [ -n "$_pv_bid" ] && [ "$_pv_bid" != "null" ] && _pv_gear_id="b${_pv_bid}"
 assert_eq "$S" "gear-id-resolved"      "$_pv_gear_id" "b16239154"
 
-# ── JUnit XML output ──────────────────────────────────────────────────────────
-
-if [ -n "$JUNIT_OUT" ]; then
-    total=$((PASS + FAIL))
-    {
-        printf '<?xml version="1.0" encoding="UTF-8"?>\n'
-        printf '<testsuites>\n'
-        printf '<testsuite name="shell-tests" tests="%d" failures="%d" time="0">\n' \
-            "$total" "$FAIL"
-        TAB="$(printf '\t')"
-        while IFS="$TAB" read -r suite name status msg; do
-            safe_suite="$(_xml_escape "$suite")"
-            safe_name="$(_xml_escape "$name")"
-            safe_msg="$(_xml_escape "$msg")"
-            printf '  <testcase classname="%s" name="%s / %s" time="0">' \
-                "$safe_suite" "$safe_suite" "$safe_name"
-            if [ "$status" = "fail" ]; then
-                printf '\n    <failure message="%s">%s</failure>\n  ' \
-                    "$safe_msg" "$safe_msg"
-            fi
-            printf '</testcase>\n'
-        done < "$RESULTS"
-        printf '</testsuite>\n'
-        printf '</testsuites>\n'
-    } > "$JUNIT_OUT"
-    printf 'JUnit XML written to %s\n' "$JUNIT_OUT"
-fi
-
 # ── heatmap-atomic-write ──────────────────────────────────────────────────────
 # Verifies the tmp→mv pattern introduced in strava-my-html-heatmap.sh §7:
 # the old heatmap.json stays readable until mv replaces it atomically, the
@@ -3334,6 +3306,32 @@ assert_eq "$S" "lb-src-still-present" \
 unset AJ_DIR AJ_FILE AJ_TMP LB_SRC LB_TMP LB_DST _age_during _age_after _stored_age _aj_out
 
 # ── summary ───────────────────────────────────────────────────────────────────
+
+if [ -n "$JUNIT_OUT" ]; then
+    total=$((PASS + FAIL))
+    {
+        printf '<?xml version="1.0" encoding="UTF-8"?>\n'
+        printf '<testsuites>\n'
+        printf '<testsuite name="shell-tests" tests="%d" failures="%d" time="0">\n' \
+            "$total" "$FAIL"
+        TAB="$(printf '\t')"
+        while IFS="$TAB" read -r suite name status msg; do
+            safe_suite="$(_xml_escape "$suite")"
+            safe_name="$(_xml_escape "$name")"
+            safe_msg="$(_xml_escape "$msg")"
+            printf '  <testcase classname="%s" name="%s / %s" time="0">' \
+                "$safe_suite" "$safe_suite" "$safe_name"
+            if [ "$status" = "fail" ]; then
+                printf '\n    <failure message="%s">%s</failure>\n  ' \
+                    "$safe_msg" "$safe_msg"
+            fi
+            printf '</testcase>\n'
+        done < "$RESULTS"
+        printf '</testsuite>\n'
+        printf '</testsuites>\n'
+    } > "$JUNIT_OUT"
+    printf 'JUnit XML written to %s\n' "$JUNIT_OUT"
+fi
 
 printf '\n==> Shell tests: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
