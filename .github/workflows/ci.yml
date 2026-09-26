@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
   workflow_dispatch:
 
 env:
@@ -309,6 +309,41 @@ jobs:
       - name: Add Pages links to summary
         if: always()
         run: |
-          echo "## Test Reports" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [Playwright report — run #${{ github.run_number }}](https://raczeja.github.io/StatsServiceBook/run-${{ github.run_number }}/)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [Test statistics — last 30 days](https://raczeja.github.io/StatsServiceBook/stats/)" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'EOF'
+          import os
+          import xml.etree.ElementTree as ET
+
+          def counts(path):
+            total = failed = skipped = 0
+            if os.path.exists(path):
+              root = ET.parse(path).getroot()
+              suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
+              for suite in suites:
+                total += int(suite.get("tests", 0))
+                failed += int(suite.get("failures", 0)) + int(suite.get("errors", 0))
+                skipped += int(suite.get("skipped", 0))
+            return total, total - failed - skipped, failed, skipped
+
+          playwright = counts("downloaded-results/junit.xml")
+          shell = counts("downloaded-shell-report/shell-tests.xml")
+          run = os.environ["GITHUB_RUN_NUMBER"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+            out.write("## Test results\n\n")
+            out.write(
+              f"Playwright: **{playwright[1]} passed**, {playwright[2]} failed, "
+              f"{playwright[3]} skipped ({playwright[0]} total)\n\n"
+            )
+            out.write(
+              f"Shell: **{shell[1]} passed**, {shell[2]} failed, "
+              f"{shell[3]} skipped ({shell[0]} total)\n\n"
+            )
+            out.write("## Test reports\n\n")
+            out.write(
+              f"- [Playwright report — run #{run}]"
+              f"(https://raczeja.github.io/StatsServiceBook/run-{run}/)\n"
+            )
+            out.write(
+              "- [Test statistics — last 30 days]"
+              "(https://raczeja.github.io/StatsServiceBook/stats/)\n"
+            )
+          EOF
