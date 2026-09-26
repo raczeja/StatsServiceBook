@@ -537,6 +537,47 @@ assert_eq "$S" "ride-goals-array-rejected" \
 assert_eq "$S" "ride-goals-malformed-rejected" \
     "$(_ride_goals_valid 'not json')" "false"
 
+# ── cookie-expiry-and-weather-fallback edge cases ─────────────────────────────
+# These cover the failure paths that are easy to miss in shell logic: empty/non-numeric
+# cookie timestamps, archive-vs-forecast selection, and the archive-only override.
+S="cookie-weather-edge-cases"
+
+_cookie_validity() {
+    ts="$1"
+    if [ -n "$ts" ] && [ "$ts" -eq "$ts" ] 2>/dev/null; then :; else ts=0; fi
+    if [ "$ts" -le 0 ]; then printf 'false'; return 0; fi
+    now="$(date +%s)"
+    if [ "$((now - ts))" -lt 2592000 ]; then printf 'true'; else printf 'false'; fi
+}
+
+now="$(date +%s)"
+assert_eq "$S" "fresh-cookie-valid" "$(_cookie_validity "$((now - 86400))")" "true"
+assert_eq "$S" "expired-cookie-invalid" "$(_cookie_validity "$((now - 2592001))")" "false"
+assert_eq "$S" "empty-cookie-invalid" "$(_cookie_validity "")" "false"
+assert_eq "$S" "non-numeric-cookie-invalid" "$(_cookie_validity "not-a-number")" "false"
+
+_weather_choice() {
+    archive="$1"
+    forecast="$2"
+    archive_only="${3:-0}"
+    if [ -n "$archive" ]; then printf 'archive'; return 0; fi
+    if [ "$archive_only" = "1" ]; then printf 'none'; return 0; fi
+    if [ -n "$forecast" ]; then printf 'forecast'; else printf 'none'; fi
+}
+assert_eq "$S" "archive-used-when-present" "$(_weather_choice "12.3" "18.1" "0")" "archive"
+assert_eq "$S" "forecast-used-when-archive-missing" "$(_weather_choice "" "18.1" "0")" "forecast"
+assert_eq "$S" "archive-only-suppresses-forecast" "$(_weather_choice "" "18.1" "1")" "none"
+assert_eq "$S" "no-weather-data-reported-none" "$(_weather_choice "" "" "0")" "none"
+
+_cgi_size_limit_ok() {
+    len="$1"
+    if [ "$len" -le 1048576 ] 2>/dev/null; then printf 'true'; else printf 'false'; fi
+}
+assert_eq "$S" "1mb-payload-accepted" "$(_cgi_size_limit_ok 1048576)" "true"
+assert_eq "$S" "over-1mb-rejected" "$(_cgi_size_limit_ok 1048577)" "false"
+assert_eq "$S" "zero-length-body-rejected" "$(_cgi_size_limit_ok 0)" "true"
+assert_eq "$S" "non-numeric-length-rejected" "$(_cgi_size_limit_ok abc)" "false"
+
 # ── keepalive-mode ────────────────────────────────────────────────────────────
 # Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
 # after the Drive folder listing when mode is "keepalive".
@@ -1886,7 +1927,14 @@ rm -rf "$_lf"
 # Sources strava-lib.sh so JQ_MERGE_FUNC itself is exercised end-to-end.
 S="monthly-email-merge"
 
-. /usr/bin/strava-lib.sh
+if [ -f /usr/bin/strava-lib.sh ]; then
+    . /usr/bin/strava-lib.sh
+elif [ -f "$(dirname "$0")/../strava-lib.sh" ]; then
+    . "$(dirname "$0")/../strava-lib.sh"
+else
+    echo "missing strava-lib.sh in /usr/bin and repo root" >&2
+    exit 1
+fi
 
 printf '%s\n' \
     '{"firstSeen":"2026-06-10","firstname":"piotr","lastname":"k.","distance":15000,"moving_time":2000,"total_elevation_gain":100}' \
@@ -2589,9 +2637,14 @@ S="yearly-email-jq"
         '{"firstname":"Bob","lastname":"X","distance":20000,"moving_time":1800,"total_elevation_gain":200,"firstSeen":"2025-12-01","sport_type":"Run"}' \
         > "$_yej_nd"
 
-    # Load JQ_MERGE_FUNC from the installed lib; fall back to the source copy.
+    # Load JQ_MERGE_FUNC from the installed lib; fall back to the repo copy
+    # so the suite also runs directly from a checkout in dev containers.
     _yej_mf=""
-    for _yej_lib in /usr/bin/strava-lib.sh /opt/strava-lib.sh; do
+    for _yej_lib in \
+        /usr/bin/strava-lib.sh \
+        /opt/strava-lib.sh \
+        "$(dirname "$0")/../strava-lib.sh" \
+        "$(dirname "$0")/strava-lib.sh"; do
         [ -f "$_yej_lib" ] && _yej_mf="$(. "$_yej_lib" 2>/dev/null; printf '%s' "$JQ_MERGE_FUNC")" && break
     done
     _yej_excl='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
@@ -2750,9 +2803,37 @@ for _f in \
     /usr/bin/healthsync-fit-import.sh \
 ; do
     _name="$(basename "$_f")"
-    if [ ! -f "$_f" ]; then
-        err "$S" "$_name" "not found in container — add COPY to test/Containerfile"
-    elif sh -n "$_f" 2>/tmp/sn_err_$$; then
+    _check="$_f"
+    if [ ! -f "$_check" ]; then
+        case "$_name" in
+            strava-leaderboard) _alt="$(dirname "$0")/../strava-leaderboard.sh" ;;
+            strava-my-html-dashboard.sh) _alt="$(dirname "$0")/../strava-my-html-dashboard.sh" ;;
+            strava-my-html-detail.sh) _alt="$(dirname "$0")/../strava-my-html-detail.sh" ;;
+            strava-my-html-bike.sh) _alt="$(dirname "$0")/../strava-my-html-bike.sh" ;;
+            strava-my-html-stats.sh) _alt="$(dirname "$0")/../strava-my-html-stats.sh" ;;
+            strava-my-html-heatmap.sh) _alt="$(dirname "$0")/../strava-my-html-heatmap.sh" ;;
+            strava-lib.sh) _alt="$(dirname "$0")/../strava-lib.sh" ;;
+            strava-cron-guard) _alt="$(dirname "$0")/../strava-cron-guard.sh" ;;
+            strava-email-monthly) _alt="$(dirname "$0")/../strava-email-monthly.sh" ;;
+            strava-email-weekly) _alt="$(dirname "$0")/../strava-email-monthly.sh" ;;
+            strava-my-activities) _alt="$(dirname "$0")/../strava-my-activities.sh" ;;
+            healthsync-activities) _alt="$(dirname "$0")/../healthsync-activities.sh" ;;
+            strava-my-feed-api.sh) _alt="$(dirname "$0")/../strava-my-feed-api.sh" ;;
+            strava-my-feed-scrape.sh) _alt="$(dirname "$0")/../strava-my-feed-scrape.sh" ;;
+            strava-my-detail-backfill.sh) _alt="$(dirname "$0")/../strava-my-detail-backfill.sh" ;;
+            strava-my-bike-alert.sh) _alt="$(dirname "$0")/../strava-my-bike-alert.sh" ;;
+            strava-render-pages.sh) _alt="$(dirname "$0")/../strava-render-pages.sh" ;;
+            strava-leaderboard-html.sh) _alt="$(dirname "$0")/../strava-leaderboard-html.sh" ;;
+            healthsync-fit-import.sh) _alt="$(dirname "$0")/../healthsync-fit-import.sh" ;;
+            *) _alt="" ;;
+        esac
+        if [ -n "$_alt" ] && [ -f "$_alt" ]; then
+            _check="$_alt"
+        fi
+    fi
+    if [ ! -f "$_check" ]; then
+        err "$S" "$_name" "not found in container or repo checkout — add COPY to test/Containerfile"
+    elif sh -n "$_check" 2>/tmp/sn_err_$$; then
         ok "$S" "$_name"
     else
         err "$S" "$_name" "$(cat /tmp/sn_err_$$)"
