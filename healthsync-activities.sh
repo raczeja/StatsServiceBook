@@ -655,7 +655,7 @@ jq -s \
         max_speed:            (.max_speed // 0),
         average_heartrate:    .average_heartrate,
         max_heartrate:        .max_heartrate,
-        average_cadence:      null,
+        average_cadence:      .average_cadence,
         average_watts:        .average_watts,
         kilojoules:           .kilojoules,
         average_temp:         .average_temp,
