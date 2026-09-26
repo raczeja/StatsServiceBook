@@ -10,9 +10,15 @@ test.describe("cgi-bike-service", () => {
     const r = await fetch(ENDPOINT, { cache: "no-store" });
     expect(r.status, `expected 200, got ${r.status}`).toBe(200);
     const ct = r.headers.get("content-type") ?? "";
-    expect(ct.includes("json"), `expected JSON content-type, got: ${ct}`).toBeTruthy();
+    expect(
+      ct.includes("json"),
+      `expected JSON content-type, got: ${ct}`,
+    ).toBeTruthy();
     const data = await r.json();
-    expect(Array.isArray(data.bikes), "data.bikes is not an Array").toBeTruthy();
+    expect(
+      Array.isArray(data.bikes),
+      "data.bikes is not an Array",
+    ).toBeTruthy();
     expect(
       data.bikes.length >= 4,
       `expected >= 4 bikes, got ${data.bikes.length}`,
@@ -28,6 +34,39 @@ test.describe("cgi-bike-service", () => {
       Array.isArray(road.parts) && road.parts.length >= 1,
       `Road Bike.parts is empty or not an array`,
     ).toBeTruthy();
+  });
+
+  test("POST-invalid-json-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not valid json",
+    });
+    expect(r.status, `expected 400 for malformed JSON, got ${r.status}`).toBe(
+      400,
+    );
+  });
+
+  test("POST-non-object-json-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(["not", "an", "object"]),
+    });
+    expect(r.status, `expected 400 for array payload, got ${r.status}`).toBe(
+      400,
+    );
+  });
+
+  test("POST-bikes-must-be-array-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bikes: { broken: true } }),
+    });
+    expect(r.status, `expected 400 for bikes object, got ${r.status}`).toBe(
+      400,
+    );
   });
 
   test("POST-service-note-persists", async () => {
@@ -61,7 +100,10 @@ test.describe("cgi-bike-service", () => {
     const vRoad = verify.bikes.find((b) => b.name === "Road Bike");
     const vPart = vRoad?.parts?.find((p) => p.id === testPart.id);
     const found = vPart?.services?.some((s) => s.note === testNote);
-    expect(found, `POST'd service note not found on subsequent GET`).toBeTruthy();
+    expect(
+      found,
+      `POST'd service note not found on subsequent GET`,
+    ).toBeTruthy();
   });
 });
 
@@ -83,10 +125,15 @@ test.describe("cgi-ride-goals", () => {
     const r = await fetch(ENDPOINT, { cache: "no-store" });
     expect(r.status, `expected 200, got ${r.status}`).toBe(200);
     const ct = r.headers.get("content-type") ?? "";
-    expect(ct.includes("json"), `expected JSON content-type, got: ${ct}`).toBeTruthy();
+    expect(
+      ct.includes("json"),
+      `expected JSON content-type, got: ${ct}`,
+    ).toBeTruthy();
     const data = await r.json();
     expect(
-      data.goals !== undefined && typeof data.goals === "object" && !Array.isArray(data.goals),
+      data.goals !== undefined &&
+        typeof data.goals === "object" &&
+        !Array.isArray(data.goals),
       `data.goals must be a plain object, got: ${JSON.stringify(data.goals)}`,
     ).toBeTruthy();
   });
@@ -96,7 +143,7 @@ test.describe("cgi-ride-goals", () => {
     const postR = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals: { "2026": testKm } }),
+      body: JSON.stringify({ goals: { 2026: testKm } }),
     });
     expect(postR.ok, `POST failed with status ${postR.status}`).toBeTruthy();
     const posted = await postR.json();
@@ -114,13 +161,36 @@ test.describe("cgi-ride-goals", () => {
     ).toBe(testKm);
   });
 
+  test("POST-malformed-json-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not valid json",
+    });
+    expect(r.status, `expected 400 for malformed JSON, got ${r.status}`).toBe(
+      400,
+    );
+  });
+
+  test("POST-goals-as-null-400", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goals: null }),
+    });
+    expect(r.status, `expected 400 for null goals, got ${r.status}`).toBe(400);
+  });
+
   test("POST-missing-goals-key-400", async () => {
     const r = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: {} }),
     });
-    expect(r.status, `expected 400 for missing goals key, got ${r.status}`).toBe(400);
+    expect(
+      r.status,
+      `expected 400 for missing goals key, got ${r.status}`,
+    ).toBe(400);
   });
 
   test("POST-goals-as-array-400", async () => {
