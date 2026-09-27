@@ -21,13 +21,20 @@ test.describe("mobile-stats-touch-controls", () => {
     page = await browser.newPage();
     page.on("pageerror", (e) => jsErrors.push(e));
     await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
-    try { await page.waitForSelector(".sec[data-sid]", { timeout: 10000 }); } catch (_) {}
+    try {
+      await page.waitForSelector(".sec[data-sid]", { timeout: 10000 });
+    } catch (_) {}
   });
 
-  test.afterAll(async () => { await page.close(); });
+  test.afterAll(async () => {
+    await page.close();
+  });
 
   test("no-js-errors", async () => {
-    expect(jsErrors.map((e) => e.message).join("; "), "JS errors on mobile stats").toBe("");
+    expect(
+      jsErrors.map((e) => e.message).join("; "),
+      "JS errors on mobile stats",
+    ).toBe("");
   });
 
   test("sec-handle-hidden-on-touch", async () => {
@@ -39,7 +46,10 @@ test.describe("mobile-stats-touch-controls", () => {
         (el) => window.getComputedStyle(el).display === "none",
       );
     });
-    expect(hidden, "expected all .sec-handle elements hidden on touch (pointer:coarse)").toBe(true);
+    expect(
+      hidden,
+      "expected all .sec-handle elements hidden on touch (pointer:coarse)",
+    ).toBe(true);
   });
 
   test("sec-order-reset-hidden-on-touch", async () => {
@@ -50,12 +60,15 @@ test.describe("mobile-stats-touch-controls", () => {
         (el) => window.getComputedStyle(el).display === "none",
       );
     });
-    expect(hidden, "expected .sec-order-reset button hidden on touch (pointer:coarse)").toBe(true);
+    expect(
+      hidden,
+      "expected .sec-order-reset button hidden on touch (pointer:coarse)",
+    ).toBe(true);
   });
 
   test("all-sections-still-render", async () => {
     const n = await page.$$eval(".sec[data-sid]", (els) => els.length);
-    expect(n, `expected 9 stat sections on mobile, got ${n}`).toBe(9);
+    expect(n, `expected 10 stat sections on mobile, got ${n}`).toBe(10);
   });
 });
 
@@ -69,10 +82,14 @@ test.describe("mobile-stats-layout", () => {
     page = await browser.newPage();
     page.on("pageerror", (e) => jsErrors.push(e));
     await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
-    try { await page.waitForSelector(".kpis .kpi", { timeout: 10000 }); } catch (_) {}
+    try {
+      await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+    } catch (_) {}
   });
 
-  test.afterAll(async () => { await page.close(); });
+  test.afterAll(async () => {
+    await page.close();
+  });
 
   test("kpi-cards-fit-within-viewport", async () => {
     // At 375px, @media(max-width:640px) applies: kpi minmax drops to 120px.
@@ -109,13 +126,20 @@ test.describe("mobile-dashboard-chart-tooltip", () => {
     page = await browser.newPage();
     page.on("pageerror", (e) => jsErrors.push(e));
     await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
-    try { await page.waitForSelector("svg rect[ontouchstart]", { timeout: 10000 }); } catch (_) {}
+    try {
+      await page.waitForSelector("svg rect[ontouchstart]", { timeout: 10000 });
+    } catch (_) {}
   });
 
-  test.afterAll(async () => { await page.close(); });
+  test.afterAll(async () => {
+    await page.close();
+  });
 
   test("no-js-errors", async () => {
-    expect(jsErrors.map((e) => e.message).join("; "), "JS errors on mobile dashboard chart").toBe("");
+    expect(
+      jsErrors.map((e) => e.message).join("; "),
+      "JS errors on mobile dashboard chart",
+    ).toBe("");
   });
 
   test("chart-tip-shown-on-touchstart", async () => {
@@ -127,12 +151,21 @@ test.describe("mobile-dashboard-chart-tooltip", () => {
       const cx = bounds.left + bounds.width / 2;
       const cy = bounds.top + bounds.height / 2;
       // Simulate a touch at the bar's centre — ontouchstart reads touches[0].clientX/Y.
-      const touch = new Touch({ identifier: 1, target: rect, clientX: cx, clientY: cy });
-      rect.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch] }));
+      const touch = new Touch({
+        identifier: 1,
+        target: rect,
+        clientX: cx,
+        clientY: cy,
+      });
+      rect.dispatchEvent(
+        new TouchEvent("touchstart", { bubbles: true, touches: [touch] }),
+      );
       const tip = document.getElementById("chart-tip");
       return tip ? tip.style.display : null;
     });
-    expect(shown, `#chart-tip display after touchstart, got "${shown}"`).toBe("block");
+    expect(shown, `#chart-tip display after touchstart, got "${shown}"`).toBe(
+      "block",
+    );
   });
 
   test("chart-tip-has-content-after-touchstart", async () => {
@@ -140,7 +173,10 @@ test.describe("mobile-dashboard-chart-tooltip", () => {
       const tip = document.getElementById("chart-tip");
       return tip ? tip.textContent.trim() : "";
     });
-    expect(text.length, `#chart-tip should have non-empty text after touchstart, got "${text}"`).toBeGreaterThan(0);
+    expect(
+      text.length,
+      `#chart-tip should have non-empty text after touchstart, got "${text}"`,
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -154,18 +190,28 @@ test.describe("mobile-dashboard-layout", () => {
     page = await browser.newPage();
     page.on("pageerror", (e) => jsErrors.push(e));
     await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
-    try { await page.waitForSelector("#board tr", { timeout: 10000 }); } catch (_) {}
+    try {
+      await page.waitForSelector("#board tr", { timeout: 10000 });
+    } catch (_) {}
   });
 
-  test.afterAll(async () => { await page.close(); });
+  test.afterAll(async () => {
+    await page.close();
+  });
 
   test("no-js-errors", async () => {
-    expect(jsErrors.map((e) => e.message).join("; "), "JS errors on mobile dashboard").toBe("");
+    expect(
+      jsErrors.map((e) => e.message).join("; "),
+      "JS errors on mobile dashboard",
+    ).toBe("");
   });
 
   test("activity-rows-present", async () => {
     const n = await page.$$eval("#board tr", (rows) => rows.length);
-    expect(n, `expected at least 1 activity row on mobile dashboard, got ${n}`).toBeGreaterThanOrEqual(1);
+    expect(
+      n,
+      `expected at least 1 activity row on mobile dashboard, got ${n}`,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   test("h1-does-not-overflow-viewport", async () => {
