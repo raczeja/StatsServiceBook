@@ -100,7 +100,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 </head>
 <body>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><h1 style="margin:0">🏆 Club Leaderboard</h1><button id="theme-tog">🌙</button></div>
-<div class="nav"><a href="me/">→ My Activities</a></div>
+<div class="nav"><a href="me/">→ My Activities</a> &middot; <a href="me/data-quality.html">Data completeness</a></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>

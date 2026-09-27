@@ -80,6 +80,8 @@ cp "$SRC_DIR/strava-my-html-stats.sh"    /usr/bin/strava-my-html-stats.sh
 chmod 0644 /usr/bin/strava-my-html-stats.sh
 cp "$SRC_DIR/strava-my-html-heatmap.sh" /usr/bin/strava-my-html-heatmap.sh
 chmod 0644 /usr/bin/strava-my-html-heatmap.sh
+cp "$SRC_DIR/strava-my-html-data-quality.sh" /usr/bin/strava-my-html-data-quality.sh
+chmod 0644 /usr/bin/strava-my-html-data-quality.sh
 cp "$SRC_DIR/strava-my-feed-api.sh"        /usr/bin/strava-my-feed-api.sh
 chmod 0644 /usr/bin/strava-my-feed-api.sh
 cp "$SRC_DIR/strava-my-feed-scrape.sh"     /usr/bin/strava-my-feed-scrape.sh
