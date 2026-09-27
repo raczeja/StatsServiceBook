@@ -58,6 +58,10 @@ command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bund
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
 
 mkdir -p "$WEB_DIR" "$SNAPSHOT_DIR"
+if [ "$WEB_DIR" != "/www/strava" ]; then
+  mkdir -p /www/strava
+  ln -sfn "$WEB_DIR/leaderboard-sync-status.json" /www/strava/leaderboard-sync-status.json
+fi
 
 TOKEN_STATE="$STATE_DIR/token.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
