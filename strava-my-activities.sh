@@ -502,18 +502,26 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         average_temp:           (.average_temp // null),
         suffer_score:           (.suffer_score // null),
         calories:               (.calories // null),
-        gear_id:                (.gear.id // null),
-        has_gps:                (
-          ((.map.polyline // "") | length) > 0
-          or ((.map.summary_polyline // "") | length) > 0
-          or ((.start_latlng // []) | length) >= 2
-          or ((.gpx_file // "") | length) > 0
-        )
+        gear_id:                (.gear.id // null)
       }
     }) | add // {}
   ' "$DETAIL_DIR"/*.json > "$TMP/enrich.json"
+  # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
+  # or mismatched .id while the file name and its GPX route match the activity.
+  jq -n '
+    reduce inputs as $detail ({};
+      (input_filename | split("/") | last | sub("\\.json$"; "")) as $id
+      | .[$id] = (
+          (((($detail.map.polyline // "") | length) > 0)
+          or ((($detail.map.summary_polyline // "") | length) > 0)
+          or ((($detail.start_latlng // []) | length) >= 2)
+          or ((($detail.gpx_file // "") | length) > 0))
+        )
+    )
+  ' "$DETAIL_DIR"/*.json > "$TMP/gps.json"
 else
   echo '{}' > "$TMP/enrich.json"
+  echo '{}' > "$TMP/gps.json"
 fi
 
 # Gear (bike) names: detailed activities carry a .gear object with the gear's id
@@ -535,11 +543,13 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   --argjson scrapeMeta "$_sc_meta" \
   --slurpfile det "$TMP/detail_ids.json" \
   --slurpfile enr "$TMP/enrich.json" \
+  --slurpfile gps "$TMP/gps.json" \
   --slurpfile gears "$TMP/gears.json" \
   --slurpfile assigns "$TMP/bike-assign.json" \
   --slurpfile wcache "$WEATHER_CACHE" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
   | ($enr[0] // {}) as $enrich
+  | ($gps[0] // {}) as $gps_by_id
   | ($assigns[0] // {}) as $A
   | ($wcache[0] // {}) as $W
   | {
@@ -583,7 +593,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           precipitation:          (if ($wc | type) == "object" then $wc.pr else null end),
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
-          has_gps:                (if ($have[(.id | tostring)] // false) then ($e.has_gps // ((.gpx_file // "") != "")) else null end),
+          has_gps:                (if ($have[(.id | tostring)] // false) then ($gps_by_id[(.id | tostring)] // false) else null end),
           detail:                 (($have[(.id | tostring)]) // false)
         }
     ] | sort_by(.date) | reverse
