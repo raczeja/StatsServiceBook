@@ -74,7 +74,25 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" > "$LOCKFILE/pid"
-trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-leaderboard exited with code $_rc"' EXIT
+write_sync_status() {
+  _rc=$?
+  _now="$(date +%s)"
+  _status_tmp="$WEB_DIR/.leaderboard-sync-status.$$"
+  if [ "$_rc" -eq 0 ]; then
+    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now}' > "$_status_tmp"
+  else
+    _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/leaderboard-sync-status.json" 2>/dev/null || true)"
+    case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
+    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+      --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
+      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error}' > "$_status_tmp"
+  fi
+  mv "$_status_tmp" "$WEB_DIR/leaderboard-sync-status.json"
+  rm -rf "$TMP" "$LOCKFILE"
+  [ "$_rc" -eq 0 ] || log "FATAL: strava-leaderboard exited with code $_rc"
+}
+trap 'write_sync_status' EXIT
 
 # --- 1. Authenticate (api: OAuth token refresh; scrape: web session login) --
 # Cookie dry-run: when STRAVA_SOURCE=api but STRAVA_SESSION_COOKIE is also set,

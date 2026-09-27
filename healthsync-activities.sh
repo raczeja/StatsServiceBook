@@ -67,7 +67,30 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" > "$LOCKFILE/pid"
-trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: healthsync-activities exited with code $_rc"' EXIT
+_hs_sync_error=""
+write_sync_status() {
+    _rc=$?
+    _now="$(date +%s)"
+    _mode="${HEALTHSYNC_MODE:-full}"
+    _status_tmp="$WEB_DIR/.healthsync-sync-status.$$"
+    _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/healthsync-sync-status.json" 2>/dev/null || true)"
+    case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
+    if [ "$_rc" -eq 0 ] && [ -z "$_hs_sync_error" ]; then
+        _ok=true
+        if [ "$_mode" != "keepalive" ] && [ "$IMPORT_ENABLED" != "0" ]; then _last_success="$_now"; fi
+    else
+        _ok=false
+        [ -n "$_hs_sync_error" ] || _hs_sync_error="Sync exited with status $_rc"
+    fi
+    jq -n --arg mode "$_mode" --argjson now "$_now" \
+        --argjson ok "$_ok" --argjson lastSuccess "$_last_success" --arg error "$_hs_sync_error" \
+        --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
+        '{source:"HealthSync",mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end)}' > "$_status_tmp"
+    mv "$_status_tmp" "$WEB_DIR/healthsync-sync-status.json"
+    rm -rf "$TMP" "$LOCKFILE"
+    [ "$_rc" -eq 0 ] || log "FATAL: healthsync-activities exited with code $_rc"
+}
+trap 'write_sync_status' EXIT
 
 # --- 0. One-time migration: import historical activities from a Strava store --
 # Set HEALTHSYNC_IMPORT_STRAVA_STORE=/path/to/strava-my-activities/activities.ndjson
@@ -153,6 +176,7 @@ ensure_drive_token() {
 
 if ! ensure_drive_token; then
     IMPORT_ENABLED=0
+    _hs_sync_error="Google Drive token refresh failed"
 fi
 
 # --- 2. List Drive folder (or local test dir when LOCAL_DRIVE_DIR is set) -----
@@ -588,6 +612,7 @@ for _hs in "$LIBDIR/strava-my-html-dashboard.sh" \
             "$LIBDIR/strava-my-html-bike.sh" \
             "$LIBDIR/strava-my-html-stats.sh" \
             "$LIBDIR/strava-my-html-heatmap.sh" \
+            "$LIBDIR/strava-my-html-data-quality.sh" \
             "$LIBDIR/strava-render-pages.sh" \
             "$LIBDIR/strava-lib.sh"; do
     [ -f "$_hs" ] && [ "$_hs" -nt "${WEB_DIR}/index.html" ] && _hs_updated=1 && break
@@ -668,6 +693,7 @@ jq -s \
         suffer_score:         null,
         calories:             .calories,
         gpx_file:             .gpx_file,
+        has_gps:              ((.gpx_file // "") | length) > 0,
         detail:               true
       }
     ] | sort_by(.date) | reverse

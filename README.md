@@ -18,14 +18,15 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 ## Pages
 
-| Page                 | URL                        | What it shows                                                                                                |
-| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Club leaderboard** | `/strava/`                 | Monthly/yearly distance ranking for your Strava club, filterable by year and month                           |
-| **My Activities**    | `/strava/me/`              | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts                   |
-| **Activity detail**  | `/strava/me/activity.html` | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts              |
-| **Personal stats**   | `/strava/me/stats.html`    | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart                 |
-| **Activity heatmap** | `/strava/me/heatmap.html`  | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter, city label overlay         |
-| **Bike service**     | `/strava/me/bike.html`     | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
+| Page                  | URL                            | What it shows                                                                                                |
+| --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **Club leaderboard**  | `/strava/`                     | Monthly/yearly distance ranking for your Strava club, filterable by year and month                           |
+| **My Activities**     | `/strava/me/`                  | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts                   |
+| **Activity detail**   | `/strava/me/activity.html`     | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts              |
+| **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart                 |
+| **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter, city label overlay         |
+| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS, heart-rate, or activity details, plus per-source sync health and stale imports                  |
+| **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
 
 ## Features
 
@@ -34,6 +35,13 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Sortable table: distance, time, elevation, avg/max speed, VAM, avg HR, avg power, work (kJ)
 - Year/month/sport-type filters; period "bests" strip (longest, most climbing, fastest, best VAM, most work)
 - Monthly bar charts for distance, time, and elevation — all client-side from a single JSON file
+
+**Data completeness**
+
+- Audits activities for missing GPS, heart-rate metrics, and detail records; GPS is shown as unknown when details are unavailable.
+- The issue list can be filtered by GPS, heart rate, and details; heart-rate-only issues are hidden by default and can be enabled.
+- Shows the latest Strava, HealthSync, and club leaderboard run. Failed, disabled, unreported, or more-than-48-hour-old imports are flagged; HealthSync keepalive checks do not count as activity imports.
+- Activity import status is recorded in `strava-sync-status.json` and `healthsync-sync-status.json`; leaderboard status is in `/strava/leaderboard-sync-status.json`.
 
 **Activity detail**
 
@@ -157,6 +165,7 @@ A healthy run ends with `done.`. Any `ERROR:` line means the run aborted — che
 **4. Browse:**
 
 - My Activities: `http://<router-ip>/strava/me/`
+- Data completeness: `http://<router-ip>/strava/me/data-quality.html`
 - Club leaderboard: `http://<router-ip>/strava/`
 
 **5. Cron is already installed** (23:50 leaderboard, 23:55 my-activities, Warsaw time). Check with `crontab -l`.
