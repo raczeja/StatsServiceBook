@@ -24,7 +24,12 @@ h1{margin:0 0 .25rem}
 a{color:var(--accent)}
 .meta{color:var(--text-3);font-size:.85rem;margin:.75rem 0 .5rem}
 .filters{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0 .75rem}
-select{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text)}
+select,input[type=search]{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text)}
+input[type=search]{min-width:12rem;max-width:18rem}
+.search-wrap{display:inline-flex;align-items:center;gap:.35rem;position:relative}
+.search-wrap input[type=search]{padding-right:1.8rem}
+.search-clear{position:absolute;right:.45rem;border:none;background:transparent;color:var(--text-4);cursor:pointer;font-size:1rem;line-height:1;padding:0}
+.search-clear:hover{color:var(--accent)}
 #resetFilters{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--btn-bg);color:var(--text-3);cursor:pointer}
 #resetFilters:hover{border-color:var(--accent);color:var(--accent)}
 .summary{margin:.25rem 0 .5rem;font-size:.95rem;color:var(--text-2);font-weight:500}
@@ -89,6 +94,7 @@ svg.bar-chart{width:100%;height:150px;display:block}
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
   <label>Sport <select id="sport"></select></label>
+  <label>Search <span class="search-wrap"><input id="activitySearch" type="search" placeholder="Activity name" aria-label="Search activities by name"><button type="button" class="search-clear" aria-label="Clear search" title="Clear search">×</button></span></label>
   <button id="resetFilters" title="Reset all filters to defaults">↺ Reset</button>
 </div>
 <div class="meta" id="meta">Loading...</div>
@@ -159,6 +165,7 @@ function hideTip() {
 var yearSel  = document.getElementById("year");
 var monthSel = document.getElementById("month");
 var sportSel = document.getElementById("sport");
+var searchEl = document.getElementById("activitySearch");
 var metaEl   = document.getElementById("meta");
 var summaryEl= document.getElementById("summary");
 var bestsEl  = document.getElementById("bests");
@@ -197,7 +204,11 @@ function setBike(actId, name){
 window.setBike = setBike;
 
 function saveFilter(){
-  try { sessionStorage.setItem("activityFilter",JSON.stringify({year:yearSel.value,month:monthSel.value,sport:sportSel.value,sortCol:sortCol,sortAsc:sortAsc})); } catch(e){}
+  try { sessionStorage.setItem("activityFilter",JSON.stringify({year:yearSel.value,month:monthSel.value,sport:sportSel.value,search:searchEl ? searchEl.value : "",sortCol:sortCol,sortAsc:sortAsc})); } catch(e){}
+}
+
+function normalizeSearch(text){
+  return String(text == null ? "" : text).trim().toLowerCase();
 }
 
 function fmtKm(m){ var s=(m/1000).toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g," "); }
@@ -369,6 +380,7 @@ function init(){
       if (_st.year  !== undefined) yearSel.value  = _st.year;
       if (_st.month !== undefined) monthSel.value = _st.month;
       if (_st.sport !== undefined) sportSel.value = _st.sport;
+      if (searchEl && _st.search !== undefined) searchEl.value = _st.search;
       if (_st.sortCol)             sortCol        = _st.sortCol;
       if (_st.sortAsc !== undefined) sortAsc      = !!_st.sortAsc;
     } catch(e) {}
@@ -377,10 +389,22 @@ function init(){
   yearSel.onchange  = function(){ if (yearSel.value === "all") monthSel.value = "all"; saveFilter(); render(); };
   monthSel.onchange = function(){ saveFilter(); render(); };
   sportSel.onchange = function(){ saveFilter(); render(); };
+  if (searchEl) {
+    searchEl.oninput = function(){ saveFilter(); render(); };
+    var clearBtn = document.querySelector(".search-clear");
+    if (clearBtn) {
+      clearBtn.onclick = function(){
+        searchEl.value = "";
+        saveFilter();
+        render();
+      };
+    }
+  }
   document.getElementById("resetFilters").onclick = function() {
     try { sessionStorage.removeItem("activityFilter"); } catch(e) {}
     sortCol = "date";
     sortAsc = false;
+    if (searchEl) searchEl.value = "";
     init();
   };
   render();
@@ -555,16 +579,19 @@ function render(){
   var year  = yearSel.value === "all" ? "all" : +yearSel.value;
   var month = monthSel.value;
   var sport = sportSel.value;
+  var search = searchEl ? normalizeSearch(searchEl.value) : "";
   var label;
   if (year === "all") label = month === "all" ? "All years" : MONTHS[+month-1]+" · all years";
   else                label = month === "all" ? String(year) : MONTHS[+month-1]+" "+year;
   if (sport !== "all") label += " · "+sport;
+  if (search) label += " · search \""+esc(search)+"\"";
 
   var rows = (DATA.activities || []).filter(function(a){
     if (!a.date) return false;
     if (year !== "all" && +a.date.slice(0,4) !== year) return false;
     if (month !== "all" && +a.date.slice(5,7) !== +month) return false;
     if (sport !== "all" && a.sport_type !== sport) return false;
+    if (search && normalizeSearch(a.name || "").indexOf(search) === -1) return false;
     return true;
   });
 
@@ -584,6 +611,7 @@ function render(){
     if (!a.date) return false;
     if (year !== "all" && +a.date.slice(0,4) !== year) return false;
     if (sport !== "all" && a.sport_type !== sport) return false;
+    if (search && normalizeSearch(a.name || "").indexOf(search) === -1) return false;
     return true;
   });
   renderCharts(yearRows, month, year);
