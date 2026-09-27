@@ -339,6 +339,36 @@ test.describe("dashboard-best-chips", () => {
       `expected "°C" in Hottest chip, got: "${hotText}"`,
     ).toBeTruthy();
   });
+
+  test("most-climbing-chip-present", async () => {
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("#bests .best")].some((el) =>
+          el.textContent.includes("Most climbing"),
+        ),
+      { timeout: 10000 },
+    );
+    const chip = await page.$eval(
+      "#bests .best",
+      (el) => el.parentElement.textContent,
+    );
+    expect(chip).toContain("Most climbing");
+  });
+
+  test("longest-climb-chip-present", async () => {
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("#bests .best")].some((el) =>
+          el.textContent.includes("Longest climb"),
+        ),
+      { timeout: 10000 },
+    );
+    const labels = await page.$$eval("#bests .best b", (els) =>
+      els.map((el) => el.textContent),
+    );
+    expect(labels).toContain("Most climbing");
+    expect(labels).toContain("Longest climb");
+  });
 });
 
 // ── Activity Filtering & Refresh ───────────────────────────────────────────────

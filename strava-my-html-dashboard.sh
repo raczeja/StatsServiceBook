@@ -408,6 +408,7 @@ function init(){
     init();
   };
   render();
+  loadSingleClimbs(DATA.activities || [], function(changed){ if (changed) render(); });
 }
 
 var MON_ABB = ["J","F","M","A","M","J","J","A","S","O","N","D"];
@@ -575,6 +576,52 @@ function sortRows(rows){
   return rows;
 }
 
+// Largest upward change in the smoothed elevation profile. This stays in the
+// browser so the router only serves the GPX files it already stores.
+function maxSingleClimbFromGpx(txt){
+  var doc = (new DOMParser()).parseFromString(txt, "application/xml");
+  var els = doc.getElementsByTagNameNS("*", "ele"), raw = [], i, j, from, to, sum;
+  for (i = 0; i < els.length; i++) {
+    var v = parseFloat(els[i].textContent);
+    if (isFinite(v)) raw.push(v);
+  }
+  if (raw.length < 2) return null;
+  var smooth = [];
+  for (i = 0; i < raw.length; i++) {
+    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0;
+    for (j = from; j <= to; j++) sum += raw[j];
+    smooth.push(sum / (to - from + 1));
+  }
+  var valley = smooth[0], best = 0;
+  for (i = 1; i < smooth.length; i++) {
+    if (smooth[i] < valley) valley = smooth[i];
+    else if (smooth[i] - valley > best) best = smooth[i] - valley;
+  }
+  return Math.max(0, Math.round(best));
+}
+
+function loadSingleClimbs(acts, done){
+  var queue = acts.filter(function(a){ return a.gpx_file && a.max_single_climb == null; });
+  var next = 0, active = 0, changed = false, finished = false;
+  function finish(){ if (!finished) { finished = true; done(changed); } }
+  function worker(){
+    if (next >= queue.length) { if (active === 0) finish(); return; }
+    var a = queue[next++]; active++;
+    fetch(a.gpx_file, {cache:"no-store"}).then(function(r){
+      if (!r.ok) throw new Error("HTTP "+r.status);
+      return r.text();
+    }).then(function(txt){
+      var climb = maxSingleClimbFromGpx(txt);
+      if (climb != null) { a.max_single_climb = climb; changed = true; }
+    }).catch(function(){}).then(function(){
+      active--; worker();
+      if (active === 0 && next >= queue.length) finish();
+    });
+  }
+  if (!queue.length) { finish(); return; }
+  worker(); worker(); worker();
+}
+
 function render(){
   var year  = yearSel.value === "all" ? "all" : +yearSel.value;
   var month = monthSel.value;
@@ -649,6 +696,7 @@ function render(){
     var chips = [];
     var bLong  = maxBy(function(a){ return a.distance; });
     var bClimb = maxBy(function(a){ return a.total_elevation_gain; });
+    var bLongestClimb = maxBy(function(a){ return a.max_single_climb; });
     var bSpeed = maxBy(function(a){ return a.average_speed; });
     var bVam   = maxBy(function(a){ return a.vam; });
     var bCal   = maxBy(function(a){ return a.calories; });
@@ -656,6 +704,8 @@ function render(){
       "Longest single activity by distance"));
     if (bClimb) chips.push(chip(bClimb, "Most climbing", fmtInt(bClimb.total_elevation_gain)+" m",
       "Single activity with the most total elevation gain"));
+    if (bLongestClimb) chips.push(chip(bLongestClimb, "Longest climb", fmtInt(bLongestClimb.max_single_climb)+" m",
+      "Largest single continuous climb calculated from the GPX elevation profile"));
     if (bSpeed) chips.push(chip(bSpeed, "Fastest avg", (bSpeed.average_speed*3.6).toFixed(1)+" km/h",
       "Highest average speed"));
     if (bVam)   chips.push(chip(bVam,   "Best VAM", fmtInt(bVam.vam)+" m/h",
