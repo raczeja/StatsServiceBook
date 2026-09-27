@@ -478,6 +478,7 @@ test.describe("stats-records", () => {
       "Longest distance",
       "Longest ride",
       "Most elevation",
+      "Longest climb",
       "Fastest avg speed",
       "Best week",
       "Best month",

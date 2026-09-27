@@ -310,9 +310,53 @@ function fmtPeriod(acts){
 }
 
 // ---- personal records -------------------------------------------------------
+function maxSingleClimbFromGpx(txt){
+  var doc = (new DOMParser()).parseFromString(txt, "application/xml");
+  var els = doc.getElementsByTagNameNS("*", "ele"), raw = [], i, j, from, to, sum;
+  for (i = 0; i < els.length; i++) {
+    var v = parseFloat(els[i].textContent);
+    if (isFinite(v)) raw.push(v);
+  }
+  if (raw.length < 2) return null;
+  var smooth = [];
+  for (i = 0; i < raw.length; i++) {
+    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0;
+    for (j = from; j <= to; j++) sum += raw[j];
+    smooth.push(sum / (to - from + 1));
+  }
+  var valley = smooth[0], best = 0;
+  for (i = 1; i < smooth.length; i++) {
+    if (smooth[i] < valley) valley = smooth[i];
+    else if (smooth[i] - valley > best) best = smooth[i] - valley;
+  }
+  return Math.max(0, Math.round(best));
+}
+
+function loadSingleClimbs(acts, done){
+  var queue = acts.filter(function(a){ return a.gpx_file && a.max_single_climb == null; });
+  var next = 0, active = 0, changed = false, finished = false;
+  function finish(){ if (!finished) { finished = true; done(changed); } }
+  function worker(){
+    if (next >= queue.length) { if (active === 0) finish(); return; }
+    var a = queue[next++]; active++;
+    fetch(a.gpx_file, {cache:"no-store"}).then(function(r){
+      if (!r.ok) throw new Error("HTTP "+r.status);
+      return r.text();
+    }).then(function(txt){
+      var climb = maxSingleClimbFromGpx(txt);
+      if (climb != null) { a.max_single_climb = climb; changed = true; }
+    }).catch(function(){}).then(function(){
+      active--; worker();
+      if (active === 0 && next >= queue.length) finish();
+    });
+  }
+  if (!queue.length) { finish(); return; }
+  worker(); worker(); worker();
+}
+
 function computeRecords(acts){
   var longest=null, longest_t=null, most_e=null, fastest=null, max_spd=null;
-  var most_pow=null, most_kj=null, most_vam=null, most_steps=null;
+  var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null;
   var weeks={}, months={}, months_count={}, dates={};
   var _stepSports={Walk:1,Hike:1};
   acts.forEach(function(a){
@@ -320,6 +364,7 @@ function computeRecords(acts){
     var pow=a.weighted_average_watts||a.average_watts||0;
     var kj=a.kilojoules||0;
     var vam=(s>0&&e>=100)?(e/(s/3600)):0;
+    var singleClimb=a.max_single_climb;
     if(!longest   ||km>longest.km)   longest  ={km:km,s:s,e:e,date:a.date,name:a.name,id:a.id};
     if(!longest_t ||s>longest_t.s)   longest_t={km:km,s:s,  date:a.date,name:a.name,id:a.id};
     if(!most_e    ||e>most_e.e)      most_e   ={km:km,s:s,e:e,date:a.date,name:a.name,id:a.id};
@@ -336,6 +381,8 @@ function computeRecords(acts){
       most_kj={kj:kj,km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(vam>0&&(!most_vam||vam>most_vam.vam))
       most_vam={vam:vam,e:e,km:km,s:s,date:a.date,name:a.name,id:a.id};
+    if(singleClimb!=null&&singleClimb>0&&(!most_single_climb||singleClimb>most_single_climb.e))
+      most_single_climb={e:singleClimb,km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(_stepSports[a.sport_type]&&a.average_cadence&&s>0){
       var st=Math.round(a.average_cadence*2*s/60);
       if(!most_steps||st>most_steps.steps)
@@ -368,6 +415,7 @@ function computeRecords(acts){
   return {
     longest:longest, longest_t:longest_t, most_e:most_e, fastest:fastest, max_spd:max_spd,
     most_pow:most_pow, most_kj:most_kj, most_vam:most_vam, most_steps:most_steps,
+    most_single_climb:most_single_climb,
     bwk:bwk?{week:bwk,km:bwkKm}:null,
     bmo:bmo?{month:bmo,km:bmoKm}:null,
     bmoCount:bmoCount?{month:bmoCount,n:bmoCountN}:null,
@@ -902,6 +950,9 @@ function render(){
   if(rec.most_e)
     ri.push(mkRec("Most elevation", fmtInt(Math.round(rec.most_e.e))+" m",
                   rec.most_e.date+"  "+fmtKmD(rec.most_e.km)+" km\n"+rec.most_e.name, _aLink(rec.most_e.id)));
+  if(rec.most_single_climb)
+    ri.push(mkRec("Longest climb", fmtInt(Math.round(rec.most_single_climb.e))+" m",
+                  rec.most_single_climb.date+"  "+fmtKmD(rec.most_single_climb.km)+" km\n"+rec.most_single_climb.name, _aLink(rec.most_single_climb.id)));
   if(rec.fastest)
     ri.push(mkRec("Fastest avg speed", rec.fastest.spd.toFixed(1)+" km/h",
                   rec.fastest.date+"  "+fmtKmD(rec.fastest.km)+" km\n"+rec.fastest.name, _aLink(rec.fastest.id)));
@@ -1032,6 +1083,7 @@ function load(){
       progressDone();
       // load goals in parallel; render immediately, then re-render with goal data
       render();
+      loadSingleClimbs(ALL_ACTS, function(changed){ if (changed) render(); });
       _loadGoals(function(gd){ renderGoals(gd); });
     })
     .catch(function(e){
