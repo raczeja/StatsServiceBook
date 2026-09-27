@@ -66,6 +66,27 @@ assert_eq "$S" "coordinates-are-gps" \
 assert_eq "$S" "no-route-means-no-gps" \
     "$(printf '%s' '{"map":{"polyline":"","summary_polyline":""}}' | jq "$_gps_filter")" "false"
 
+# ── activity-gps-detail-filename ────────────────────────────────────────────
+# GPS belongs to the activity named by the detail file even if the payload id differs.
+S="activity-gps-detail-filename"
+_gps_detail_dir="$TMP/gps-detail-filename"
+mkdir -p "$_gps_detail_dir"
+printf '%s\n' '{"id":19947838949,"gpx_file":"gpx/19912677002.gpx"}' \
+    > "$_gps_detail_dir/19912677002.json"
+_gps_by_filename="$(jq -n '
+  reduce inputs as $detail ({};
+        (input_filename | split("/") | last | sub("\\.json$"; "")) as $id
+    | .[$id] = ((((($detail.map.polyline // "") | length) > 0)
+        or ((($detail.map.summary_polyline // "") | length) > 0)
+        or ((($detail.start_latlng // []) | length) >= 2)
+        or ((($detail.gpx_file // "") | length) > 0)))
+  )
+' "$_gps_detail_dir"/*.json)"
+assert_eq "$S" "gpx-mapped-to-filename-id" \
+    "$(printf '%s' "$_gps_by_filename" | jq -r '."19912677002"')" "true"
+assert_eq "$S" "payload-id-not-used-as-gps-key" \
+    "$(printf '%s' "$_gps_by_filename" | jq 'has("19947838949")')" "false"
+
 # ── activity-id-generation ────────────────────────────────────────────────────
 # Same logic as the `while IFS= read -r base` loop in healthsync-activities.sh.
 S="activity-id-generation"
