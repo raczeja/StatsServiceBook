@@ -485,6 +485,10 @@ cp "$BIKE_ASSIGN" "$TMP/bike-assign.json"
 # each store record below. Project to scalars immediately so memory stays modest
 # even with a few hundred small detail files.
 if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
+  _detail_json_count="$(ls -1 "$DETAIL_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+  log "render: aggregating $_detail_json_count detail JSON files"
+  cat "$DETAIL_DIR"/*.json > "$TMP/details-all.json"
+  log "render: building scalar detail enrichment"
   jq -s '
     map(select(.id != null) | {
       (.id|tostring): {
@@ -505,16 +509,19 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         gear_id:                (.gear.id // null)
       }
     }) | add // {}
-  ' "$DETAIL_DIR"/*.json > "$TMP/enrich.json"
+  ' "$TMP/details-all.json" > "$TMP/enrich.json"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with
   # inputs; that combination aborts in some router jq builds on large globs.
   : > "$TMP/gps-parts.ndjson"
+  _gps_detail_count=0
   for _detail_file in "$DETAIL_DIR"/*.json; do
     [ -f "$_detail_file" ] || continue
     _detail_id="${_detail_file##*/}"
     _detail_id="${_detail_id%.json}"
+    _gps_detail_count=$((_gps_detail_count + 1))
+    [ $((_gps_detail_count % 50)) -eq 0 ] && log "render: GPS detail $_gps_detail_count/$_detail_json_count"
     if ! jq -c --arg id "$_detail_id" '{
       ($id): (
         (((.map.polyline // "") | length) > 0)
@@ -527,6 +534,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     fi
   done
   if [ -s "$TMP/gps-parts.ndjson" ]; then
+    log "render: combining GPS flags ($_gps_detail_count/$_detail_json_count)"
     jq -s 'add // {}' "$TMP/gps-parts.ndjson" > "$TMP/gps.json"
   else
     echo '{}' > "$TMP/gps.json"
@@ -541,10 +549,11 @@ fi
 # label a bike by its Strava gear instead of the opaque "b1234567" id. Best
 # effort — gear names only appear once the relevant detail files have backfilled.
 if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
+  log "render: building gear cache from $_detail_json_count detail files"
   jq -s '
     map(.gear | select(. != null and .id != null) | { (.id): { name: (.name // .id) } })
     | add // {}
-  ' "$DETAIL_DIR"/*.json > "$TMP/gears.json"
+  ' "$TMP/details-all.json" > "$TMP/gears.json"
 else
   echo '{}' > "$TMP/gears.json"
 fi
