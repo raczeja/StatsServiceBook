@@ -536,6 +536,34 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     ' "$_detail_file" >> "$TMP/enrich-parts.ndjson"
   done
   jq -s 'add // {}' "$TMP/enrich-parts.ndjson" > "$TMP/enrich.json"
+  # Max single climb per activity: compute once server-side from GPX files so the
+  # browser never has to load hundreds of GPX files just for the dashboard chip.
+  _climb_cache="$STATE_DIR/max-climbs.json"
+  [ -f "$_climb_cache" ] || printf '{}' > "$_climb_cache"
+  jq -r 'to_entries[] | select(.value.gpx_file != null) | .key + " " + .value.gpx_file' \
+    "$TMP/enrich.json" 2>/dev/null | sort -u > "$TMP/gpx-paths.txt" || : > "$TMP/gpx-paths.txt"
+  : > "$TMP/max-climbs-new.ndjson"
+  jq -c 'to_entries[] | {(.key): .value}' "$_climb_cache" >> "$TMP/max-climbs-new.ndjson" 2>/dev/null
+  jq -r 'keys | .[]' "$_climb_cache" > "$TMP/cached-climb-ids.txt" 2>/dev/null || : > "$TMP/cached-climb-ids.txt"
+  _climbs_computed=0
+  while read -r _cid _cgpx; do
+    grep -qx "$_cid" "$TMP/cached-climb-ids.txt" && continue
+    _cgpx_path="$WEB_DIR/$_cgpx"
+    [ -f "$_cgpx_path" ] || continue
+    _cval="$(grep '<ele>' "$_cgpx_path" 2>/dev/null \
+      | sed 's/.*<ele>\([^<]*\)<\/ele>.*/\1/' \
+      | awk 'BEGIN{v=999999;p=999999;b=0;f=1}{e=$1+0;if(f){v=e;p=e;f=0;next};if(e<p-30){v=e;p=e;next};if(e>p)p=e;if(e<v)v=e;g=e-v;if(g>b)b=g}END{printf"%d",int(b+0.5)}' 2>/dev/null)"
+    [ -n "$_cval" ] || _cval=0
+    printf '{"%s":%s}\n' "$_cid" "$_cval" >> "$TMP/max-climbs-new.ndjson"
+    printf '%s\n' "$_cid" >> "$TMP/cached-climb-ids.txt"
+    _climbs_computed=$((_climbs_computed + 1))
+  done < "$TMP/gpx-paths.txt"
+  [ -s "$TMP/max-climbs-new.ndjson" ] \
+    && jq -s 'add // {}' "$TMP/max-climbs-new.ndjson" > "$TMP/max-climbs.json" 2>/dev/null \
+    || printf '{}' > "$TMP/max-climbs.json"
+  [ "$_climbs_computed" -gt 0 ] \
+    && cp "$TMP/max-climbs.json" "$_climb_cache" \
+    && log "render: computed max_single_climb for $_climbs_computed new GPX activities"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with
@@ -568,6 +596,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
 else
   echo '{}' > "$TMP/enrich.json"
   echo '{}' > "$TMP/gps.json"
+  printf '{}' > "$TMP/max-climbs.json"
 fi
 
 # Gear (bike) names: detailed activities carry a .gear object with the gear's id
@@ -592,6 +621,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   --slurpfile enr "$TMP/enrich.json" \
   --slurpfile gps "$TMP/gps.json" \
   --slurpfile gears "$TMP/gears.json" \
+  --slurpfile climbs "$TMP/max-climbs.json" \
   --slurpfile assigns "$TMP/bike-assign.json" \
   --slurpfile wcache "$WEATHER_CACHE" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
@@ -609,6 +639,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
       | ($enrich[(.id | tostring)] // {}) as $e
       | ($A[(.id | tostring)] // .gear_id // $e.gear_id) as $bike
       | ($W[(.id | tostring)]) as $wc
+      | (($climbs[0] // {})[(.id | tostring)]) as $climbVal
       | (if ($wc | type) == "number" then $wc
          elif ($wc | type) == "object" then ($wc.t // null)
          else null end) as $wctemp
@@ -641,6 +672,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
           gpx_file:               ($e.gpx_file // null),
+          max_single_climb:       (if ($climbVal | type) == "number" and $climbVal > 0 then $climbVal else null end),
           has_gps:                (if ($have[(.id | tostring)] // false) then ($gps_by_id[(.id | tostring)] // false) else null end),
           detail:                 (($have[(.id | tostring)]) // false)
         }

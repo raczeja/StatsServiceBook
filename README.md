@@ -33,7 +33,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 **My Activities dashboard**
 
 - Sortable table: distance, time, elevation, avg/max speed, VAM, avg HR, avg power, work (kJ)
-- Year/month/sport-type filters; period "bests" strip (longest, most climbing, fastest, best VAM, most work)
+- Year/month/sport-type filters; period "bests" strip (longest, most climbing, fastest, best VAM, most work); "Longest climb" tile shows "—" when no GPX data is available for the filtered set
 - Monthly bar charts for distance, time, and elevation — all client-side from a single JSON file
 
 **Data completeness**
@@ -47,6 +47,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 - Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
 - Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear; Walk/Run/Hike activities show **actual device step count** when available (scrape mode), otherwise an estimate (cadence × 2 × moving time)
+- **Longest-climb detection** — highlights the single longest continuous climb on the route map (blue segment) with sport-aware grade and gain thresholds; configurable via `STRAVA_MY_CLIMB_MIN_GAIN_*`, `STRAVA_MY_CLIMB_MIN_GRADE_*`, `STRAVA_MY_CLIMB_MIN_DISTANCE`, and `STRAVA_MY_CLIMB_DESCENT_RESET` in the config
 - Weather: temperature, feels-like, wind speed + direction, WMO code icon, precipitation — from [Open-Meteo](https://open-meteo.com/) per activity date + GPS location
 
 **Club leaderboard**
