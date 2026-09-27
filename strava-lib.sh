@@ -188,8 +188,25 @@ run_weather_backfill() {
   # Strava's list endpoint omits average_temp; it only appears in the detail file.
   # Scan detail files to find those device temps so Pass 2 triggers correctly.
   if ls "$_rw_ddir"/*.json >/dev/null 2>&1; then
-    jq -s 'map(select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}) | add // {}' \
-        "$_rw_ddir"/*.json > "$_rw_tmp/rw2_devtemp.json"
+    : > "$_rw_tmp/rw2_details.ndjson"
+    _rw_detail_count=0 _rw_detail_invalid=0
+    for _rw_detail_file in "$_rw_ddir"/*.json; do
+      [ -f "$_rw_detail_file" ] || continue
+      _rw_detail_count=$((_rw_detail_count + 1))
+      if jq -c 'select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}' \
+          "$_rw_detail_file" >> "$_rw_tmp/rw2_details.ndjson" 2>/dev/null; then
+        :
+      else
+        _rw_detail_invalid=$((_rw_detail_invalid + 1))
+        log "warning: weather skipped invalid detail JSON: $_rw_detail_file"
+        mv "$_rw_detail_file" "$_rw_detail_file.invalid"
+      fi
+      [ $((_rw_detail_count % 100)) -eq 0 ] && log "weather: Pass 2 checked $_rw_detail_count detail files"
+    done
+    [ "$_rw_detail_invalid" -gt 0 ] && \
+      log "weather: Pass 2 quarantined $_rw_detail_invalid invalid detail JSON file(s)"
+    jq -s 'add // {}' \
+        "$_rw_tmp/rw2_details.ndjson" > "$_rw_tmp/rw2_devtemp.json"
   else
     printf '{}' > "$_rw_tmp/rw2_devtemp.json"
   fi
