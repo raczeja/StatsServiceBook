@@ -90,6 +90,18 @@ svg.bar{width:100%;display:block}
 .mo-past .goal-mo-fill{background:#60a5fa}
 .mo-fut  .goal-mo-fill{background:var(--border-2)}
 .goal-mo-num{color:var(--text-5);font-size:.67rem;white-space:nowrap}
+.goal-weeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:.35rem;margin-top:.75rem}
+.goal-week{font-size:.72rem;min-width:0}
+.goal-week-lbl{font-weight:600;color:var(--text-4)}
+.goal-week-bar{height:5px;background:var(--border);border-radius:3px;margin:.15rem 0;overflow:hidden}
+.goal-week-fill{height:100%;border-radius:3px}
+.goal-week-num{color:var(--text-5);font-size:.67rem;white-space:nowrap}
+.goal-week.wk-current{outline:1px solid var(--accent);outline-offset:2px;border-radius:2px}
+.goal-week-current{color:var(--accent);font-size:.6rem;font-weight:700;margin-left:.25rem}
+.wk-hit .goal-week-fill{background:#22c55e}
+.wk-cur .goal-week-fill{background:#fb923c}
+.wk-past .goal-week-fill{background:#60a5fa}
+.wk-fut .goal-week-fill{background:var(--border-2)}
 .sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--text-3);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
 .sec-handle:hover{opacity:1;color:var(--accent)}
 .sec-handle:active{cursor:grabbing}
@@ -118,6 +130,9 @@ svg.bar{width:100%;display:block}
 </div>
 <div class="sec" data-sid="goals">
 <div id="goalsSection"></div>
+</div>
+<div class="sec" data-sid="weekly-goals">
+<div id="weeklyGoalsSection"></div>
 </div>
 
 <div class="sec" data-sid="records">
@@ -440,30 +455,51 @@ function _saveGoals(data, cb){
 // Months with no prev-year data each get the equal base (yearGoal/12);
 // months with data proportionally share the remaining budget.
 // Fallback to equal split when no prev-year data at all.
-function _moTargets(yearGoal, allActs, yearStr){
+function _moTargets(yearGoal,allActs,yearStr){
   var prevY=String(+yearStr-1);
   var prevRides=allActs.filter(function(a){
     return a.sport_type==="Ride"&&a.date&&a.date.slice(0,4)===prevY;
   });
-  var byMo=[0,0,0,0,0,0,0,0,0,0,0,0], tot=0;
+  var byMo=[0,0,0,0,0,0,0,0,0,0,0,0],tot=0;
   prevRides.forEach(function(a){
     var m=+a.date.slice(5,7)-1;
-    byMo[m]+=(a.distance||0)/1000; tot+=(a.distance||0)/1000;
+    byMo[m]+=(a.distance||0)/1000;tot+=(a.distance||0)/1000;
   });
-  if(tot===0) return byMo.map(function(){ return yearGoal/12; });
+  if(tot===0) return byMo.map(function(){return yearGoal/12;});
   var nZero=byMo.filter(function(v){return v===0;}).length;
   if(nZero===0) return byMo.map(function(v){return v/tot*yearGoal;});
-  var base=yearGoal/12;
-  var remaining=yearGoal-base*nZero;
-  return byMo.map(function(v){ return v===0?base:(v/tot)*remaining; });
+  var base=yearGoal/12,remaining=yearGoal-base*nZero;
+  return byMo.map(function(v){return v===0?base:(v/tot)*remaining;});
+}
+function _yearWeeks(year){
+  var first=weekOf(year+"-01-01"),last=weekOf(year+"-12-31"),weeks=[];
+  var date=new Date(first+"T12:00:00"),end=new Date(last+"T12:00:00");
+  while(date<=end){weeks.push(date.getFullYear()+"-"+p2(date.getMonth()+1)+"-"+p2(date.getDate()));date.setDate(date.getDate()+7);}
+  return weeks;
+}
+function _weekTargets(yearGoal,allActs,yearStr,weeks){
+  var prevY=String(+yearStr-1),prevWeeks=_yearWeeks(prevY),byWeek=weeks.map(function(){return 0;});
+  var first=Date.parse(prevWeeks[0]+"T00:00:00Z");
+  allActs.forEach(function(a){
+    if(a.sport_type!=="Ride"||!a.date||a.date.slice(0,4)!==prevY) return;
+    var index=Math.floor((Date.parse(weekOf(a.date)+"T00:00:00Z")-first)/604800000);
+    if(index>=0&&index<byWeek.length) byWeek[index]+=(a.distance||0)/1000;
+  });
+  var total=byWeek.reduce(function(sum,value){return sum+value;},0);
+  if(total===0) return byWeek.map(function(){return yearGoal/byWeek.length;});
+  var zeroCount=byWeek.filter(function(value){return value===0;}).length;
+  if(zeroCount===0) return byWeek.map(function(value){return value/total*yearGoal;});
+  var base=yearGoal/byWeek.length,remaining=yearGoal-base*zeroCount;
+  return byWeek.map(function(value){return value===0?base:value/total*remaining;});
 }
 
 function renderGoals(goalsData){
   var el=document.getElementById("goalsSection");
-  if(!el) return;
+  var weeklyEl=document.getElementById("weeklyGoalsSection");
+  if(!el||!weeklyEl) return;
   var yr=selYear&&selYear!=="all"?selYear:null;
   var isRideSport=(selSport==="Ride"||selSport==="All"||!selSport);
-  if(!yr||!isRideSport){ el.innerHTML=""; return; }
+  if(!yr||!isRideSport){ el.innerHTML="";weeklyEl.innerHTML="";return; }
 
   var gmap=goalsData.goals||{};
   var goal=gmap[yr]!=null?gmap[yr]:null;
@@ -501,17 +537,18 @@ function renderGoals(goalsData){
   if(prevHint) h+='<span class="muted" style="font-size:.8rem">'+esc(prevHint)+'</span>';
   h+='</div>';
 
+  var wh="";
   if(goal!=null&&goal>0){
     var pct=Math.min(100,Math.round(doneKm/goal*100));
     var projPct=Math.round(projected/goal*100);
     var moTgts=_moTargets(goal,ALL_ACTS,yr);
+    var weeks=_yearWeeks(yr),weekTgts=_weekTargets(goal,ALL_ACTS,yr,weeks);
     var curMoIdx=isCurrentYear?now.getMonth():11;
-    // prev-year monthly km for tooltip
+    var currentWeek=isCurrentYear?weekOf(todayStr()):"";
     var prevByMo=[0,0,0,0,0,0,0,0,0,0,0,0];
     ALL_ACTS.forEach(function(a){
-      if(a.sport_type==="Ride"&&a.date&&a.date.slice(0,4)===prevY){
+      if(a.sport_type==="Ride"&&a.date&&a.date.slice(0,4)===prevY)
         prevByMo[+a.date.slice(5,7)-1]+=(a.distance||0)/1000;
-      }
     });
 
     // Distribution source note + per-month breakdown for tooltip
@@ -559,9 +596,7 @@ function renderGoals(goalsData){
     h+='<div class="goal-months">';
     MONTHS_S.forEach(function(moName,mi){
       var moDone=0;
-      yrRides.forEach(function(a){
-        if(+a.date.slice(5,7)-1===mi) moDone+=(a.distance||0)/1000;
-      });
+      yrRides.forEach(function(a){if(+a.date.slice(5,7)-1===mi)moDone+=(a.distance||0)/1000;});
       var moTgt=moTgts[mi];
       var moPct=moTgt>0?Math.min(100,Math.round(moDone/moTgt*100)):0;
       var isPast=isCurrentYear?mi<curMoIdx:mi<=11;
@@ -583,11 +618,28 @@ function renderGoals(goalsData){
       h+='</div>';
     });
     h+='</div>';
+    wh='<h2>Weekly progress <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; '+esc(yr)+' &middot; Ride km</span></h2>';
+    wh+='<div class="goal-wrap"><div class="goal-weeks">';
+    weeks.forEach(function(week,wi){
+      var weekDone=0;
+      yrRides.forEach(function(a){if(weekOf(a.date)===week)weekDone+=(a.distance||0)/1000;});
+      var weekTarget=weekTgts[wi],weekPct=weekTarget>0?Math.min(100,Math.round(weekDone/weekTarget*100)):0;
+      var weekDate=new Date(week+"T12:00:00"),weekNo=wi+1;
+      var isCurrentWeek=week===currentWeek;
+      var weekClass=weekDone>=weekTarget&&weekTarget>0?"wk-hit":(isCurrentWeek?"wk-cur":(week>currentWeek&&isCurrentYear?"wk-fut":"wk-past"));
+      if(isCurrentWeek) weekClass+=" wk-current";
+      wh+='<div class="goal-week '+weekClass+'" title="Week '+weekNo+' · '+week+' · '+fmtKmD(weekDone)+' / '+fmtKmD(weekTarget)+' km">';
+      wh+='<div class="goal-week-lbl">W'+p2(weekNo)+' · '+p2(weekDate.getDate())+'/'+p2(weekDate.getMonth()+1)+(isCurrentWeek?'<span class="goal-week-current">NOW</span>':'')+'</div>';
+      wh+='<div class="goal-week-bar"><div class="goal-week-fill" style="width:'+weekPct+'%"></div></div>';
+      wh+='<div class="goal-week-num">'+fmtKmD(weekDone)+'&thinsp;/&thinsp;'+fmtKmD(weekTarget)+'</div></div>';
+    });
+    wh+='</div></div>';
   } else {
     h+='<div class="muted" style="font-size:.85rem;padding:.15rem 0">Enter a yearly distance target to track your progress.</div>';
   }
   h+='</div>';
   el.innerHTML=h;
+  weeklyEl.innerHTML=wh;
 
   var saveBtn=document.getElementById("goalKmSave");
   var inp=document.getElementById("goalKmInput");
@@ -993,7 +1045,7 @@ document.getElementById("yearSel").addEventListener("change",function(){ selYear
 load();
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';
-  var STATS_SEC_DEFAULT=['kpis','goals','records','year','monthly-chart','monthly-table','comparison','sport','dow'];
+  var STATS_SEC_DEFAULT=['kpis','goals','weekly-goals','records','year','monthly-chart','monthly-table','comparison','sport','dow'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;
