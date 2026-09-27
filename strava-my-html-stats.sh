@@ -310,24 +310,50 @@ function fmtPeriod(acts){
 }
 
 // ---- personal records -------------------------------------------------------
-function maxSingleClimbFromGpx(txt){
+function haversineM(lat1, lon1, lat2, lon2) {
+  var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function maxSingleClimbFromGpx(txt, sport){
   var doc = (new DOMParser()).parseFromString(txt, "application/xml");
-  var els = doc.getElementsByTagNameNS("*", "ele"), raw = [], i, j, from, to, sum;
-  for (i = 0; i < els.length; i++) {
-    var v = parseFloat(els[i].textContent);
-    if (isFinite(v)) raw.push(v);
+  var trkpts = doc.getElementsByTagNameNS("*", "trkpt");
+  if (!trkpts.length) trkpts = doc.getElementsByTagNameNS("*", "rtept");
+  if (trkpts.length < 2) return null;
+  var raw = [], lats = [], lons = [], i, j, from, to, sum, cnt;
+  for (i = 0; i < trkpts.length; i++) {
+    var eleEl = trkpts[i].getElementsByTagNameNS("*", "ele")[0];
+    var v = eleEl ? parseFloat(eleEl.textContent) : NaN;
+    raw.push(isFinite(v) ? v : null);
+    lats.push(parseFloat(trkpts[i].getAttribute("lat")));
+    lons.push(parseFloat(trkpts[i].getAttribute("lon")));
   }
   if (raw.length < 2) return null;
   var smooth = [];
   for (i = 0; i < raw.length; i++) {
-    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0;
-    for (j = from; j <= to; j++) sum += raw[j];
-    smooth.push(sum / (to - from + 1));
+    if (raw[i] == null) { smooth.push(null); continue; }
+    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0; cnt = 0;
+    for (j = from; j <= to; j++) if (raw[j] != null) { sum += raw[j]; cnt++; }
+    smooth.push(cnt ? sum / cnt : null);
   }
-  var valley = smooth[0], best = 0;
-  for (i = 1; i < smooth.length; i++) {
-    if (smooth[i] < valley) valley = smooth[i];
-    else if (smooth[i] - valley > best) best = smooth[i] - valley;
+  var cumDist = [0];
+  for (i = 1; i < trkpts.length; i++)
+    cumDist.push(cumDist[i - 1] + haversineM(lats[i - 1], lons[i - 1], lats[i], lons[i]));
+  var minGradeMap = {Ride:0.03,Run:0.02,Hike:0.02,Walk:0.01};
+  var minGrade = minGradeMap[sport] || 0.02;
+  var descentReset = 30;
+  var best = 0;
+  var segValIdx = -1, segValEle = 0, segPeakEle = 0;
+  for (i = 0; i < smooth.length; i++) {
+    if (smooth[i] == null) continue;
+    if (segValIdx < 0) { segValIdx = i; segValEle = smooth[i]; segPeakEle = smooth[i]; continue; }
+    var e = smooth[i];
+    if (e < segPeakEle - descentReset) { segValIdx = i; segValEle = e; segPeakEle = e; continue; }
+    if (e > segPeakEle) segPeakEle = e;
+    if (e < segValEle) { segValIdx = i; segValEle = e; }
+    var gain = e - segValEle;
+    var dist = cumDist[i] - cumDist[segValIdx];
+    if (gain > 0 && dist > 0 && dist >= 100 && gain / dist >= minGrade && gain > best) best = gain;
   }
   return Math.max(0, Math.round(best));
 }
@@ -343,7 +369,7 @@ function loadSingleClimbs(acts, done){
       if (!r.ok) throw new Error("HTTP "+r.status);
       return r.text();
     }).then(function(txt){
-      var climb = maxSingleClimbFromGpx(txt);
+      var climb = maxSingleClimbFromGpx(txt, a.sport_type);
       if (climb != null) { a.max_single_climb = climb; changed = true; }
     }).catch(function(){}).then(function(){
       active--; worker();
