@@ -508,17 +508,29 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   ' "$DETAIL_DIR"/*.json > "$TMP/enrich.json"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
-  jq -n '
-    reduce inputs as $detail ({};
-      (input_filename | split("/") | last | sub("\\.json$"; "")) as $id
-      | .[$id] = (
-          (((($detail.map.polyline // "") | length) > 0)
-          or ((($detail.map.summary_polyline // "") | length) > 0)
-          or ((($detail.start_latlng // []) | length) >= 2)
-          or ((($detail.gpx_file // "") | length) > 0))
-        )
-    )
-  ' "$DETAIL_DIR"/*.json > "$TMP/gps.json"
+  # Build one small record per file instead of combining input_filename with
+  # inputs; that combination aborts in some router jq builds on large globs.
+  : > "$TMP/gps-parts.ndjson"
+  for _detail_file in "$DETAIL_DIR"/*.json; do
+    [ -f "$_detail_file" ] || continue
+    _detail_id="${_detail_file##*/}"
+    _detail_id="${_detail_id%.json}"
+    if ! jq -c --arg id "$_detail_id" '{
+      ($id): (
+        (((.map.polyline // "") | length) > 0)
+        or (((.map.summary_polyline // "") | length) > 0)
+        or (((.start_latlng // []) | length) >= 2)
+        or (((.gpx_file // "") | length) > 0)
+      )
+    }' "$_detail_file" >> "$TMP/gps-parts.ndjson"; then
+      log "warning: invalid detail JSON skipped while building GPS map: $_detail_file"
+    fi
+  done
+  if [ -s "$TMP/gps-parts.ndjson" ]; then
+    jq -s 'add // {}' "$TMP/gps-parts.ndjson" > "$TMP/gps.json"
+  else
+    echo '{}' > "$TMP/gps.json"
+  fi
 else
   echo '{}' > "$TMP/enrich.json"
   echo '{}' > "$TMP/gps.json"
