@@ -524,7 +524,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         average_temp:           (.average_temp // null),
         suffer_score:           (.suffer_score // null),
         calories:               (.calories // null),
-        gear_id:                (.gear.id // null)
+        gear_id:                (.gear.id // null),
+        gpx_file:               (.gpx_file // null)
       }
     }) | add // {}
   ' "$TMP/details-all.json" > "$TMP/enrich.json"
@@ -632,6 +633,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           precipitation:          (if ($wc | type) == "object" then $wc.pr else null end),
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
+          gpx_file:               ($e.gpx_file // null),
           has_gps:                (if ($have[(.id | tostring)] // false) then ($gps_by_id[(.id | tostring)] // false) else null end),
           detail:                 (($have[(.id | tostring)]) // false)
         }

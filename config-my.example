@@ -36,6 +36,16 @@ STRAVA_TOKEN_REFRESH_MARGIN="600"
 # Leave blank to fall back to the activity's recorded max_heartrate instead.
 #STRAVA_MY_BIRTH_YEAR="1990"
 
+# Longest-climb detection on activity details. The climb must exceed both the
+# sport-specific elevation gain threshold and the minimum horizontal distance.
+# Values are metres. Leave commented to use the defaults below.
+#STRAVA_MY_CLIMB_MIN_GAIN_RIDE="25"
+#STRAVA_MY_CLIMB_MIN_GAIN_RUN="5"
+#STRAVA_MY_CLIMB_MIN_GAIN_HIKE="10"
+#STRAVA_MY_CLIMB_MIN_GAIN_WALK="3"
+#STRAVA_MY_CLIMB_MIN_GAIN_OTHER="10"
+#STRAVA_MY_CLIMB_MIN_DISTANCE="100"
+
 # How many pages of your activity feed to pull.
 # api mode:    200 activities/page; 20 pages = up to 4000 activities.
 # scrape mode: 20 activities/page (fixed by Strava web); raise MAX_PAGES
