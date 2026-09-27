@@ -95,7 +95,25 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" > "$LOCKFILE/pid"
-trap '_rc=$?; rm -rf "$TMP" "$LOCKFILE"; [ $_rc -ne 0 ] && log "FATAL: strava-my-activities exited with code $_rc"' EXIT
+write_sync_status() {
+  _rc=$?
+  _now="$(date +%s)"
+  _status_tmp="$WEB_DIR/.strava-sync-status.$$"
+  if [ "$_rc" -eq 0 ]; then
+    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now}' > "$_status_tmp"
+  else
+    _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/strava-sync-status.json" 2>/dev/null || true)"
+    case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
+    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+      --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
+      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error}' > "$_status_tmp"
+  fi
+  mv "$_status_tmp" "$WEB_DIR/strava-sync-status.json"
+  rm -rf "$TMP" "$LOCKFILE"
+  [ "$_rc" -eq 0 ] || log "FATAL: strava-my-activities exited with code $_rc"
+}
+trap 'write_sync_status' EXIT
 
 # Scrape-health counters — incremented in §2 and §3b; emailed at end of run.
 _sc_norm_fail=0       # jq normalization failures on list pages (activities missing)
@@ -476,7 +494,12 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         average_temp:           (.average_temp // null),
         suffer_score:           (.suffer_score // null),
         calories:               (.calories // null),
-        gear_id:                (.gear.id // null)
+        gear_id:                (.gear.id // null),
+        has_gps:                (
+          ((.map.summary_polyline // .map.polyline // "") | length) > 0
+          or ((.start_latlng // []) | length) >= 2
+          or ((.gpx_file // "") | length) > 0
+        )
       }
     }) | add // {}
   ' "$DETAIL_DIR"/*.json > "$TMP/enrich.json"
@@ -551,6 +574,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           precipitation:          (if ($wc | type) == "object" then $wc.pr else null end),
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
+          has_gps:                (if ($have[(.id | tostring)] // false) then ($e.has_gps // ((.gpx_file // "") != "")) else null end),
           detail:                 (($have[(.id | tostring)]) // false)
         }
     ] | sort_by(.date) | reverse
