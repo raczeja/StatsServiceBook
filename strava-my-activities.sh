@@ -507,28 +507,35 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     log "warning: skipped $_detail_invalid invalid detail JSON file(s)"
   fi
   log "render: building scalar detail enrichment"
-  jq -s '
-    map(select(.id != null) | {
-      (.id|tostring): {
-        elapsed_time:           (.elapsed_time // null),
-        total_elevation_gain:   (.total_elevation_gain // null),
-        average_speed:          (.average_speed // null),
-        max_speed:              (.max_speed // null),
-        average_heartrate:      (.average_heartrate // null),
-        max_heartrate:          (.max_heartrate // null),
-        average_cadence:        (.average_cadence // null),
-        average_watts:          (.average_watts // null),
-        weighted_average_watts: (.weighted_average_watts // null),
-        max_watts:              (.max_watts // null),
-        kilojoules:             (.kilojoules // null),
-        average_temp:           (.average_temp // null),
-        suffer_score:           (.suffer_score // null),
-        calories:               (.calories // null),
-        gear_id:                (.gear.id // null),
-        gpx_file:               (.gpx_file // null)
-      }
-    }) | add // {}
-  ' "$TMP/details-all.json" > "$TMP/enrich.json"
+  : > "$TMP/enrich-parts.ndjson"
+  for _detail_file in "$DETAIL_DIR"/*.json; do
+    [ -f "$_detail_file" ] || continue
+    _detail_id="${_detail_file##*/}"
+    _detail_id="${_detail_id%.json}"
+    jq -c --arg fileid "$_detail_id" '
+      select(.id != null) as $d
+      | ($d | {
+          elapsed_time:           (.elapsed_time // null),
+          total_elevation_gain:   (.total_elevation_gain // null),
+          average_speed:          (.average_speed // null),
+          max_speed:              (.max_speed // null),
+          average_heartrate:      (.average_heartrate // null),
+          max_heartrate:          (.max_heartrate // null),
+          average_cadence:        (.average_cadence // null),
+          average_watts:          (.average_watts // null),
+          weighted_average_watts: (.weighted_average_watts // null),
+          max_watts:              (.max_watts // null),
+          kilojoules:             (.kilojoules // null),
+          average_temp:           (.average_temp // null),
+          suffer_score:           (.suffer_score // null),
+          calories:               (.calories // null),
+          gear_id:                (.gear.id // null),
+          gpx_file:               (.gpx_file // null)
+        }) as $v
+      | {($fileid): $v, ($d.id | tostring): $v}
+    ' "$_detail_file" >> "$TMP/enrich-parts.ndjson"
+  done
+  jq -s 'add // {}' "$TMP/enrich-parts.ndjson" > "$TMP/enrich.json"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with
