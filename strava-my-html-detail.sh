@@ -65,6 +65,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   @keyframes map-shimmer{0%{transform:translateX(-150%)}100%{transform:translateX(400%)}}
   #map-expand-btn{position:absolute;top:.4rem;right:.4rem;z-index:600;background:var(--btn-bg);border:1px solid var(--border-2);border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15)}
   #map-expand-btn:hover{background:var(--surface);border-color:var(--text-4)}
+  .climb-swatch{display:inline-block;width:1.2rem;height:.22rem;background:#1565c0;vertical-align:middle;margin-right:.2rem}
   #map-box.fs-map{position:fixed;inset:0;z-index:9000;margin:0;padding:0;background:#000;border-radius:0}
   #map-box.fs-map #map{height:100%;border-radius:0;margin:0;box-shadow:none}
   #map-box.fs-map #map-expand-btn{top:.6rem;right:.6rem}
@@ -279,6 +280,18 @@ function card(k, v){ return '<div class="card"><div class="k">'+esc(k)+'</div><d
 // Same card, with a hover explanation (native tooltip) for cryptic metrics.
 function cardTip(k, v, tip){ return '<div class="card" title="'+esc(tip)+'"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
 
+function updateLongestClimbCard(climb){
+  var cardEl = document.getElementById("longest-climb-card");
+  if (!cardEl) return;
+  if (!climb) { cardEl.style.display = "none"; return; }
+  var distance = climb.distance < 1000
+    ? Math.round(climb.distance) + " m"
+    : (climb.distance / 1000).toFixed(2) + " km";
+  var grade = climb.distance > 0 ? (climb.gain / climb.distance * 100).toFixed(1) : "0.0";
+  cardEl.querySelector(".v").textContent = climb.gain + " m · " + grade + "% avg · " + distance;
+  cardEl.style.display = "";
+}
+
 function renderCards(d){
   var sport = d.sport_type || d.type || "";
   var html = "";
@@ -304,6 +317,8 @@ function renderCards(d){
       : card("Max speed", (d.max_speed*3.6).toFixed(1) + " km/h");
   }
   if (d.total_elevation_gain) html += card("Elevation", Math.round(d.total_elevation_gain) + " m");
+  html += '<div class="card" id="longest-climb-card" style="display:none" title="Blue line on the map marks this climb">'
+    + '<div class="k"><span class="climb-swatch" aria-hidden="true"></span>Longest climb</div><div class="v"></div></div>';
   // VAM (vertical ascent m/h) and climb intensity (m/km) — key cycling climb metrics.
   if (d.total_elevation_gain > 0 && d.moving_time > 0)
     html += cardTip("Climb rate", Math.round(d.total_elevation_gain * 3600 / d.moving_time) + " m/h",
@@ -636,6 +651,33 @@ function makeTileLayer(map) {
   return layer;
 }
 
+function findLongestClimb(trackPts){
+  var raw = [], smooth = [], i, j, from, to, sum;
+  for (i = 0; i < trackPts.length; i++) {
+    if (trackPts[i].ele != null && isFinite(trackPts[i].ele)) raw.push(trackPts[i].ele);
+    else raw.push(null);
+  }
+  for (i = 0; i < raw.length; i++) {
+    if (raw[i] == null) { smooth.push(null); continue; }
+    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0; var n = 0;
+    for (j = from; j <= to; j++) if (raw[j] != null) { sum += raw[j]; n++; }
+    smooth.push(n ? sum / n : null);
+  }
+  var valley = null, valleyIndex = -1, best = 0, bestStart = -1, bestEnd = -1;
+  for (i = 0; i < smooth.length; i++) {
+    if (smooth[i] == null) continue;
+    if (valley == null || smooth[i] < valley) { valley = smooth[i]; valleyIndex = i; }
+    else if (smooth[i] - valley > best) {
+      best = smooth[i] - valley; bestStart = valleyIndex; bestEnd = i;
+    }
+  }
+  if (bestStart < 0 || bestEnd <= bestStart) return null;
+  var distance = 0;
+  for (i = bestStart + 1; i <= bestEnd; i++)
+    distance += haversineM(trackPts[i - 1].lat, trackPts[i - 1].lon, trackPts[i].lat, trackPts[i].lon);
+  return {start:bestStart, end:bestEnd, gain:Math.round(best), distance:distance};
+}
+
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
 // uhttpd serves .gpx without an XML Content-Type header.
 function renderGpxMap(gpxUrl){
@@ -658,10 +700,13 @@ function renderGpxMap(gpxUrl){
       if (perr) { hideMapSpin(); box.innerHTML = '<div class="note">GPX not valid XML — first bytes: <code>' + txt.slice(0,120).replace(/</g,"&lt;") + '</code></div>'; return; }
       var els = doc.getElementsByTagNameNS("*", "trkpt");
       if (!els.length) els = doc.getElementsByTagNameNS("*", "rtept");
-      var pts = [], i, el;
+      var trackPts = [], pts = [], i, el;
       for (i = 0; i < els.length; i++) {
         el = els[i];
-        pts.push([parseFloat(el.getAttribute("lat")), parseFloat(el.getAttribute("lon"))]);
+        var eleEl = el.getElementsByTagNameNS("*", "ele")[0];
+        var ele = eleEl ? parseFloat(eleEl.textContent) : null;
+        trackPts.push({lat:parseFloat(el.getAttribute("lat")), lon:parseFloat(el.getAttribute("lon")), ele:ele});
+        pts.push([trackPts[i].lat, trackPts[i].lon]);
       }
       if (!pts.length) { hideMapSpin(); box.innerHTML = '<div class="note">GPX has no track points.</div>'; return; }
       try {
@@ -670,6 +715,15 @@ function renderGpxMap(gpxUrl){
         var tileLayer = makeTileLayer(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         leafletLine = line;
+        var climb = findLongestClimb(trackPts);
+        if (climb) {
+          L.polyline(pts.slice(climb.start, climb.end + 1), { color: "#1565c0", weight: 7, opacity: 0.9 }).addTo(map);
+          L.circleMarker(pts[climb.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
+            .bindTooltip("Climb start", {permanent:false}).addTo(map);
+          L.circleMarker(pts[climb.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
+            .bindTooltip("Climb summit", {permanent:false}).addTo(map);
+          updateLongestClimbCard(climb);
+        }
         map.fitBounds(line.getBounds(), { padding: [20, 20] });
         L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
         L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
@@ -718,6 +772,13 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
       // Heart rate from track-point extensions (<gpxtpx:hr>, <hr>, <heartrate>)
       var trkpts = doc.getElementsByTagNameNS("*", "trkpt");
       if (!trkpts.length) trkpts = doc.getElementsByTagNameNS("*", "rtept");
+      var climbTrackPts = [], climbPt;
+      for (i = 0; i < trkpts.length; i++) {
+        climbPt = trkpts[i];
+        var climbEleEl = climbPt.getElementsByTagNameNS("*", "ele")[0];
+        climbTrackPts.push({lat:parseFloat(climbPt.getAttribute("lat")), lon:parseFloat(climbPt.getAttribute("lon")), ele:climbEleEl ? parseFloat(climbEleEl.textContent) : null});
+      }
+      updateLongestClimbCard(findLongestClimb(climbTrackPts));
       var allH = [], hrEls, bpm;
       for (i = 0; i < trkpts.length; i++) {
         hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
