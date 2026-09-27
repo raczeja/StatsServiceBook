@@ -503,7 +503,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
         calories:               (.calories // null),
         gear_id:                (.gear.id // null),
         has_gps:                (
-          ((.map.summary_polyline // .map.polyline // "") | length) > 0
+          ((.map.polyline // "") | length) > 0
+          or ((.map.summary_polyline // "") | length) > 0
           or ((.start_latlng // []) | length) >= 2
           or ((.gpx_file // "") | length) > 0
         )
