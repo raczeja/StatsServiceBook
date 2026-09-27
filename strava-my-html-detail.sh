@@ -165,7 +165,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 var leafletMap=null,leafletLine=null;
-var CLIMB_THRESHOLDS = __CLIMB_CONFIG__;
+var CLIMB_THRESHOLDS = {"gain":{"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10},"minDistance":100};
 function toggleMapFullscreen(){
   var box=document.getElementById("map-box");
   var btn=document.getElementById("map-expand-btn");
@@ -1200,8 +1200,11 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 </html>
 HTML
 
-_climb_config="$(printf '{\"gain\":{\"Ride\":%s,\"Run\":%s,\"Hike\":%s,\"Walk\":%s,\"Other\":%s},\"minDistance\":%s}' \
-  "$STRAVA_MY_CLIMB_MIN_GAIN_RIDE" "$STRAVA_MY_CLIMB_MIN_GAIN_RUN" \
-  "$STRAVA_MY_CLIMB_MIN_GAIN_HIKE" "$STRAVA_MY_CLIMB_MIN_GAIN_WALK" \
-  "$STRAVA_MY_CLIMB_MIN_GAIN_OTHER" "$STRAVA_MY_CLIMB_MIN_DISTANCE")"
-sed -i "s|__CLIMB_CONFIG__|$_climb_config|g" "$WEB_DIR/activity.html"
+sed -i \
+  -e "s/\\\"Ride\\\":[0-9]*/\\\"Ride\\\":$STRAVA_MY_CLIMB_MIN_GAIN_RIDE/" \
+  -e "s/\\\"Run\\\":[0-9]*/\\\"Run\\\":$STRAVA_MY_CLIMB_MIN_GAIN_RUN/" \
+  -e "s/\\\"Hike\\\":[0-9]*/\\\"Hike\\\":$STRAVA_MY_CLIMB_MIN_GAIN_HIKE/" \
+  -e "s/\\\"Walk\\\":[0-9]*/\\\"Walk\\\":$STRAVA_MY_CLIMB_MIN_GAIN_WALK/" \
+  -e "s/\\\"Other\\\":[0-9]*/\\\"Other\\\":$STRAVA_MY_CLIMB_MIN_GAIN_OTHER/" \
+  -e "s/\\\"minDistance\\\":[0-9]*/\\\"minDistance\\\":$STRAVA_MY_CLIMB_MIN_DISTANCE/" \
+  "$WEB_DIR/activity.html"
