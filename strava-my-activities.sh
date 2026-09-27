@@ -490,6 +490,22 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   _detail_json_count="$(ls -1 "$DETAIL_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')"
   log "render: aggregating $_detail_json_count detail JSON files"
   cat "$DETAIL_DIR"/*.json > "$TMP/details-all.json"
+  if ! jq -e -s 'length >= 0' "$TMP/details-all.json" >/dev/null 2>"$TMP/details-parse-error"; then
+    log "warning: invalid detail JSON detected; validating files individually"
+    : > "$TMP/details-valid.ndjson"
+    _detail_invalid=0
+    for _detail_file in "$DETAIL_DIR"/*.json; do
+      if jq -c . "$_detail_file" > "$TMP/detail-one.json" 2>/dev/null; then
+        cat "$TMP/detail-one.json" >> "$TMP/details-valid.ndjson"
+      else
+        _detail_invalid=$((_detail_invalid + 1))
+        log "warning: skipping invalid detail JSON: $_detail_file"
+        mv "$_detail_file" "$_detail_file.invalid"
+      fi
+    done
+    mv "$TMP/details-valid.ndjson" "$TMP/details-all.json"
+    log "warning: skipped $_detail_invalid invalid detail JSON file(s)"
+  fi
   log "render: building scalar detail enrichment"
   jq -s '
     map(select(.id != null) | {
