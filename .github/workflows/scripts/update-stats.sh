@@ -333,7 +333,7 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
   <span class="legend-item"><span class="legend-swatch sw-yellow"></span>Flaky only</span>
   <span class="legend-item"><span class="legend-swatch sw-mixed"></span>Failures + flaky</span>
   <span class="legend-item"><span class="legend-swatch sw-black"></span>All failed (excluded from stats)</span>
-  <span class="legend-note">Bars: oldest &rarr; newest. Bar height = total tests run (Playwright + shell); color = pass/fail status. Cards sorted newest execution first.</span>
+  <span class="legend-note">Bars: newest &larr; oldest. Bar height = total tests run (Playwright + shell); color = pass/fail status. Cards sorted newest execution first.</span>
 </div>
 """)
 
@@ -354,8 +354,8 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
 
         max_total = max((r.get("total", 0) + r.get("shell_passed", 0) + r.get("shell_failed", 0) for r in runs), default=1) or 1
         fh.write('<div class="spark-label">Tests per run (Playwright + shell) — color shows pass/fail</div>\n')
-        fh.write('<div class="sparkline" title="Total tests per run (oldest → newest)">')
-        for run in runs:
+        fh.write('<div class="sparkline" title="Total tests per run (newest → oldest)">')
+        for run in reversed(runs):
             pw_failed   = run["failed"]
             pw_flaky    = run.get("flaky_count", 0)
             sh_failed   = run.get("shell_failed", 0)

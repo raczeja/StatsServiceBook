@@ -25,8 +25,8 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 </style>
 </head>
 <body>
-<nav class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="stats.html">My Stats</a> &middot; <a href="bike.html">Bike service</a></nav>
-<h1>Data completeness</h1>
+<nav class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="bike.html">🔧 Bike service</a> &middot; <a href="stats.html">📊 My Stats</a> &middot; <a href="heatmap.html">&#128506; Heatmap</a></nav>
+<h1>&#128203; Data completeness</h1>
 <div id="state">Loading activity and synchronization data...</div>
 <section class="summary" aria-label="Activity data completeness">
   <div class="metric"><strong id="count-total">-</strong><span>Activities checked</span></div>
@@ -47,6 +47,7 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 <script>
 "use strict";
 var staleAfter=48*60*60;
+var GPS_OPTIONAL={'Swim':1,'Badminton':1,'Squash':1,'TableTennis':1,'WeightTraining':1,'Yoga':1,'Pilates':1,'Workout':1,'Elliptical':1,'StairStepper':1,'RockClimbing':1,'Crossfit':1,'CoreTraining':1,'HighIntensityIntervalTraining':1,'MartialArts':1,'Boxing':1,'Volleyball':1,'Basketball':1,'Soccer':1,'Tennis':1};
 function esc(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});}
 function stamp(value){if(!value)return "not recorded";var date=new Date(Number(value)*1000);return isNaN(date.getTime())?"not recorded":date.toLocaleString();}
 function renderActivityList(activities){
@@ -57,7 +58,7 @@ function renderActivityList(activities){
   activities.forEach(function(a){
     var problems=[];
     if(showDetails&&a.detail!==true)problems.push('Details');
-    if(showGps&&a.has_gps===false)problems.push('GPS');
+    if(showGps&&a.has_gps===false&&!GPS_OPTIONAL[a.sport_type])problems.push('GPS');
     if(showHeartRate&&!(Number(a.average_heartrate)>0))problems.push('Heart rate');
     if(!problems.length)return;
     rows.push('<tr><td>'+esc(a.date||'-')+'</td><td><a href="activity.html?id='+encodeURIComponent(a.id)+'">'+esc(a.name||'Unnamed activity')+'</a></td><td>'+esc(a.sport_type||'-')+'</td><td class="issues">'+problems.join(', ')+'</td></tr>');
@@ -79,7 +80,7 @@ function sourceCard(name,status){
 }
 function render(data,statuses){
   var activities=Array.isArray(data.activities)?data.activities:[];
-  var missingGps=activities.filter(function(a){return a.has_gps===false;});
+  var missingGps=activities.filter(function(a){return a.has_gps===false&&!GPS_OPTIONAL[a.sport_type];});
   var unknownGps=activities.filter(function(a){return a.has_gps==null;}).length;
   var missingHr=activities.filter(function(a){return !(Number(a.average_heartrate)>0);});
   var missingDetail=activities.filter(function(a){return a.detail!==true;});
