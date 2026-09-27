@@ -12,10 +12,19 @@ log "html: writing activity.html..."
 : "${STRAVA_MY_CLIMB_MIN_GAIN_WALK:=3}"
 : "${STRAVA_MY_CLIMB_MIN_GAIN_OTHER:=10}"
 : "${STRAVA_MY_CLIMB_MIN_DISTANCE:=100}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_RIDE:=3}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_RUN:=2}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_HIKE:=2}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_WALK:=1}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_OTHER:=2}"
+: "${STRAVA_MY_CLIMB_DESCENT_RESET:=30}"
 for _climb_cfg in \
   STRAVA_MY_CLIMB_MIN_GAIN_RIDE STRAVA_MY_CLIMB_MIN_GAIN_RUN \
   STRAVA_MY_CLIMB_MIN_GAIN_HIKE STRAVA_MY_CLIMB_MIN_GAIN_WALK \
-  STRAVA_MY_CLIMB_MIN_GAIN_OTHER STRAVA_MY_CLIMB_MIN_DISTANCE; do
+  STRAVA_MY_CLIMB_MIN_GAIN_OTHER STRAVA_MY_CLIMB_MIN_DISTANCE \
+  STRAVA_MY_CLIMB_MIN_GRADE_RIDE STRAVA_MY_CLIMB_MIN_GRADE_RUN \
+  STRAVA_MY_CLIMB_MIN_GRADE_HIKE STRAVA_MY_CLIMB_MIN_GRADE_WALK \
+  STRAVA_MY_CLIMB_MIN_GRADE_OTHER STRAVA_MY_CLIMB_DESCENT_RESET; do
   eval "_climb_value=\${$_climb_cfg}"
   case "$_climb_value" in ''|*[!0-9]*) eval "$_climb_cfg=0" ;; esac
 done
@@ -166,6 +175,8 @@ fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElemen
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 var leafletMap=null,leafletLine=null;
 var CLIMB_THRESHOLDS = {"gain":{"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10},"minDistance":100};
+var CLIMB_MIN_GRADE = {"gRide":3,"gRun":2,"gHike":2,"gWalk":1,"gOther":2};
+var CLIMB_DESCENT_RESET = 30;
 function toggleMapFullscreen(){
   var box=document.getElementById("map-box");
   var btn=document.getElementById("map-expand-btn");
@@ -666,33 +677,45 @@ function makeTileLayer(map) {
 }
 
 function findLongestClimb(trackPts, sport){
-  var raw = [], smooth = [], i, j, from, to, sum;
+  var raw = [], i, j, from, to, sum, cnt;
   for (i = 0; i < trackPts.length; i++) {
     if (trackPts[i].ele != null && isFinite(trackPts[i].ele)) raw.push(trackPts[i].ele);
     else raw.push(null);
   }
+  if (raw.length < 2) return null;
+  var smooth = [];
   for (i = 0; i < raw.length; i++) {
     if (raw[i] == null) { smooth.push(null); continue; }
-    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0; var n = 0;
-    for (j = from; j <= to; j++) if (raw[j] != null) { sum += raw[j]; n++; }
-    smooth.push(n ? sum / n : null);
+    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0; cnt = 0;
+    for (j = from; j <= to; j++) if (raw[j] != null) { sum += raw[j]; cnt++; }
+    smooth.push(cnt ? sum / cnt : null);
   }
-  var valley = null, valleyIndex = -1, best = 0, bestStart = -1, bestEnd = -1;
+  var cumDist = [0];
+  for (i = 1; i < trackPts.length; i++)
+    cumDist.push(cumDist[i - 1] + haversineM(trackPts[i - 1].lat, trackPts[i - 1].lon, trackPts[i].lat, trackPts[i].lon));
+  var sportKey = sport === "Ride" || sport === "Run" || sport === "Hike" || sport === "Walk" ? sport : "Other";
+  var minGain = CLIMB_THRESHOLDS.gain[sportKey] || CLIMB_THRESHOLDS.gain.Other;
+  var minGrade = (CLIMB_MIN_GRADE["g" + sportKey] || 2) / 100;
+  var descentReset = CLIMB_DESCENT_RESET;
+  var best = 0, bestStart = -1, bestEnd = -1;
+  var segValIdx = -1, segValEle = 0, segPeakEle = 0;
   for (i = 0; i < smooth.length; i++) {
     if (smooth[i] == null) continue;
-    if (valley == null || smooth[i] < valley) { valley = smooth[i]; valleyIndex = i; }
-    else if (smooth[i] - valley > best) {
-      best = smooth[i] - valley; bestStart = valleyIndex; bestEnd = i;
+    if (segValIdx < 0) { segValIdx = i; segValEle = smooth[i]; segPeakEle = smooth[i]; continue; }
+    var e = smooth[i];
+    if (e < segPeakEle - descentReset) {
+      segValIdx = i; segValEle = e; segPeakEle = e; continue;
+    }
+    if (e > segPeakEle) segPeakEle = e;
+    if (e < segValEle) { segValIdx = i; segValEle = e; }
+    var gain = e - segValEle;
+    var dist = cumDist[i] - cumDist[segValIdx];
+    if (gain >= minGain && dist >= CLIMB_THRESHOLDS.minDistance && dist > 0 && gain / dist >= minGrade && gain > best) {
+      best = gain; bestStart = segValIdx; bestEnd = i;
     }
   }
   if (bestStart < 0 || bestEnd <= bestStart) return null;
-  var distance = 0;
-  for (i = bestStart + 1; i <= bestEnd; i++)
-    distance += haversineM(trackPts[i - 1].lat, trackPts[i - 1].lon, trackPts[i].lat, trackPts[i].lon);
-  var sportKey = sport === "Ride" || sport === "Run" || sport === "Hike" || sport === "Walk" ? sport : "Other";
-  var minGain = CLIMB_THRESHOLDS.gain[sportKey] || CLIMB_THRESHOLDS.gain.Other;
-  if (Math.round(best) < minGain || distance < CLIMB_THRESHOLDS.minDistance) return null;
-  return {start:bestStart, end:bestEnd, gain:Math.round(best), distance:distance};
+  return {start: bestStart, end: bestEnd, gain: Math.round(best), distance: cumDist[bestEnd] - cumDist[bestStart]};
 }
 
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
@@ -1207,4 +1230,12 @@ sed -i \
   -e "s/\\\"Walk\\\":[0-9]*/\\\"Walk\\\":$STRAVA_MY_CLIMB_MIN_GAIN_WALK/" \
   -e "s/\\\"Other\\\":[0-9]*/\\\"Other\\\":$STRAVA_MY_CLIMB_MIN_GAIN_OTHER/" \
   -e "s/\\\"minDistance\\\":[0-9]*/\\\"minDistance\\\":$STRAVA_MY_CLIMB_MIN_DISTANCE/" \
+  "$WEB_DIR/activity.html"
+sed -i \
+  -e "s/\\\"gRide\\\":[0-9]*/\\\"gRide\\\":$STRAVA_MY_CLIMB_MIN_GRADE_RIDE/" \
+  -e "s/\\\"gRun\\\":[0-9]*/\\\"gRun\\\":$STRAVA_MY_CLIMB_MIN_GRADE_RUN/" \
+  -e "s/\\\"gHike\\\":[0-9]*/\\\"gHike\\\":$STRAVA_MY_CLIMB_MIN_GRADE_HIKE/" \
+  -e "s/\\\"gWalk\\\":[0-9]*/\\\"gWalk\\\":$STRAVA_MY_CLIMB_MIN_GRADE_WALK/" \
+  -e "s/\\\"gOther\\\":[0-9]*/\\\"gOther\\\":$STRAVA_MY_CLIMB_MIN_GRADE_OTHER/" \
+  -e "s/CLIMB_DESCENT_RESET = [0-9]*/CLIMB_DESCENT_RESET = $STRAVA_MY_CLIMB_DESCENT_RESET/" \
   "$WEB_DIR/activity.html"
