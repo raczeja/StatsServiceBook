@@ -6,6 +6,19 @@
 
 # --- 6a. Render the per-activity detail page -------------------------------
 log "html: writing activity.html..."
+: "${STRAVA_MY_CLIMB_MIN_GAIN_RIDE:=25}"
+: "${STRAVA_MY_CLIMB_MIN_GAIN_RUN:=5}"
+: "${STRAVA_MY_CLIMB_MIN_GAIN_HIKE:=10}"
+: "${STRAVA_MY_CLIMB_MIN_GAIN_WALK:=3}"
+: "${STRAVA_MY_CLIMB_MIN_GAIN_OTHER:=10}"
+: "${STRAVA_MY_CLIMB_MIN_DISTANCE:=100}"
+for _climb_cfg in \
+  STRAVA_MY_CLIMB_MIN_GAIN_RIDE STRAVA_MY_CLIMB_MIN_GAIN_RUN \
+  STRAVA_MY_CLIMB_MIN_GAIN_HIKE STRAVA_MY_CLIMB_MIN_GAIN_WALK \
+  STRAVA_MY_CLIMB_MIN_GAIN_OTHER STRAVA_MY_CLIMB_MIN_DISTANCE; do
+  eval "_climb_value=\${$_climb_cfg}"
+  case "$_climb_value" in ''|*[!0-9]*) eval "$_climb_cfg=0" ;; esac
+done
 cat > "$WEB_DIR/activity.html" <<'HTML'
 <!doctype html>
 <html lang="en">
@@ -152,6 +165,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 var leafletMap=null,leafletLine=null;
+var CLIMB_THRESHOLDS = __CLIMB_CONFIG__;
 function toggleMapFullscreen(){
   var box=document.getElementById("map-box");
   var btn=document.getElementById("map-expand-btn");
@@ -651,7 +665,7 @@ function makeTileLayer(map) {
   return layer;
 }
 
-function findLongestClimb(trackPts){
+function findLongestClimb(trackPts, sport){
   var raw = [], smooth = [], i, j, from, to, sum;
   for (i = 0; i < trackPts.length; i++) {
     if (trackPts[i].ele != null && isFinite(trackPts[i].ele)) raw.push(trackPts[i].ele);
@@ -675,12 +689,15 @@ function findLongestClimb(trackPts){
   var distance = 0;
   for (i = bestStart + 1; i <= bestEnd; i++)
     distance += haversineM(trackPts[i - 1].lat, trackPts[i - 1].lon, trackPts[i].lat, trackPts[i].lon);
+  var sportKey = sport === "Ride" || sport === "Run" || sport === "Hike" || sport === "Walk" ? sport : "Other";
+  var minGain = CLIMB_THRESHOLDS.gain[sportKey] || CLIMB_THRESHOLDS.gain.Other;
+  if (Math.round(best) < minGain || distance < CLIMB_THRESHOLDS.minDistance) return null;
   return {start:bestStart, end:bestEnd, gain:Math.round(best), distance:distance};
 }
 
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
 // uhttpd serves .gpx without an XML Content-Type header.
-function renderGpxMap(gpxUrl){
+function renderGpxMap(gpxUrl, sport){
   var box = document.getElementById("map-box");
   if (typeof L === "undefined") {
     hideMapSpin();
@@ -715,7 +732,7 @@ function renderGpxMap(gpxUrl){
         var tileLayer = makeTileLayer(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         leafletLine = line;
-        var climb = findLongestClimb(trackPts);
+        var climb = findLongestClimb(trackPts, sport);
         if (climb) {
           L.polyline(pts.slice(climb.start, climb.end + 1), { color: "#1565c0", weight: 7, opacity: 0.9 }).addTo(map);
           L.circleMarker(pts[climb.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
@@ -778,7 +795,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
         var climbEleEl = climbPt.getElementsByTagNameNS("*", "ele")[0];
         climbTrackPts.push({lat:parseFloat(climbPt.getAttribute("lat")), lon:parseFloat(climbPt.getAttribute("lon")), ele:climbEleEl ? parseFloat(climbEleEl.textContent) : null});
       }
-      updateLongestClimbCard(findLongestClimb(climbTrackPts));
+      updateLongestClimbCard(findLongestClimb(climbTrackPts, sport));
       var allH = [], hrEls, bpm;
       for (i = 0; i < trkpts.length; i++) {
         hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
@@ -877,7 +894,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
 
 function renderMap(d){
   // GPX path: healthsync activities — the GPX file is cached locally on the router.
-  if (d.gpx_file) { renderGpxMap(d.gpx_file); return; }
+  if (d.gpx_file) { renderGpxMap(d.gpx_file, d.sport_type || d.type || ""); return; }
   var box = document.getElementById("map-box");
   var enc = d.map && (d.map.polyline || d.map.summary_polyline);
   if (!enc || typeof L === "undefined") {
@@ -1182,3 +1199,5 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 </body>
 </html>
 HTML
+
+sed -i "s#__CLIMB_CONFIG__#{\\"gain\\":{\\"Ride\\":$STRAVA_MY_CLIMB_MIN_GAIN_RIDE,\\"Run\\":$STRAVA_MY_CLIMB_MIN_GAIN_RUN,\\"Hike\\":$STRAVA_MY_CLIMB_MIN_GAIN_HIKE,\\"Walk\\":$STRAVA_MY_CLIMB_MIN_GAIN_WALK,\\"Other\\":$STRAVA_MY_CLIMB_MIN_GAIN_OTHER},\\"minDistance\\":$STRAVA_MY_CLIMB_MIN_DISTANCE}#" "$WEB_DIR/activity.html"
