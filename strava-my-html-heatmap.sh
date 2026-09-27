@@ -134,7 +134,7 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 <body>
 <div id="pbar"></div>
 <div id="bar">
-  <span class="crumbs"><a href="index.html">&#8592; Dashboard</a> &middot; <a href="data-quality.html">Data completeness</a></span>
+  <span class="crumbs"><a href="index.html">&#8592; Dashboard</a> &middot; <a href="data-quality.html">&#128203; Data completeness</a></span>
   <h1>&#128506; Heatmap</h1>
   <label>Period:&nbsp;<select id="period"></select></label>
   <label>Sport:&nbsp;<select id="sport"></select></label>
