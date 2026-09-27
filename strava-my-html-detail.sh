@@ -1200,4 +1200,8 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 </html>
 HTML
 
-sed -i "s#__CLIMB_CONFIG__#{\\"gain\\":{\\"Ride\\":$STRAVA_MY_CLIMB_MIN_GAIN_RIDE,\\"Run\\":$STRAVA_MY_CLIMB_MIN_GAIN_RUN,\\"Hike\\":$STRAVA_MY_CLIMB_MIN_GAIN_HIKE,\\"Walk\\":$STRAVA_MY_CLIMB_MIN_GAIN_WALK,\\"Other\\":$STRAVA_MY_CLIMB_MIN_GAIN_OTHER},\\"minDistance\\":$STRAVA_MY_CLIMB_MIN_DISTANCE}#" "$WEB_DIR/activity.html"
+_climb_config="$(printf '{\"gain\":{\"Ride\":%s,\"Run\":%s,\"Hike\":%s,\"Walk\":%s,\"Other\":%s},\"minDistance\":%s}' \
+  "$STRAVA_MY_CLIMB_MIN_GAIN_RIDE" "$STRAVA_MY_CLIMB_MIN_GAIN_RUN" \
+  "$STRAVA_MY_CLIMB_MIN_GAIN_HIKE" "$STRAVA_MY_CLIMB_MIN_GAIN_WALK" \
+  "$STRAVA_MY_CLIMB_MIN_GAIN_OTHER" "$STRAVA_MY_CLIMB_MIN_DISTANCE")"
+sed -i "s|__CLIMB_CONFIG__|$_climb_config|g" "$WEB_DIR/activity.html"
