@@ -423,13 +423,14 @@ _post_minimal="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.minimal$' || echo 
 [ "$_post_minimal" -gt "$_pre_minimal" ] && \
   ADDED=$((ADDED + _post_minimal - _pre_minimal))
 
-# Skip re-render when nothing changed and no helper scripts were updated since last render.
+# Skip re-render when nothing changed and no scripts were updated since last render.
 # Re-renders when: new/changed/deleted activities, new detail files, weather backfill,
-# bike-assign written via CGI (bike-assign newer than activities.json), or helper scripts updated.
+# bike-assign written via CGI (bike-assign newer than activities.json), or scripts updated.
 _skip_render=0
-# Compute md5 of all helper scripts — more reliable than mtime across scp
+# Include the entrypoint because it controls the activities.json projection.
 _scripts_md5=""
-for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
+for _hs in "$0" \
+            "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
             "$STRAVA_LIBDIR/strava-my-html-detail.sh" \
             "$STRAVA_LIBDIR/strava-my-html-bike.sh" \
             "$STRAVA_LIBDIR/strava-my-html-stats.sh" \

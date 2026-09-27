@@ -2859,16 +2859,17 @@ done
 
 # ── skip-render-guard (md5 checksum) ─────────────────────────────────────────
 # Verifies the logic added to strava-my-activities.sh: skip render only when
-# the combined md5 of all helper scripts is unchanged since the last render.
+# the combined md5 of the entrypoint and helper scripts is unchanged.
 S="skip-render-guard"
 
 _SKIP_TMP="$(mktemp -d)"
 printf '#!/bin/sh\necho a\n' > "$_SKIP_TMP/a.sh"
 printf '#!/bin/sh\necho b\n' > "$_SKIP_TMP/b.sh"
+printf '#!/bin/sh\necho main\n' > "$_SKIP_TMP/main.sh"
 
 _skip_hash() {
     _sh_acc=""
-    for _sf in "$_SKIP_TMP/a.sh" "$_SKIP_TMP/b.sh"; do
+    for _sf in "$_SKIP_TMP/main.sh" "$_SKIP_TMP/a.sh" "$_SKIP_TMP/b.sh"; do
         [ -f "$_sf" ] && _sh_acc="$_sh_acc$(md5sum "$_sf")"
     done
     printf '%s' "$_sh_acc" | md5sum | cut -d' ' -f1
@@ -2894,11 +2895,20 @@ else
     err "$S" "changed-script-rerenders" "hash unchanged after script edit: '$_h1'"
 fi
 
+# Entrypoint content changes also alter the hash and force a re-render.
+printf '#!/bin/sh\necho MAIN_CHANGED\n' > "$_SKIP_TMP/main.sh"
+_h3="$(_skip_hash)"
+if [ "$_h2" != "$_h3" ]; then
+    ok "$S" "changed-entrypoint-rerenders"
+else
+    err "$S" "changed-entrypoint-rerenders" "hash unchanged after entrypoint edit: '$_h2'"
+fi
+
 # No stored hash file (e.g. first run, or new script deployed) → should re-render
 rm -f "$_SKIP_TMP/scripts.md5"
 _stored2=""
 [ -f "$_SKIP_TMP/scripts.md5" ] && _stored2="$(cat "$_SKIP_TMP/scripts.md5")"
-if [ "$_h2" != "$_stored2" ]; then
+if [ "$_h3" != "$_stored2" ]; then
     ok "$S" "missing-hash-file-rerenders"
 else
     err "$S" "missing-hash-file-rerenders" "missing scripts.md5 must not match"
