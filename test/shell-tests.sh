@@ -52,6 +52,20 @@ assert_eq() {
     fi
 }
 
+# ── activity-gps-detection ───────────────────────────────────────────────────
+# Keep both polyline checks independent: jq's // does not treat an empty string
+# as missing, while the detail page uses JavaScript's truthy fallback.
+S="activity-gps-detection"
+_gps_filter='(((.map.polyline // "") | length) > 0) or (((.map.summary_polyline // "") | length) > 0) or (((.start_latlng // []) | length) >= 2) or (((.gpx_file // "") | length) > 0)'
+assert_eq "$S" "polyline-not-hidden-by-empty-summary" \
+    "$(printf '%s' '{"map":{"polyline":"encoded-route","summary_polyline":""}}' | jq "$_gps_filter")" "true"
+assert_eq "$S" "summary-polyline-is-gps" \
+    "$(printf '%s' '{"map":{"polyline":"","summary_polyline":"encoded-route"}}' | jq "$_gps_filter")" "true"
+assert_eq "$S" "coordinates-are-gps" \
+    "$(printf '%s' '{"start_latlng":[51.9,16.4]}' | jq "$_gps_filter")" "true"
+assert_eq "$S" "no-route-means-no-gps" \
+    "$(printf '%s' '{"map":{"polyline":"","summary_polyline":""}}' | jq "$_gps_filter")" "false"
+
 # ── activity-id-generation ────────────────────────────────────────────────────
 # Same logic as the `while IFS= read -r base` loop in healthsync-activities.sh.
 S="activity-id-generation"
