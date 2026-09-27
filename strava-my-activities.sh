@@ -100,14 +100,20 @@ write_sync_status() {
   _now="$(date +%s)"
   _status_tmp="$WEB_DIR/.strava-sync-status.$$"
   if [ "$_rc" -eq 0 ]; then
+    _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/strava-sync-status.json" 2>/dev/null || true)"
+    case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
+    [ "$IMPORT_ENABLED" = "0" ] || _last_success="$_now"
     jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
-      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now}' > "$_status_tmp"
+      --argjson lastSuccess "$_last_success" \
+      --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
+      '{source:$source,ok:true,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end)}' > "$_status_tmp"
   else
     _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/strava-sync-status.json" 2>/dev/null || true)"
     case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
     jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
       --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
-      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error}' > "$_status_tmp"
+      --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
+      '{source:$source,ok:false,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/strava-sync-status.json"
   rm -rf "$TMP" "$LOCKFILE"
@@ -428,6 +434,7 @@ for _hs in "$STRAVA_LIBDIR/strava-my-html-dashboard.sh" \
             "$STRAVA_LIBDIR/strava-my-html-bike.sh" \
             "$STRAVA_LIBDIR/strava-my-html-stats.sh" \
             "$STRAVA_LIBDIR/strava-my-html-heatmap.sh" \
+            "$STRAVA_LIBDIR/strava-my-html-data-quality.sh" \
             "$STRAVA_LIBDIR/strava-render-pages.sh" \
             "$STRAVA_LIBDIR/strava-lib.sh"; do
     [ -f "$_hs" ] && _scripts_md5="$_scripts_md5$(md5sum "$_hs")"

@@ -12,6 +12,7 @@ DETAIL=/usr/bin/strava-my-html-detail.sh
 BIKE=/usr/bin/strava-my-html-bike.sh
 STATS=/usr/bin/strava-my-html-stats.sh
 HEATMAP=/usr/bin/strava-my-html-heatmap.sh
+DATA_QUALITY=/usr/bin/strava-my-html-data-quality.sh
 CLUB=/usr/bin/strava-leaderboard-html.sh
 
 WEB=/www/strava/me
@@ -26,6 +27,7 @@ awk '/^cat > "\$WEB_DIR\/index\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "
 awk '/^cat > "\$WEB_DIR\/activity\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DETAIL"    > "$WEB/activity.html"
 awk '/^cat > "\$WEB_DIR\/stats\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$STATS"     > "$WEB/stats.html"
 awk '/^cat > "\$WEB_DIR\/heatmap\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$HEATMAP" > "$WEB/heatmap.html"
+awk '/^cat > "\$WEB_DIR\/data-quality\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DATA_QUALITY" > "$WEB/data-quality.html"
 {
   printf '%s\n' '<!doctype html><html lang="en"><head>'
   printf '<script>var _CFG={defaultBikeName:""};</script>\n'
@@ -66,13 +68,20 @@ chmod 0755 /www/cgi-bin/ride-goals
 } > /www/cgi-bin/drive-auth
 chmod 0755 /www/cgi-bin/drive-auth
 
-cp /opt/activities.sample.json "$WEB/activities.json"
+jq '(.activities[] |= (. + {has_gps:(if .gpx_file then true elif .id == 18784255013 then true elif .id == 1 then false else null end)}))' \
+  /opt/activities.sample.json > "$WEB/activities.json"
 cp /opt/heatmap.sample.json    "$WEB/heatmap.json"
 cp /opt/cities.sample.json     "$WEB/cities.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
 printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
     "$(date +%s)" "$(($(date +%s) + 7200))" > "$WEB/drive-status.json"
+printf '{"source":"api","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+  "$(date +%s)" "$(date +%s)" > "$WEB/strava-sync-status.json"
+printf '{"source":"HealthSync","mode":"full","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+  "$(date +%s)" "$(date +%s)" > "$WEB/healthsync-sync-status.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
+printf '{"source":"api","ok":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+  "$(date +%s)" "$(date +%s)" > "$CLUB_WEB/leaderboard-sync-status.json"
 
 # Minimal per-club leaderboard JSON — mirrors what strava-leaderboard writes to
 # $WEB_DIR/leaderboard_<clubId>.json; install.sh symlinks that into /www/strava/.

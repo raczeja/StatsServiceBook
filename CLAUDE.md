@@ -6,47 +6,48 @@ A **router-native activity stats and bike service tracker** for OpenWrt. A set o
 
 ## Files
 
-| File                                                           | Purpose                                                                                                                                                                                      |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [strava-lib.sh](strava-lib.sh)                                 | Shared library: `log()`, `die()`, `ensure_access_token()`, `curl_retry()`, `fetch_weather_temp()`, `_rw_coords()`, `run_weather_backfill()`, `ensure_session_cookie()`. Sourced by both main scripts. Installed to `/usr/bin/strava-lib.sh` (0644 — not executable directly).                             |
-| [strava-leaderboard.sh](strava-leaderboard.sh)                 | Club leaderboard: token refresh → page club feed → merge store → emit JSON → render HTML. Installed to `/usr/bin/strava-leaderboard`.                                                        |
-| [config.example](config.example)                               | Config template → `/etc/strava-leaderboard.conf` (holds secrets, `chmod 600`).                                                                                                               |
-| [strava-my-activities.sh](strava-my-activities.sh)             | My Activities: token refresh → page `/athlete/activities` → merge store (dedup by Strava ID) → emit JSON → source the four HTML helpers below. Installed to `/usr/bin/strava-my-activities`. |
-| [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh)     | Sourced by `strava-my-activities.sh`: writes `index.html` (activities dashboard with year/month/sport filter + reset button).                                                                |
-| [strava-my-html-detail.sh](strava-my-html-detail.sh)           | Sourced by `strava-my-activities.sh`: writes `activity.html` (per-activity detail page with Leaflet map, splits chart, elevation chart, HR chart, cadence chart).                           |
-| [strava-my-html-bike.sh](strava-my-html-bike.sh)               | Sourced by both main scripts: writes `bike.html` + installs the bike-service CGI + installs the bike-assign CGI.                                                                             |
-| [strava-my-html-stats.sh](strava-my-html-stats.sh)             | Sourced by both main scripts: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                         |
-| [strava-my-html-heatmap.sh](strava-my-html-heatmap.sh)         | Sourced by both main scripts: generates `heatmap.json` (downsampled GPS points per activity) + writes `heatmap.html` (full-viewport Leaflet.heat all-activities heatmap with period filter). |
-| [strava-my-feed-api.sh](strava-my-feed-api.sh)                 | Sourced by `strava-my-activities.sh` (§2 API branch): pages `/api/v3/athlete/activities`; appends NDJSON to `$TMP/all.ndjson`; sets `reached_end`. |
-| [strava-my-feed-scrape.sh](strava-my-feed-scrape.sh)           | Sourced by `strava-my-activities.sh` (§2 scrape branch): pages `/athlete/training_activities`; normalizes web format → store format; appends NDJSON; sets `reached_end`, increments `_sc_norm_fail`. |
-| [strava-my-detail-backfill.sh](strava-my-detail-backfill.sh)   | Sourced by `strava-my-activities.sh` (§3b): rate-limited per-activity detail JSON backfill (API + scrape `case` branch inside); increments `ADDED`, `_sc_norm_fail`, `_sc_cookie_expired`, `_sc_layout_fail`. |
-| [strava-my-bike-alert.sh](strava-my-bike-alert.sh)             | Sourced by `strava-my-activities.sh` (§6f): bike-service threshold email alerts via msmtp. |
-| [strava-render-pages.sh](strava-render-pages.sh)               | Sourced by both `strava-my-activities.sh` and `healthsync-activities.sh`: deduplication wrapper that sources the four HTML helpers (dashboard, detail, bike, stats). |
-| [strava-leaderboard-html.sh](strava-leaderboard-html.sh)       | Sourced by `strava-leaderboard.sh` (§6): writes the club leaderboard `index.html`; single-quoted heredoc. |
-| [healthsync-fit-import.sh](healthsync-fit-import.sh)           | Sourced by `healthsync-activities.sh` (§3b): Magene FIT file detection, GPS Visualizer FIT→GPX conversion, dual-source merge with watch records; increments `ADDED`. |
-| [config-my.example](config-my.example)                         | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed. |
-| [healthsync-activities.sh](healthsync-activities.sh)           | HealthSync / Google Drive data source: Drive OAuth → download CSV+GPX+TCX → parse (incl. cadence from TCX/GPX) → cache GPX → emit `activities.json` → source HTML helpers. Also processes `Magene_*.fit` files via GPS Visualizer conversion (§3b). Writes `drive-status.json` and generates the `drive-auth` re-authorization CGI (§7). Installed to `/usr/bin/healthsync-activities`. |
-| [config-healthsync.example](config-healthsync.example)         | Config template → `/etc/healthsync-activities.conf`. Holds Google OAuth credentials, Drive folder ID, `HEALTHSYNC_DEFAULT_BIKE`. |
-| [install.sh](install.sh)                                       | Installs deps (`curl jq ca-bundle`), all scripts, all helper files, all config templates, timezone, and cron entries. Idempotent.                                                            |
-| [README.md](README.md)                                         | End-user setup: Strava API app, one-time OAuth, install, scheduling, ops, limitations. Keep it in sync with behavior changes.                                                                |
-| [test/Containerfile](test/Containerfile)                       | Alpine container that serves all five pages via lighttpd for local testing. Build context is the repo root.                                                                                  |
-| [test/run.sh](test/run.sh)                                     | Container entrypoint: extracts HTML from each helper script's `<<'HTML'` heredoc, sets up the CGI, and starts lighttpd on :8080.                                                             |
-| [test/screenshot.mjs](test/screenshot.mjs)                     | Node.js (puppeteer-core + system Edge) script called by `make-screenshots.ps1` to capture all five pages.                                                                                    |
-| [test/make-screenshots.ps1](test/make-screenshots.ps1)         | PowerShell driver: builds the container, starts it, runs the screenshot script, saves PNGs to `test/screenshots/`.                                                                           |
-| [test/functional-tests.mjs](test/functional-tests.mjs)        | Node.js (puppeteer-core + system Edge) regression test script covering all five pages + CGI round-trip (includes reset-filter, column-sorting, stats-sport-filter suites). Called by `run-tests.ps1`. Exits 0 on all pass, 1 on failure. |
-| [.claude/settings.json](.claude/settings.json)                | Claude Code project settings: `PostToolUse` hook that runs `sh -n` after every `.sh` file edit and injects a reminder to run the full test suite.                                           |
-| [test/run-tests.ps1](test/run-tests.ps1)                       | PowerShell driver: builds the container, starts it, runs `functional-tests.mjs`, stops the container. Propagates exit code for CI use.                                                      |
-| [test/make-test-html.ps1](test/make-test-html.ps1)             | Extracts the dashboard heredoc from `strava-my-html-dashboard.sh`, inlines `activities.json`, writes `test/test.html` for offline preview.                                                   |
-| [test/activities.sample.json](test/activities.sample.json)     | Sample activities dataset served inside the container (and used by `make-test-html.ps1`).                                                                                                    |
-| [test/bike-service.sample.json](test/bike-service.sample.json) | Sample bike-service store served inside the container.                                                                                                                                       |
-| [test/18784255013.json](test/18784255013.json)                 | Sample per-activity detail JSON (served at `details/18784255013.json` inside the container).                                                                                                 |
-| [test/run-healthsync-podman.ps1](test/run-healthsync-podman.ps1) | PowerShell driver: runs `healthsync-activities.sh` with real Google credentials inside Alpine (Podman), then serves output with busybox httpd. Accepts `-Config`, `-StateDir`, `-SkipImport`, `-KeepOutput`. |
-| [test/run-healthsync-local.ps1](test/run-healthsync-local.ps1)   | PowerShell driver: runs `healthsync-activities.sh` using local exported files (`LOCAL_DRIVE_DIR` mode, no Google credentials). Accepts `-LocalFilesDir`, `-Port`, `-StateDir`, `-SkipImport`, `-KeepOutput`, `-NoBrowser`. |
-| [strava-email-monthly.sh](strava-email-monthly.sh)             | **Also installed as `/usr/bin/strava-email-weekly`** — there is no separate source file. The script detects its mode via `basename "$0"` (checks for `*weekly*`). Edit this file to change either email's behavior. |
-| [strava-cron-guard.sh](strava-cron-guard.sh)                   | Cron wrapper: network pre-flight ping → retry on failure (up to `STRAVA_CRON_RETRIES`, default 2) → msmtp alert after all retries exhausted. Config: sources leaderboard conf first, then script-specific conf (so SMTP settings can be shared). |
-| [test/screenshots/](test/screenshots/)                         | Screenshots generated by `make-screenshots.ps1`; embedded in README.md.                                                                                                                      |
-| `$WEB_DIR/drive-status.json`                                   | Written by `healthsync-activities.sh` after each run: `{"ok":true}` on success, `{"ok":false,"error":"...","ts":N}` on Drive token failure. Dashboard reads it to show/hide the re-auth banner. |
-| `$CGI_DIR/drive-auth`                                          | Generated CGI (POSIX sh) installed by `healthsync-activities.sh`: implements OAuth device-flow re-authorization for Google Drive. Accessed at `/cgi-bin/drive-auth`.                         |
+| File                                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [strava-lib.sh](strava-lib.sh)                                   | Shared library: `log()`, `die()`, `ensure_access_token()`, `curl_retry()`, `fetch_weather_temp()`, `_rw_coords()`, `run_weather_backfill()`, `ensure_session_cookie()`. Sourced by both main scripts. Installed to `/usr/bin/strava-lib.sh` (0644 — not executable directly).                                                                                                           |
+| [strava-leaderboard.sh](strava-leaderboard.sh)                   | Club leaderboard: token refresh → page club feed → merge store → emit JSON → render HTML. Installed to `/usr/bin/strava-leaderboard`.                                                                                                                                                                                                                                                   |
+| [config.example](config.example)                                 | Config template → `/etc/strava-leaderboard.conf` (holds secrets, `chmod 600`).                                                                                                                                                                                                                                                                                                          |
+| [strava-my-activities.sh](strava-my-activities.sh)               | My Activities: token refresh → page `/athlete/activities` → merge store (dedup by Strava ID) → emit JSON → source the four HTML helpers below. Installed to `/usr/bin/strava-my-activities`.                                                                                                                                                                                            |
+| [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh)       | Sourced by `strava-my-activities.sh`: writes `index.html` (activities dashboard with year/month/sport filter + reset button).                                                                                                                                                                                                                                                           |
+| [strava-my-html-detail.sh](strava-my-html-detail.sh)             | Sourced by `strava-my-activities.sh`: writes `activity.html` (per-activity detail page with Leaflet map, splits chart, elevation chart, HR chart, cadence chart).                                                                                                                                                                                                                       |
+| [strava-my-html-bike.sh](strava-my-html-bike.sh)                 | Sourced by both main scripts: writes `bike.html` + installs the bike-service CGI + installs the bike-assign CGI.                                                                                                                                                                                                                                                                        |
+| [strava-my-html-stats.sh](strava-my-html-stats.sh)               | Sourced by both main scripts: writes `stats.html` (personal stats summary — yearly/monthly/records/sport breakdown).                                                                                                                                                                                                                                                                    |
+| [strava-my-html-heatmap.sh](strava-my-html-heatmap.sh)           | Sourced by both main scripts: generates `heatmap.json` (downsampled GPS points per activity) + writes `heatmap.html` (full-viewport Leaflet.heat all-activities heatmap with period filter).                                                                                                                                                                                            |
+| [strava-my-html-data-quality.sh](strava-my-html-data-quality.sh) | Sourced by `strava-render-pages.sh`: writes `data-quality.html` (activity completeness and latest Strava, HealthSync, and leaderboard sync status).                                                                                                                                                                                                                                     |
+| [strava-my-feed-api.sh](strava-my-feed-api.sh)                   | Sourced by `strava-my-activities.sh` (§2 API branch): pages `/api/v3/athlete/activities`; appends NDJSON to `$TMP/all.ndjson`; sets `reached_end`.                                                                                                                                                                                                                                      |
+| [strava-my-feed-scrape.sh](strava-my-feed-scrape.sh)             | Sourced by `strava-my-activities.sh` (§2 scrape branch): pages `/athlete/training_activities`; normalizes web format → store format; appends NDJSON; sets `reached_end`, increments `_sc_norm_fail`.                                                                                                                                                                                    |
+| [strava-my-detail-backfill.sh](strava-my-detail-backfill.sh)     | Sourced by `strava-my-activities.sh` (§3b): rate-limited per-activity detail JSON backfill (API + scrape `case` branch inside); increments `ADDED`, `_sc_norm_fail`, `_sc_cookie_expired`, `_sc_layout_fail`.                                                                                                                                                                           |
+| [strava-my-bike-alert.sh](strava-my-bike-alert.sh)               | Sourced by `strava-my-activities.sh` (§6f): bike-service threshold email alerts via msmtp.                                                                                                                                                                                                                                                                                              |
+| [strava-render-pages.sh](strava-render-pages.sh)                 | Sourced by both `strava-my-activities.sh` and `healthsync-activities.sh`: wrapper that sources the dashboard, detail, bike, stats, and data-quality helpers.                                                                                                                                                                                                                            |
+| [strava-leaderboard-html.sh](strava-leaderboard-html.sh)         | Sourced by `strava-leaderboard.sh` (§6): writes the club leaderboard `index.html`; single-quoted heredoc.                                                                                                                                                                                                                                                                               |
+| [healthsync-fit-import.sh](healthsync-fit-import.sh)             | Sourced by `healthsync-activities.sh` (§3b): Magene FIT file detection, GPS Visualizer FIT→GPX conversion, dual-source merge with watch records; increments `ADDED`.                                                                                                                                                                                                                    |
+| [config-my.example](config-my.example)                           | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed.                                                                                                                                                     |
+| [healthsync-activities.sh](healthsync-activities.sh)             | HealthSync / Google Drive data source: Drive OAuth → download CSV+GPX+TCX → parse (incl. cadence from TCX/GPX) → cache GPX → emit `activities.json` → source HTML helpers. Also processes `Magene_*.fit` files via GPS Visualizer conversion (§3b). Writes `drive-status.json` and generates the `drive-auth` re-authorization CGI (§7). Installed to `/usr/bin/healthsync-activities`. |
+| [config-healthsync.example](config-healthsync.example)           | Config template → `/etc/healthsync-activities.conf`. Holds Google OAuth credentials, Drive folder ID, `HEALTHSYNC_DEFAULT_BIKE`.                                                                                                                                                                                                                                                        |
+| [install.sh](install.sh)                                         | Installs deps (`curl jq ca-bundle`), all scripts, all helper files, all config templates, timezone, and cron entries. Idempotent.                                                                                                                                                                                                                                                       |
+| [README.md](README.md)                                           | End-user setup: Strava API app, one-time OAuth, install, scheduling, ops, limitations. Keep it in sync with behavior changes.                                                                                                                                                                                                                                                           |
+| [test/Containerfile](test/Containerfile)                         | Alpine container that serves the dashboard pages via lighttpd for local testing. Build context is the repo root.                                                                                                                                                                                                                                                                        |
+| [test/run.sh](test/run.sh)                                       | Container entrypoint: extracts HTML from each helper script's `<<'HTML'` heredoc, sets up the CGI, and starts lighttpd on :8080.                                                                                                                                                                                                                                                        |
+| [test/screenshot.mjs](test/screenshot.mjs)                       | Node.js (puppeteer-core + system Edge) script called by `make-screenshots.ps1` to capture all five pages.                                                                                                                                                                                                                                                                               |
+| [test/make-screenshots.ps1](test/make-screenshots.ps1)           | PowerShell driver: builds the container, starts it, runs the screenshot script, saves PNGs to `test/screenshots/`.                                                                                                                                                                                                                                                                      |
+| [test/functional-tests.mjs](test/functional-tests.mjs)           | Node.js (puppeteer-core + system Edge) regression test script covering all five pages + CGI round-trip (includes reset-filter, column-sorting, stats-sport-filter suites). Called by `run-tests.ps1`. Exits 0 on all pass, 1 on failure.                                                                                                                                                |
+| [.claude/settings.json](.claude/settings.json)                   | Claude Code project settings: `PostToolUse` hook that runs `sh -n` after every `.sh` file edit and injects a reminder to run the full test suite.                                                                                                                                                                                                                                       |
+| [test/run-tests.ps1](test/run-tests.ps1)                         | PowerShell driver: builds the container, starts it, runs `functional-tests.mjs`, stops the container. Propagates exit code for CI use.                                                                                                                                                                                                                                                  |
+| [test/make-test-html.ps1](test/make-test-html.ps1)               | Extracts the dashboard heredoc from `strava-my-html-dashboard.sh`, inlines `activities.json`, writes `test/test.html` for offline preview.                                                                                                                                                                                                                                              |
+| [test/activities.sample.json](test/activities.sample.json)       | Sample activities dataset served inside the container (and used by `make-test-html.ps1`).                                                                                                                                                                                                                                                                                               |
+| [test/bike-service.sample.json](test/bike-service.sample.json)   | Sample bike-service store served inside the container.                                                                                                                                                                                                                                                                                                                                  |
+| [test/18784255013.json](test/18784255013.json)                   | Sample per-activity detail JSON (served at `details/18784255013.json` inside the container).                                                                                                                                                                                                                                                                                            |
+| [test/run-healthsync-podman.ps1](test/run-healthsync-podman.ps1) | PowerShell driver: runs `healthsync-activities.sh` with real Google credentials inside Alpine (Podman), then serves output with busybox httpd. Accepts `-Config`, `-StateDir`, `-SkipImport`, `-KeepOutput`.                                                                                                                                                                            |
+| [test/run-healthsync-local.ps1](test/run-healthsync-local.ps1)   | PowerShell driver: runs `healthsync-activities.sh` using local exported files (`LOCAL_DRIVE_DIR` mode, no Google credentials). Accepts `-LocalFilesDir`, `-Port`, `-StateDir`, `-SkipImport`, `-KeepOutput`, `-NoBrowser`.                                                                                                                                                              |
+| [strava-email-monthly.sh](strava-email-monthly.sh)               | **Also installed as `/usr/bin/strava-email-weekly`** — there is no separate source file. The script detects its mode via `basename "$0"` (checks for `*weekly*`). Edit this file to change either email's behavior.                                                                                                                                                                     |
+| [strava-cron-guard.sh](strava-cron-guard.sh)                     | Cron wrapper: network pre-flight ping → retry on failure (up to `STRAVA_CRON_RETRIES`, default 2) → msmtp alert after all retries exhausted. Config: sources leaderboard conf first, then script-specific conf (so SMTP settings can be shared).                                                                                                                                        |
+| [test/screenshots/](test/screenshots/)                           | Screenshots generated by `make-screenshots.ps1`; embedded in README.md.                                                                                                                                                                                                                                                                                                                 |
+| `$WEB_DIR/drive-status.json`                                     | Written by `healthsync-activities.sh` after each run: `{"ok":true}` on success, `{"ok":false,"error":"...","ts":N}` on Drive token failure. Dashboard reads it to show/hide the re-auth banner.                                                                                                                                                                                         |
+| `$CGI_DIR/drive-auth`                                            | Generated CGI (POSIX sh) installed by `healthsync-activities.sh`: implements OAuth device-flow re-authorization for Google Drive. Accessed at `/cgi-bin/drive-auth`.                                                                                                                                                                                                                    |
 
 ## Router
 
@@ -61,7 +62,7 @@ Run from the repo root on the dev machine:
 # Push updated scripts+helpers and regenerate the dashboard immediately
 scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
-  && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh strava-my-html-heatmap.sh root@192.168.1.1:/usr/bin/ `
+  && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh strava-my-html-heatmap.sh strava-my-html-data-quality.sh root@192.168.1.1:/usr/bin/ `
   && scp strava-my-feed-api.sh strava-my-feed-scrape.sh strava-my-detail-backfill.sh strava-my-bike-alert.sh strava-render-pages.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-my-activities
 ```
@@ -71,7 +72,7 @@ For the HealthSync script (also push `strava-lib.sh` — it holds the shared wea
 ```powershell
 scp healthsync-activities.sh root@192.168.1.1:/usr/bin/healthsync-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
-  && scp healthsync-fit-import.sh strava-render-pages.sh root@192.168.1.1:/usr/bin/ `
+  && scp healthsync-fit-import.sh strava-render-pages.sh strava-my-html-data-quality.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 healthsync-activities
 ```
 
@@ -123,11 +124,13 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
    ```
    `install.sh` is idempotent and will not touch existing configs in `/etc/`.
 3. **Verify state is intact** — persistent state lives under `STRAVA_STATE_DIR` (default `/usr/lib/strava-leaderboard`). If that path is on the overlay (it is on a standard OpenWrt setup), it survives sysupgrade and no data migration is needed. Confirm with:
+
    ```sh
    ssh root@192.168.1.1 "ls /usr/lib/strava-leaderboard/"
    ```
 
    The `/etc/sysupgrade.conf` on the router should list all scripts and state dirs so they are preserved across upgrades. The complete correct list is:
+
    ```
    /usr/bin/strava-leaderboard
    /usr/bin/strava-my-activities
@@ -141,6 +144,7 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
    /usr/bin/strava-my-html-bike.sh
    /usr/bin/strava-my-html-stats.sh
    /usr/bin/strava-my-html-heatmap.sh
+   /usr/bin/strava-my-html-data-quality.sh
    /usr/bin/strava-my-feed-api.sh
    /usr/bin/strava-my-feed-scrape.sh
    /usr/bin/strava-my-detail-backfill.sh
@@ -155,7 +159,9 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
    /usr/lib/strava-my-activities
    /usr/lib/healthsync
    ```
+
    CGI scripts (`/www/cgi-bin/bike-service`, `bike-assign`, `drive-auth`) are **not** listed — they are regenerated automatically on the first run after reinstall.
+
 4. **Trigger a manual run** to regenerate the HTML:
    ```sh
    ssh root@192.168.1.1 strava-my-activities
@@ -173,6 +179,7 @@ them on a Windows dev box. To validate changes:
 - **Functional regression tests (HTML + JS + CGI):** run the Playwright test suite
   against the local container — this is the primary way to catch breakage in the
   HTML helper scripts:
+
   ```bash
   # First-time setup (once):
   mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save @playwright/test && npx playwright install chromium
@@ -185,22 +192,27 @@ them on a Windows dev box. To validate changes:
   cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test
   docker stop stravame-tests && docker rm stravame-tests
   ```
+
   Requires Docker and Node.js ≥ 18. Uses Playwright's bundled Chromium (downloaded by `npx playwright install chromium`).
 
   If Chromium can't be downloaded (network-restricted WSL), install Google Chrome and set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome`.
 
   **Running a single spec file:**
+
   ```bash
   cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test mobile.spec.mjs
   ```
+
   Spec files: `club-dashboard.spec.mjs`, `my-activities.spec.mjs`, `stats.spec.mjs`, `activity-detail.spec.mjs`, `bike-service.spec.mjs`, `cgi.spec.mjs`, `mobile.spec.mjs`.
 
   **How the test container gets its HTML:** `test/run.sh` (the container entrypoint) re-extracts each page's HTML from the production helper script's `<<'HTML'` heredoc via `awk` at startup — there are no separate HTML fixtures. This means the test always runs against the live heredoc content; changing a heredoc is reflected immediately in the next container run.
+
 - **Screenshots of all pages** (saves PNGs to `test/screenshots/`):
   ```powershell
   powershell -ExecutionPolicy Bypass -File .\test\make-screenshots.ps1
   ```
 - **Manual / interactive Podman** (keep container running to browse at `http://localhost:8080`):
+
   ```powershell
   # Build the image
   podman build -f test/Containerfile -t stravame-test .
@@ -217,7 +229,9 @@ them on a Windows dev box. To validate changes:
   # Stop and remove when done
   podman stop stravame && podman rm stravame
   ```
+
   Pages: `http://localhost:8080/strava/me/` (dashboard), `/activity.html`, `/bike.html`, `/stats.html`, `http://localhost:8080/strava/` (club leaderboard).
+
 - **Real testing on the router** via scp + ssh, then a manual
   `strava-leaderboard` run whose output must end in `done.` (see README §5).
 
@@ -256,7 +270,7 @@ These functions exist beyond `log/die/ensure_access_token` — know them before 
 
 ## HTML page JS architecture
 
-All five pages (`index.html`, `activity.html`, `bike.html`, `stats.html`, `heatmap.html`) follow the same pattern — knowing this prevents reaching for Chart.js or adding `$`-expansion to heredocs:
+The activity pages (`index.html`, `activity.html`, `bike.html`, `stats.html`, `heatmap.html`, `data-quality.html`) follow the same static-page pattern — knowing this prevents reaching for Chart.js or adding `$`-expansion to heredocs:
 
 - **Fetch** — `fetch('activities.json')` (or `heatmap.json` for the heatmap). No server-side rendering; all logic runs in the browser.
 - **Filter** — year/month/sport dropdowns. State is stored in `sessionStorage` so it survives page refreshes. A Reset button clears `sessionStorage` and reloads defaults.
@@ -268,18 +282,20 @@ All five pages (`index.html`, `activity.html`, `bike.html`, `stats.html`, `heatm
 
 - Activity dedupe by content **signature** (club leaderboard): a pipe-joined
   string of athlete name + activity shape — `firstname|lastname|name|distance|
-  moving_time|elapsed_time|total_elevation_gain|sport_type`. Strava's club feed
+moving_time|elapsed_time|total_elevation_gain|sport_type`. Strava's club feed
   has **no dates and no activity IDs**, so this is the only stable identity.
 - Leaderboard grouping/summing/ranking: group by `firstname|lastname|profile_medium`,
   sum distance/time/elevation, rank by distance, avg speed in km/h.
 
 **activities.ndjson store fields** (My Activities / HealthSync — the exact set projected into the store and emitted to `activities.json`):
+
 ```
 id, date, name, sport_type, gear_id, distance, moving_time, elapsed_time,
 total_elevation_gain, average_speed, max_speed, average_heartrate, max_heartrate,
 average_cadence, average_watts, weighted_average_watts, max_watts, kilojoules,
 average_temp, suffer_score, elev_high, elev_low
 ```
+
 `gpx_file` is **not** in the standard Strava store record — it exists only in HealthSync store records and in detail JSONs (`$DETAIL_DIR/<id>.json`). The `activities.json` output merges in weather fields from `weather-cache.json`, gear name from detail JSONs, and `bike_id` from `bike-assignments.json`.
 
 **Key constraint:** Strava's `/clubs/{id}/activities` feed has **no dates and no
@@ -364,6 +380,7 @@ When you finish implementing a new feature or behaviour change, always do the fo
    **Why this matters:** `shell-tests.sh`'s `script-syntax-check` suite runs `sh -n` on every script at its `/usr/bin/` path. If a script is missing from `Dockerfile`, it won't be in the image and the test will fail with "not found in container", surfacing the omission before it reaches the router.
 
 2. **Run the functional test suite** to catch regressions — and run it yourself, do not just hand the command back to the user:
+
    ```bash
    docker build -t stravame-prod . && \
    docker build -f test/Containerfile --build-arg BASE=stravame-prod -t stravame-test . && \
@@ -373,6 +390,7 @@ When you finish implementing a new feature or behaviour change, always do the fo
    cd /tmp/strava-test-run && TEST_PORT=8080 TEST_HOST=localhost npx playwright test; \
    docker stop stravame-tests && docker rm stravame-tests
    ```
+
    (First time: `mkdir -p /tmp/strava-test-run && cd /tmp/strava-test-run && npm init -y && npm install --save @playwright/test && npx playwright install chromium`.)
    If any test fails, fix the regression before proceeding. Do not skip this step. Do not ask the user to run tests for you.
 
@@ -388,6 +406,6 @@ When you finish implementing a new feature or behaviour change, always do the fo
    - `install.sh` — keep it idempotent and complete so a full reinstall still works
    - The "Deploy" section in this file — add/update the per-script `scp`/`ssh` pattern
    - `config.example` / `config-my.example` / `config-healthsync.example` — add/remove/document any new config keys
-   Do not leave `install.sh` out of sync with the deployed scripts.
+     Do not leave `install.sh` out of sync with the deployed scripts.
 
 7. **Update `/etc/sysupgrade.conf` if new installed files are added.** Whenever a change adds a new script to `/usr/bin/`, a new state directory, or a new config file to `/etc/`, tell the user to add the path to `/etc/sysupgrade.conf` on the router so it survives firmware upgrades. The complete canonical list is documented in the "After a router sysupgrade" section above — keep it in sync. CGI scripts (`/www/cgi-bin/`) are the only exception: they are regenerated on first run and do not need to be listed. Always explicitly remind the user to update `sysupgrade.conf` when this applies.
