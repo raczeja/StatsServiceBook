@@ -412,7 +412,7 @@ mkdir -p "$DETAIL_DIR"
 _pre_minimal="$(ls -1 "$DETAIL_DIR" 2>/dev/null | grep -c '\.minimal$' || echo 0)"
 log "detail: checking minimal files from $TOTAL_STORED store records"
 jq -r 'select(.id != null) | [(.id | tostring), tojson] | @tsv' "$STORE" > "$TMP/minimal-records.tsv"
-while IFS='\t' read -r _mdid _mdrec; do
+while IFS="$(printf '\t')" read -r _mdid _mdrec; do
   [ -n "$_mdid" ] || continue
   [ -f "$DETAIL_DIR/$_mdid.json" ] && continue
   printf '%s\n' "$_mdrec" > "$DETAIL_DIR/$_mdid.json"
