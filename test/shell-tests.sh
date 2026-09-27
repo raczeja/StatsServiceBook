@@ -2787,6 +2787,7 @@ for _f in \
     /usr/bin/strava-my-html-bike.sh \
     /usr/bin/strava-my-html-stats.sh \
     /usr/bin/strava-my-html-heatmap.sh \
+    /usr/bin/strava-my-html-data-quality.sh \
     /usr/bin/strava-leaderboard \
     /usr/bin/strava-lib.sh \
     /usr/bin/strava-cron-guard \
@@ -2812,6 +2813,7 @@ for _f in \
             strava-my-html-bike.sh) _alt="$(dirname "$0")/../strava-my-html-bike.sh" ;;
             strava-my-html-stats.sh) _alt="$(dirname "$0")/../strava-my-html-stats.sh" ;;
             strava-my-html-heatmap.sh) _alt="$(dirname "$0")/../strava-my-html-heatmap.sh" ;;
+            strava-my-html-data-quality.sh) _alt="$(dirname "$0")/../strava-my-html-data-quality.sh" ;;
             strava-lib.sh) _alt="$(dirname "$0")/../strava-lib.sh" ;;
             strava-cron-guard) _alt="$(dirname "$0")/../strava-cron-guard.sh" ;;
             strava-email-monthly) _alt="$(dirname "$0")/../strava-email-monthly.sh" ;;

@@ -30,6 +30,7 @@ COPY strava-my-html-detail.sh    /usr/bin/strava-my-html-detail.sh
 COPY strava-my-html-bike.sh      /usr/bin/strava-my-html-bike.sh
 COPY strava-my-html-stats.sh     /usr/bin/strava-my-html-stats.sh
 COPY strava-my-html-heatmap.sh   /usr/bin/strava-my-html-heatmap.sh
+COPY strava-my-html-data-quality.sh /usr/bin/strava-my-html-data-quality.sh
 
 # Logic helper scripts (sourced by main scripts, not run directly)
 COPY strava-my-feed-api.sh        /usr/bin/strava-my-feed-api.sh
@@ -54,6 +55,7 @@ RUN chmod 0755 \
     /usr/bin/strava-my-html-bike.sh \
     /usr/bin/strava-my-html-stats.sh \
     /usr/bin/strava-my-html-heatmap.sh \
+    /usr/bin/strava-my-html-data-quality.sh \
     /usr/bin/strava-my-feed-api.sh \
     /usr/bin/strava-my-feed-scrape.sh \
     /usr/bin/strava-my-detail-backfill.sh \

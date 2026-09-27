@@ -13,3 +13,5 @@
 . "${STRAVA_LIBDIR:-$LIBDIR}/strava-my-html-bike.sh"
 # shellcheck disable=SC1090
 . "${STRAVA_LIBDIR:-$LIBDIR}/strava-my-html-stats.sh"
+# shellcheck disable=SC1090
+. "${STRAVA_LIBDIR:-$LIBDIR}/strava-my-html-data-quality.sh"
