@@ -87,6 +87,17 @@ assert_eq "$S" "gpx-mapped-to-filename-id" \
 assert_eq "$S" "payload-id-not-used-as-gps-key" \
     "$(printf '%s' "$_gps_by_filename" | jq 'has("19947838949")')" "false"
 
+# ── leaderboard-status-web-link ─────────────────────────────────────────────
+# A relocated leaderboard web dir must expose its status under uhttpd's /www/strava path.
+S="leaderboard-status-web-link"
+_lb_status_target="$TMP/usb/leaderboard-sync-status.json"
+_lb_status_served="$TMP/www/strava/leaderboard-sync-status.json"
+mkdir -p "$(dirname "$_lb_status_target")" "$(dirname "$_lb_status_served")"
+printf '{"source":"api","ok":true}\n' > "$_lb_status_target"
+ln -sfn "$_lb_status_target" "$_lb_status_served"
+assert_eq "$S" "status-visible-at-served-path" \
+    "$(cat "$_lb_status_served")" '{"source":"api","ok":true}'
+
 # ── activity-id-generation ────────────────────────────────────────────────────
 # Same logic as the `while IFS= read -r base` loop in healthsync-activities.sh.
 S="activity-id-generation"
