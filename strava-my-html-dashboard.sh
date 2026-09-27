@@ -706,6 +706,7 @@ function render(){
       "Single activity with the most total elevation gain"));
     if (bLongestClimb) chips.push(chip(bLongestClimb, "Longest climb", fmtInt(bLongestClimb.max_single_climb)+" m",
       "Largest single continuous climb calculated from the GPX elevation profile"));
+    else chips.push('<span class="best" title="Longest climb requires a GPX elevation profile"><b>Longest climb</b>—</span>');
     if (bSpeed) chips.push(chip(bSpeed, "Fastest avg", (bSpeed.average_speed*3.6).toFixed(1)+" km/h",
       "Highest average speed"));
     if (bVam)   chips.push(chip(bVam,   "Best VAM", fmtInt(bVam.vam)+" m/h",
