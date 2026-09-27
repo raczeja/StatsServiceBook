@@ -97,7 +97,7 @@ test.describe("data-quality", () => {
       URLS.club,
     ]) {
       await page.goto(url, { waitUntil: "domcontentloaded" });
-      await expect(page.locator('a[href$="data-quality.html"]')).toBeVisible();
+      await expect(page.locator('a[href$="data-quality.html"]').first()).toBeVisible();
       if (url === URLS.dash) {
         await expect(
           page.locator('#hdr h1 a[href="data-quality.html"]'),

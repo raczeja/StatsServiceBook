@@ -41,6 +41,7 @@
       "weathercode": 1,
       "precipitation": 0.0,
       "gpx_file": "gpx/magene_2026-07-12_50671559.gpx",
+      "max_single_climb": 45,
       "detail": true,
       "max_speed": 6.186
     },
@@ -60,6 +61,7 @@
       "calories": 310,
       "average_temp": 24,
       "gpx_file": "gpx/healthsync-sample.gpx",
+      "max_single_climb": 21,
       "detail": true,
       "max_speed": 3.605
     },
@@ -79,6 +81,7 @@
       "calories": 680,
       "average_temp": 24,
       "gpx_file": "gpx/2026.06.22_10.30-CYCLING.gpx",
+      "max_single_climb": 38,
       "detail": true,
       "max_speed": 6.078
     },

@@ -115,7 +115,7 @@ svg.bar{width:100%;display:block}
 <body>
 <div id="pbar"></div>
 <div id="tip"></div>
-<div class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="data-quality.html">Data completeness</a> &middot; <a href="bike.html">🔧 Bike service</a></div>
+<div class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="data-quality.html">&#128203; Data completeness</a> &middot; <a href="bike.html">🔧 Bike service</a></div>
 <div id="hdr" style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Stats</h1><button id="theme-tog">🌙</button></div>
 <div class="meta" id="meta">Loading…</div>
 
@@ -310,76 +310,6 @@ function fmtPeriod(acts){
 }
 
 // ---- personal records -------------------------------------------------------
-function haversineM(lat1, lon1, lat2, lon2) {
-  var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
-  var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-function maxSingleClimbFromGpx(txt, sport){
-  var doc = (new DOMParser()).parseFromString(txt, "application/xml");
-  var trkpts = doc.getElementsByTagNameNS("*", "trkpt");
-  if (!trkpts.length) trkpts = doc.getElementsByTagNameNS("*", "rtept");
-  if (trkpts.length < 2) return null;
-  var raw = [], lats = [], lons = [], i, j, from, to, sum, cnt;
-  for (i = 0; i < trkpts.length; i++) {
-    var eleEl = trkpts[i].getElementsByTagNameNS("*", "ele")[0];
-    var v = eleEl ? parseFloat(eleEl.textContent) : NaN;
-    raw.push(isFinite(v) ? v : null);
-    lats.push(parseFloat(trkpts[i].getAttribute("lat")));
-    lons.push(parseFloat(trkpts[i].getAttribute("lon")));
-  }
-  if (raw.length < 2) return null;
-  var smooth = [];
-  for (i = 0; i < raw.length; i++) {
-    if (raw[i] == null) { smooth.push(null); continue; }
-    from = Math.max(0, i - 2); to = Math.min(raw.length - 1, i + 2); sum = 0; cnt = 0;
-    for (j = from; j <= to; j++) if (raw[j] != null) { sum += raw[j]; cnt++; }
-    smooth.push(cnt ? sum / cnt : null);
-  }
-  var cumDist = [0];
-  for (i = 1; i < trkpts.length; i++)
-    cumDist.push(cumDist[i - 1] + haversineM(lats[i - 1], lons[i - 1], lats[i], lons[i]));
-  var minGradeMap = {Ride:0.03,Run:0.02,Hike:0.02,Walk:0.01};
-  var minGrade = minGradeMap[sport] || 0.02;
-  var descentReset = 30;
-  var best = 0;
-  var segValIdx = -1, segValEle = 0, segPeakEle = 0;
-  for (i = 0; i < smooth.length; i++) {
-    if (smooth[i] == null) continue;
-    if (segValIdx < 0) { segValIdx = i; segValEle = smooth[i]; segPeakEle = smooth[i]; continue; }
-    var e = smooth[i];
-    if (e < segPeakEle - descentReset) { segValIdx = i; segValEle = e; segPeakEle = e; continue; }
-    if (e > segPeakEle) segPeakEle = e;
-    if (e < segValEle) { segValIdx = i; segValEle = e; }
-    var gain = e - segValEle;
-    var dist = cumDist[i] - cumDist[segValIdx];
-    if (gain > 0 && dist > 0 && dist >= 100 && gain / dist >= minGrade && gain > best) best = gain;
-  }
-  return Math.max(0, Math.round(best));
-}
-
-function loadSingleClimbs(acts, done){
-  var queue = acts.filter(function(a){ return a.gpx_file && a.max_single_climb == null; });
-  var next = 0, active = 0, changed = false, finished = false;
-  function finish(){ if (!finished) { finished = true; done(changed); } }
-  function worker(){
-    if (next >= queue.length) { if (active === 0) finish(); return; }
-    var a = queue[next++]; active++;
-    fetch(a.gpx_file, {cache:"no-store"}).then(function(r){
-      if (!r.ok) throw new Error("HTTP "+r.status);
-      return r.text();
-    }).then(function(txt){
-      var climb = maxSingleClimbFromGpx(txt, a.sport_type);
-      if (climb != null) { a.max_single_climb = climb; changed = true; }
-    }).catch(function(){}).then(function(){
-      active--; worker();
-      if (active === 0 && next >= queue.length) finish();
-    });
-  }
-  if (!queue.length) { finish(); return; }
-  worker(); worker(); worker();
-}
-
 function computeRecords(acts){
   var longest=null, longest_t=null, most_e=null, fastest=null, max_spd=null;
   var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null;
@@ -1109,7 +1039,6 @@ function load(){
       progressDone();
       // load goals in parallel; render immediately, then re-render with goal data
       render();
-      loadSingleClimbs(ALL_ACTS, function(changed){ if (changed) render(); });
       _loadGoals(function(gd){ renderGoals(gd); });
     })
     .catch(function(e){
