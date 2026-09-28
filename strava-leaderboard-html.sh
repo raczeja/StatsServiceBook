@@ -32,8 +32,8 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   tr:nth-child(even) td{background:var(--row-alt)}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   .empty{color:var(--text-3);padding:1rem 0}
-  .nav{margin:.25rem 0 1rem}
-  .nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}
+  .nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}
+  .nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}
   .nav a:hover{background:#e34402}
   .club-section{margin-bottom:2rem}
   .club-heading{color:#fc4c02;margin:1.25rem 0 .25rem;font-size:1.1rem;border-bottom:2px solid #fc4c02;padding-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
@@ -100,7 +100,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 </head>
 <body>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><h1 style="margin:0">🏆 Club Leaderboard</h1><button id="theme-tog">🌙</button></div>
-<div class="nav"><a href="me/">&#8594; My Activities</a> &middot; <a href="me/bike.html">🔧 Bike service</a> &middot; <a href="me/stats.html">📊 My Stats</a> &middot; <a href="me/heatmap.html">&#128506; Heatmap</a> &middot; <a href="me/data-quality.html">&#128203; Data completeness</a></div>
+<div class="nav"><a href="me/">&#8594; My Activities</a> <a href="me/bike.html">🔧 Bike service</a> <a href="me/stats.html">📊 My Stats</a> <a href="me/heatmap.html">&#128506; Heatmap</a> <a href="me/data-quality.html">&#128203; Data completeness</a></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
