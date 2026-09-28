@@ -644,8 +644,6 @@ function renderGoals(goalsData){
 
   var h='<h2 style="display:flex;align-items:center;gap:.4rem">Annual Goals &amp; Progress'+
        '<span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none;flex:1">&mdash; '+esc(MONTHS_F[selMonth])+' '+esc(yr)+' &middot; Ride</span>'+
-       '<button class="mo-nav-btn" onclick="selMonth=(selMonth-1+12)%12;render()" title="Previous month">&#8249;</button>'+
-       '<button class="mo-nav-btn" onclick="selMonth=(selMonth+1)%12;render()" title="Next month">&#8250;</button>'+
        '</h2>';
   h+='<div class="goal-wrap">';
   h+='<div class="goal-input-row">';

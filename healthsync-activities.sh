@@ -54,6 +54,8 @@ GEARS_CACHE="$STATE_DIR/gears-strava-cache.json"
 
 mkdir -p "$STATE_DIR" "$WEB_DIR" "$GPX_DIR" "$DETAIL_DIR"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/healthsync.XXXXXX")"
+_RUN_LOG="$TMP/run-log.txt"
+log() { logger -t strava "$*"; printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "$0")" "$*" | tee -a "$_RUN_LOG"; }
 LOCKFILE="${TMPDIR:-/tmp}/healthsync-activities.lock"
 if ! mkdir "$LOCKFILE" 2>/dev/null; then
   _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
@@ -82,10 +84,12 @@ write_sync_status() {
         _ok=false
         [ -n "$_hs_sync_error" ] || _hs_sync_error="Sync exited with status $_rc"
     fi
+    _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
     jq -n --arg mode "$_mode" --argjson now "$_now" \
         --argjson ok "$_ok" --argjson lastSuccess "$_last_success" --arg error "$_hs_sync_error" \
         --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
-        '{source:"HealthSync",mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end)}' > "$_status_tmp"
+        --argjson logs "$_log_json" \
+        '{source:"HealthSync",mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),log:$logs}' > "$_status_tmp"
     mv "$_status_tmp" "$WEB_DIR/healthsync-sync-status.json"
     rm -rf "$TMP" "$LOCKFILE"
     [ "$_rc" -eq 0 ] || log "FATAL: healthsync-activities exited with code $_rc"
