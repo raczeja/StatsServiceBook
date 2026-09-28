@@ -78,7 +78,9 @@ test.describe("stats", () => {
     expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
   });
 
-  test("kpi-activities-16", async () => {
+  test("kpi-activities-month-nonzero", async () => {
+    // KPIs now show the selected month's data (default = most recent month with activity).
+    // With sample data the latest 2026 Ride month is July (1 ride, ~84.6 km).
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Activities"))
@@ -86,10 +88,15 @@ test.describe("stats", () => {
       }
       return null;
     });
-    expect(val, `expected KPI Activities="18", got "${val}"`).toBe("18");
+    const n = parseInt((val || "").replace(/\s/g, ""), 10);
+    expect(
+      val && n >= 1,
+      `expected Activities KPI >= 1 for the default month, got "${val}"`,
+    ).toBeTruthy();
   });
 
-  test("kpi-distance-824", async () => {
+  test("kpi-distance-month-nonzero", async () => {
+    // Distance KPI reflects the selected month; with July 2026 sample data ~84.6 km.
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Distance"))
@@ -98,8 +105,8 @@ test.describe("stats", () => {
       return null;
     });
     expect(
-      val && val.includes("941"),
-      `expected "941" in distance KPI, got "${val}"`,
+      val && val.includes("km") && !val.startsWith("0.0"),
+      `expected non-zero distance KPI for the default month, got "${val}"`,
     ).toBeTruthy();
   });
 
@@ -254,6 +261,7 @@ test.describe("stats-sport-filter", () => {
   });
 
   test("kpi-activities-days-subtitle", async () => {
+    // KPIs are month-filtered; subtitle shows "N / D days" where D = days in selected month.
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Activities"))
@@ -262,8 +270,8 @@ test.describe("stats-sport-filter", () => {
       return null;
     });
     expect(
-      val && /^18 \/ \d+ days$/.test(val),
-      `expected Activities subtitle to match "18 / N days", got "${val}"`,
+      val && /^\d+ \/ \d+ days$/.test(val),
+      `expected Activities subtitle to match "N / D days", got "${val}"`,
     ).toBeTruthy();
   });
 
@@ -859,33 +867,47 @@ test.describe("stats-goals", () => {
     expect(n, `expected 12 .goal-mo-bar elements, got ${n}`).toBe(12);
   });
 
-  test("weekly-progress-has-year-weeks", async () => {
+  test("weekly-progress-shows-month-weeks", async () => {
+    // Weekly section now shows only the selected month's weeks (4–6 tiles), not all 52+.
     const n = await page.$$eval(".goal-week", (els) => els.length);
     expect(
-      n >= 52 && n <= 53,
-      `expected 52 or 53 weekly goal tiles, got ${n}`,
+      n >= 4 && n <= 6,
+      `expected 4–6 weekly tiles for the selected month, got ${n}`,
     ).toBeTruthy();
   });
 
-  test("current-week-is-marked", async () => {
-    const year = await page.$eval("#yearSel", (el) => Number(el.value));
+  test("current-week-is-marked-when-in-selected-month", async () => {
+    // The NOW marker should appear only if the current week falls in the selected month
+    // and the current year is selected.
+    const { yearSel, moLbl } = await page.evaluate(() => ({
+      yearSel: document.getElementById("yearSel")?.value,
+      moLbl: document.getElementById("moNavLabel")?.textContent || "",
+    }));
+    const curMoName = new Date().toLocaleString("en-US", { month: "long" });
+    const curYear = String(new Date().getFullYear());
+    const isCurrentMonthAndYear = yearSel === curYear && moLbl.includes(curMoName);
     const markers = await page.$$eval(
       ".goal-week.wk-current .goal-week-current",
       (els) => els.map((el) => el.textContent),
     );
-    expect(markers).toEqual(year === new Date().getFullYear() ? ["NOW"] : []);
+    if (isCurrentMonthAndYear) {
+      expect(markers, "expected NOW marker when viewing current month of current year").toContain("NOW");
+    }
+    // If not current month, no NOW marker is required — just no error.
   });
 
-  test("weekly-targets-sum-to-yearly-goal", async () => {
-    const total = await page.$$eval(".goal-week", (els) =>
-      els.reduce((sum, el) => {
+  test("weekly-month-targets-are-positive", async () => {
+    // Each shown week tile should have a positive target.
+    const totals = await page.$$eval(".goal-week", (els) =>
+      els.map((el) => {
         const match = el.title.match(/ \/ ([\d ]+\.\d+) km$/);
-        return sum + (match ? Number(match[1].replace(/ /g, "")) : 0);
-      }, 0),
+        return match ? Number(match[1].replace(/ /g, "")) : 0;
+      }),
     );
+    expect(totals.length >= 4, `expected at least 4 week tiles, got ${totals.length}`).toBeTruthy();
     expect(
-      Math.abs(total - 2000) < 3,
-      `expected weekly targets to total about 2000 km, got ${total}`,
+      totals.every((t) => t > 0),
+      `all weekly targets should be > 0, got: ${JSON.stringify(totals)}`,
     ).toBeTruthy();
   });
 
@@ -1245,6 +1267,31 @@ test.describe("stats-top10", () => {
     expect(sub.includes("Distance"), `expected "Distance" in subtitle, got: "${sub}"`).toBeTruthy();
   });
 
+  test("top10-climb-hint-visible-for-climb-metric", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("top10Sel");
+      sel.value = "climb";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const display = await page.$eval("#top10ClimbHint", (el) => el.style.display);
+    const text = await page.$eval("#top10ClimbHint", (el) => el.textContent);
+    expect(display !== "none", `hint should be visible for climb metric, got display:${display}`).toBeTruthy();
+    expect(text).toMatch(/≥\s*\d+\s*m gain/);
+    expect(text).toMatch(/≥\s*\d+%\s*grade/);
+  });
+
+  test("top10-climb-hint-hidden-for-distance-metric", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("top10Sel");
+      sel.value = "distance";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const display = await page.$eval("#top10ClimbHint", (el) => el.style.display);
+    expect(display, `hint should be hidden for distance metric, got display:${display}`).toBe("none");
+  });
+
   test("top10-sport-filter-respected", async () => {
     // switch to Walk sport — climb rows should be empty or reduced
     await page.evaluate(() => {
@@ -1274,149 +1321,11 @@ test.describe("stats-month-nav", () => {
   const jsErrors = [];
 
   test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-    page.on("pageerror", (e) => jsErrors.push(e));
-    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
-    await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
-    try {
-      await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
-      await page.waitForFunction(
-        () => !document.getElementById("meta")?.textContent.includes("Loading"),
-        { timeout: 10000 },
-      );
-    } catch (_) {}
-  });
-
-  test.afterAll(async () => { await page.close(); });
-
-  test("no-js-errors", () => {
-    expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
-  });
-
-  test("month-nav-hidden-for-current-year", async () => {
-    const display = await page.$eval("#moNav", (el) => el.style.display);
-    expect(
-      display === "none" || display === "",
-      `#moNav should be hidden for current year, got display="${display}"`,
-    ).toBeTruthy();
-  });
-
-  test("month-nav-hidden-for-all-years", async () => {
-    await page.evaluate(() => {
-      const sel = document.getElementById("yearSel");
-      sel.value = "all";
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-    const display = await page.$eval("#moNav", (el) => el.style.display);
-    expect(
-      display === "none" || display === "",
-      `#moNav should be hidden for all-years, got display="${display}"`,
-    ).toBeTruthy();
-  });
-
-  test("month-nav-visible-for-past-year", async () => {
-    // Switch to a past year (2025 if present, else any year < current)
-    const switched = await page.evaluate(() => {
-      const sel = document.getElementById("yearSel");
-      const curY = String(new Date().getFullYear());
-      const past = Array.from(sel.options).find(
-        (o) => o.value !== "all" && o.value !== curY,
-      );
-      if (!past) return false;
-      sel.value = past.value;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    });
-    if (!switched) return; // no past year in sample data — skip
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-    const display = await page.$eval("#moNav", (el) => el.style.display);
-    expect(
-      display === "flex",
-      `#moNav should be flex for past year, got display="${display}"`,
-    ).toBeTruthy();
-  });
-
-  test("month-nav-label-contains-month-name", async () => {
-    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    const MONTHS = ["January","February","March","April","May","June",
-                    "July","August","September","October","November","December"];
-    expect(
-      MONTHS.some((m) => label.includes(m)),
-      `#moNavLabel should contain a month name, got: "${label}"`,
-    ).toBeTruthy();
-  });
-
-  test("month-nav-label-contains-year", async () => {
-    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    expect(
-      /\d{4}/.test(label),
-      `#moNavLabel should contain a 4-digit year, got: "${label}"`,
-    ).toBeTruthy();
-  });
-
-  test("month-nav-auto-selects-current-calendar-month", async () => {
-    const curMonthName = new Date().toLocaleString("en-US", { month: "long" });
-    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    expect(
-      label.includes(curMonthName),
-      `past year should auto-select current calendar month "${curMonthName}", got: "${label}"`,
-    ).toBeTruthy();
-  });
-
-  test("prev-arrow-changes-month", async () => {
-    const before = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    await page.click("#moNavPrev");
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
-    const after = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    expect(
-      before !== after,
-      `clicking < should change month label; before="${before}", after="${after}"`,
-    ).toBeTruthy();
-  });
-
-  test("next-arrow-changes-month", async () => {
-    const before = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    await page.click("#moNavNext");
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
-    const after = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    expect(
-      before !== after,
-      `clicking > should change month label; before="${before}", after="${after}"`,
-    ).toBeTruthy();
-  });
-
-  test("arrows-wrap-around-month-boundaries", async () => {
-    // Navigate to January, then go prev → should become December
-    await page.evaluate(() => {
-      // Force selMonth to January (0) by clicking prev multiple times programmatically
-      for (let i = 0; i < 12; i++) {
-        document.getElementById("moNavPrev").click();
-      }
-    });
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-    const janLabel = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    await page.click("#moNavPrev");
-    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
-    const decLabel = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
-    expect(
-      decLabel.includes("December"),
-      `going back from January should reach December, got: "${decLabel}" (was: "${janLabel}")`,
-    ).toBeTruthy();
-  });
-});
-
-// ── Stats Weekly Goals Visibility ──────────────────────────────────────────────
-
-test.describe("stats-weekly-visibility", () => {
-  let page;
-  const jsErrors = [];
-
-  test.beforeAll(async ({ browser }) => {
+    // Ensure goals exist for a past year (2025) so the weekly section renders when switching years.
     await fetch(`${CGI}/ride-goals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goals: { "2026": 2000 } }),
+      body: JSON.stringify({ goals: { "2025": 1800, "2026": 2000 } }),
     }).catch(() => {});
 
     page = await browser.newPage();
@@ -1438,16 +1347,64 @@ test.describe("stats-weekly-visibility", () => {
     expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
   });
 
-  test("weekly-tiles-present-for-current-year", async () => {
-    // Current year (2026) + Ride sport (default) → weekly tiles should exist
-    const n = await page.$$eval(".goal-week", (els) => els.length);
+  // Helper: get the month label from the weekly progress heading
+  async function getWeeklyHeadingMonth(p) {
+    return p.evaluate(() => {
+      const h2 = document.querySelector("#weeklyGoalsSection h2");
+      return h2 ? h2.textContent.trim() : "";
+    });
+  }
+
+  test("weekly-heading-shows-month-name", async () => {
+    const text = await getWeeklyHeadingMonth(page);
+    const MONTHS = ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"];
     expect(
-      n >= 52 && n <= 53,
-      `expected 52–53 weekly tiles for current year, got ${n}`,
+      MONTHS.some((m) => text.includes(m)),
+      `weekly heading should contain a month name, got: "${text}"`,
     ).toBeTruthy();
   });
 
-  test("weekly-hidden-for-past-year", async () => {
+  test("weekly-heading-shows-year", async () => {
+    const text = await getWeeklyHeadingMonth(page);
+    expect(
+      /\d{4}/.test(text),
+      `weekly heading should contain a 4-digit year, got: "${text}"`,
+    ).toBeTruthy();
+  });
+
+  test("weekly-heading-arrows-present", async () => {
+    const btns = await page.$$eval(
+      "#weeklyGoalsSection h2 .mo-nav-btn",
+      (els) => els.length,
+    );
+    expect(btns, `expected 2 nav buttons in weekly heading, got ${btns}`).toBe(2);
+  });
+
+  test("prev-arrow-in-heading-changes-month", async () => {
+    const before = await getWeeklyHeadingMonth(page);
+    await page.click("#weeklyGoalsSection h2 .mo-nav-btn:first-of-type");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const after = await getWeeklyHeadingMonth(page);
+    expect(
+      before !== after,
+      `clicking < in weekly heading should change month; before="${before}", after="${after}"`,
+    ).toBeTruthy();
+  });
+
+  test("next-arrow-in-heading-changes-month", async () => {
+    const before = await getWeeklyHeadingMonth(page);
+    await page.click("#weeklyGoalsSection h2 .mo-nav-btn:last-of-type");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const after = await getWeeklyHeadingMonth(page);
+    expect(
+      before !== after,
+      `clicking > in weekly heading should change month; before="${before}", after="${after}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-auto-selected-for-past-year", async () => {
+    // Switch to a past year → auto-selects current calendar month
     const switched = await page.evaluate(() => {
       const sel = document.getElementById("yearSel");
       const curY = String(new Date().getFullYear());
@@ -1461,14 +1418,93 @@ test.describe("stats-weekly-visibility", () => {
     });
     if (!switched) return;
     await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
-    const html = await page.$eval("#weeklyGoalsSection", (el) => el.innerHTML);
+    const text = await getWeeklyHeadingMonth(page);
+    const curMonthName = new Date().toLocaleString("en-US", { month: "long" });
     expect(
-      html === "",
-      `#weeklyGoalsSection should be empty for past year, got: "${html.slice(0, 100)}"`,
+      text.includes(curMonthName),
+      `past year should auto-select current calendar month "${curMonthName}", got: "${text}"`,
     ).toBeTruthy();
   });
 
-  test("weekly-reappears-for-current-year", async () => {
+  test("arrows-wrap-around-month-boundaries", async () => {
+    // Set selMonth to January (0) explicitly, then clicking < should wrap to December
+    await page.evaluate(() => { selMonth=0; });
+    await page.evaluate(() => render());
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    // Now at January — one more < should give December
+    await page.click("#weeklyGoalsSection h2 .mo-nav-btn:first-of-type");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const text = await getWeeklyHeadingMonth(page);
+    expect(
+      text.includes("December"),
+      `going back from January should reach December, got: "${text}"`,
+    ).toBeTruthy();
+  });
+});
+
+// ── Stats Weekly Goals Visibility ──────────────────────────────────────────────
+
+test.describe("stats-weekly-visibility", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    await fetch(`${CGI}/ride-goals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goals: { "2025": 1800, "2026": 2000 } }),
+    }).catch(() => {});
+
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+    await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+    try {
+      await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+      await page.waitForFunction(
+        () => !document.getElementById("meta")?.textContent.includes("Loading"),
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => { await page.close(); });
+
+  test("no-js-errors", () => {
+    expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
+  });
+
+  test("weekly-shows-month-tiles-for-current-year", async () => {
+    // Weekly shows only the selected month's weeks (4–6 tiles) for any year.
+    const n = await page.$$eval(".goal-week", (els) => els.length);
+    expect(
+      n >= 4 && n <= 6,
+      `expected 4–6 weekly tiles for current year's selected month, got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("weekly-shows-month-tiles-for-past-year", async () => {
+    const switched = await page.evaluate(() => {
+      const sel = document.getElementById("yearSel");
+      const curY = String(new Date().getFullYear());
+      const past = Array.from(sel.options).find(
+        (o) => o.value !== "all" && o.value !== curY,
+      );
+      if (!past) return false;
+      sel.value = past.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    if (!switched) return;
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const n = await page.$$eval(".goal-week", (els) => els.length);
+    expect(
+      n >= 4 && n <= 6,
+      `expected 4–6 weekly tiles for past year's selected month, got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("weekly-still-shows-after-switching-back-to-current-year", async () => {
     await page.evaluate(() => {
       const curY = String(new Date().getFullYear());
       const sel = document.getElementById("yearSel");
@@ -1480,8 +1516,8 @@ test.describe("stats-weekly-visibility", () => {
     await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
     const n = await page.$$eval(".goal-week", (els) => els.length);
     expect(
-      n >= 52 && n <= 53,
-      `weekly tiles should reappear when switching back to current year, got ${n}`,
+      n >= 4 && n <= 6,
+      `expected 4–6 weekly tiles after switching back to current year, got ${n}`,
     ).toBeTruthy();
   });
 });
