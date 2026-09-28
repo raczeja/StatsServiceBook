@@ -75,12 +75,12 @@ cp /opt/cities.sample.json     "$WEB/cities.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
 printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
     "$(date +%s)" "$(($(date +%s) + 7200))" > "$WEB/drive-status.json"
-printf '{"source":"api","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+printf '{"source":"api","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s,"log":["starting strava-my-activities","fetching activities page 1","143 activities loaded, 0 new","weather backfill: 0 updated","html: writing index.html...","html: writing stats.html...","html: writing bike.html...","html: writing heatmap.html...","html: writing data-quality.html...","done."]}\n' \
   "$(date +%s)" "$(date +%s)" > "$WEB/strava-sync-status.json"
-printf '{"source":"HealthSync","mode":"full","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+printf '{"source":"HealthSync","mode":"full","ok":true,"importEnabled":true,"lastAttempt":%s,"lastSuccess":%s,"log":["starting healthsync-activities","downloading CSV from Drive","parsed 156 activities","0 new activities added","weather backfill: 2 updated","html: writing index.html...","done."]}\n' \
   "$(date +%s)" "$(date +%s)" > "$WEB/healthsync-sync-status.json"
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
-printf '{"source":"api","ok":true,"lastAttempt":%s,"lastSuccess":%s}\n' \
+printf '{"source":"api","ok":true,"lastAttempt":%s,"lastSuccess":%s,"log":["starting strava-leaderboard","club feed: 45 activities fetched","leaderboard: 8 athletes ranked","html: writing index.html...","done."]}\n' \
   "$(date +%s)" "$(date +%s)" > "$CLUB_WEB/leaderboard-sync-status.json"
 
 # Minimal per-club leaderboard JSON — mirrors what strava-leaderboard writes to
