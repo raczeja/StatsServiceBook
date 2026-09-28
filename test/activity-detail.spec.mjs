@@ -754,6 +754,23 @@ test.describe("activity-detail-healthsync-cycling", () => {
       `#splits-box should be visible for GPX activity (GPS splits computed)`,
     ).toBeTruthy();
   });
+
+  test("longest-climb-card-visible", async () => {
+    // max_single_climb comes from activities.json (computed server-side); the
+    // detail JSON doesn't carry it, so the detail page must merge it in.
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#longest-climb-card")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const card = await page.$eval(
+      "#longest-climb-card",
+      (el) => el.textContent,
+    );
+    expect(card).toMatch(
+      /Longest climb\s*\d+\s*m(\s·\s[\d.]+% avg ·\s[\d.]+\s(?:m|km))?/,
+    );
+  });
 });
 
 // ── Activity Detail (Magene) ───────────────────────────────────────────────────

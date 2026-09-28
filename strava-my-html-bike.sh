@@ -34,7 +34,7 @@ h2{font-size:1.05rem;margin:1.25rem 0 .4rem}
 a{color:var(--accent)}
 .crumbs{font-size:.85rem;margin:0 0 .75rem}
 .meta{color:var(--text-3);font-size:.85rem;margin:.6rem 0}
-.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
+.nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}.nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}.nav a:hover{background:#e34402}
 .bikes{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:.5rem 0}
 .tab{background:var(--surface);border:1px solid var(--border-3);border-radius:.4rem;padding:.35rem .7rem;cursor:pointer;font:inherit;color:var(--text-2)}
 .tab.active{background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:600}

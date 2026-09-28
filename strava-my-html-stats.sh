@@ -22,7 +22,7 @@ h2{font-size:.78rem;font-weight:700;margin:1.6rem 0 .5rem;color:var(--text-4);te
 a{color:var(--accent)}
 .crumbs{font-size:.85rem;margin:0 0 .75rem}
 .meta{color:var(--text-3);font-size:.85rem;margin:.4rem 0 .75rem}
-.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
+.nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}.nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}.nav a:hover{background:#e34402}
 .filters{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.5rem 0 .85rem}
 select{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text);cursor:pointer}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.5rem;margin:.25rem 0 .5rem}
@@ -94,7 +94,7 @@ svg.bar{width:100%;display:block}
 .mo-past .goal-mo-fill{background:#60a5fa}
 .mo-fut  .goal-mo-fill{background:var(--border-2)}
 .goal-mo-num{color:var(--text-5);font-size:.67rem;white-space:nowrap}
-.goal-weeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:.35rem;margin-top:.75rem}
+.goal-weeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:.35rem;margin-top:.75rem}
 .goal-week{font-size:.72rem;min-width:0}
 .goal-week-lbl{font-weight:600;color:var(--text-4)}
 .goal-week-bar{height:5px;background:var(--border);border-radius:3px;margin:.15rem 0;overflow:hidden}
@@ -114,10 +114,8 @@ svg.bar{width:100%;display:block}
 .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
 .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
-.mo-nav{display:flex;align-items:center;gap:.3rem}
 .mo-nav-btn{background:none;border:1px solid var(--border-2);border-radius:.3rem;font-size:1.1rem;line-height:1;padding:.15rem .5rem;cursor:pointer;color:var(--text-2);font-weight:600}
 .mo-nav-btn:hover{border-color:var(--accent);color:var(--accent)}
-.mo-nav-lbl{font-size:.9rem;font-weight:600;min-width:140px;text-align:center;color:var(--text)}
 </style>
 </head>
 <body>
@@ -130,11 +128,6 @@ svg.bar{width:100%;display:block}
 <div class="filters">
   <label>Sport&nbsp;<select id="sportSel"></select></label>
   <label>Year&nbsp;<select id="yearSel"></select></label>
-  <div id="moNav" class="mo-nav" style="display:none">
-    <button class="mo-nav-btn" id="moNavPrev">&#8249;</button>
-    <span class="mo-nav-lbl" id="moNavLabel"></span>
-    <button class="mo-nav-btn" id="moNavNext">&#8250;</button>
-  </div>
 </div>
 
 <div id="sec-wrap">
@@ -154,7 +147,7 @@ svg.bar{width:100%;display:block}
 </div>
 
 <div class="sec" data-sid="top10">
-<h2>Top 10 <span id="top10Subtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; Longest climb</span><select id="top10Sel" class="top10-sel"></select></h2>
+<h2>Top <span id="top10Count">10</span> <span id="top10Subtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; Longest climb</span><select id="top10Sel" class="top10-sel"></select><span id="top10ClimbHint" style="display:none;font-size:.73rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-4);margin-left:.5rem"></span></h2>
 <div id="top10Table"></div>
 </div>
 
@@ -220,6 +213,9 @@ function progressDone(){
 }
 var DATA = null, ALL_ACTS = [], genStr = "";
 var selSport = "Ride", selYear = "";
+var CLIMB_GAIN_BY_SPORT = {"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10};
+var CLIMB_GRADE_BY_SPORT = {"gRide":3,"gRun":2,"gHike":2,"gWalk":1,"gOther":2};
+var CLIMB_MIN_DIST = 100;
 var selMonth = new Date().getMonth(); // 0-indexed; active when a year is selected
 
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -442,6 +438,19 @@ function _drawTop10(){
   });
   scored.sort(function(x,y){return y.v-x.v;});
   var rows=scored.slice(0,10);
+  var countEl=document.getElementById('top10Count');
+  if(countEl) countEl.textContent=rows.length||'10';
+  var hintEl=document.getElementById('top10ClimbHint');
+  if(hintEl){
+    if(metric.id==='climb'){
+      var sk=selSport&&selSport!=='All'?selSport:'Ride';
+      if(!CLIMB_GAIN_BY_SPORT[sk]) sk='Other';
+      hintEl.textContent='(≥ '+CLIMB_GAIN_BY_SPORT[sk]+' m gain · ≥ '+CLIMB_GRADE_BY_SPORT['g'+sk]+'% grade · '+CLIMB_MIN_DIST+' m min)';
+      hintEl.style.display='';
+    } else {
+      hintEl.style.display='none';
+    }
+  }
   if(!rows.length){tbl.innerHTML='<div class="empty">No data for this metric.</div>';return;}
   var head='<tr><th style="width:2rem">#</th><th>Date</th><th>Activity</th>'+
            '<th>'+esc(metric.label)+'</th><th>Distance</th><th>Time</th><th></th></tr>';
@@ -457,7 +466,7 @@ function _drawTop10(){
       '<td style="white-space:nowrap">'+(a.id?'<a href="activity.html?id='+esc(String(a.id))+'">View →</a>':'')+'</td>'+
     '</tr>';
   }).join('');
-  tbl.innerHTML='<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  tbl.innerHTML='<div style="overflow-x:auto"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
 }
 function renderTop10(acts){
   _top10Acts=acts;
@@ -630,7 +639,11 @@ function renderGoals(goalsData){
     ?" (copied from "+prevY+")"
     :"";
 
-  var h='<h2>Annual Goals &amp; Progress <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; '+esc(yr)+' &middot; Ride</span></h2>';
+  var h='<h2 style="display:flex;align-items:center;gap:.4rem">Annual Goals &amp; Progress'+
+       '<span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none;flex:1">&mdash; '+esc(MONTHS_F[selMonth])+' '+esc(yr)+' &middot; Ride</span>'+
+       '<button class="mo-nav-btn" onclick="selMonth=(selMonth-1+12)%12;render()" title="Previous month">&#8249;</button>'+
+       '<button class="mo-nav-btn" onclick="selMonth=(selMonth+1)%12;render()" title="Next month">&#8250;</button>'+
+       '</h2>';
   h+='<div class="goal-wrap">';
   h+='<div class="goal-input-row">';
   h+='<label>Yearly target&nbsp;<input id="goalKmInput" type="number" min="0" step="100" value="'+inputVal+'" placeholder="e.g. 8000"> km</label>';
@@ -719,24 +732,32 @@ function renderGoals(goalsData){
       h+='</div>';
     });
     h+='</div>';
-    if(isCurrentYear){
-      wh='<h2>Weekly progress <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; '+esc(yr)+' &middot; Ride km</span></h2>';
-      wh+='<div class="goal-wrap"><div class="goal-weeks">';
-      weeks.forEach(function(week,wi){
-        var weekDone=0;
-        yrRides.forEach(function(a){if(weekOf(a.date)===week)weekDone+=(a.distance||0)/1000;});
-        var weekTarget=weekTgts[wi],weekPct=weekTarget>0?Math.min(100,Math.round(weekDone/weekTarget*100)):0;
-        var weekDate=new Date(week+"T12:00:00"),weekNo=wi+1;
-        var isCurrentWeek=week===currentWeek;
-        var weekClass=weekDone>=weekTarget&&weekTarget>0?"wk-hit":(isCurrentWeek?"wk-cur":(week>currentWeek?"wk-fut":"wk-past"));
-        if(isCurrentWeek) weekClass+=" wk-current";
-        wh+='<div class="goal-week '+weekClass+'" title="Week '+weekNo+' · '+week+' · '+fmtKmD(weekDone)+' / '+fmtKmD(weekTarget)+' km">';
-        wh+='<div class="goal-week-lbl">W'+p2(weekNo)+' · '+p2(weekDate.getDate())+'/'+p2(weekDate.getMonth()+1)+(isCurrentWeek?'<span class="goal-week-current">NOW</span>':'')+'</div>';
-        wh+='<div class="goal-week-bar"><div class="goal-week-fill" style="width:'+weekPct+'%"></div></div>';
-        wh+='<div class="goal-week-num">'+fmtKmD(weekDone)+'&thinsp;/&thinsp;'+fmtKmD(weekTarget)+'</div></div>';
-      });
-      wh+='</div></div>';
-    }
+    // Show only weeks that overlap the selected month (selMonth is a global 0-indexed)
+    wh='<h2 style="display:flex;align-items:center;gap:.4rem">Weekly progress'+
+       '<span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none;flex:1">&mdash; '+esc(MONTHS_F[selMonth])+' '+esc(yr)+' &middot; Ride km</span>'+
+       '<button class="mo-nav-btn" onclick="selMonth=(selMonth-1+12)%12;render()" title="Previous month">&#8249;</button>'+
+       '<button class="mo-nav-btn" onclick="selMonth=(selMonth+1)%12;render()" title="Next month">&#8250;</button>'+
+       '</h2>';
+    wh+='<div class="goal-wrap"><div class="goal-weeks">';
+    weeks.forEach(function(week,wi){
+      var weekDate=new Date(week+"T12:00:00");
+      var weekSun=new Date(weekDate.getTime()+6*86400000);
+      // include week if Monday or Sunday falls in selMonth (for cross-month boundary weeks)
+      var inMo=(weekDate.getMonth()===selMonth)||(weekSun.getMonth()===selMonth);
+      if(!inMo) return;
+      var weekDone=0;
+      yrRides.forEach(function(a){if(weekOf(a.date)===week)weekDone+=(a.distance||0)/1000;});
+      var weekTarget=weekTgts[wi],weekPct=weekTarget>0?Math.min(100,Math.round(weekDone/weekTarget*100)):0;
+      var weekNo=wi+1;
+      var isCurrentWeek=isCurrentYear&&week===currentWeek;
+      var weekClass=weekDone>=weekTarget&&weekTarget>0?"wk-hit":(isCurrentWeek?"wk-cur":(isCurrentYear&&week>currentWeek?"wk-fut":"wk-past"));
+      if(isCurrentWeek) weekClass+=" wk-current";
+      wh+='<div class="goal-week '+weekClass+'" title="Week '+weekNo+' · '+week+' · '+fmtKmD(weekDone)+' / '+fmtKmD(weekTarget)+' km">';
+      wh+='<div class="goal-week-lbl">W'+p2(weekNo)+' · '+p2(weekDate.getDate())+'/'+p2(weekDate.getMonth()+1)+(isCurrentWeek?'<span class="goal-week-current">NOW</span>':'')+'</div>';
+      wh+='<div class="goal-week-bar"><div class="goal-week-fill" style="width:'+weekPct+'%"></div></div>';
+      wh+='<div class="goal-week-num">'+fmtKmD(weekDone)+'&thinsp;/&thinsp;'+fmtKmD(weekTarget)+'</div></div>';
+    });
+    wh+='</div></div>';
   } else {
     h+='<div class="muted" style="font-size:.85rem;padding:.15rem 0">Enter a yearly distance target to track your progress.</div>';
   }
@@ -782,19 +803,14 @@ function render(){
   var f = filtered();
   var fyAll  = isAll ? f : filterYear(f, selYear);  // records, DOW, year table
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
-  // Past-year month filter: narrow KPI cards to the selected month for past years only
+  // Month-filtered source for KPI cards (applied for any specific year selection)
   var isCurrentYear = (!isAll && yrStr === curY);
-  var fyMo = (!isAll && !isCurrentYear)
+  var fyMo = !isAll
     ? fyAll.filter(function(a){ return a.date && +a.date.slice(5,7)-1===selMonth; })
     : fyAll;
 
-  // Update month nav (visible only for past years)
-  var _moNav=document.getElementById("moNav"), _moNavLbl=document.getElementById("moNavLabel");
-  if(!isAll&&!isCurrentYear&&_moNav){ _moNav.style.display="flex"; if(_moNavLbl) _moNavLbl.textContent=MONTHS_F[selMonth]+" "+yrStr; }
-  else if(_moNav){ _moNav.style.display="none"; }
-
   // --- KPI cards ---
-  var a = agg(fyMo), apw = avgPerWeek(fyMo, isCurrentYear?(selYear||yrStr):"all");
+  var a = agg(fyMo), apw = avgPerWeek(fyMo, "all");
   var _daySet={};
   fyMo.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
   var nDays = Object.keys(_daySet).length;
@@ -807,11 +823,7 @@ function render(){
       return Math.round((now-d1)/86400000)+1;
     }
     var yr = +selYear;
-    if(isCurrentYear){
-      var jan1 = new Date(curY+"-01-01T12:00:00");
-      return Math.round((now-jan1)/86400000)+1;
-    }
-    // Past year: days in selected month
+    // Days in selected month (current-month-so-far if browsing current month of current year)
     var dInMo = new Date(yr, selMonth+1, 0).getDate();
     if(yr===_curY2 && selMonth===_curMo2) return now.getDate();
     return dInMo;
@@ -905,7 +917,7 @@ function render(){
     return {
       label: MONTHS_S[i],
       val:   ma.dispDistM/1000,
-      hi:    (!isAll && (isCurrentYear ? i===curMo : i===selMonth)),
+      hi:    (!isAll && i===selMonth),
       tip:   MONTHS_F[i]+(isAll?" (avg/year)":" "+yrStr)+
              "\n"+fmtKm(ma.dispDistM)+" km"+(isAll?" avg/year":"")+
              "  "+fmtH(ma.dispSecs)+
@@ -1149,6 +1161,17 @@ function load(){
       document.getElementById("yearSel").innerHTML=yOpts;
       document.getElementById("yearSel").value=curY;
 
+      // Default selMonth to the most recent month with activity for the primary sport
+      // in the current year; fall back to current calendar month if none found.
+      var _curYN=+curY, _latestMo=-1;
+      ALL_ACTS.forEach(function(a){
+        if(a.sport_type===selSport&&a.date&&+a.date.slice(0,4)===_curYN){
+          var m=+a.date.slice(5,7)-1;
+          if(m>_latestMo)_latestMo=m;
+        }
+      });
+      selMonth=_latestMo>=0?_latestMo:new Date().getMonth();
+
       genStr=d.generatedAt?" · updated "+d.generatedAt.slice(0,10):"";
       progressDone();
       // load goals in parallel; render immediately, then re-render with goal data
@@ -1164,12 +1187,9 @@ function load(){
 document.getElementById("sportSel").addEventListener("change",function(){ selSport=this.value; render(); });
 document.getElementById("yearSel").addEventListener("change",function(){
   selYear=this.value;
-  var _nowY=String(new Date().getFullYear());
-  if(selYear && selYear!=="all" && selYear!==_nowY) selMonth=new Date().getMonth();
+  if(selYear && selYear!=="all") selMonth=new Date().getMonth();
   render();
 });
-document.getElementById("moNavPrev").addEventListener("click",function(){ selMonth=(selMonth-1+12)%12; render(); });
-document.getElementById("moNavNext").addEventListener("click",function(){ selMonth=(selMonth+1)%12; render(); });
 load();
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';
@@ -1240,6 +1260,24 @@ load();
 </body>
 </html>
 HTML
+
+sed -i \
+  -e "s/\\\"Ride\\\":[0-9]*/\\\"Ride\\\":$STRAVA_MY_CLIMB_MIN_GAIN_RIDE/" \
+  -e "s/\\\"Run\\\":[0-9]*/\\\"Run\\\":$STRAVA_MY_CLIMB_MIN_GAIN_RUN/" \
+  -e "s/\\\"Hike\\\":[0-9]*/\\\"Hike\\\":$STRAVA_MY_CLIMB_MIN_GAIN_HIKE/" \
+  -e "s/\\\"Walk\\\":[0-9]*/\\\"Walk\\\":$STRAVA_MY_CLIMB_MIN_GAIN_WALK/" \
+  -e "s/\\\"Other\\\":[0-9]*/\\\"Other\\\":$STRAVA_MY_CLIMB_MIN_GAIN_OTHER/" \
+  "$WEB_DIR/stats.html"
+sed -i \
+  -e "s/\\\"gRide\\\":[0-9]*/\\\"gRide\\\":$STRAVA_MY_CLIMB_MIN_GRADE_RIDE/" \
+  -e "s/\\\"gRun\\\":[0-9]*/\\\"gRun\\\":$STRAVA_MY_CLIMB_MIN_GRADE_RUN/" \
+  -e "s/\\\"gHike\\\":[0-9]*/\\\"gHike\\\":$STRAVA_MY_CLIMB_MIN_GRADE_HIKE/" \
+  -e "s/\\\"gWalk\\\":[0-9]*/\\\"gWalk\\\":$STRAVA_MY_CLIMB_MIN_GRADE_WALK/" \
+  -e "s/\\\"gOther\\\":[0-9]*/\\\"gOther\\\":$STRAVA_MY_CLIMB_MIN_GRADE_OTHER/" \
+  "$WEB_DIR/stats.html"
+sed -i \
+  -e "s/CLIMB_MIN_DIST = [0-9]*/CLIMB_MIN_DIST = $STRAVA_MY_CLIMB_MIN_DISTANCE/" \
+  "$WEB_DIR/stats.html"
 
 log "wrote $WEB_DIR/stats.html"
 
