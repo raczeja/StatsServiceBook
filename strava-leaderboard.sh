@@ -65,6 +65,8 @@ fi
 
 TOKEN_STATE="$STATE_DIR/token.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava.XXXXXX")"
+_RUN_LOG="$TMP/run-log.txt"
+log() { logger -t strava "$*"; printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "$0")" "$*" | tee -a "$_RUN_LOG"; }
 LOCKFILE="${TMPDIR:-/tmp}/strava-leaderboard.lock"
 if ! mkdir "$LOCKFILE" 2>/dev/null; then
   _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
@@ -82,15 +84,18 @@ write_sync_status() {
   _rc=$?
   _now="$(date +%s)"
   _status_tmp="$WEB_DIR/.leaderboard-sync-status.$$"
+  _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
   if [ "$_rc" -eq 0 ]; then
     jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
-      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now}' > "$_status_tmp"
+      --argjson logs "$_log_json" \
+      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now,log:$logs}' > "$_status_tmp"
   else
     _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/leaderboard-sync-status.json" 2>/dev/null || true)"
     case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
     jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
       --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
-      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error}' > "$_status_tmp"
+      --argjson logs "$_log_json" \
+      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/leaderboard-sync-status.json"
   rm -rf "$TMP" "$LOCKFILE"

@@ -116,8 +116,8 @@ body{font-family:system-ui,Arial,sans-serif;background:#111;color:#ddd;
 #bar{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem;
      background:#1a1a1a;border-bottom:1px solid #2a2a2a;flex-shrink:0;flex-wrap:wrap}
 #bar h1{font-size:1rem;font-weight:700;color:#fc4c02;white-space:nowrap}
-.crumbs{font-size:.8rem}
-.crumbs a{display:inline-block;padding:.25rem .5rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.8rem;font-weight:600}
+.crumbs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.crumbs a{padding:.25rem .5rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.8rem;font-weight:600;flex:0 0 auto}
 .crumbs a:hover{background:#e34402}
 #bar label{font-size:.85rem;color:#bbb}
 select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;

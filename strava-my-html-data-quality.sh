@@ -19,10 +19,11 @@ body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1100px;pa
 a{color:var(--accent)}h1{margin:.2rem 0 .4rem;font-size:1.7rem}.meta{color:var(--muted);font-size:.88rem;margin:1rem 0}#hdr{display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem}#theme-tog{margin-left:auto;flex-shrink:0;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text)}
 .nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}.nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}.nav a:hover{background:#e34402}
 .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin:1rem 0 1.5rem}.metric,.source{background:var(--surface);border:1px solid var(--border);padding:.8rem 1rem;border-radius:4px}.metric strong{display:block;font-size:1.45rem;font-variant-numeric:tabular-nums}.metric span{color:var(--muted);font-size:.85rem}
-.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin-bottom:1.5rem}.source h2{font-size:1rem;margin:0 0 .5rem}.source p{margin:.25rem 0;font-size:.9rem;overflow-wrap:anywhere}.badge{display:inline-block;font-size:.78rem;font-weight:650;padding:.15rem .45rem;border-radius:3px;background:var(--good-bg);color:var(--good)}.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.sources{display:grid;grid-template-columns:1fr;gap:.65rem;margin-bottom:1.5rem}.source h2{font-size:1rem;margin:0 0 .5rem}.source p{margin:.25rem 0;font-size:.9rem;overflow-wrap:anywhere}.badge{display:inline-block;font-size:.78rem;font-weight:650;padding:.15rem .45rem;border-radius:3px;background:var(--good-bg);color:var(--good)}.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.bad{background:var(--bad-bg);color:var(--bad)}
 h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px solid var(--border);background:var(--surface)}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}th{font-size:.8rem;color:var(--muted);font-weight:600}td{font-size:.88rem}.issues{color:var(--bad)}.empty{color:var(--good);padding:1rem;background:var(--good-bg)}#state{color:var(--muted);margin:.75rem 0}
 .issue-filters{display:flex;flex-wrap:wrap;gap:1rem;margin:.5rem 0 1rem}.issue-filters label{display:inline-flex;align-items:center;gap:.35rem;font-size:.9rem;cursor:pointer}.issue-filters input{accent-color:var(--accent);margin:0}
-@media(max-width:650px){body{margin:.8rem auto}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.sources{grid-template-columns:1fr}h1{font-size:1.35rem}}
+@media(max-width:650px){body{margin:.8rem auto}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:1.35rem}}
+.run-log{font-size:.75rem;white-space:pre-wrap;word-break:break-all;margin:.5rem 0 0;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:3px;max-height:200px;overflow-y:auto;line-height:1.4}
 </style>
 </head>
 <body>
@@ -67,7 +68,7 @@ function renderActivityList(activities){
   document.getElementById('activity-list').innerHTML=rows.length?'<div class="table-wrap"><table><thead><tr><th>Date</th><th>Activity</th><th>Sport</th><th>Missing data</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>':'<p class="empty">No activities match the selected missing-data filters.</p>';
 }
 function sourceCard(name,status){
-  if(!status)return '<article class="source"><h2>'+name+'</h2><span class="badge warn">No status yet</span><p>Run this importer once to start tracking synchronization.</p></article>';
+  if(!status)return '';
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
   var warning=status.ok===false||disabled||!last||age>staleAfter;
@@ -77,7 +78,9 @@ function sourceCard(name,status){
   if(status.mode==='keepalive')detail+='<p>Latest run checked Drive access only; no activities were imported.</p>';
   if(status.importEnabled===false)detail+='<p>Activity import is disabled in configuration.</p>';
   if(age!==null&&age>staleAfter)detail+='<p>No successful import in the last 48 hours.</p>';
-  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+'</article>';
+  var logsHtml='';
+  if(status.log&&status.log.length){logsHtml='<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>';}
+  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
 }
 function render(data,statuses){
   var activities=Array.isArray(data.activities)?data.activities:[];
