@@ -540,8 +540,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   # browser never has to load hundreds of GPX files just for the dashboard chip.
   _climb_cache="$STATE_DIR/max-climbs.json"
   [ -f "$_climb_cache" ] || printf '{}' > "$_climb_cache"
-  jq -r 'to_entries[] | select(.value.gpx_file != null) | .key + " " + .value.gpx_file' \
-    "$TMP/enrich.json" 2>/dev/null | sort -u > "$TMP/gpx-paths.txt" || : > "$TMP/gpx-paths.txt"
+  jq -r 'to_entries[] | select(.value.gpx_file != null) | [(.value.date // "0000-00-00"), .key, .value.gpx_file] | join(" ")' \
+    "$TMP/enrich.json" 2>/dev/null | sort -ru | awk '{print $2, $3}' > "$TMP/gpx-paths.txt" || : > "$TMP/gpx-paths.txt"
   : > "$TMP/max-climbs-new.ndjson"
   jq -c 'to_entries[] | {(.key): .value}' "$_climb_cache" >> "$TMP/max-climbs-new.ndjson" 2>/dev/null
   jq -r 'keys | .[]' "$_climb_cache" > "$TMP/cached-climb-ids.txt" 2>/dev/null || : > "$TMP/cached-climb-ids.txt"
