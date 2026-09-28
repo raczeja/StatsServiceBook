@@ -23,7 +23,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **Club leaderboard**  | `/strava/`                     | Monthly/yearly distance ranking for your Strava club, filterable by year and month                           |
 | **My Activities**     | `/strava/me/`                  | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts                   |
 | **Activity detail**   | `/strava/me/activity.html`     | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts              |
-| **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, year-over-year heatmap, personal records, sport breakdown, day-of-week chart                 |
+| **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, personal records, Top 10 leaderboard per metric, year-over-year heatmap, sport breakdown     |
 | **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter, city label overlay         |
 | **Data completeness** | `/strava/me/data-quality.html` | Missing GPS, heart-rate, or activity details, plus per-source sync health and stale imports                  |
 | **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
@@ -61,6 +61,8 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - KPI cards, year overview table, monthly breakdown chart, year-over-year km/month heatmap
 - **Annual Goals** — set a yearly Ride distance target; progress and year-end projection with monthly and weekly targets distributed by the previous year's activity pattern (equal split when no history is available)
 - **Personal records** — longest ride, most climbing, fastest avg speed, max speed, best VAM, most power, most energy (kJ), most steps (Walk/Hike), best week, best month by km and by count, longest streak — all-time across all sports; each record links to the activity
+- **Top 10 leaderboard** — ranked table of your top 10 activities for a chosen metric (Distance, Moving time, Elevation, Avg speed, Max speed, Power, Work, VAM, Longest climb, Steps); dropdown to switch metric; default is Longest climb; respects sport + year filters; each row links to the activity detail page
+- **Month ‹/› navigation** — when a past year is selected, prev/next buttons let you browse month by month without opening the dropdown
 
 **Activity heatmap**
 
