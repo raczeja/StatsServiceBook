@@ -78,9 +78,8 @@ test.describe("stats", () => {
     expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
   });
 
-  test("kpi-activities-month-nonzero", async () => {
-    // KPIs now show the selected month's data (default = most recent month with activity).
-    // With sample data the latest 2026 Ride month is July (1 ride, ~84.6 km).
+  test("kpi-activities-year-total", async () => {
+    // KPIs show the full selected year. Default year is 2026; sample data has 18 Ride activities.
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Activities"))
@@ -90,13 +89,13 @@ test.describe("stats", () => {
     });
     const n = parseInt((val || "").replace(/\s/g, ""), 10);
     expect(
-      val && n >= 1,
-      `expected Activities KPI >= 1 for the default month, got "${val}"`,
+      val && n >= 10,
+      `expected Activities KPI >= 10 for full year (sample has 18), got "${val}"`,
     ).toBeTruthy();
   });
 
-  test("kpi-distance-month-nonzero", async () => {
-    // Distance KPI reflects the selected month; with July 2026 sample data ~84.6 km.
+  test("kpi-distance-year-total", async () => {
+    // Distance KPI shows full year. Sample 2026 Ride total is 941.3 km — must not be a single month.
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Distance"))
@@ -104,9 +103,10 @@ test.describe("stats", () => {
       }
       return null;
     });
+    const km = parseFloat((val || "").replace(/\s/g, "").replace("km", ""));
     expect(
-      val && val.includes("km") && !val.startsWith("0.0"),
-      `expected non-zero distance KPI for the default month, got "${val}"`,
+      val && km >= 500,
+      `expected Distance KPI >= 500 km (full year ~941 km), got "${val}" — single-month filtering bug?`,
     ).toBeTruthy();
   });
 
@@ -261,7 +261,7 @@ test.describe("stats-sport-filter", () => {
   });
 
   test("kpi-activities-days-subtitle", async () => {
-    // KPIs are month-filtered; subtitle shows "N / D days" where D = days in selected month.
+    // Activities KPI subtitle shows "N / D days" where D = days elapsed in the selected year.
     const val = await page.evaluate(() => {
       for (const k of document.querySelectorAll(".kpi")) {
         if (k.querySelector(".k")?.textContent.includes("Activities"))

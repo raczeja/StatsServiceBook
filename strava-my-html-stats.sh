@@ -36,6 +36,8 @@ th{background:#fc4c02;color:#fff}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 tr:nth-child(even) td{background:var(--row-alt)}
 tr.hi td{background:var(--hi-row)!important;font-weight:600}
+.now-badge{display:inline-block;font-size:.6rem;font-weight:700;color:#fff;background:var(--accent);border-radius:.2rem;padding:0 .3rem;vertical-align:middle;margin-left:.35rem;line-height:1.6}
+tr.now-row td:first-child{border-left:2px solid var(--accent)}
 .muted{color:var(--text-4);font-size:.85rem}
 .cmp td.c0{background:var(--surface);color:var(--text-4)}
 .cmp td.c1{background:#ffeee6;color:#222}
@@ -91,6 +93,7 @@ svg.bar{width:100%;display:block}
 .goal-mo-fill{height:100%;border-radius:3px}
 .mo-hit  .goal-mo-fill{background:#22c55e}
 .mo-cur  .goal-mo-fill{background:#fb923c}
+.goal-mo.mo-cur{outline:1px solid var(--accent);outline-offset:2px;border-radius:2px}
 .mo-past .goal-mo-fill{background:#60a5fa}
 .mo-fut  .goal-mo-fill{background:var(--border-2)}
 .goal-mo-num{color:var(--text-5);font-size:.67rem;white-space:nowrap}
@@ -726,7 +729,7 @@ function renderGoals(goalsData){
              ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+tipJ+')"'+
              ' ontouchend="setTimeout(hideTip,3000)"';
       h+='<div class="goal-mo '+cls+'" style="cursor:default"'+ta+'>';
-      h+='<div class="goal-mo-lbl">'+moName+'</div>';
+      h+='<div class="goal-mo-lbl">'+moName+(isCur?'<span class="goal-week-current">NOW</span>':'')+'</div>';
       h+='<div class="goal-mo-bar"><div class="goal-mo-fill" style="width:'+moPct+'%"></div></div>';
       h+='<div class="goal-mo-num">'+fmtKmD(moDone)+'&thinsp;/&thinsp;'+fmtKmD(moTgt)+'</div>';
       h+='</div>';
@@ -809,13 +812,13 @@ function render(){
     ? fyAll.filter(function(a){ return a.date && +a.date.slice(5,7)-1===selMonth; })
     : fyAll;
 
-  // --- KPI cards ---
-  var a = agg(fyMo), apw = avgPerWeek(fyMo, "all");
+  // --- KPI cards (full year / all-time, not month-filtered) ---
+  var a = agg(fyAll), apw = avgPerWeek(fyAll, isAll?"all":selYear);
   var _daySet={};
-  fyMo.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
+  fyAll.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
   var nDays = Object.keys(_daySet).length;
   var _pDays = (function(){
-    var now = new Date(), _curY2 = now.getFullYear(), _curMo2 = now.getMonth();
+    var now = new Date(), _curY2 = now.getFullYear();
     if(isAll){
       var ds = ALL_ACTS.map(function(x){return x.date;}).filter(Boolean).sort();
       if(!ds.length) return 0;
@@ -823,15 +826,14 @@ function render(){
       return Math.round((now-d1)/86400000)+1;
     }
     var yr = +selYear;
-    // Days in selected month (current-month-so-far if browsing current month of current year)
-    var dInMo = new Date(yr, selMonth+1, 0).getDate();
-    if(yr===_curY2 && selMonth===_curMo2) return now.getDate();
-    return dInMo;
+    var dInYr = (yr%4===0&&(yr%100!==0||yr%400===0))?366:365;
+    if(yr===_curY2) return Math.floor((now-new Date(yr+"-01-01T00:00:00"))/86400000)+1;
+    return dInYr;
   })();
   // Steps — estimated from cadence for Walk/Hike activities (cadence in strides/min × 2)
   var _walkSports = {Walk:1, Hike:1};
   var _totalSteps = 0;
-  fyMo.forEach(function(a){
+  fyAll.forEach(function(a){
     if(_walkSports[a.sport_type] && a.average_cadence && a.moving_time)
       _totalSteps += Math.round(a.average_cadence * 2 * a.moving_time / 60);
   });
@@ -840,7 +842,7 @@ function render(){
 
   var _kpis = [
     {k:"Distance",        v:fmtKm(a.distM)+" km"},
-    {k:"Moving time",     v:fmtH(a.secs)},
+    {k:"Moving time",     v:fmtH(a.secs), s:a.secs>=86400?(Math.round(a.secs/8640)/10).toFixed(1)+" days":""},
     {k:"Elevation",       v:fmtInt(Math.round(a.elev))+" m"},
     {k:"Activities",      v:fmtInt(a.n), s:nDays+" / "+_pDays+" days",
      tip:nDays+" active days out of "+_pDays+" calendar days in period"},
@@ -872,7 +874,7 @@ function render(){
   var ytRows = ys.map(function(y){
     var ya = agg(filterYear(f,y));
     return '<tr'+(y===yrStr?' class="hi"':'')+'>'+
-      '<td>'+y+'</td>'+
+      '<td>'+y+(y===curY?'<span class="now-badge">NOW</span>':'')+'</td>'+
       '<td class="num">'+fmtInt(ya.n)+'</td>'+
       '<td class="num">'+fmtKm(ya.distM)+' km</td>'+
       '<td class="num">'+fmtH(ya.secs)+'</td>'+
@@ -939,7 +941,9 @@ function render(){
       '<td class="num">'+fmtInt(Math.round(ma.dispElev))+' m</td>'+
       '<td class="num">'+fmtKm(ma.distM)+' km</td>'+
     '</tr>';
-    return '<tr><td>'+MONTHS_F[i]+'</td>'+
+    var isNowMo = isCurrentYear && i === curMo;
+    return '<tr'+(isNowMo?' class="now-row"':'')+'>'+
+      '<td>'+MONTHS_F[i]+(isNowMo?'<span class="now-badge">NOW</span>':'')+'</td>'+
       '<td class="num">'+fmtInt(ma.n)+'</td>'+
       '<td class="num">'+fmtKm(ma.distM)+' km</td>'+
       '<td class="num">'+fmtH(ma.secs)+'</td>'+
@@ -991,7 +995,9 @@ function render(){
         var pct=vPrev>0?(d/vPrev*100):0;
         yoyCell='<td class="num '+cls+'" style="line-height:1.5">'+sign+fmtKmD(d)+' km<br>'+sign+pct.toFixed(1)+'%</td>';
       }
-      return '<tr><td>'+mo+'</td>'+yoyCell+cells+'</tr>';
+      var isNowMo2 = cmpCurY===curY && i===curMo;
+      return '<tr'+(isNowMo2?' class="now-row"':'')+'>'+
+        '<td>'+mo+(isNowMo2?'<span class="now-badge">NOW</span>':'')+'</td>'+yoyCell+cells+'</tr>';
     }).join("");
     var cmpTots=cmpYears.map(function(y){return cmpData[y].reduce(function(s,v){return s+(v||0);},0);});
     var cmpTotCells=cmpYears.map(function(y,i){return '<td class="num"><strong>'+fmtKmD(cmpTots[i])+'</strong></td>';}).join("");
