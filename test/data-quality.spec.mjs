@@ -100,7 +100,7 @@ test.describe("data-quality", () => {
       await expect(page.locator('a[href$="data-quality.html"]').first()).toBeVisible();
       if (url === URLS.dash) {
         await expect(
-          page.locator('#hdr h1 a[href="data-quality.html"]'),
+          page.locator('.nav a[href="data-quality.html"]'),
         ).toBeVisible();
       }
     }

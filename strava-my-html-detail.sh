@@ -309,11 +309,14 @@ function updateLongestClimbCard(climb){
   var cardEl = document.getElementById("longest-climb-card");
   if (!cardEl) return;
   if (!climb) { cardEl.style.display = "none"; return; }
-  var distance = climb.distance < 1000
-    ? Math.round(climb.distance) + " m"
-    : (climb.distance / 1000).toFixed(2) + " km";
-  var grade = climb.distance > 0 ? (climb.gain / climb.distance * 100).toFixed(1) : "0.0";
-  cardEl.querySelector(".v").textContent = climb.gain + " m · " + grade + "% avg · " + distance;
+  var txt = climb.gain + " m";
+  if (climb.distance != null && climb.distance > 0) {
+    var distance = climb.distance < 1000
+      ? Math.round(climb.distance) + " m"
+      : (climb.distance / 1000).toFixed(2) + " km";
+    txt += " · " + (climb.gain / climb.distance * 100).toFixed(1) + "% avg · " + distance;
+  }
+  cardEl.querySelector(".v").textContent = txt;
   cardEl.style.display = "";
 }
 
@@ -720,7 +723,7 @@ function findLongestClimb(trackPts, sport){
 
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
 // uhttpd serves .gpx without an XML Content-Type header.
-function renderGpxMap(gpxUrl, sport){
+function renderGpxMap(gpxUrl, sport, maxSingleClimb){
   var box = document.getElementById("map-box");
   if (typeof L === "undefined") {
     hideMapSpin();
@@ -763,6 +766,8 @@ function renderGpxMap(gpxUrl, sport){
           L.circleMarker(pts[climb.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
             .bindTooltip("Climb summit", {permanent:false}).addTo(map);
           updateLongestClimbCard(climb);
+        } else if (maxSingleClimb > 0) {
+          updateLongestClimbCard({gain: maxSingleClimb, distance: null});
         }
         map.fitBounds(line.getBounds(), { padding: [20, 20] });
         L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
@@ -790,7 +795,7 @@ function haversineM(lat1, lon1, lat2, lon2) {
 
 // --- GPX elevation + heart rate + cadence charts (healthsync / scrape activities) -----
 // Fetches the GPX once, populates elev-box, hr-box, hr-zone-box, cad-box, and splits-box.
-function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
+function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb) {
   fetch(gpxUrl)
     .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
     .then(function(txt){
@@ -818,7 +823,8 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
         var climbEleEl = climbPt.getElementsByTagNameNS("*", "ele")[0];
         climbTrackPts.push({lat:parseFloat(climbPt.getAttribute("lat")), lon:parseFloat(climbPt.getAttribute("lon")), ele:climbEleEl ? parseFloat(climbEleEl.textContent) : null});
       }
-      updateLongestClimbCard(findLongestClimb(climbTrackPts, sport));
+      var gpxClimb = findLongestClimb(climbTrackPts, sport);
+      updateLongestClimbCard(gpxClimb || (maxSingleClimb > 0 ? {gain: maxSingleClimb, distance: null} : null));
       var allH = [], hrEls, bpm;
       for (i = 0; i < trkpts.length; i++) {
         hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
@@ -917,7 +923,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport) {
 
 function renderMap(d){
   // GPX path: healthsync activities — the GPX file is cached locally on the router.
-  if (d.gpx_file) { renderGpxMap(d.gpx_file, d.sport_type || d.type || ""); return; }
+  if (d.gpx_file) { renderGpxMap(d.gpx_file, d.sport_type || d.type || "", d.max_single_climb || 0); return; }
   var box = document.getElementById("map-box");
   var enc = d.map && (d.map.polyline || d.map.summary_polyline);
   if (!enc || typeof L === "undefined") {
@@ -1002,7 +1008,7 @@ function renderSplits(d){
     splitsBox.innerHTML = '<h3 id="splits-title">Per-km splits</h3>'
       + '<div class="chart-scroll"><svg class="splits" id="svg-splits" preserveAspectRatio="xMidYMid meet"></svg></div>'
       + '<div id="gpx-splits-note" class="note">Computing from GPS track…</div>';
-    renderGpxCharts(d.gpx_file, d.max_heartrate || 0, d.moving_time || 0, sport);
+    renderGpxCharts(d.gpx_file, d.max_heartrate || 0, d.moving_time || 0, sport, d.max_single_climb || 0);
     return;
   }
   var box = document.getElementById("splits-box");
