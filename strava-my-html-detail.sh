@@ -12,7 +12,7 @@ log "html: writing activity.html..."
 : "${STRAVA_MY_CLIMB_MIN_GAIN_WALK:=3}"
 : "${STRAVA_MY_CLIMB_MIN_GAIN_OTHER:=10}"
 : "${STRAVA_MY_CLIMB_MIN_DISTANCE:=100}"
-: "${STRAVA_MY_CLIMB_MIN_GRADE_RIDE:=3}"
+: "${STRAVA_MY_CLIMB_MIN_GRADE_RIDE:=2}"
 : "${STRAVA_MY_CLIMB_MIN_GRADE_RUN:=2}"
 : "${STRAVA_MY_CLIMB_MIN_GRADE_HIKE:=2}"
 : "${STRAVA_MY_CLIMB_MIN_GRADE_WALK:=1}"
@@ -48,6 +48,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   h1{margin:0 0 .25rem;font-size:1.5rem}
   a{color:var(--accent)}
   .crumbs{font-size:.85rem;margin:0 0 .75rem}
+  .nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}.nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}.nav a:hover{background:#e34402}
   .sub{color:var(--text-3);font-size:.9rem;margin:.1rem 0 .5rem}
   .desc{white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);padding:.5rem .75rem;border-radius:.4rem;margin:.5rem 0;font-size:.9rem;color:var(--text-2)}
   .links{font-size:.85rem;margin:.25rem 0 1rem}
@@ -114,7 +115,7 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 <body>
 <div id="pbar"></div>
 <div id="chart-tip"></div>
-<div class="crumbs"><a href="index.html">&larr; All activities</a> &middot; <a href="data-quality.html">&#128203; Data completeness</a> &middot; <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
+<div class="nav"><a href="index.html">&#8592; All activities</a> <a href="bike.html">🔧 Bike service</a> <a href="stats.html">📊 My Stats</a> <a href="heatmap.html">&#128506; Heatmap</a> <a href="data-quality.html">&#128203; Data completeness</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
 <div id="err"></div>
 <div id="content" style="display:none">
   <div id="hdr" style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 id="name" style="margin:0"></h1><button id="theme-tog">🌙</button></div>
@@ -759,8 +760,9 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         leafletLine = line;
         var climb = findLongestClimb(trackPts, sport);
+        var climbLine = null;
         if (climb) {
-          L.polyline(pts.slice(climb.start, climb.end + 1), { color: "#1565c0", weight: 7, opacity: 0.9 }).addTo(map);
+          climbLine = L.polyline(pts.slice(climb.start, climb.end + 1), { color: "#1565c0", weight: 7, opacity: 0.9 }).addTo(map);
           L.circleMarker(pts[climb.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
             .bindTooltip("Climb start", {permanent:false}).addTo(map);
           L.circleMarker(pts[climb.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
@@ -769,10 +771,27 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
         } else if (maxSingleClimb > 0) {
           updateLongestClimbCard({gain: maxSingleClimb, distance: null});
         }
-        map.fitBounds(line.getBounds(), { padding: [20, 20] });
+        // Fit to climb segment when detected; user can zoom out via the expand button or scroll.
+        var fitTarget = (climbLine && climbLine.getBounds().isValid()) ? climbLine : line;
+        map.fitBounds(fitTarget.getBounds(), { padding: climbLine ? [40, 40] : [20, 20] });
         L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
         L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
-        setTimeout(function(){ map.invalidateSize(); map.fitBounds(line.getBounds(), { padding: [20, 20] }); }, 0);
+        // "Full route" button — only shown when map is zoomed to climb
+        if (climbLine) {
+          var fullBtn = L.control({ position: "bottomleft" });
+          fullBtn.onAdd = function() {
+            var d = L.DomUtil.create("button", "");
+            d.innerHTML = "Full route";
+            d.style.cssText = "background:var(--btn-bg,rgba(255,255,255,.9));border:1px solid var(--border-2,#ccc);border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15)";
+            L.DomEvent.on(d, "click", function(e) {
+              L.DomEvent.stop(e);
+              map.fitBounds(line.getBounds(), { padding: [20, 20] });
+            });
+            return d;
+          };
+          fullBtn.addTo(map);
+        }
+        setTimeout(function(){ map.invalidateSize(); map.fitBounds(fitTarget.getBounds(), { padding: climbLine ? [40, 40] : [20, 20] }); }, 0);
         tileLayer.once("load", hideMapSpin);
         setTimeout(hideMapSpin, 10000);
       } catch(e) {
@@ -1211,13 +1230,14 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
     if (meta && meta.activities) {
       var act = meta.activities.find(function(a){ return String(a.id) === String(id); });
       if (act) {
-        if (d.average_temp  == null && act.average_temp  != null) d.average_temp  = act.average_temp;
-        if (d.temp_source   == null && act.temp_source   != null) d.temp_source   = act.temp_source;
-        if (d.apparent_temp == null && act.apparent_temp != null) d.apparent_temp = act.apparent_temp;
-        if (d.wind_speed    == null && act.wind_speed    != null) d.wind_speed    = act.wind_speed;
-        if (d.wind_dir      == null && act.wind_dir      != null) d.wind_dir      = act.wind_dir;
-        if (d.weathercode   == null && act.weathercode   != null) d.weathercode   = act.weathercode;
-        if (d.precipitation == null && act.precipitation != null) d.precipitation = act.precipitation;
+        if (d.average_temp    == null && act.average_temp    != null) d.average_temp    = act.average_temp;
+        if (d.temp_source     == null && act.temp_source     != null) d.temp_source     = act.temp_source;
+        if (d.apparent_temp   == null && act.apparent_temp   != null) d.apparent_temp   = act.apparent_temp;
+        if (d.wind_speed      == null && act.wind_speed      != null) d.wind_speed      = act.wind_speed;
+        if (d.wind_dir        == null && act.wind_dir        != null) d.wind_dir        = act.wind_dir;
+        if (d.weathercode     == null && act.weathercode     != null) d.weathercode     = act.weathercode;
+        if (d.precipitation   == null && act.precipitation   != null) d.precipitation   = act.precipitation;
+        if (d.max_single_climb == null && act.max_single_climb != null) d.max_single_climb = act.max_single_climb;
       }
     }
     render(d, id);

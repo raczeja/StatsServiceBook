@@ -553,12 +553,21 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     && log "render: computing max_single_climb for $_climbs_todo GPX activities (cached: $_climbs_cached)"
   _climbs_computed=0
   _climb_batch="${STRAVA_CLIMB_BATCH:-50}"
+  # Use same defaults as strava-my-html-detail.sh so server and client thresholds match.
+  : "${STRAVA_MY_CLIMB_MIN_GAIN_RIDE:=25}"
+  : "${STRAVA_MY_CLIMB_MIN_DISTANCE:=100}"
+  : "${STRAVA_MY_CLIMB_MIN_GRADE_RIDE:=2}"
+  : "${STRAVA_MY_CLIMB_DESCENT_RESET:=30}"
+  _awk_min_gain="$STRAVA_MY_CLIMB_MIN_GAIN_RIDE"
+  _awk_min_dist="$STRAVA_MY_CLIMB_MIN_DISTANCE"
+  _awk_min_grade="$(printf '%s %s' "$STRAVA_MY_CLIMB_MIN_GRADE_RIDE" "100" | awk '{printf "%.6f", $1/$2}')"
+  _awk_descent_reset="$STRAVA_MY_CLIMB_DESCENT_RESET"
   while read -r _cid _cgpx; do
     grep -qx "$_cid" "$TMP/cached-climb-ids.txt" && continue
     [ "$_climbs_computed" -ge "$_climb_batch" ] && break
     _cgpx_path="$WEB_DIR/$_cgpx"
     [ -f "$_cgpx_path" ] || continue
-    _cval="$(awk '
+    _cval="$(awk -v ming="$_awk_min_gain" -v mind="$_awk_min_dist" -v minr="$_awk_min_grade" -v dreset="$_awk_descent_reset" '
       BEGIN{pi=3.14159265358979;cv=0;cp=0;cd=0;best=0;tot=0;f=1;clat=0;clon=0;plat="";plon=""}
       function hav(la1,lo1,la2,lo2,  R,dl,dn,a,c){
         R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
@@ -570,11 +579,11 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
               if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
               plat=clat;plon=clon
               if(f){cv=e;cp=e;cd=tot;f=0;next}
-              if(e<cp-30){cv=e;cp=e;cd=tot;next}
+              if(e<cp-dreset){cv=e;cp=e;cd=tot;next}
               if(e>cp)cp=e
               if(e<cv){cv=e;cd=tot}
               g=e-cv;d=tot-cd
-              if(g>=25&&d>=100&&d>0&&g/d>=0.02&&g>best)best=g}
+              if(g>=ming&&d>=mind&&d>0&&g/d>=minr&&g>best)best=g}
       END{printf"%d",int(best+0.5)}' "$_cgpx_path" 2>/dev/null)"
     [ -n "$_cval" ] || _cval=0
     printf '{"%s":%s}\n' "$_cid" "$_cval" >> "$TMP/max-climbs-new.ndjson"

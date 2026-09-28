@@ -23,7 +23,7 @@ body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1000px;pa
 h1{margin:0 0 .25rem}
 a{color:var(--accent)}
 .meta{color:var(--text-3);font-size:.85rem;margin:.75rem 0 .5rem}
-.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
+.nav{margin:.25rem 0 1rem;display:flex;flex-wrap:wrap;gap:.4rem}.nav a{padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600;flex:0 0 auto;text-align:center}.nav a:hover{background:#e34402}
 .filters{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0 .75rem}
 select,input[type=search]{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text)}
 input[type=search]{min-width:12rem;max-width:18rem}
