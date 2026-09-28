@@ -117,7 +117,8 @@ body{font-family:system-ui,Arial,sans-serif;background:#111;color:#ddd;
      background:#1a1a1a;border-bottom:1px solid #2a2a2a;flex-shrink:0;flex-wrap:wrap}
 #bar h1{font-size:1rem;font-weight:700;color:#fc4c02;white-space:nowrap}
 .crumbs{font-size:.8rem}
-.crumbs a{color:#fc4c02;text-decoration:none}
+.crumbs a{display:inline-block;padding:.25rem .5rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.8rem;font-weight:600}
+.crumbs a:hover{background:#e34402}
 #bar label{font-size:.85rem;color:#bbb}
 select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
        padding:.25rem .5rem;cursor:pointer;font-size:.85rem}
@@ -134,7 +135,7 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 <body>
 <div id="pbar"></div>
 <div id="bar">
-  <span class="crumbs"><a href="index.html">&#8592; Dashboard</a> &middot; <a href="data-quality.html">&#128203; Data completeness</a></span>
+  <span class="crumbs"><a href="index.html">&#8592; My Activities</a> <a href="bike.html">🔧 Bike service</a> <a href="stats.html">📊 My Stats</a> <a href="data-quality.html">&#128203; Data completeness</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></span>
   <h1>&#128506; Heatmap</h1>
   <label>Period:&nbsp;<select id="period"></select></label>
   <label>Sport:&nbsp;<select id="sport"></select></label>
@@ -146,6 +147,7 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 "use strict";
+fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 function progressStart(){
   if(!_pbar)_pbar=document.getElementById("pbar");
