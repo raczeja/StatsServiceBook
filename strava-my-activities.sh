@@ -552,8 +552,10 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_climbs_todo" -gt 0 ] \
     && log "render: computing max_single_climb for $_climbs_todo GPX activities (cached: $_climbs_cached)"
   _climbs_computed=0
+  _climb_batch="${STRAVA_CLIMB_BATCH:-50}"
   while read -r _cid _cgpx; do
     grep -qx "$_cid" "$TMP/cached-climb-ids.txt" && continue
+    [ "$_climbs_computed" -ge "$_climb_batch" ] && break
     _cgpx_path="$WEB_DIR/$_cgpx"
     [ -f "$_cgpx_path" ] || continue
     _cval="$(awk '
@@ -587,6 +589,9 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_climbs_computed" -gt 0 ] \
     && cp "$TMP/max-climbs.json" "$_climb_cache" \
     && log "render: computed max_single_climb for $_climbs_computed new GPX activities"
+  _climbs_remaining=$((_climbs_todo - _climbs_computed))
+  [ "$_climbs_remaining" -gt 0 ] \
+    && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with

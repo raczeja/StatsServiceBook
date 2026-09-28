@@ -62,6 +62,9 @@ svg.bar{width:100%;display:block}
 .rec .rl{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-5);font-weight:600}
 .rec .rv{font-size:1.2rem;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;margin:.1rem 0}
 .rec .rs{font-size:.78rem;color:var(--text-3);white-space:pre-line}
+.top10-sel{font-size:.73rem;padding:.2rem .4rem;margin-left:.3rem;font-weight:400;text-transform:none;letter-spacing:0;border:1px solid var(--border-2);border-radius:.3rem;background:var(--select-bg);color:var(--text);cursor:pointer}
+.top10-rank{font-size:.85rem;color:var(--text-4);font-weight:700;text-align:center;width:2rem}
+.top10-val{color:var(--accent);font-weight:700}
 #tip{display:none;position:fixed;background:var(--tooltip-bg);color:#fff;padding:.42rem .7rem;
      border-radius:.4rem;font-size:.8rem;pointer-events:none;z-index:100;
      white-space:pre;line-height:1.65;box-shadow:0 2px 8px rgba(0,0,0,.3)}
@@ -148,6 +151,11 @@ svg.bar{width:100%;display:block}
 <div class="sec" data-sid="records">
 <h2>Personal records <span id="recsSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all time &middot; all sports</span></h2>
 <div class="recs" id="recs"></div>
+</div>
+
+<div class="sec" data-sid="top10">
+<h2>Top 10 <span id="top10Subtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; Longest climb</span><select id="top10Sel" class="top10-sel"></select></h2>
+<div id="top10Table"></div>
 </div>
 
 <div class="sec" data-sid="year">
@@ -386,6 +394,86 @@ function computeRecords(acts){
     bmoCount:bmoCount?{month:bmoCount,n:bmoCountN}:null,
     streak:sorted.length?{n:maxStr,from:sFrom,to:sTo}:null
   };
+}
+
+// ---- top-10 leaderboard by metric ------------------------------------------
+var TOP10_METRICS = [
+  {id:'distance',  label:'Distance',      fn:function(a){return (a.distance||0)/1000;},
+   fmt:function(v){return fmtKmD(v)+' km';}},
+  {id:'time',      label:'Moving time',   fn:function(a){return a.moving_time||0;},
+   fmt:function(v){return fmtH(v);}},
+  {id:'elevation', label:'Elevation',     fn:function(a){return a.total_elevation_gain||0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' m';}},
+  {id:'avg_speed', label:'Avg speed',     fn:function(a){var km=(a.distance||0)/1000,s=a.moving_time||0;return (km>=20&&s>0)?km/s*3600:0;},
+   fmt:function(v){return v.toFixed(1)+' km/h';}},
+  {id:'max_speed', label:'Max speed',     fn:function(a){return (a.max_speed||0)*3.6;},
+   fmt:function(v){return v.toFixed(1)+' km/h';}},
+  {id:'power',     label:'Power (W)',     fn:function(a){return a.weighted_average_watts||a.average_watts||0;},
+   fmt:function(v){return Math.round(v)+' W';}},
+  {id:'work',      label:'Work (kJ)',     fn:function(a){return a.kilojoules||0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' kJ';}},
+  {id:'vam',       label:'VAM',           fn:function(a){var e=a.total_elevation_gain||0,s=a.moving_time||0;return (s>0&&e>=100)?e/(s/3600):0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' m/h';}},
+  {id:'climb',     label:'Longest climb', fn:function(a){return a.max_single_climb||0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' m';}},
+  {id:'steps',     label:'Steps (walk)',  fn:function(a){var ws={Walk:1,Hike:1};return (ws[a.sport_type]&&a.average_cadence&&a.moving_time)?Math.round(a.average_cadence*2*a.moving_time/60):0;},
+   fmt:function(v){return fmtInt(v);}}
+];
+var _top10Acts = [];
+var _top10Inited = false;
+
+function _getTop10Metric(){
+  var sel=document.getElementById('top10Sel');
+  var id=sel?sel.value:'distance';
+  var m=null;
+  TOP10_METRICS.forEach(function(x){if(x.id===id)m=x;});
+  return m||TOP10_METRICS[0];
+}
+function _drawTop10(){
+  var metric=_getTop10Metric();
+  var sub=document.getElementById('top10Subtitle');
+  if(sub) sub.textContent='— '+metric.label;
+  var tbl=document.getElementById('top10Table');
+  if(!tbl) return;
+  var scored=[];
+  _top10Acts.forEach(function(a){
+    var v=metric.fn(a);
+    if(v>0) scored.push({a:a,v:v});
+  });
+  scored.sort(function(x,y){return y.v-x.v;});
+  var rows=scored.slice(0,10);
+  if(!rows.length){tbl.innerHTML='<div class="empty">No data for this metric.</div>';return;}
+  var head='<tr><th style="width:2rem">#</th><th>Date</th><th>Activity</th>'+
+           '<th>'+esc(metric.label)+'</th><th>Distance</th><th>Time</th><th></th></tr>';
+  var body=rows.map(function(r,i){
+    var a=r.a, distKm=(a.distance||0)/1000;
+    return '<tr>'+
+      '<td class="num top10-rank">'+(i+1)+'</td>'+
+      '<td>'+esc(a.date||'')+'</td>'+
+      '<td>'+esc(a.name||'')+'</td>'+
+      '<td class="num"><span class="top10-val">'+esc(metric.fmt(r.v))+'</span></td>'+
+      '<td class="num">'+fmtKmD(distKm)+' km</td>'+
+      '<td class="num">'+fmtH(a.moving_time||0)+'</td>'+
+      '<td style="white-space:nowrap">'+(a.id?'<a href="activity.html?id='+esc(String(a.id))+'">View →</a>':'')+'</td>'+
+    '</tr>';
+  }).join('');
+  tbl.innerHTML='<table><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+}
+function renderTop10(acts){
+  _top10Acts=acts;
+  var sel=document.getElementById('top10Sel');
+  if(!sel) return;
+  if(!_top10Inited){
+    _top10Inited=true;
+    TOP10_METRICS.forEach(function(m){
+      var o=document.createElement('option');
+      o.value=m.id; o.textContent=m.label;
+      sel.appendChild(o);
+    });
+    sel.value='climb';
+    sel.addEventListener('change',function(){_drawTop10();});
+  }
+  _drawTop10();
 }
 
 // ---- tooltip ----------------------------------------------------------------
@@ -972,6 +1060,8 @@ function render(){
                   _fLink(rec.streak.from.slice(0,4),+rec.streak.from.slice(5,7))));
   document.getElementById("recs").innerHTML = ri.join("") || '<div class="empty">No data yet.</div>';
 
+  renderTop10(fyAll);
+
   // --- By sport (all sports, year-filtered when a year is selected) ---
   var sportSrc = isAll ? ALL_ACTS : filterYear(ALL_ACTS, selYear);
   var sportAgg={};
@@ -1083,7 +1173,7 @@ document.getElementById("moNavNext").addEventListener("click",function(){ selMon
 load();
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';
-  var STATS_SEC_DEFAULT=['kpis','goals','weekly-goals','records','year','monthly-chart','monthly-table','comparison','sport','dow'];
+  var STATS_SEC_DEFAULT=['kpis','goals','weekly-goals','records','top10','year','monthly-chart','monthly-table','comparison','sport','dow'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;
