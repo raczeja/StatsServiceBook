@@ -545,18 +545,41 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   : > "$TMP/max-climbs-new.ndjson"
   jq -c 'to_entries[] | {(.key): .value}' "$_climb_cache" >> "$TMP/max-climbs-new.ndjson" 2>/dev/null
   jq -r 'keys | .[]' "$_climb_cache" > "$TMP/cached-climb-ids.txt" 2>/dev/null || : > "$TMP/cached-climb-ids.txt"
+  _climbs_total="$(wc -l < "$TMP/gpx-paths.txt" | tr -d ' ')"
+  _climbs_cached="$(wc -l < "$TMP/cached-climb-ids.txt" | tr -d ' ')"
+  _climbs_todo=$((_climbs_total - _climbs_cached))
+  [ "$_climbs_todo" -lt 0 ] && _climbs_todo=0
+  [ "$_climbs_todo" -gt 0 ] \
+    && log "render: computing max_single_climb for $_climbs_todo GPX activities (cached: $_climbs_cached)"
   _climbs_computed=0
   while read -r _cid _cgpx; do
     grep -qx "$_cid" "$TMP/cached-climb-ids.txt" && continue
     _cgpx_path="$WEB_DIR/$_cgpx"
     [ -f "$_cgpx_path" ] || continue
-    _cval="$(grep '<ele>' "$_cgpx_path" 2>/dev/null \
-      | sed 's/.*<ele>\([^<]*\)<\/ele>.*/\1/' \
-      | awk 'BEGIN{v=999999;p=999999;b=0;f=1}{e=$1+0;if(f){v=e;p=e;f=0;next};if(e<p-30){v=e;p=e;next};if(e>p)p=e;if(e<v)v=e;g=e-v;if(g>b)b=g}END{printf"%d",int(b+0.5)}' 2>/dev/null)"
+    _cval="$(awk '
+      BEGIN{pi=3.14159265358979;cv=0;cp=0;cd=0;best=0;tot=0;f=1;clat=0;clon=0;plat="";plon=""}
+      function hav(la1,lo1,la2,lo2,  R,dl,dn,a,c){
+        R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
+        a=sin(dl/2)*sin(dl/2)+cos(la1*pi/180)*cos(la2*pi/180)*sin(dn/2)*sin(dn/2)
+        c=2*atan2(sqrt(a),sqrt(1-a));return R*c}
+      /lat=/{s=$0;gsub(/.*lat="/,"",s);gsub(/".*$/,"",s);clat=s+0
+             s=$0;gsub(/.*lon="/,"",s);gsub(/".*$/,"",s);clon=s+0}
+      /<ele>/{s=$0;gsub(/.*<ele>/,"",s);gsub(/<\/ele>.*/,"",s);e=s+0
+              if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
+              plat=clat;plon=clon
+              if(f){cv=e;cp=e;cd=tot;f=0;next}
+              if(e<cp-30){cv=e;cp=e;cd=tot;next}
+              if(e>cp)cp=e
+              if(e<cv){cv=e;cd=tot}
+              g=e-cv;d=tot-cd
+              if(g>=25&&d>=100&&d>0&&g/d>=0.02&&g>best)best=g}
+      END{printf"%d",int(best+0.5)}' "$_cgpx_path" 2>/dev/null)"
     [ -n "$_cval" ] || _cval=0
     printf '{"%s":%s}\n' "$_cid" "$_cval" >> "$TMP/max-climbs-new.ndjson"
     printf '%s\n' "$_cid" >> "$TMP/cached-climb-ids.txt"
     _climbs_computed=$((_climbs_computed + 1))
+    [ $((_climbs_computed % 10)) -eq 0 ] \
+      && log "render: max_single_climb $_climbs_computed/$_climbs_todo done"
   done < "$TMP/gpx-paths.txt"
   [ -s "$TMP/max-climbs-new.ndjson" ] \
     && jq -s 'add // {}' "$TMP/max-climbs-new.ndjson" > "$TMP/max-climbs.json" 2>/dev/null \
