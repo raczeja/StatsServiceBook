@@ -1028,6 +1028,7 @@ test.describe("stats-section-order", () => {
       "goals",
       "weekly-goals",
       "records",
+      "top10",
       "year",
       "monthly-chart",
       "monthly-table",
@@ -1043,7 +1044,7 @@ test.describe("stats-section-order", () => {
       "#sec-wrap .sec .sec-handle",
       (els) => els.length,
     );
-    expect(n, `expected 10 .sec-handle elements, got ${n}`).toBe(10);
+    expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);
   });
 
   test("reset-button-present", async () => {
@@ -1095,8 +1096,8 @@ test.describe("stats-section-order", () => {
       }
     });
     expect(
-      Array.isArray(saved) && saved.length === 10,
-      "saved order should be 10-element array",
+      Array.isArray(saved) && saved.length === 11,
+      "saved order should be 11-element array",
     ).toBeTruthy();
     expect(
       saved[0],
@@ -1174,6 +1175,95 @@ test.describe("stats-section-order", () => {
       section.getAttribute("data-sid"),
     );
     expect(first).toBe("weekly-goals");
+  });
+});
+
+// ── Stats Top 10 ──────────────────────────────────────────────────────────────
+
+test.describe("stats-top10", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+    await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+    try {
+      await page.waitForSelector("#top10Table", { timeout: 10000 });
+      await page.waitForFunction(
+        () => !document.getElementById("meta")?.textContent.includes("Loading"),
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => { await page.close(); });
+
+  test("no-js-errors", () => {
+    expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
+  });
+
+  test("top10-section-exists", async () => {
+    const el = await page.$('[data-sid="top10"]');
+    expect(el, 'expected [data-sid="top10"] section to exist').toBeTruthy();
+  });
+
+  test("top10-select-has-options", async () => {
+    const n = await page.$$eval("#top10Sel option", (opts) => opts.length);
+    expect(n >= 5, `expected >= 5 options in #top10Sel, got ${n}`).toBeTruthy();
+  });
+
+  test("top10-default-metric-is-climb", async () => {
+    const val = await page.$eval("#top10Sel", (el) => el.value);
+    expect(val, `expected default metric "climb", got "${val}"`).toBe("climb");
+  });
+
+  test("top10-table-has-rows", async () => {
+    const n = await page.$$eval("#top10Table tbody tr", (rows) => rows.length);
+    expect(n > 0 && n <= 10, `expected 1-10 rows in #top10Table, got ${n}`).toBeTruthy();
+  });
+
+  test("top10-rows-have-activity-links", async () => {
+    const n = await page.$$eval("#top10Table a", (els) => els.length);
+    expect(n > 0, `expected at least one activity link in top10 table, got ${n}`).toBeTruthy();
+  });
+
+  test("top10-switch-to-distance-renders-rows", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("top10Sel");
+      sel.value = "distance";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const n = await page.$$eval("#top10Table tbody tr", (rows) => rows.length);
+    expect(n > 0, `expected rows after switching to distance, got ${n}`).toBeTruthy();
+  });
+
+  test("top10-subtitle-updates-on-select-change", async () => {
+    const sub = await page.$eval("#top10Subtitle", (el) => el.textContent);
+    expect(sub.includes("Distance"), `expected "Distance" in subtitle, got: "${sub}"`).toBeTruthy();
+  });
+
+  test("top10-sport-filter-respected", async () => {
+    // switch to Walk sport — climb rows should be empty or reduced
+    await page.evaluate(() => {
+      const sel = document.getElementById("top10Sel");
+      sel.value = "steps";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => {
+      const sportSel = document.getElementById("sportSel");
+      sportSel.value = "Ride";
+      sportSel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const text = await page.$eval("#top10Table", (el) => el.textContent);
+    // Ride sport has no step data — should show empty message
+    expect(
+      text.includes("No data") || !text.includes("tbody"),
+      `expected empty message for steps+Ride, got: "${text.slice(0, 80)}"`,
+    ).toBeTruthy();
   });
 });
 

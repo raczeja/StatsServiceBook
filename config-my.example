@@ -46,6 +46,12 @@ STRAVA_TOKEN_REFRESH_MARGIN="600"
 #STRAVA_MY_CLIMB_MIN_GAIN_OTHER="10"
 #STRAVA_MY_CLIMB_MIN_DISTANCE="100"
 
+# Max GPX files to process for climb detection per run (default 50).
+# On first run after cache clear, all activities need computing — this limit
+# prevents the router from being overloaded; remaining files are picked up on
+# the next cron run. Set higher if your router has plenty of RAM/CPU.
+#STRAVA_CLIMB_BATCH="50"
+
 # How many pages of your activity feed to pull.
 # api mode:    200 activities/page; 20 pages = up to 4000 activities.
 # scrape mode: 20 activities/page (fixed by Strava web); raise MAX_PAGES
