@@ -22,6 +22,7 @@ h2{font-size:.78rem;font-weight:700;margin:1.6rem 0 .5rem;color:var(--text-4);te
 a{color:var(--accent)}
 .crumbs{font-size:.85rem;margin:0 0 .75rem}
 .meta{color:var(--text-3);font-size:.85rem;margin:.4rem 0 .75rem}
+.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
 .filters{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.5rem 0 .85rem}
 select{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text);cursor:pointer}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.5rem;margin:.25rem 0 .5rem}
@@ -110,18 +111,27 @@ svg.bar{width:100%;display:block}
 .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
 .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
+.mo-nav{display:flex;align-items:center;gap:.3rem}
+.mo-nav-btn{background:none;border:1px solid var(--border-2);border-radius:.3rem;font-size:1.1rem;line-height:1;padding:.15rem .5rem;cursor:pointer;color:var(--text-2);font-weight:600}
+.mo-nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mo-nav-lbl{font-size:.9rem;font-weight:600;min-width:140px;text-align:center;color:var(--text)}
 </style>
 </head>
 <body>
 <div id="pbar"></div>
 <div id="tip"></div>
-<div class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="data-quality.html">&#128203; Data completeness</a> &middot; <a href="bike.html">🔧 Bike service</a></div>
 <div id="hdr" style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Stats</h1><button id="theme-tog">🌙</button></div>
+<div class="nav"><a href="index.html">&#8592; My Activities</a> <a href="bike.html">🔧 Bike service</a> <a href="heatmap.html">&#128506; Heatmap</a> <a href="data-quality.html">&#128203; Data completeness</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
 <div class="meta" id="meta">Loading…</div>
 
 <div class="filters">
   <label>Sport&nbsp;<select id="sportSel"></select></label>
   <label>Year&nbsp;<select id="yearSel"></select></label>
+  <div id="moNav" class="mo-nav" style="display:none">
+    <button class="mo-nav-btn" id="moNavPrev">&#8249;</button>
+    <span class="mo-nav-lbl" id="moNavLabel"></span>
+    <button class="mo-nav-btn" id="moNavNext">&#8250;</button>
+  </div>
 </div>
 
 <div id="sec-wrap">
@@ -171,9 +181,7 @@ svg.bar{width:100%;display:block}
 </div>
 
 <div class="meta" style="margin-top:1.5rem">
-  StravaStats for OpenWrt &middot; <a href="index.html">My Activities</a> &middot;
-  <a href="bike.html">🔧 Bike service</a> &middot; <a href="activities.json">activities.json</a> &middot;
-  <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a>
+  StravaStats for OpenWrt &middot; <a href="activities.json">activities.json</a>
 </div>
 
 <script>
@@ -204,6 +212,7 @@ function progressDone(){
 }
 var DATA = null, ALL_ACTS = [], genStr = "";
 var selSport = "Ride", selYear = "";
+var selMonth = new Date().getMonth(); // 0-indexed; active when a year is selected
 
 var MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 var MONTHS_F = ["January","February","March","April","May","June",
@@ -622,22 +631,24 @@ function renderGoals(goalsData){
       h+='</div>';
     });
     h+='</div>';
-    wh='<h2>Weekly progress <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; '+esc(yr)+' &middot; Ride km</span></h2>';
-    wh+='<div class="goal-wrap"><div class="goal-weeks">';
-    weeks.forEach(function(week,wi){
-      var weekDone=0;
-      yrRides.forEach(function(a){if(weekOf(a.date)===week)weekDone+=(a.distance||0)/1000;});
-      var weekTarget=weekTgts[wi],weekPct=weekTarget>0?Math.min(100,Math.round(weekDone/weekTarget*100)):0;
-      var weekDate=new Date(week+"T12:00:00"),weekNo=wi+1;
-      var isCurrentWeek=week===currentWeek;
-      var weekClass=weekDone>=weekTarget&&weekTarget>0?"wk-hit":(isCurrentWeek?"wk-cur":(week>currentWeek&&isCurrentYear?"wk-fut":"wk-past"));
-      if(isCurrentWeek) weekClass+=" wk-current";
-      wh+='<div class="goal-week '+weekClass+'" title="Week '+weekNo+' · '+week+' · '+fmtKmD(weekDone)+' / '+fmtKmD(weekTarget)+' km">';
-      wh+='<div class="goal-week-lbl">W'+p2(weekNo)+' · '+p2(weekDate.getDate())+'/'+p2(weekDate.getMonth()+1)+(isCurrentWeek?'<span class="goal-week-current">NOW</span>':'')+'</div>';
-      wh+='<div class="goal-week-bar"><div class="goal-week-fill" style="width:'+weekPct+'%"></div></div>';
-      wh+='<div class="goal-week-num">'+fmtKmD(weekDone)+'&thinsp;/&thinsp;'+fmtKmD(weekTarget)+'</div></div>';
-    });
-    wh+='</div></div>';
+    if(isCurrentYear){
+      wh='<h2>Weekly progress <span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; '+esc(yr)+' &middot; Ride km</span></h2>';
+      wh+='<div class="goal-wrap"><div class="goal-weeks">';
+      weeks.forEach(function(week,wi){
+        var weekDone=0;
+        yrRides.forEach(function(a){if(weekOf(a.date)===week)weekDone+=(a.distance||0)/1000;});
+        var weekTarget=weekTgts[wi],weekPct=weekTarget>0?Math.min(100,Math.round(weekDone/weekTarget*100)):0;
+        var weekDate=new Date(week+"T12:00:00"),weekNo=wi+1;
+        var isCurrentWeek=week===currentWeek;
+        var weekClass=weekDone>=weekTarget&&weekTarget>0?"wk-hit":(isCurrentWeek?"wk-cur":(week>currentWeek?"wk-fut":"wk-past"));
+        if(isCurrentWeek) weekClass+=" wk-current";
+        wh+='<div class="goal-week '+weekClass+'" title="Week '+weekNo+' · '+week+' · '+fmtKmD(weekDone)+' / '+fmtKmD(weekTarget)+' km">';
+        wh+='<div class="goal-week-lbl">W'+p2(weekNo)+' · '+p2(weekDate.getDate())+'/'+p2(weekDate.getMonth()+1)+(isCurrentWeek?'<span class="goal-week-current">NOW</span>':'')+'</div>';
+        wh+='<div class="goal-week-bar"><div class="goal-week-fill" style="width:'+weekPct+'%"></div></div>';
+        wh+='<div class="goal-week-num">'+fmtKmD(weekDone)+'&thinsp;/&thinsp;'+fmtKmD(weekTarget)+'</div></div>';
+      });
+      wh+='</div></div>';
+    }
   } else {
     h+='<div class="muted" style="font-size:.85rem;padding:.15rem 0">Enter a yearly distance target to track your progress.</div>';
   }
@@ -681,16 +692,26 @@ function render(){
   document.getElementById("sportSubtitle").innerHTML = "— " + (isAll ? "all time"+(_period?" · "+_period:"") : selYear);
   document.getElementById("recsSubtitle").innerHTML = "— all time · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
   var f = filtered();
-  var fyAll  = isAll ? f : filterYear(f, selYear);  // KPIs, records, DOW
+  var fyAll  = isAll ? f : filterYear(f, selYear);  // records, DOW, year table
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
+  // Past-year month filter: narrow KPI cards to the selected month for past years only
+  var isCurrentYear = (!isAll && yrStr === curY);
+  var fyMo = (!isAll && !isCurrentYear)
+    ? fyAll.filter(function(a){ return a.date && +a.date.slice(5,7)-1===selMonth; })
+    : fyAll;
+
+  // Update month nav (visible only for past years)
+  var _moNav=document.getElementById("moNav"), _moNavLbl=document.getElementById("moNavLabel");
+  if(!isAll&&!isCurrentYear&&_moNav){ _moNav.style.display="flex"; if(_moNavLbl) _moNavLbl.textContent=MONTHS_F[selMonth]+" "+yrStr; }
+  else if(_moNav){ _moNav.style.display="none"; }
 
   // --- KPI cards ---
-  var a = agg(fyAll), apw = avgPerWeek(fyAll, selYear||yrStr);
+  var a = agg(fyMo), apw = avgPerWeek(fyMo, isCurrentYear?(selYear||yrStr):"all");
   var _daySet={};
-  fyAll.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
+  fyMo.forEach(function(x){ if(x.date) _daySet[x.date]=1; });
   var nDays = Object.keys(_daySet).length;
   var _pDays = (function(){
-    var now = new Date(), curY = now.getFullYear();
+    var now = new Date(), _curY2 = now.getFullYear(), _curMo2 = now.getMonth();
     if(isAll){
       var ds = ALL_ACTS.map(function(x){return x.date;}).filter(Boolean).sort();
       if(!ds.length) return 0;
@@ -698,16 +719,19 @@ function render(){
       return Math.round((now-d1)/86400000)+1;
     }
     var yr = +selYear;
-    if(yr===curY){
+    if(isCurrentYear){
       var jan1 = new Date(curY+"-01-01T12:00:00");
       return Math.round((now-jan1)/86400000)+1;
     }
-    return (yr%4===0&&(yr%100!==0||yr%400===0))?366:365;
+    // Past year: days in selected month
+    var dInMo = new Date(yr, selMonth+1, 0).getDate();
+    if(yr===_curY2 && selMonth===_curMo2) return now.getDate();
+    return dInMo;
   })();
   // Steps — estimated from cadence for Walk/Hike activities (cadence in strides/min × 2)
   var _walkSports = {Walk:1, Hike:1};
   var _totalSteps = 0;
-  fyAll.forEach(function(a){
+  fyMo.forEach(function(a){
     if(_walkSports[a.sport_type] && a.average_cadence && a.moving_time)
       _totalSteps += Math.round(a.average_cadence * 2 * a.moving_time / 60);
   });
@@ -793,7 +817,7 @@ function render(){
     return {
       label: MONTHS_S[i],
       val:   ma.dispDistM/1000,
-      hi:    (!isAll && i===curMo && yrStr===curY),
+      hi:    (!isAll && (isCurrentYear ? i===curMo : i===selMonth)),
       tip:   MONTHS_F[i]+(isAll?" (avg/year)":" "+yrStr)+
              "\n"+fmtKm(ma.dispDistM)+" km"+(isAll?" avg/year":"")+
              "  "+fmtH(ma.dispSecs)+
@@ -1048,7 +1072,14 @@ function load(){
 }
 
 document.getElementById("sportSel").addEventListener("change",function(){ selSport=this.value; render(); });
-document.getElementById("yearSel").addEventListener("change",function(){ selYear=this.value; render(); });
+document.getElementById("yearSel").addEventListener("change",function(){
+  selYear=this.value;
+  var _nowY=String(new Date().getFullYear());
+  if(selYear && selYear!=="all" && selYear!==_nowY) selMonth=new Date().getMonth();
+  render();
+});
+document.getElementById("moNavPrev").addEventListener("click",function(){ selMonth=(selMonth-1+12)%12; render(); });
+document.getElementById("moNavNext").addEventListener("click",function(){ selMonth=(selMonth+1)%12; render(); });
 load();
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';

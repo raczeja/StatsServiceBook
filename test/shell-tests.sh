@@ -378,6 +378,101 @@ assert_eq "$S" "one-point"        "$(_elev_from_pts '100')"             "0"
 assert_eq "$S" "descending-only"  "$(_elev_from_pts '100 90 80 70')"    "0"
 assert_eq "$S" "typical-route"    "$(_elev_from_pts '100 150 140 190')" "100"
 
+# ── max-single-climb-detection ───────────────────────────────────────────────
+# Mirrors the GPX climb detection awk in strava-my-activities.sh.
+# Constraints: gain ≥ 25 m, distance ≥ 100 m, grade ≥ 2%, descent reset 30 m.
+S="max-single-climb-detection"
+
+_climb_awk() {
+    awk '
+      BEGIN{pi=3.14159265358979;cv=0;cp=0;cd=0;best=0;tot=0;f=1;clat=0;clon=0;plat="";plon=""}
+      function hav(la1,lo1,la2,lo2,  R,dl,dn,a,c){
+        R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
+        a=sin(dl/2)*sin(dl/2)+cos(la1*pi/180)*cos(la2*pi/180)*sin(dn/2)*sin(dn/2)
+        c=2*atan2(sqrt(a),sqrt(1-a));return R*c}
+      /lat=/{s=$0;gsub(/.*lat="/,"",s);gsub(/".*$/,"",s);clat=s+0
+             s=$0;gsub(/.*lon="/,"",s);gsub(/".*$/,"",s);clon=s+0}
+      /<ele>/{s=$0;gsub(/.*<ele>/,"",s);gsub(/<\/ele>.*/,"",s);e=s+0
+              if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
+              plat=clat;plon=clon
+              if(f){cv=e;cp=e;cd=tot;f=0;next}
+              if(e<cp-30){cv=e;cp=e;cd=tot;next}
+              if(e>cp)cp=e
+              if(e<cv){cv=e;cd=tot}
+              g=e-cv;d=tot-cd
+              if(g>=25&&d>=100&&d>0&&g/d>=0.02&&g>best)best=g}
+      END{printf"%d",int(best+0.5)}' "$1"
+}
+
+# Real qualifying climb: 60 m gain over ~1665 m (≈3.6% grade). Should detect 60.
+cat > "$TMP/climb_real.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.000" lon="20.000"><ele>100</ele></trkpt>
+    <trkpt lat="50.005" lon="20.000"><ele>120</ele></trkpt>
+    <trkpt lat="50.010" lon="20.000"><ele>140</ele></trkpt>
+    <trkpt lat="50.015" lon="20.000"><ele>160</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+assert_eq "$S" "real-climb-detected" "$(_climb_awk "$TMP/climb_real.gpx")" "60"
+
+# GPS elevation spike: 72 m gain over ~11 m (distance < 100 m threshold). Should return 0.
+cat > "$TMP/climb_spike.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.0000" lon="20.0000"><ele>100</ele></trkpt>
+    <trkpt lat="50.0001" lon="20.0000"><ele>172</ele></trkpt>
+    <trkpt lat="50.0002" lon="20.0000"><ele>100</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+assert_eq "$S" "gps-spike-rejected" "$(_climb_awk "$TMP/climb_spike.gpx")" "0"
+
+# Gain below minGain (10 m): should return 0.
+cat > "$TMP/climb_small.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.000" lon="20.000"><ele>100</ele></trkpt>
+    <trkpt lat="50.010" lon="20.000"><ele>105</ele></trkpt>
+    <trkpt lat="50.020" lon="20.000"><ele>110</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+assert_eq "$S" "small-gain-rejected" "$(_climb_awk "$TMP/climb_small.gpx")" "0"
+
+# Shallow grade: 40 m gain over ~11 km (< 2% grade). Should return 0.
+cat > "$TMP/climb_shallow.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.000" lon="20.000"><ele>100</ele></trkpt>
+    <trkpt lat="50.050" lon="20.000"><ele>120</ele></trkpt>
+    <trkpt lat="50.100" lon="20.000"><ele>140</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+assert_eq "$S" "shallow-grade-rejected" "$(_climb_awk "$TMP/climb_shallow.gpx")" "0"
+
+# Descent reset (>30 m drop): small climb before reset, then 60 m qualifying climb after.
+cat > "$TMP/climb_reset.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1">
+  <trk><trkseg>
+    <trkpt lat="50.000" lon="20.000"><ele>200</ele></trkpt>
+    <trkpt lat="50.002" lon="20.000"><ele>220</ele></trkpt>
+    <trkpt lat="50.005" lon="20.000"><ele>185</ele></trkpt>
+    <trkpt lat="50.010" lon="20.000"><ele>205</ele></trkpt>
+    <trkpt lat="50.015" lon="20.000"><ele>225</ele></trkpt>
+    <trkpt lat="50.020" lon="20.000"><ele>245</ele></trkpt>
+  </trkseg></trk>
+</gpx>
+GPX
+assert_eq "$S" "post-reset-climb-detected" "$(_climb_awk "$TMP/climb_reset.gpx")" "60"
+
 # ── max-speed-no-extension ────────────────────────────────────────────────────
 # GPX without a :speed extension must produce 0, not null or an error.
 S="max-speed-no-extension"

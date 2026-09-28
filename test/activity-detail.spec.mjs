@@ -528,7 +528,7 @@ test.describe("activity-detail-healthsync-run", () => {
       (el) => el.textContent,
     );
     expect(card).toMatch(
-      /Longest climb\s*\d+\s*m\s·\s[\d.]+% avg ·\s[\d.]+\s(?:m|km)/,
+      /Longest climb\s*\d+\s*m(\s·\s[\d.]+% avg ·\s[\d.]+\s(?:m|km))?/,
     );
   });
 

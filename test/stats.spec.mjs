@@ -1176,3 +1176,222 @@ test.describe("stats-section-order", () => {
     expect(first).toBe("weekly-goals");
   });
 });
+
+// ── Stats Month Navigation ─────────────────────────────────────────────────────
+
+test.describe("stats-month-nav", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+    await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+    try {
+      await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+      await page.waitForFunction(
+        () => !document.getElementById("meta")?.textContent.includes("Loading"),
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => { await page.close(); });
+
+  test("no-js-errors", () => {
+    expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
+  });
+
+  test("month-nav-hidden-for-current-year", async () => {
+    const display = await page.$eval("#moNav", (el) => el.style.display);
+    expect(
+      display === "none" || display === "",
+      `#moNav should be hidden for current year, got display="${display}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-nav-hidden-for-all-years", async () => {
+    await page.evaluate(() => {
+      const sel = document.getElementById("yearSel");
+      sel.value = "all";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const display = await page.$eval("#moNav", (el) => el.style.display);
+    expect(
+      display === "none" || display === "",
+      `#moNav should be hidden for all-years, got display="${display}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-nav-visible-for-past-year", async () => {
+    // Switch to a past year (2025 if present, else any year < current)
+    const switched = await page.evaluate(() => {
+      const sel = document.getElementById("yearSel");
+      const curY = String(new Date().getFullYear());
+      const past = Array.from(sel.options).find(
+        (o) => o.value !== "all" && o.value !== curY,
+      );
+      if (!past) return false;
+      sel.value = past.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    if (!switched) return; // no past year in sample data — skip
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const display = await page.$eval("#moNav", (el) => el.style.display);
+    expect(
+      display === "flex",
+      `#moNav should be flex for past year, got display="${display}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-nav-label-contains-month-name", async () => {
+    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    const MONTHS = ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"];
+    expect(
+      MONTHS.some((m) => label.includes(m)),
+      `#moNavLabel should contain a month name, got: "${label}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-nav-label-contains-year", async () => {
+    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    expect(
+      /\d{4}/.test(label),
+      `#moNavLabel should contain a 4-digit year, got: "${label}"`,
+    ).toBeTruthy();
+  });
+
+  test("month-nav-auto-selects-current-calendar-month", async () => {
+    const curMonthName = new Date().toLocaleString("en-US", { month: "long" });
+    const label = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    expect(
+      label.includes(curMonthName),
+      `past year should auto-select current calendar month "${curMonthName}", got: "${label}"`,
+    ).toBeTruthy();
+  });
+
+  test("prev-arrow-changes-month", async () => {
+    const before = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    await page.click("#moNavPrev");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const after = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    expect(
+      before !== after,
+      `clicking < should change month label; before="${before}", after="${after}"`,
+    ).toBeTruthy();
+  });
+
+  test("next-arrow-changes-month", async () => {
+    const before = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    await page.click("#moNavNext");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const after = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    expect(
+      before !== after,
+      `clicking > should change month label; before="${before}", after="${after}"`,
+    ).toBeTruthy();
+  });
+
+  test("arrows-wrap-around-month-boundaries", async () => {
+    // Navigate to January, then go prev → should become December
+    await page.evaluate(() => {
+      // Force selMonth to January (0) by clicking prev multiple times programmatically
+      for (let i = 0; i < 12; i++) {
+        document.getElementById("moNavPrev").click();
+      }
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+    const janLabel = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    await page.click("#moNavPrev");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const decLabel = await page.$eval("#moNavLabel", (el) => el.textContent.trim());
+    expect(
+      decLabel.includes("December"),
+      `going back from January should reach December, got: "${decLabel}" (was: "${janLabel}")`,
+    ).toBeTruthy();
+  });
+});
+
+// ── Stats Weekly Goals Visibility ──────────────────────────────────────────────
+
+test.describe("stats-weekly-visibility", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    await fetch(`${CGI}/ride-goals`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goals: { "2026": 2000 } }),
+    }).catch(() => {});
+
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    await page.evaluate(() => { try { sessionStorage.clear(); } catch (_) {} });
+    await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+    try {
+      await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+      await page.waitForFunction(
+        () => !document.getElementById("meta")?.textContent.includes("Loading"),
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => { await page.close(); });
+
+  test("no-js-errors", () => {
+    expect(jsErrors.length, jsErrors.map((e) => e.message).join("; ")).toBe(0);
+  });
+
+  test("weekly-tiles-present-for-current-year", async () => {
+    // Current year (2026) + Ride sport (default) → weekly tiles should exist
+    const n = await page.$$eval(".goal-week", (els) => els.length);
+    expect(
+      n >= 52 && n <= 53,
+      `expected 52–53 weekly tiles for current year, got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("weekly-hidden-for-past-year", async () => {
+    const switched = await page.evaluate(() => {
+      const sel = document.getElementById("yearSel");
+      const curY = String(new Date().getFullYear());
+      const past = Array.from(sel.options).find(
+        (o) => o.value !== "all" && o.value !== curY,
+      );
+      if (!past) return false;
+      sel.value = past.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    if (!switched) return;
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const html = await page.$eval("#weeklyGoalsSection", (el) => el.innerHTML);
+    expect(
+      html === "",
+      `#weeklyGoalsSection should be empty for past year, got: "${html.slice(0, 100)}"`,
+    ).toBeTruthy();
+  });
+
+  test("weekly-reappears-for-current-year", async () => {
+    await page.evaluate(() => {
+      const curY = String(new Date().getFullYear());
+      const sel = document.getElementById("yearSel");
+      if (Array.from(sel.options).some((o) => o.value === curY)) {
+        sel.value = curY;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const n = await page.$$eval(".goal-week", (els) => els.length);
+    expect(
+      n >= 52 && n <= 53,
+      `weekly tiles should reappear when switching back to current year, got ${n}`,
+    ).toBeTruthy();
+  });
+});

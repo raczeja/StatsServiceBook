@@ -16,7 +16,8 @@ cat > "$WEB_DIR/data-quality.html" <<'HTML'
 [data-theme=light]{--bg:#fafafa;--surface:#fff;--text:#222;--muted:#666;--border:#ddd;--warn:#a65d00;--warn-bg:#fff4d6;--bad:#b42318;--bad-bg:#fde8e7;--good:#287a3e;--good-bg:#e7f4e9}
 [data-theme=dark]{--bg:#121212;--surface:#1e1e1e;--text:#e0e0e0;--muted:#aaa;--border:#444;--warn:#ffbd55;--warn-bg:#352600;--bad:#ff938b;--bad-bg:#3a1110;--good:#86d797;--good-bg:#102b16}
 body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1100px;padding:0 1rem;background:var(--bg);color:var(--text)}
-a{color:var(--accent)}h1{margin:.2rem 0 .4rem;font-size:1.7rem}.crumbs,.meta{color:var(--muted);font-size:.88rem}.crumbs{margin-bottom:1.25rem}.meta{margin:1rem 0}
+a{color:var(--accent)}h1{margin:.2rem 0 .4rem;font-size:1.7rem}.meta{color:var(--muted);font-size:.88rem;margin:1rem 0}#hdr{display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem}#theme-tog{margin-left:auto;flex-shrink:0;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;padding:.2rem .4rem;border-radius:.3rem;color:var(--text)}
+.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
 .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin:1rem 0 1.5rem}.metric,.source{background:var(--surface);border:1px solid var(--border);padding:.8rem 1rem;border-radius:4px}.metric strong{display:block;font-size:1.45rem;font-variant-numeric:tabular-nums}.metric span{color:var(--muted);font-size:.85rem}
 .sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin-bottom:1.5rem}.source h2{font-size:1rem;margin:0 0 .5rem}.source p{margin:.25rem 0;font-size:.9rem;overflow-wrap:anywhere}.badge{display:inline-block;font-size:.78rem;font-weight:650;padding:.15rem .45rem;border-radius:3px;background:var(--good-bg);color:var(--good)}.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.bad{background:var(--bad-bg);color:var(--bad)}
 h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px solid var(--border);background:var(--surface)}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}th{font-size:.8rem;color:var(--muted);font-weight:600}td{font-size:.88rem}.issues{color:var(--bad)}.empty{color:var(--good);padding:1rem;background:var(--good-bg)}#state{color:var(--muted);margin:.75rem 0}
@@ -25,8 +26,8 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 </style>
 </head>
 <body>
-<nav class="crumbs"><a href="index.html">&larr; My Activities</a> &middot; <a href="bike.html">🔧 Bike service</a> &middot; <a href="stats.html">📊 My Stats</a> &middot; <a href="heatmap.html">&#128506; Heatmap</a></nav>
-<h1>&#128203; Data completeness</h1>
+<div id="hdr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">&#128203; Data completeness</h1><button id="theme-tog">🌙</button></div>
+<div class="nav"><a href="index.html">&#8592; My Activities</a> <a href="bike.html">🔧 Bike service</a> <a href="stats.html">📊 My Stats</a> <a href="heatmap.html">&#128506; Heatmap</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
 <div id="state">Loading activity and synchronization data...</div>
 <section class="summary" aria-label="Activity data completeness">
   <div class="metric"><strong id="count-total">-</strong><span>Activities checked</span></div>
@@ -102,7 +103,18 @@ Promise.all([
   fetch('healthsync-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../leaderboard-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
 ]).then(function(values){render(values[0],{strava:values[1],healthsync:values[2],leaderboard:values[3]});}).catch(function(error){document.getElementById('state').textContent='Could not load activity data: '+error.message;});
+fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById('theme-tog');
+  function isDark(){return root.dataset.theme==='dark'||(!root.dataset.theme&&matchMedia('(prefers-color-scheme:dark)').matches);}
+  function syncBtn(){btn.textContent=isDark()?'☀️':'🌙';}
+  syncBtn();
+  btn.onclick=function(){root.dataset.theme=isDark()?'light':'dark';localStorage.setItem('theme',root.dataset.theme);syncBtn();};
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',syncBtn);
+})();
 </script>
+<div class="meta" style="text-align:center;padding:.5rem 0 1rem"><a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">StatsServiceBook on GitHub</a></div>
 </body>
 </html>
 HTML

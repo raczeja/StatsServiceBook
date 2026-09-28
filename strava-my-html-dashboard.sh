@@ -23,6 +23,7 @@ body{font-family:system-ui,Arial,sans-serif;margin:2rem auto;max-width:1000px;pa
 h1{margin:0 0 .25rem}
 a{color:var(--accent)}
 .meta{color:var(--text-3);font-size:.85rem;margin:.75rem 0 .5rem}
+.nav{margin:.25rem 0 1rem}.nav a{display:inline-block;padding:.4rem .75rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.85rem;font-weight:600}.nav a:hover{background:#e34402}
 .filters{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0 .75rem}
 select,input[type=search]{font:inherit;padding:.35rem .5rem;border:1px solid var(--border-2);border-radius:.4rem;background:var(--select-bg);color:var(--text)}
 input[type=search]{min-width:12rem;max-width:18rem}
@@ -89,7 +90,8 @@ svg.bar-chart{width:100%;height:150px;display:block}
 <div id="chart-tip"></div>
 <div id="ck-banner" style="display:none"></div>
 <div id="drive-banner"><span id="drive-banner-msg">Google Drive check failed.</span> <a href="/cgi-bin/drive-auth">Re-authorize</a></div>
-<div id="hdr" style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities <a href="bike.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">🔧 Bike service</a> <a href="stats.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">📊 My Stats</a> <a href="heatmap.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">&#128506; Heatmap</a> <a href="data-quality.html" style="font-size:.85rem;font-weight:400;vertical-align:middle;color:#fc4c02;text-decoration:none">&#128203; Data completeness</a></h1><button id="theme-tog">🌙</button></div>
+<div id="hdr" style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">My Activities</h1><button id="theme-tog">🌙</button></div>
+<div class="nav"><a href="bike.html">🔧 Bike service</a> <a href="stats.html">📊 My Stats</a> <a href="heatmap.html">&#128506; Heatmap</a> <a href="data-quality.html">&#128203; Data completeness</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></div>
 <div class="filters">
   <label>Year <select id="year"></select></label>
   <label>Month <select id="month"></select></label>
@@ -108,12 +110,7 @@ svg.bar-chart{width:100%;height:150px;display:block}
 <div id="board"></div>
 <div class="meta">
   StravaStats for OpenWrt &middot; individual activities updated daily by cron &middot;
-  <a href="bike.html">🔧 Bike service</a> &middot;
-  <a href="stats.html">📊 My Stats</a> &middot;
-  <a href="heatmap.html">&#128506; Heatmap</a> &middot;
-  <a href="data-quality.html">&#128203; Data completeness</a> &middot;
-  <a href="activities.json">activities.json</a> &middot;
-  <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a>
+  <a href="activities.json">activities.json</a>
 </div>
 <div id="drive-token"></div>
 <script>
