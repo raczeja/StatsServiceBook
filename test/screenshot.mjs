@@ -268,20 +268,44 @@ try {
   await shot(page, "stats-top10");
 
   // ── Targeted: activity detail with climbing map ───────────────────────────────
+  // Uses the Magene sample (84.6 km, 303 m elevation) which has a GPX with a
+  // detectable 60 m / 1.56 km climb at 3.8% grade → blue polyline on map.
   console.log("→ activity-detail-climbing");
   await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
-  await page.goto(`${BASE}/activity.html?id=18784255013`, { waitUntil: "networkidle", timeout: 30000 });
+  await page.goto(`${BASE}/activity.html?id=magene-2026-07-12-50671559`, { waitUntil: "networkidle", timeout: 30000 });
   try {
     await page.waitForFunction(
       () => document.getElementById("content")?.style.display !== "none",
       { timeout: 10000 },
     );
   } catch (_) {}
+  // Wait for GPX fetch → climb detection → blue polyline to render on the map.
+  try {
+    await page.waitForFunction(
+      () => {
+        const card = document.getElementById("longest-climb-card");
+        return card && card.style.display !== "none" && (card.querySelector(".v")?.textContent || "").length > 0;
+      },
+      { timeout: 15000 },
+    );
+  } catch (_) { console.warn("  climb card did not appear — taking screenshot anyway"); }
+  // Allow map tiles at the zoomed-in climb view to load.
+  try {
+    await page.waitForFunction(
+      () => {
+        const loading = document.querySelectorAll(".leaflet-tile:not(.leaflet-tile-loaded)");
+        const loaded  = document.querySelectorAll(".leaflet-tile-loaded");
+        return loaded.length > 0 && loading.length === 0;
+      },
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
   await page.evaluate(() => {
     const mapEl = document.getElementById("map") || document.querySelector(".leaflet-container");
     if (mapEl) mapEl.scrollIntoView({ block: "center" });
   });
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
   await shot(page, "activity-detail-climbing");
 
 } finally {
