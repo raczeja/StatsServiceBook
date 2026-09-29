@@ -719,6 +719,44 @@ assert_eq "$S" "over-1mb-rejected" "$(_cgi_size_limit_ok 1048577)" "false"
 assert_eq "$S" "zero-length-body-rejected" "$(_cgi_size_limit_ok 0)" "true"
 assert_eq "$S" "non-numeric-length-rejected" "$(_cgi_size_limit_ok abc)" "false"
 
+# ── trigger-sync-validation ───────────────────────────────────────────────────
+# Mirrors the source whitelist in the trigger-sync CGI.
+S="trigger-sync-validation"
+
+_trigger_src_valid() {
+    case "$1" in
+      strava|healthsync|leaderboard) printf 'valid' ;;
+      *) printf 'invalid' ;;
+    esac
+}
+
+assert_eq "$S" "strava-accepted"      "$(_trigger_src_valid strava)"       "valid"
+assert_eq "$S" "healthsync-accepted"  "$(_trigger_src_valid healthsync)"   "valid"
+assert_eq "$S" "leaderboard-accepted" "$(_trigger_src_valid leaderboard)"  "valid"
+assert_eq "$S" "empty-rejected"       "$(_trigger_src_valid '')"           "invalid"
+assert_eq "$S" "unknown-rejected"     "$(_trigger_src_valid foo)"          "invalid"
+assert_eq "$S" "injection-rejected"   "$(_trigger_src_valid 'strava;rm')"  "invalid"
+
+# ── trigger-sync-launcher ─────────────────────────────────────────────────────
+# Guard against re-introducing nohup, which is absent on OpenWrt/BusyBox.
+# The CGI template must use setsid (available via BusyBox) instead.
+S="trigger-sync-launcher"
+_dq_script="/usr/bin/strava-my-html-data-quality.sh"
+if [ -f "$_dq_script" ]; then
+    if grep -q 'nohup' "$_dq_script"; then
+        err "$S" "no-nohup-in-cgi-template" "CGI template contains nohup (not available on OpenWrt — use setsid)"
+    else
+        ok "$S" "no-nohup-in-cgi-template"
+    fi
+    if grep -q 'setsid' "$_dq_script"; then
+        ok "$S" "setsid-in-cgi-template"
+    else
+        err "$S" "setsid-in-cgi-template" "CGI template does not use setsid"
+    fi
+else
+    err "$S" "script-present" "$_dq_script not found in container"
+fi
+
 # ── keepalive-mode ────────────────────────────────────────────────────────────
 # Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
 # after the Drive folder listing when mode is "keepalive".

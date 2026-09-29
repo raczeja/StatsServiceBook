@@ -1229,10 +1229,10 @@ test.describe("heatmap", () => {
   });
 
   test("dashboard-link-present", async () => {
-    const href = await page.$eval(".crumbs a", (el) => el.getAttribute("href"));
+    const href = await page.$eval(".hm-nav a", (el) => el.getAttribute("href"));
     expect(
       href && href.includes("index.html"),
-      `expected crumbs link to index.html, got: "${href}"`,
+      `expected hm-nav link to index.html, got: "${href}"`,
     ).toBeTruthy();
   });
 });

@@ -94,90 +94,12 @@ test.describe("my-activities", () => {
     ).toBe(false);
   });
 
-  test("ck-banner-hidden-in-api-mode", async () => {
-    const display = await page
-      .$eval("#ck-banner", (el) => el.style.display)
-      .catch(() => "none");
-    expect(display, "#ck-banner should be hidden when scrapeMeta is null").toBe(
-      "none",
-    );
-  });
-
-  test("ck-banner-ok-state", async () => {
-    const { cls, visible } = await page.evaluate(() => {
-      const el = document.getElementById("ck-banner");
-      if (!el || typeof renderCookieBanner !== "function")
-        return { cls: "", visible: false };
-      const future = new Date(Date.now() + 20 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const today = new Date().toISOString().slice(0, 10);
-      renderCookieBanner({
-        cookieVerifiedAt: today,
-        cookieRefreshNeededBy: future,
-      });
-      return { cls: el.className, visible: el.style.display !== "none" };
-    });
-    expect(visible, "#ck-banner should be visible in ok state").toBeTruthy();
+  test("no-cookie-banner-on-dashboard", async () => {
+    const exists = await page.$("#ck-banner").then((el) => el !== null);
     expect(
-      cls.includes("ck-ok"),
-      `#ck-banner class should include ck-ok, got: "${cls}"`,
-    ).toBeTruthy();
-  });
-
-  test("ck-banner-warn-state", async () => {
-    const { cls, visible } = await page.evaluate(() => {
-      const el = document.getElementById("ck-banner");
-      if (!el || typeof renderCookieBanner !== "function")
-        return { cls: "", visible: false };
-      const soon = new Date(Date.now() + 4 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const today = new Date().toISOString().slice(0, 10);
-      renderCookieBanner({
-        cookieVerifiedAt: today,
-        cookieRefreshNeededBy: soon,
-      });
-      return { cls: el.className, visible: el.style.display !== "none" };
-    });
-    expect(visible, "#ck-banner should be visible in warn state").toBeTruthy();
-    expect(
-      cls.includes("ck-warn"),
-      `#ck-banner class should include ck-warn, got: "${cls}"`,
-    ).toBeTruthy();
-  });
-
-  test("ck-banner-expired-state", async () => {
-    const { cls, visible, text } = await page.evaluate(() => {
-      const el = document.getElementById("ck-banner");
-      if (!el || typeof renderCookieBanner !== "function")
-        return { cls: "", visible: false, text: "" };
-      const past = new Date(Date.now() - 2 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const today = new Date().toISOString().slice(0, 10);
-      renderCookieBanner({
-        cookieVerifiedAt: today,
-        cookieRefreshNeededBy: past,
-      });
-      return {
-        cls: el.className,
-        visible: el.style.display !== "none",
-        text: el.innerHTML,
-      };
-    });
-    expect(
-      visible,
-      "#ck-banner should be visible in expired state",
-    ).toBeTruthy();
-    expect(
-      cls.includes("ck-expired"),
-      `#ck-banner class should include ck-expired, got: "${cls}"`,
-    ).toBeTruthy();
-    expect(
-      text.includes("expired"),
-      `#ck-banner text should mention "expired", got: "${text}"`,
-    ).toBeTruthy();
+      exists,
+      "cookie banner #ck-banner was moved to data-quality page and should not exist on dashboard",
+    ).toBe(false);
   });
 
   test("drive-token-connected", async () => {
