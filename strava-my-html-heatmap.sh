@@ -54,50 +54,7 @@ fi
 fi  # _hm_skip
 unset _hm_skip
 
-# --- 7b. Fetch city markers from Overpass (population > 15 000) --------------
-# Computes the bbox of all GPS points in heatmap.json, queries Overpass for
-# city/town nodes that have a population tag, filters to > 15 000 with jq,
-# and writes cities.json.  Regenerated only when heatmap.json was regenerated
-# (guarded by _hm_skip above).  On Overpass failure the previous cities.json
-# is kept; on the very first run an empty array is written so the JS skips silently.
-if [ -f "$WEB_DIR/heatmap.json" ]; then
-  _ov_size="$(wc -c < "$WEB_DIR/heatmap.json" 2>/dev/null || printf 0)"
-  if [ "${_ov_size:-0}" -gt 10 ]; then
-    _ov_bbox="$(jq -r '
-      {
-        s: ([.[] | .p[] | .[0]] | min - 0.5),
-        n: ([.[] | .p[] | .[0]] | max + 0.5),
-        w: ([.[] | .p[] | .[1]] | min - 0.6),
-        e: ([.[] | .p[] | .[1]] | max + 0.6)
-      } | "\(.s),\(.w),\(.n),\(.e)"
-    ' "$WEB_DIR/heatmap.json" 2>/dev/null)"
-    if [ -n "$_ov_bbox" ]; then
-      _ov_q='[out:json][timeout:25];node["place"~"city|town"]["population"]('"$_ov_bbox"');out;'
-      _ov_res="$(curl_retry -sf --max-time 30 \
-        --data-urlencode "data=${_ov_q}" \
-        'https://overpass-api.de/api/interpreter' 2>/dev/null || true)"
-      if [ -n "$_ov_res" ]; then
-        printf '%s' "$_ov_res" | jq -c '[.elements[] |
-          select(.tags.name != null and (.tags.population | tonumber? // 0) > 15000) |
-          {n: .tags.name, lat: .lat, lon: .lon}]' \
-          > "$WEB_DIR/cities.json.tmp" 2>/dev/null \
-          && mv "$WEB_DIR/cities.json.tmp" "$WEB_DIR/cities.json" \
-          && log "html: cities.json written (Overpass, bbox=$_ov_bbox)" \
-          || { rm -f "$WEB_DIR/cities.json.tmp"; log "html: cities.json jq parse failed — keeping previous"; }
-      else
-        log "html: Overpass unreachable — keeping previous cities.json"
-        [ -f "$WEB_DIR/cities.json" ] || printf '[]' > "$WEB_DIR/cities.json"
-      fi
-      unset _ov_q _ov_res
-    fi
-    unset _ov_bbox
-  else
-    [ -f "$WEB_DIR/cities.json" ] || printf '[]' > "$WEB_DIR/cities.json"
-  fi
-  unset _ov_size
-fi
-
-# --- 7c. Write heatmap.html -------------------------------------------------
+# --- 7b. Write heatmap.html -------------------------------------------------
 log "html: writing heatmap.html..."
 cat > "$WEB_DIR/heatmap.html" <<'HTML'
 <!doctype html>
@@ -113,12 +70,14 @@ cat > "$WEB_DIR/heatmap.html" <<'HTML'
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,Arial,sans-serif;background:#111;color:#ddd;
      display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.hm-nav{display:flex;flex-wrap:wrap;gap:.4rem;padding:.4rem .9rem;
+        background:#1a1a1a;border-bottom:1px solid #2a2a2a;flex-shrink:0}
+.hm-nav a{padding:.25rem .5rem;background:#fc4c02;color:#fff;text-decoration:none;
+          border-radius:.4rem;font-size:.8rem;font-weight:600;flex:0 0 auto}
+.hm-nav a:hover{background:#e34402}
 #bar{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem;
      background:#1a1a1a;border-bottom:1px solid #2a2a2a;flex-shrink:0;flex-wrap:wrap}
 #bar h1{font-size:1rem;font-weight:700;color:#fc4c02;white-space:nowrap}
-.crumbs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
-.crumbs a{padding:.25rem .5rem;background:#fc4c02;color:#fff;text-decoration:none;border-radius:.4rem;font-size:.8rem;font-weight:600;flex:0 0 auto}
-.crumbs a:hover{background:#e34402}
 #bar label{font-size:.85rem;color:#bbb}
 select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
        padding:.25rem .5rem;cursor:pointer;font-size:.85rem}
@@ -134,8 +93,14 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 </head>
 <body>
 <div id="pbar"></div>
+<div class="hm-nav">
+  <a href="index.html">&#8592; My Activities</a>
+  <a href="bike.html">🔧 Bike service</a>
+  <a href="stats.html">📊 My Stats</a>
+  <a href="data-quality.html">&#128203; Data completeness</a>
+  <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a>
+</div>
 <div id="bar">
-  <span class="crumbs"><a href="index.html">&#8592; My Activities</a> <a href="bike.html">🔧 Bike service</a> <a href="stats.html">📊 My Stats</a> <a href="data-quality.html">&#128203; Data completeness</a> <a id="leaderboard-link" href="../" style="display:none">🏆 Club leaderboard</a></span>
   <h1>&#128506; Heatmap</h1>
   <label>Period:&nbsp;<select id="period"></select></label>
   <label>Sport:&nbsp;<select id="sport"></select></label>
@@ -196,17 +161,6 @@ var _labelTile = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
   {maxZoom:16, attribution:'', pane:'labels'}
 ).addTo(map);
-
-// City markers — loaded from cities.json (written by the shell script via Overpass,
-// population > 15 000, bbox of activity GPS points).  Silently skipped if absent.
-fetch('cities.json').then(function(r){ return r.ok ? r.json() : []; })
-  .then(function(cs){
-    for(var _ci=0;_ci<cs.length;_ci++){
-      var _c=cs[_ci];
-      L.circleMarker([_c.lat,_c.lon],{radius:3,color:'#eee',fillColor:'#ccc',fillOpacity:1,weight:1,pane:'labels',interactive:false}).addTo(map);
-      L.marker([_c.lat,_c.lon],{icon:L.divIcon({className:'city-lbl',html:_c.n,iconSize:null,iconAnchor:[-3,5]}),interactive:false,pane:'labels'}).addTo(map);
-    }
-  }).catch(function(){});
 
 _baseTile.on('tileerror',function(){
   if(_heatTileSwitching||_heatTileIdx+1>=_heatTileProviders.length) return;

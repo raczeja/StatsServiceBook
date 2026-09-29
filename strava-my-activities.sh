@@ -83,7 +83,9 @@ STORE="$STATE_DIR/activities.ndjson"
 WEATHER_CACHE="$STATE_DIR/weather-cache.json"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/strava-me.XXXXXX")"
 _RUN_LOG="$TMP/run-log.txt"
-log() { logger -t strava "$*"; printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "$0")" "$*" | tee -a "$_RUN_LOG"; }
+_LIVE_LOG="$WEB_DIR/strava-sync-live.log"
+_LIVE_LOG_ACTIVE=""
+log() { logger -t strava "$*"; printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$(basename "$0")" "$*" | tee -a "$_RUN_LOG" ${_LIVE_LOG_ACTIVE:+"$_LIVE_LOG"}; }
 LOCKFILE="${TMPDIR:-/tmp}/strava-my-activities.lock"
 if ! mkdir "$LOCKFILE" 2>/dev/null; then
   _lock_pid="$(cat "$LOCKFILE/pid" 2>/dev/null || true)"
@@ -97,6 +99,10 @@ if ! mkdir "$LOCKFILE" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" > "$LOCKFILE/pid"
+> "$_LIVE_LOG" 2>/dev/null || true
+_LIVE_LOG_ACTIVE=1
+_RUNNING_FLAG="$WEB_DIR/strava-sync-running"
+printf '1' > "$_RUNNING_FLAG" 2>/dev/null || true
 write_sync_status() {
   _rc=$?
   _now="$(date +%s)"
@@ -121,6 +127,7 @@ write_sync_status() {
       '{source:$source,ok:false,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/strava-sync-status.json"
+  rm -f "$_RUNNING_FLAG" 2>/dev/null || true
   rm -rf "$TMP" "$LOCKFILE"
   [ "$_rc" -eq 0 ] || log "FATAL: strava-my-activities exited with code $_rc"
 }

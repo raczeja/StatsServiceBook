@@ -1,5 +1,62 @@
 # strava-my-html-data-quality.sh - sourced by strava-render-pages.sh.
-# Writes $WEB_DIR/data-quality.html, a read-only import and activity audit.
+# Writes $WEB_DIR/data-quality.html and the trigger-sync CGI.
+
+mkdir -p "$CGI_DIR"
+cat > "$CGI_DIR/trigger-sync" <<'CGI'
+#!/bin/sh
+printf 'Content-Type: application/json\r\n\r\n'
+[ "$REQUEST_METHOD" = "POST" ] || { printf '{"ok":false,"error":"POST required"}\n'; exit 0; }
+read -r _body 2>/dev/null || true
+_src="${_body#*source=}"; _src="${_src%%&*}"
+case "$_src" in
+  strava)      _cmd=/usr/bin/strava-my-activities ;;
+  healthsync)  _cmd=/usr/bin/healthsync-activities ;;
+  leaderboard) _cmd=/usr/bin/strava-leaderboard ;;
+  *) printf '{"ok":false,"error":"unknown source"}\n'; exit 0 ;;
+esac
+[ -x "$_cmd" ] || { printf '{"ok":false,"error":"not found"}\n'; exit 0; }
+setsid "$_cmd" < /dev/null > /dev/null 2>&1 &
+printf '{"ok":true,"source":"%s"}\n' "$_src"
+CGI
+chmod 0755 "$CGI_DIR/trigger-sync"
+log "wrote $CGI_DIR/trigger-sync"
+
+{
+  printf 'MY_CONF="/etc/strava-my-activities.conf"\n'
+  printf 'LB_CONF="/etc/strava-leaderboard.conf"\n'
+  printf 'MY_STATE_DIR="%s"\n' "$STATE_DIR"
+  cat <<'CGI'
+#!/bin/sh
+printf 'Content-Type: application/json\r\n\r\n'
+[ "$REQUEST_METHOD" = "POST" ] || { printf '{"ok":false,"error":"POST required"}\n'; exit 0; }
+read -r _body 2>/dev/null || true
+_cookie="$(printf '%s' "$_body" | jq -r '.cookie // empty' 2>/dev/null)"
+[ -n "$_cookie" ] || { printf '{"ok":false,"error":"missing cookie value"}\n'; exit 0; }
+_updated=0
+for _conf in "$MY_CONF" "$LB_CONF"; do
+  [ -f "$_conf" ] || continue
+  grep -q '^STRAVA_SESSION_COOKIE=' "$_conf" || continue
+  _tmp="${_conf}.tmp.$$"
+  while IFS= read -r _line; do
+    case "$_line" in
+      STRAVA_SESSION_COOKIE=*) printf 'STRAVA_SESSION_COOKIE="%s"\n' "$_cookie" ;;
+      *) printf '%s\n' "$_line" ;;
+    esac
+  done < "$_conf" > "$_tmp" && mv "$_tmp" "$_conf" && _updated=$((_updated+1))
+done
+[ "$_updated" -gt 0 ] || { printf '{"ok":false,"error":"STRAVA_SESSION_COOKIE not found in config"}\n'; exit 0; }
+_lb_state="$(grep '^STRAVA_STATE_DIR=' "$LB_CONF" 2>/dev/null | tail -1)"
+_lb_state="${_lb_state#*=}"; _lb_state="${_lb_state#\"}"; _lb_state="${_lb_state%\"}"
+_lb_state="${_lb_state:-/usr/lib/strava-leaderboard}"
+for _sd in "$MY_STATE_DIR" "$_lb_state"; do
+  [ -d "$_sd" ] || continue
+  rm -f "$_sd/strava_session_age.txt" "$_sd/strava_csrf.txt"
+done
+printf '{"ok":true,"updated":%d}\n' "$_updated"
+CGI
+} > "$CGI_DIR/update-cookie"
+chmod 0755 "$CGI_DIR/update-cookie"
+log "wrote $CGI_DIR/update-cookie"
 
 log "html: writing data-quality.html..."
 cat > "$WEB_DIR/data-quality.html" <<'HTML'
@@ -24,6 +81,10 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 .issue-filters{display:flex;flex-wrap:wrap;gap:1rem;margin:.5rem 0 1rem}.issue-filters label{display:inline-flex;align-items:center;gap:.35rem;font-size:.9rem;cursor:pointer}.issue-filters input{accent-color:var(--accent);margin:0}
 @media(max-width:650px){body{margin:.8rem auto}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:1.35rem}}
 .run-log{font-size:.75rem;white-space:pre-wrap;word-break:break-all;margin:.5rem 0 0;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:3px;max-height:200px;overflow-y:auto;line-height:1.4}
+.sync-btn{margin-top:.7rem;padding:.35rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:.3rem;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-block}.sync-btn:hover{opacity:.85}.sync-btn:disabled{opacity:.5;cursor:not-allowed}
+.ck-ok{background:var(--good-bg);color:var(--good);border:1px solid var(--good)}.ck-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);font-weight:600}.ck-expired{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad);font-weight:600}
+#cookie-update-card textarea{width:100%;box-sizing:border-box;font-family:monospace;font-size:.8rem;padding:.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem;resize:vertical}
+#cookie-save-status.ok{color:var(--good)}#cookie-save-status.err{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -36,8 +97,23 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
   <div class="metric"><strong id="count-hr">-</strong><span>Without heart rate</span></div>
   <div class="metric"><strong id="count-detail">-</strong><span>Without details</span></div>
 </section>
-<h2>Latest synchronization</h2>
+<div style="display:flex;align-items:center;gap:.75rem;margin:1rem 0 .5rem"><h2 style="margin:0">Latest synchronization</h2><button id="sync-all-btn" class="sync-btn" style="margin:0" onclick="syncAll()">&#8635; Sync all</button></div>
 <section class="sources" id="sources"><div class="source">Loading source status...</div></section>
+<section id="email-status" style="display:none">
+<h2>Email sending</h2>
+<div id="email-cards" class="sources"></div>
+</section>
+<section id="cookie-status" style="display:none">
+<h2>Session cookie</h2>
+<div id="cookie-cards" class="sources"></div>
+<article class="source" id="cookie-update-card">
+<h2>Update <code>_strava4_session</code> cookie</h2>
+<p style="font-size:.9rem">Paste the cookie value from browser DevTools (Application &rarr; Cookies &rarr; strava.com &rarr; <code>_strava4_session</code>). Updates both My Activities and Club Leaderboard configs.</p>
+<textarea id="cookie-input" rows="3" placeholder="Paste _strava4_session value here..."></textarea>
+<div style="margin:.5rem 0"><button class="sync-btn" style="margin:0" onclick="saveCookie()">Save cookie</button></div>
+<div id="cookie-save-status" style="font-size:.88rem"></div>
+</article>
+</section>
 <h2>Activities requiring attention</h2>
 <div class="issue-filters" role="group" aria-label="Filter missing data">
   <label><input id="filter-gps" type="checkbox" checked> GPS</label>
@@ -67,7 +143,126 @@ function renderActivityList(activities){
   });
   document.getElementById('activity-list').innerHTML=rows.length?'<div class="table-wrap"><table><thead><tr><th>Date</th><th>Activity</th><th>Sport</th><th>Missing data</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>':'<p class="empty">No activities match the selected missing-data filters.</p>';
 }
-function sourceCard(name,status){
+var SYNC_STATUS_URLS={strava:'strava-sync-status.json',healthsync:'healthsync-sync-status.json',leaderboard:'../leaderboard-sync-status.json'};
+var SYNC_LIVE_LOG_URLS={strava:'strava-sync-live.log',healthsync:'healthsync-sync-live.log',leaderboard:'../leaderboard-sync-live.log'};
+var SYNC_RUNNING_URLS={strava:'strava-sync-running',healthsync:'healthsync-sync-running',leaderboard:'../leaderboard-sync-running'};
+var _knownAttempt={strava:0,healthsync:0,leaderboard:0};
+function _renderLogEl(el,lines,label){
+  el.innerHTML='<details open><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">'+label+' ('+lines.length+' lines)</summary><pre class="run-log">'+lines.map(function(l){return esc(l);}).join('\n')+'</pre></details>';
+  var pre=el.querySelector('pre.run-log');if(pre)pre.scrollTop=pre.scrollHeight;
+}
+function updateLogSection(srcKey,status){
+  var el=document.getElementById('log-section-'+srcKey);
+  if(!el||!status||!status.log||!status.log.length)return;
+  _renderLogEl(el,status.log,'Run log');
+}
+function updateLogSectionRaw(srcKey,text){
+  var el=document.getElementById('log-section-'+srcKey);
+  if(!el)return;
+  var lines=text.split('\n').filter(function(l){return l.length>0;});
+  if(!lines.length)return;
+  _renderLogEl(el,lines,'Live log');
+}
+function startLivePolling(src,btn,prevAttempt){
+  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],deadline=Date.now()+120000;
+  var timer=setInterval(function(){
+    if(Date.now()>deadline){clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;return;}
+    if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
+    if(url){fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+    .then(function(st){
+      if(!st||!(Number(st.lastAttempt)>prevAttempt))return;
+      clearInterval(timer);
+      _knownAttempt[src]=Number(st.lastAttempt);
+      updateLogSection(src,st);
+      btn.textContent='✓ Done';
+      setTimeout(function(){btn.textContent='↻ Sync now';btn.disabled=false;},4000);
+    });}
+  },2000);
+}
+function triggerSync(src,btn){
+  btn.disabled=true;btn.textContent='↻ Running…';
+  var url=SYNC_STATUS_URLS[src];
+  var prevAttempt=0;
+  (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
+  .then(function(st){
+    prevAttempt=st?Number(st.lastAttempt)||0:0;
+    return fetch('/cgi-bin/trigger-sync',{method:'POST',body:'source='+src,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  })
+  .then(function(r){return r.json();})
+  .then(function(j){
+    if(!j.ok){btn.textContent='Error: '+(j.error||'?');btn.disabled=false;return;}
+    if(!url){btn.textContent='✓ Triggered';return;}
+    startLivePolling(src,btn,prevAttempt);
+  })
+  .catch(function(){btn.textContent='Failed';btn.disabled=false;});
+}
+function syncAll(){
+  var allBtn=document.getElementById('sync-all-btn');
+  if(allBtn)allBtn.disabled=true;
+  document.querySelectorAll('.sync-btn[data-src]').forEach(function(b){if(!b.disabled)triggerSync(b.dataset.src,b);});
+  setTimeout(function(){if(allBtn)allBtn.disabled=false;},5000);
+}
+function cookieDaysLeft(meta){if(!meta||!meta.cookieRefreshNeededBy)return null;return Math.ceil((new Date(meta.cookieRefreshNeededBy)-new Date())/86400000);}
+function cookieStatusCard(title,meta){
+  if(!meta)return '';
+  var dr=meta.dryRun?true:false;
+  var days=cookieDaysLeft(meta);
+  var cls,badge,detail='';
+  if(days===null){
+    if(dr&&meta.cookieValid===false){cls='expired';badge='Expired';}
+    else return '';
+  } else if(days<=0){cls='expired';badge='Expired';}
+  else if(days<=7){cls='warn';badge='Expires in '+days+' day'+(days===1?'':'s');}
+  else{cls='ok';badge='OK — '+days+' days left';}
+  if(meta.cookieVerifiedAt)detail+='<p>Verified: '+esc(meta.cookieVerifiedAt)+'</p>';
+  if(meta.cookieRefreshNeededBy)detail+='<p>Refresh by: '+esc(meta.cookieRefreshNeededBy)+'</p>';
+  if(days!==null&&days<=0)detail+='<p class="issues">Cookie has expired &mdash; paste a new value below.</p>';
+  if(dr&&meta.feedTestOk===false)detail+='<p class="issues">Feed test failed (check network or club ID).</p>';
+  if(dr&&meta.feedTestOk===true)detail+='<p>Feed test: OK</p>';
+  return '<article class="source ck-'+cls+'"><h2>'+esc(title)+(dr?' <small style="font-weight:normal;font-size:.78rem">(api+dry-run)</small>':'')+'<span class="badge '+(cls==='ok'?'':'warn')+(cls==='expired'?' bad':'')+'">'+badge+'</span></h2>'+detail+'</article>';
+}
+function renderCookieSection(myMeta,lbMeta){
+  var hasCookie=myMeta||lbMeta;
+  var sec=document.getElementById('cookie-status');
+  if(!hasCookie){sec.style.display='none';return;}
+  sec.style.display='';
+  document.getElementById('cookie-cards').innerHTML=cookieStatusCard('My Activities',myMeta)+cookieStatusCard('Club Leaderboard',lbMeta);
+}
+function saveCookie(){
+  var val=document.getElementById('cookie-input').value.trim();
+  var statusEl=document.getElementById('cookie-save-status');
+  if(!val){statusEl.className='err';statusEl.textContent='Please paste a cookie value.';return;}
+  statusEl.className='';statusEl.textContent='Saving...';
+  fetch('/cgi-bin/update-cookie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cookie:val})})
+  .then(function(r){return r.json();})
+  .then(function(j){
+    if(j.ok){statusEl.className='ok';statusEl.textContent='✓ Cookie saved to '+(j.updated||'?')+' config file(s). Session cache cleared — next sync will use the new value.';document.getElementById('cookie-input').value='';}
+    else{statusEl.className='err';statusEl.textContent='Error: '+(j.error||'unknown');}
+  })
+  .catch(function(e){statusEl.className='err';statusEl.textContent='Request failed: '+e.message;});
+}
+function emailCard(name,status){
+  if(!status)return '';
+  var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
+  var staleLimit=status.mode==='yearly'?370*86400:8*86400;
+  var badge,cls;
+  if(status.ok===false){badge='Failed';cls='bad';}
+  else if(age!==null&&age>staleLimit){badge='Stale';cls='warn';}
+  else{badge='OK';cls='';}
+  var detail='';
+  if(status.subject)detail+='<p>Last subject: <em>'+esc(status.subject)+'</em></p>';
+  if(status.recipientCount!=null)detail+='<p>Recipients: '+esc(status.recipientCount)+(status.sentCount!=null&&status.sentCount!==status.recipientCount?' ('+esc(status.sentCount)+' sent OK)':'')+'</p>';
+  var logsHtml=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
+  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful send: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
+}
+function renderEmailSection(monthly,weekly,yearly){
+  var cards=emailCard('Monthly email',monthly)+emailCard('Weekly email',weekly)+emailCard('Yearly email',yearly);
+  var sec=document.getElementById('email-status');
+  if(!cards){sec.style.display='none';return;}
+  sec.style.display='';
+  document.getElementById('email-cards').innerHTML=cards;
+}
+function sourceCard(name,status,srcKey){
   if(!status)return '';
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
@@ -78,11 +273,12 @@ function sourceCard(name,status){
   if(status.mode==='keepalive')detail+='<p>Latest run checked Drive access only; no activities were imported.</p>';
   if(status.importEnabled===false)detail+='<p>Activity import is disabled in configuration.</p>';
   if(age!==null&&age>staleAfter)detail+='<p>No successful import in the last 48 hours.</p>';
-  var logsHtml='';
-  if(status.log&&status.log.length){logsHtml='<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>';}
-  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
+  var logsInner=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
+  var logsHtml=srcKey?'<div id="log-section-'+srcKey+'">'+logsInner+'</div>':logsInner;
+  var syncBtn=srcKey?'<button class="sync-btn" data-src="'+srcKey+'" onclick="triggerSync(this.dataset.src,this)">↻ Sync now</button>':'';
+  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+syncBtn+'</article>';
 }
-function render(data,statuses){
+function render(data,statuses,lbData){
   var activities=Array.isArray(data.activities)?data.activities:[];
   var missingGps=activities.filter(function(a){return a.has_gps===false&&!GPS_OPTIONAL[a.sport_type];});
   var unknownGps=activities.filter(function(a){return a.has_gps==null;}).length;
@@ -94,18 +290,41 @@ function render(data,statuses){
   document.getElementById('count-detail').textContent=missingDetail.length;
   document.getElementById('state').textContent=unknownGps+' '+(unknownGps===1?'activity has':'activities have')+' unknown GPS status because details are unavailable.';
   document.getElementById('generated').textContent='Activity data generated: '+(data.generatedAt?new Date(data.generatedAt).toLocaleString():'not recorded');
-  document.getElementById('sources').innerHTML=sourceCard('Strava',statuses.strava)+sourceCard('HealthSync',statuses.healthsync)+sourceCard('Club leaderboard',statuses.leaderboard);
+  document.getElementById('sources').innerHTML=sourceCard('Strava',statuses.strava,'strava')+sourceCard('HealthSync',statuses.healthsync,'healthsync')+sourceCard('Club leaderboard',statuses.leaderboard,'leaderboard');
+  renderCookieSection(data.scrapeMeta||null,lbData?lbData.scrapeMeta||null:null);
+  renderEmailSection(statuses.emailMonthly||null,statuses.emailWeekly||null,statuses.emailYearly||null);
   renderActivityList(activities);
   document.querySelectorAll('.issue-filters input').forEach(function(input){
     input.addEventListener('change',function(){renderActivityList(activities);});
+  });
+  // Seed known lastAttempt for auto-detect polling
+  ['strava','healthsync','leaderboard'].forEach(function(src){
+    if(statuses[src])_knownAttempt[src]=Number(statuses[src].lastAttempt)||0;
   });
 }
 Promise.all([
   fetch('activities.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('activities.json HTTP '+r.status);return r.json();}),
   fetch('strava-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('healthsync-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-  fetch('../leaderboard-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-]).then(function(values){render(values[0],{strava:values[1],healthsync:values[2],leaderboard:values[3]});}).catch(function(error){document.getElementById('state').textContent='Could not load activity data: '+error.message;});
+  fetch('../leaderboard-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('../activities.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('../email-monthly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('../email-weekly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('../email-yearly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+]).then(function(values){render(values[0],{strava:values[1],healthsync:values[2],leaderboard:values[3],emailMonthly:values[5],emailWeekly:values[6],emailYearly:values[7]},values[4]);}).catch(function(error){document.getElementById('state').textContent='Could not load activity data: '+error.message;});
+// Continuous poll: detect syncs triggered by cron while the page is open (GET, not HEAD — uhttpd compatibility)
+setInterval(function(){
+  ['strava','healthsync','leaderboard'].forEach(function(src){
+    var btn=document.querySelector('.sync-btn[data-src="'+src+'"]');
+    if(!btn||btn.disabled)return;
+    fetch(SYNC_RUNNING_URLS[src],{cache:'no-store'})
+    .then(function(r){
+      if(!r.ok)return;
+      btn.textContent='↻ Running…';btn.disabled=true;
+      startLivePolling(src,btn,_knownAttempt[src]||0);
+    }).catch(function(){});
+  });
+},5000);
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 (function(){
   var root=document.documentElement;

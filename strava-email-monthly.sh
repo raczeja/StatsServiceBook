@@ -160,7 +160,41 @@ EXCLUDE_ATHLETES="${STRAVA_EXCLUDE_ATHLETES:-}"
 _JQ_EXCL_DEF='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
 
 TMP="$(mktemp -d /tmp/strava-email.XXXXXX)"
-trap '_rc=$?; rm -rf "$TMP"; [ $_rc -ne 0 ] && log "FATAL: strava-email exited with code $_rc"' EXIT
+_RUN_LOG="$TMP/run-log.txt"
+log() { logger -t strava "$*"; _lmsg="$(date '+%Y-%m-%d %H:%M:%S') [$(basename "$0")] $*"; printf '%s\n' "$_lmsg"; printf '%s\n' "$_lmsg" >> "$_RUN_LOG"; }
+_email_sent_ok=0
+_email_recipients_count=0
+write_email_status() {
+  _rc=$?
+  if [ "$_email_recipients_count" -gt 0 ]; then
+    _now="$(date +%s)"
+    _sfile="${WEB_DIR:-/www/strava}/email-${_mode}-status.json"
+    _status_tmp="${WEB_DIR:-/www/strava}/.email-${_mode}-status.$$"
+    _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
+    _prev_success="$(jq -r '.lastSuccess // empty' "$_sfile" 2>/dev/null || true)"
+    case "$_prev_success" in ''|*[!0-9]*) _prev_success=0 ;; esac
+    if [ "$_rc" -eq 0 ] && [ "$_email_sent_ok" -gt 0 ]; then
+      _ls="$_now" _ok=true
+    else
+      _ls="$_prev_success" _ok=false
+    fi
+    jq -n \
+      --arg mode "$_mode" \
+      --arg subject "${SUBJECT:-}" \
+      --argjson now "$_now" \
+      --argjson lastSuccess "$_ls" \
+      --argjson ok "$_ok" \
+      --argjson recipientCount "$_email_recipients_count" \
+      --argjson sentCount "$_email_sent_ok" \
+      --argjson logs "$_log_json" \
+      '{mode:$mode,ok:$ok,lastAttempt:$now,lastSuccess:(if $lastSuccess>0 then $lastSuccess else null end),subject:$subject,recipientCount:$recipientCount,sentCount:$sentCount,log:$logs}' \
+      > "$_status_tmp" 2>/dev/null && mv "$_status_tmp" "$_sfile" || true
+    ln -sfn "$_sfile" "/www/strava/email-${_mode}-status.json" 2>/dev/null || true
+  fi
+  rm -rf "$TMP"
+  [ "$_rc" -ne 0 ] && printf '%s [strava-email] FATAL: strava-email exited with code %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$_rc"
+}
+trap 'write_email_status' EXIT
 
 BODY="$TMP/body.html"
 
@@ -665,6 +699,7 @@ old_IFS="$IFS"; IFS=","
 for addr in $_recipients; do
     addr="$(printf '%s' "$addr" | tr -d ' \t')"
     [ -n "$addr" ] || continue
+    _email_recipients_count=$((_email_recipients_count + 1))
     log "sending to $addr"
     {
         printf 'From: %s\r\n' "$EMAIL_FROM"
@@ -685,7 +720,7 @@ for addr in $_recipients; do
         --passwordeval="printf '%s' '$_smtp_pass'" \
         --from="$EMAIL_FROM" \
         "$addr" \
-        && log "sent OK to $addr" \
+        && { log "sent OK to $addr"; _email_sent_ok=$((_email_sent_ok + 1)); } \
         || { log "WARNING: failed to send to $addr"; _send_failed=1; }
 done
 IFS="$old_IFS"

@@ -41,17 +41,6 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .club-heading a{font-size:.7em;font-weight:normal;color:#fc4c02;margin-left:auto}
   .club-sub{color:var(--text-3);font-size:.82rem;margin:0 0 .5rem}
   .club-desc{color:var(--text-2);font-size:.82rem;margin:0 0 .75rem;font-style:italic}
-  .ck-banner{padding:.55rem 1rem;border-radius:.4rem;margin:.5rem 0 1rem;font-size:.88rem}
-  .ck-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
-  .ck-warn{background:#fff8e1;color:#e65100;border:1px solid #ffe082;font-weight:600}
-  .ck-expired{background:#ffebee;color:#b71c1c;border:1px solid #ef9a9a;font-weight:600}
-  @media(prefers-color-scheme:dark){.ck-ok{background:#14391a;color:#86efac;border-color:#166534}.ck-warn{background:#3d2200;color:#fdba74;border-color:#92400e}.ck-expired{background:#3d0a0a;color:#fca5a5;border-color:#991b1b}}
-  [data-theme=dark] .ck-ok{background:#14391a;color:#86efac;border-color:#166534}
-  [data-theme=dark] .ck-warn{background:#3d2200;color:#fdba74;border-color:#92400e}
-  [data-theme=dark] .ck-expired{background:#3d0a0a;color:#fca5a5;border-color:#991b1b}
-  [data-theme=light] .ck-ok{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
-  [data-theme=light] .ck-warn{background:#fff8e1;color:#e65100;border-color:#ffe082}
-  [data-theme=light] .ck-expired{background:#ffebee;color:#b71c1c;border-color:#ef9a9a}
   .bar{height:5px;background:#fc4c02;border-radius:3px;margin-top:4px;min-width:3px}
   .person-row{cursor:pointer}
   .person-row:hover td{background:var(--hover-row)}
@@ -96,6 +85,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
   .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
+#board{overflow-x:auto;-webkit-overflow-scrolling:touch}
 </style>
 </head>
 <body>
@@ -107,7 +97,6 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 </div>
 <div class="meta" id="meta">Loading…</div>
 <div id="board"></div>
-<div id="ck-banner" style="display:none"></div>
 <div class="meta" id="footer-meta">
   StravaStats for OpenWrt · <span id="footer-source"></span> · <a href="activities.json">activities.json</a><span id="footer-links"></span> · <a href="https://github.com/raczeja/StatsServiceBook" target="_blank" rel="noopener">GitHub</a>
 </div>
@@ -135,49 +124,6 @@ function getLastWeekRange(){
   return {from:fmt(lm),to:fmt(ls)};
 }
 
-function renderCookieBanner(meta){
-  var el = document.getElementById("ck-banner");
-  if(!meta){ el.style.display="none"; return; }
-  var dr = meta.dryRun ? true : false;
-  var pfx = dr ? "Cookie dry-run — " : "";
-  if(!meta.cookieRefreshNeededBy){
-    if(dr && meta.cookieValid === false){
-      el.className = "ck-banner ck-expired";
-      el.innerHTML = "&#9888; "+pfx+"<code>STRAVA_SESSION_COOKIE</code> has <strong>expired</strong>"+
-                     " &mdash; paste a fresh <code>_strava4_session</code> value into"+
-                     " <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-leaderboard.conf</code>";
-      el.style.display = "";
-    } else {
-      el.style.display = "none";
-    }
-    return;
-  }
-  var daysLeft = Math.ceil((new Date(meta.cookieRefreshNeededBy) - new Date()) / 86400000);
-  var cls, msg;
-  if(daysLeft <= 0){
-    cls = "ck-expired";
-    msg = "&#9888; "+pfx+"session cookie has expired &mdash; paste a fresh <code>_strava4_session</code> value"+
-          " into <code>STRAVA_SESSION_COOKIE</code> in <code>/etc/strava-leaderboard.conf</code>";
-  } else if(daysLeft <= 7){
-    cls = "ck-warn";
-    msg = "&#9888; "+pfx+"session cookie expires in "+daysLeft+" day"+(daysLeft===1?"":"s")+
-          " ("+esc(meta.cookieRefreshNeededBy)+") &mdash; refresh <code>_strava4_session</code> soon";
-  } else if(dr && meta.feedTestOk === false){
-    cls = "ck-warn";
-    msg = "&#9888; Cookie dry-run &mdash; cookie valid but feed fetch failed"+
-          " (check network or club ID); valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)";
-  } else {
-    cls = "ck-ok";
-    var feedNote = dr ? (meta.feedTestOk ? " — feed test OK" : "") : "";
-    msg = "&#10003; "+(dr ? "Cookie dry-run (api mode)" : "Scrape mode")+
-          " &mdash; cookie verified "+esc(meta.cookieVerifiedAt)+
-          ", valid until "+esc(meta.cookieRefreshNeededBy)+" ("+daysLeft+" days)"+feedNote;
-  }
-  el.className = "ck-banner "+cls;
-  el.innerHTML = msg;
-  el.style.display = "";
-}
-
 function fallbackToLatestMonth(acts, year, month) {
   var y = year, m = month;
   for (var i = 0; i < 24; i++) {
@@ -191,7 +137,6 @@ function fallbackToLatestMonth(acts, year, month) {
 }
 
 function init(){
-  renderCookieBanner(DATA.scrapeMeta || null);
   var clubs = DATA.clubs || [];
   var allActs = [];
   clubs.forEach(function(c){ (c.activities||[]).forEach(function(a){ allActs.push(a); }); });
