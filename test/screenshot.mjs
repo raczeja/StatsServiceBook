@@ -29,6 +29,7 @@ const PAGES = [
   { name: "heatmap",              url: `${BASE}/heatmap.html`,                     dark: false },
   { name: "activity-detail",      url: `${BASE}/activity.html?id=18784255013`,     dark: false },
   { name: "bike-service",         url: `${BASE}/bike.html`,                        dark: false },
+  { name: "data-quality",         url: `${BASE}/data-quality.html`,                dark: false },
   // Dark mode variants
   { name: "my-activities-dark",   url: `${BASE}/index.html`,                       dark: true  },
   { name: "stats-dark",           url: `${BASE}/stats.html`,                       dark: true  },
@@ -248,6 +249,40 @@ try {
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
   await shot(page, "detail-section-reorder");
   await page.evaluate(() => { try { localStorage.removeItem("ssb-detail-sec"); } catch (_) {} });
+
+  // ── Targeted: stats Top-10 section ───────────────────────────────────────────
+  console.log("→ stats-top10");
+  await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
+  await page.goto(`${BASE}/stats.html`, { waitUntil: "networkidle", timeout: 30000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("top10-table") !== null,
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => {
+    const el = document.getElementById("top10-table") || document.querySelector("[data-sid='top10']");
+    if (el) el.scrollIntoView({ block: "start" });
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  await shot(page, "stats-top10");
+
+  // ── Targeted: activity detail with climbing map ───────────────────────────────
+  console.log("→ activity-detail-climbing");
+  await page.evaluate(() => { try { localStorage.removeItem("theme"); } catch (_) {} });
+  await page.goto(`${BASE}/activity.html?id=18784255013`, { waitUntil: "networkidle", timeout: 30000 });
+  try {
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+  } catch (_) {}
+  await page.evaluate(() => {
+    const mapEl = document.getElementById("map") || document.querySelector(".leaflet-container");
+    if (mapEl) mapEl.scrollIntoView({ block: "center" });
+  });
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 800)));
+  await shot(page, "activity-detail-climbing");
 
 } finally {
   await browser.close();

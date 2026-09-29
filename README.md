@@ -24,8 +24,8 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **My Activities**     | `/strava/me/`                  | Sortable activity table with year/month/sport filters, bests strip, and monthly bar charts                   |
 | **Activity detail**   | `/strava/me/activity.html`     | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts              |
 | **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, personal records, Top 10 leaderboard per metric, year-over-year heatmap, sport breakdown     |
-| **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter, city label overlay         |
-| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS, heart-rate, or activity details, plus per-source sync health and stale imports                  |
+| **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter                             |
+| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS/HR/detail audit, per-source sync health, Sync now buttons, email status, cookie management       |
 | **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
 
 ## Features
@@ -41,7 +41,10 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Audits activities for missing GPS, heart-rate metrics, and detail records; GPS is shown as unknown when details are unavailable.
 - The issue list can be filtered by GPS, heart rate, and details; heart-rate-only issues are hidden by default and can be enabled.
 - Shows the latest Strava, HealthSync, and club leaderboard run. Failed, disabled, unreported, or more-than-48-hour-old imports are flagged; HealthSync keepalive checks do not count as activity imports.
-- Activity import status is recorded in `strava-sync-status.json` and `healthsync-sync-status.json`; leaderboard status is in `/strava/leaderboard-sync-status.json`.
+- **Sync now** — each source card has a "↻ Sync now" button that triggers the corresponding script via `/cgi-bin/trigger-sync`; a "↻ Sync all" button triggers all sources at once. The button polls the status file and shows a live log while the run is in progress.
+- **Email status** — when `email-monthly-status.json` / `email-weekly-status.json` / `email-yearly-status.json` are present in the web root, an "Email sending" section shows the last subject, recipient count, and run log for each mode.
+- **Cookie management** — when scrape mode is active, a "Session cookie" section shows the current `_strava4_session` validity (green / amber / red). An inline form lets you paste a fresh cookie value; saving calls `/cgi-bin/update-cookie` which writes it to both My Activities and leaderboard configs and clears the session cache. Previously the banner appeared on the dashboard and leaderboard pages; it now lives only on this page.
+- Activity import status is recorded in `strava-sync-status.json` and `healthsync-sync-status.json`; leaderboard status is in `/strava/leaderboard-sync-status.json`; email status in `email-{monthly,weekly,yearly}-status.json`.
 
 **Activity detail**
 
@@ -69,7 +72,6 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - Full-viewport dark map (Esri World Dark Gray + OSM fallback) showing all GPS activity routes as a heat overlay
 - Period filter: Last 3 months (default), Last 30 days, Last 7 days, All time, or individual years
 - Sport-type filter: defaults to Ride; dynamically populated from your data; "All sports" option
-- City label overlay on a separate Leaflet pane (z-index 450) so names stay readable above the heat layer
 - Point count and activity count shown in the top bar; fits the map to visible tracks
 
 **Bike service tracker**
@@ -86,7 +88,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 
 - Historical sync: renamed rides, corrected sport types, deleted activities all reflected automatically
 - Per-activity detail backfill: fetches full activity JSON (`/activities/{id}`) gradually over nightly runs
-- Scrape mode: auto-exports GPX per activity; cookie health banner (green/amber/red) shows renewal status; Walk/Run/Hike detail pages show per-km splits computed from GPX; **health alert emails** sent to `STRAVA_MY_BIKE_EMAIL` on Strava layout changes, cookie expiry, or data-normalization failures (rate-limited to once/day)
+- Scrape mode: auto-exports GPX per activity; Walk/Run/Hike detail pages show per-km splits computed from GPX; **health alert emails** sent to `STRAVA_MY_BIKE_EMAIL` on Strava layout changes, cookie expiry, or data-normalization failures (rate-limited to once/day); cookie health (green/amber/red) and cookie update form live on the Data completeness page
 - HealthSync + Magene dual-source: watch HR merged with wheel-sensor distance from Magene FIT files
 
 **Section reordering** _(desktop only)_

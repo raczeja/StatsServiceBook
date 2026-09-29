@@ -60,6 +60,11 @@ GOALS_DATA=/data/ride-goals.json
 } > /www/cgi-bin/ride-goals
 chmod 0755 /www/cgi-bin/ride-goals
 
+# trigger-sync CGI: extracted directly from strava-my-html-data-quality.sh
+# (the heredoc already contains #!/bin/sh; no prefix needed).
+awk '/^cat > "\$CGI_DIR\/trigger-sync" <<.CGI.$/{f=1;next} /^CGI$/{f=0} f' "$DATA_QUALITY" > /www/cgi-bin/trigger-sync
+chmod 0755 /www/cgi-bin/trigger-sync
+
 # drive-auth CGI stub (no real Google credentials in the test container).
 {
   echo '#!/bin/sh'
@@ -82,6 +87,10 @@ printf '{"source":"HealthSync","mode":"full","ok":true,"importEnabled":true,"las
 cp /opt/club-activities.sample.json "$CLUB_WEB/activities.json"
 printf '{"source":"api","ok":true,"lastAttempt":%s,"lastSuccess":%s,"log":["starting strava-leaderboard","club feed: 45 activities fetched","leaderboard: 8 athletes ranked","html: writing index.html...","done."]}\n' \
   "$(date +%s)" "$(date +%s)" > "$CLUB_WEB/leaderboard-sync-status.json"
+printf '{"mode":"monthly","ok":true,"lastAttempt":%s,"lastSuccess":%s,"subject":"Strava Leaderboard - August 2026","recipientCount":3,"sentCount":3,"log":["building monthly leaderboard email for 2026-08 (August 2026)","club 123456: 45 activities in store","club 123456: 8 athletes in table","sending to athlete1@example.com","sent OK to athlete1@example.com","sending to athlete2@example.com","sent OK to athlete2@example.com","sending to athlete3@example.com","sent OK to athlete3@example.com","done."]}\n' \
+  "$(date +%s)" "$(date +%s)" > "$CLUB_WEB/email-monthly-status.json"
+printf '{"mode":"weekly","ok":true,"lastAttempt":%s,"lastSuccess":%s,"subject":"Strava Leaderboard - September 2026 (Weekly Update)","recipientCount":3,"sentCount":3,"log":["building weekly leaderboard email for 2026-09 (September 2026)","last week: 2026-09-21 to 2026-09-27","club 123456: 12 athletes in table","sending to athlete1@example.com","sent OK to athlete1@example.com","done."]}\n' \
+  "$(($(date +%s) - 86400))" "$(($(date +%s) - 86400))" > "$CLUB_WEB/email-weekly-status.json"
 
 # Minimal per-club leaderboard JSON — mirrors what strava-leaderboard writes to
 # $WEB_DIR/leaderboard_<clubId>.json; install.sh symlinks that into /www/strava/.

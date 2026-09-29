@@ -63,24 +63,6 @@ test.describe("heatmap", () => {
     expect(text.includes("pts"), `expected "pts" in #count, got: "${text}"`).toBeTruthy();
   });
 
-  test("city-labels-rendered", async () => {
-    // cities.json is served from the test container; markers should appear after fetch.
-    await page.waitForFunction(
-      () => document.querySelectorAll(".city-lbl").length > 0,
-      { timeout: 5000 },
-    ).catch(() => {});
-    const n = await page.$$eval(".city-lbl", (els) => els.length);
-    expect(n > 0, `expected at least 1 .city-lbl marker, got ${n}`).toBeTruthy();
-  });
-
-  test("city-label-has-text", async () => {
-    const texts = await page.$$eval(".city-lbl", (els) => els.map((el) => el.textContent.trim()));
-    expect(
-      texts.some((t) => t.length > 0),
-      `expected non-empty text in .city-lbl elements, got: ${JSON.stringify(texts)}`,
-    ).toBeTruthy();
-  });
-
   test("sport-filter-all-more-than-ride", async () => {
     // Switch to All sports — count should be >= Ride-only count.
     const rideCount = await page.evaluate(() => {
