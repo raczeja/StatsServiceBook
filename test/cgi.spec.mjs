@@ -107,6 +107,61 @@ test.describe("cgi-bike-service", () => {
   });
 });
 
+// ── CGI: Trigger Sync ────────────────────────────────────────────────────────
+
+test.describe("cgi-trigger-sync", () => {
+  const ENDPOINT = `${CGI}/trigger-sync`;
+
+  test("GET-returns-error-json", async () => {
+    const r = await fetch(ENDPOINT, { cache: "no-store" });
+    const ct = r.headers.get("content-type") ?? "";
+    expect(ct.includes("json"), `expected JSON content-type, got: ${ct}`).toBeTruthy();
+    const data = await r.json();
+    expect(data.ok, "GET should return ok:false").toBe(false);
+    expect(typeof data.error, "GET should include error string").toBe("string");
+  });
+
+  test("POST-unknown-source-returns-error", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "source=not_a_real_source",
+    });
+    const ct = r.headers.get("content-type") ?? "";
+    expect(ct.includes("json"), `expected JSON content-type, got: ${ct}`).toBeTruthy();
+    const data = await r.json();
+    expect(data.ok, "unknown source should return ok:false").toBe(false);
+    expect(typeof data.error, "unknown source must include error string").toBe("string");
+  });
+
+  test("POST-empty-body-returns-error", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "",
+    });
+    const data = await r.json();
+    expect(data.ok, "empty body should return ok:false (no valid source)").toBe(false);
+  });
+
+  test("POST-valid-source-returns-boolean-ok", async () => {
+    const r = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "source=leaderboard",
+    });
+    const ct = r.headers.get("content-type") ?? "";
+    expect(ct.includes("json"), `expected JSON content-type, got: ${ct}`).toBeTruthy();
+    const data = await r.json();
+    expect(typeof data.ok, "response must have a boolean ok field").toBe("boolean");
+    // In the test container the script may not be installed as executable;
+    // we only assert the CGI responded correctly, not that the sync ran.
+    if (!data.ok) {
+      expect(typeof data.error, "failed response must include error string").toBe("string");
+    }
+  });
+});
+
 // ── CGI: Ride Goals ───────────────────────────────────────────────────────────
 
 test.describe("cgi-ride-goals", () => {
