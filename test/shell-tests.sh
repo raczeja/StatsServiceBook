@@ -51,6 +51,13 @@ assert_eq() {
         err "$1" "$2" "expected \"$4\", got \"$3\""
     fi
 }
+assert_ne() {
+    if [ "$3" != "$4" ]; then
+        ok "$1" "$2"
+    else
+        err "$1" "$2" "expected value different from \"$4\", got \"$3\""
+    fi
+}
 
 # ── activity-gps-detection ───────────────────────────────────────────────────
 # Keep both polyline checks independent: jq's // does not treat an empty string
