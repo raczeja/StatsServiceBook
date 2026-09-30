@@ -226,14 +226,14 @@ test.describe("data-quality", () => {
     await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
     const sec = page.locator("#email-status");
     await expect(sec, "#email-status should be visible when status files present").toBeVisible();
-    await expect(sec.locator("h2").first()).toContainText("Email sending");
+    await expect(sec.locator("h2").first()).toContainText("Email");
     const card = sec.locator(".source").filter({ hasText: "Monthly email" });
     await expect(card.locator(".badge")).toHaveText("OK");
     await expect(card).toContainText("Strava Leaderboard - August 2026");
     await expect(card).toContainText("Recipients: 3");
   });
 
-  test("email-section-hidden-when-no-status-files", async ({ page }) => {
+  test("email-section-visible-with-send-form-when-no-status-files", async ({ page }) => {
     await page.route("**/email-monthly-status.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
     );
@@ -244,10 +244,12 @@ test.describe("data-quality", () => {
       route.fulfill({ status: 404, body: "" }),
     );
     await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
-    await expect(
-      page.locator("#email-status"),
-      "#email-status should be hidden when no status files exist",
-    ).toBeHidden();
+    const sec = page.locator("#email-status");
+    await expect(sec, "#email-status should be visible (contains send form)").toBeVisible();
+    await expect(sec.locator("#send-email-card"), "send form should be present").toBeVisible();
+    await expect(sec.locator("#email-type-sel"), "type dropdown should be present").toBeVisible();
+    await expect(sec.locator("#email-to-override"), "override field should be present").toBeVisible();
+    await expect(sec.locator("#email-cards .source"), "no status cards when no files").toHaveCount(0);
   });
 
   test("existing pages link to data completeness", async ({ page }) => {

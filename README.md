@@ -25,7 +25,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **Activity detail**   | `/strava/me/activity.html`     | Stat cards, interactive route map (Leaflet + OSM), per-km splits, elevation, HR, cadence charts              |
 | **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, personal records, Top 10 leaderboard per metric, year-over-year heatmap, sport breakdown     |
 | **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter                             |
-| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS/HR/detail audit, per-source sync health, Sync now buttons, email status, cookie management       |
+card for synch is also not updated when Sync C| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS/HR/detail audit, per-source sync health, Sync now buttons, email status + manual send, cookie management |
 | **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
 
 ## Features
@@ -42,7 +42,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 - The issue list can be filtered by GPS, heart rate, and details; heart-rate-only issues are hidden by default and can be enabled.
 - Shows the latest Strava, HealthSync, and club leaderboard run. Failed, disabled, unreported, or more-than-48-hour-old imports are flagged; HealthSync keepalive checks do not count as activity imports.
 - **Sync now** — each source card has a "↻ Sync now" button that triggers the corresponding script via `/cgi-bin/trigger-sync`; a "↻ Sync all" button triggers all sources at once. The button polls the status file and shows a live log while the run is in progress.
-- **Email status** — when `email-monthly-status.json` / `email-weekly-status.json` / `email-yearly-status.json` are present in the web root, an "Email sending" section shows the last subject, recipient count, and run log for each mode.
+- **Email status & send** — an "Email" section is always visible. When status files (`email-monthly-status.json` / `email-weekly-status.json` / `email-yearly-status.json`) are present in the web root, cards show the last subject, recipient count, and run log. A **"Send email now"** card lets you trigger any email type on demand: pick Monthly / Weekly / Yearly from the dropdown, optionally enter an override recipient address (leave blank to use the configured default recipients), and click Send — the request POSTs to `/cgi-bin/send-email`.
 - **Cookie management** — when scrape mode is active, a "Session cookie" section shows the current `_strava4_session` validity (green / amber / red). An inline form lets you paste a fresh cookie value; saving calls `/cgi-bin/update-cookie` which writes it to both My Activities and leaderboard configs and clears the session cache. Previously the banner appeared on the dashboard and leaderboard pages; it now lives only on this page.
 - Activity import status is recorded in `strava-sync-status.json` and `healthsync-sync-status.json`; leaderboard status is in `/strava/leaderboard-sync-status.json`; email status in `email-{monthly,weekly,yearly}-status.json`.
 

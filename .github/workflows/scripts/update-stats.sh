@@ -228,6 +228,8 @@ def flaky_counts(runs):
 
 def short_name(title):
     parts = [p.strip() for p in title.split(">") if p.strip()]
+    if len(parts) >= 2:
+        return " › ".join(parts[-2:])
     return parts[-1] if parts else title
 
 def esc(s):
