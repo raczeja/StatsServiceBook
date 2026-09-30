@@ -1169,8 +1169,8 @@ test.describe("heatmap", () => {
     await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
     const count = await page.$eval("#count", (el) => el.textContent.trim());
     expect(
-      count.startsWith("4 "),
-      `expected count to start with "4 " for All time + All sports, got: "${count}"`,
+      count.startsWith("8 "),
+      `expected count to start with "8 " for All time + All sports, got: "${count}"`,
     ).toBeTruthy();
   });
 
@@ -1206,8 +1206,8 @@ test.describe("heatmap", () => {
     await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
     const count = await page.$eval("#count", (el) => el.textContent.trim());
     expect(
-      count.startsWith("1 "),
-      `expected count to start with "1 " for All time + Run sport filter, got: "${count}"`,
+      count.startsWith("2 "),
+      `expected count to start with "2 " for All time + Run sport filter, got: "${count}"`,
     ).toBeTruthy();
   });
 

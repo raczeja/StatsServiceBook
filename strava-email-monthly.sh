@@ -274,6 +274,13 @@ for club_id in $CLUB_IDS; do
         continue
     fi
 
+    # Pre-filter: strip any truncated/malformed lines (same guard the leaderboard
+    # script applies before its own jq calls — one interrupted append can leave a
+    # partial record that makes jq exit with a parse error).
+    _safe_ndjson="$TMP/safe_ndjson_${club_id}.ndjson"
+    grep '^{.*}$' "$NDJSON" > "$_safe_ndjson" 2>/dev/null || : > "$_safe_ndjson"
+    log "club $club_id: $(wc -l < "$_safe_ndjson" | tr -d ' ') valid lines after pre-filter"
+
     # ---- Yearly rendering (totals + top-5 + highlights) ---------------------
     if [ "$_mode" = "yearly" ]; then
         YTOTALS="$TMP/ytotals_${club_id}.tsv"
@@ -287,7 +294,7 @@ for club_id in $CLUB_IDS; do
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
             [inputs | applyMerge | select(notExcluded)] | normArr as $store |
-            ($store | map(select(.firstSeen | startswith($year)))) as $all |
+            ($store | map(select((.firstSeen // "") | startswith($year)))) as $all |
             ($all | length) as $acts |
             ($all | map(.distance // 0) | add // 0) as $dist_m |
             ($all | map(.total_elevation_gain // 0) | add // 0) as $elev |
@@ -304,7 +311,7 @@ for club_id in $CLUB_IDS; do
               $first_in_year,
               (if $alltime_first < $year then "0" else "1" end)
             ] | @tsv' \
-            "$NDJSON" > "$YTOTALS" \
+            "$_safe_ndjson" > "$YTOTALS" \
             || log "WARNING: jq failed building yearly totals for club $club_id"
 
         # Top 5: rank / name / km / time_h / time_m / elev / acts / km/h
@@ -313,7 +320,7 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-            [inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))]
+            [inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))]
             | normArr | group_by("\(.firstname)|\(.lastname)")
             | map({
                 name: "\(.[0].firstname) \(.[0].lastname)",
@@ -338,7 +345,7 @@ for club_id in $CLUB_IDS; do
                  else 0 end | tostring)
               ]
             | @tsv' \
-            "$NDJSON" > "$YTOP5" \
+            "$_safe_ndjson" > "$YTOP5" \
             || log "WARNING: jq failed building yearly top-5 for club $club_id"
 
         # Highlights: type / name / value / unit / sport
@@ -347,7 +354,7 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-            ([inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($year))] | normArr) as $yr_all |
+            ([inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))] | normArr) as $yr_all |
             ($yr_all | map(select((.distance // 0) > 1000))) as $all |
             ($yr_all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
             ($yr_all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
@@ -399,11 +406,19 @@ for club_id in $CLUB_IDS; do
                 (($elev.sport_type // "") | @html)
               else empty end
             )' \
-            "$NDJSON" > "$YHL" \
+            "$_safe_ndjson" > "$YHL" \
             || log "WARNING: jq failed building yearly highlights for club $club_id"
 
         if [ ! -s "$YTOP5" ]; then
-            printf '<p class="nd">No activities recorded for %s.</p>' "$TARGET_YEAR" >> "$BODY"
+            _yr_avail=$(jq -rn \
+                '[inputs | (.firstSeen // "")] | map(select(length >= 4) | .[0:4]) | unique | sort | join(", ")' \
+                "$_safe_ndjson" 2>/dev/null || true)
+            if [ -n "$_yr_avail" ]; then
+                printf '<p class="nd">No activities recorded for %s. (Store contains data for: %s)</p>' \
+                    "$TARGET_YEAR" "$_yr_avail" >> "$BODY"
+            else
+                printf '<p class="nd">No activities recorded for %s.</p>' "$TARGET_YEAR" >> "$BODY"
+            fi
             continue
         fi
 
@@ -495,8 +510,8 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[ inputs | applyMerge | select(notExcluded) ] | normArr as $all
-             | ($all | map(select(.firstSeen | startswith($month)))) as $ma
-             | ($all | map(select(.firstSeen >= $wfrom and .firstSeen <= $wto))) as $wa
+             | ($all | map(select((.firstSeen // "") | startswith($month)))) as $ma
+             | ($all | map(select((.firstSeen // "") >= $wfrom and (.firstSeen // "") <= $wto))) as $wa
              | ($ma | group_by("\(.firstname)|\(.lastname)")
                   | map({
                       key:    "\(.[0].firstname)|\(.[0].lastname)",
@@ -522,13 +537,13 @@ for club_id in $CLUB_IDS; do
                  ((.value.week_dist * 10 | round) / 10 | tostring)
                ]
              | @tsv' \
-            "$NDJSON" > "$TABLE" || log "WARNING: jq failed building weekly email table for club $club_id — table may be empty"
+            "$_safe_ndjson" > "$TABLE" || log "WARNING: jq failed building weekly email table for club $club_id — table may be empty"
     else
         jq -rn \
             --arg month "$TARGET_MONTH" \
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
-            "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))]
+            "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($month))]
              | normArr | group_by("\(.firstname)|\(.lastname)")
              | map({
                  name: "\(.[0].firstname) \(.[0].lastname)",
@@ -549,7 +564,7 @@ for club_id in $CLUB_IDS; do
                  (if .value.time_s > 0 then ((.value.dist / (.value.time_s / 3600) * 10 | round) / 10) else 0 end | tostring)
                ]
              | @tsv' \
-            "$NDJSON" > "$TABLE" || log "WARNING: jq failed building monthly email table for club $club_id — table may be empty"
+            "$_safe_ndjson" > "$TABLE" || log "WARNING: jq failed building monthly email table for club $club_id — table may be empty"
     fi
     log "club $club_id: $(wc -l < "$TABLE" 2>/dev/null | tr -d ' ') athletes in table"
 
@@ -559,7 +574,7 @@ for club_id in $CLUB_IDS; do
         --arg merge "$MERGE_ATHLETES" \
         --arg exclude "$EXCLUDE_ATHLETES" \
         "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
-        ([inputs | applyMerge | select(notExcluded) | select(.firstSeen | startswith($month))] | normArr) as $all |
+        ([inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($month))] | normArr) as $all |
         ($all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
         ($all | group_by("\(.firstname)|\(.lastname)") | map({name: "\(.[0].firstname // "") \(.[0].lastname // "")", elev: ([.[].total_elevation_gain // 0] | add)}) | sort_by(-.elev) | .[0]) as $tclimb |
         ($all | map(select((.moving_time // 0) > 0 and (.distance // 0) > 1000)) | sort_by(-(.distance / .moving_time)) | .[0]) as $fast |
@@ -610,7 +625,7 @@ for club_id in $CLUB_IDS; do
             (($elev.sport_type // "") | @html)
           else empty end
         )' \
-        "$NDJSON" > "$MHL" || log "WARNING: jq failed building monthly highlights for club $club_id"
+        "$_safe_ndjson" > "$MHL" || log "WARNING: jq failed building monthly highlights for club $club_id"
 
     if [ ! -s "$TABLE" ]; then
         printf '<p class="nd">No activities%s %s.</p>' \
