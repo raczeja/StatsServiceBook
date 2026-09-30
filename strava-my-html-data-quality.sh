@@ -58,6 +58,30 @@ CGI
 chmod 0755 "$CGI_DIR/update-cookie"
 log "wrote $CGI_DIR/update-cookie"
 
+cat > "$CGI_DIR/send-email" <<'CGI'
+#!/bin/sh
+printf 'Content-Type: application/json\r\n\r\n'
+[ "$REQUEST_METHOD" = "POST" ] || { printf '{"ok":false,"error":"POST required"}\n'; exit 0; }
+read -r _body 2>/dev/null || true
+_type="$(printf '%s' "$_body" | jq -r '.type // empty' 2>/dev/null)"
+_to="$(printf '%s' "$_body" | jq -r '.email_to // empty' 2>/dev/null)"
+case "$_type" in
+  monthly)   _cmd=/usr/bin/strava-email-monthly ;;
+  weekly)    _cmd=/usr/bin/strava-email-weekly ;;
+  yearly)    _cmd=/usr/bin/strava-email-yearly ;;
+  *) printf '{"ok":false,"error":"unknown email type"}\n'; exit 0 ;;
+esac
+[ -x "$_cmd" ] || { printf '{"ok":false,"error":"script not found"}\n'; exit 0; }
+if [ -n "$_to" ]; then
+  setsid env STRAVA_EMAIL_TEST_TO="$_to" "$_cmd" < /dev/null > /dev/null 2>&1 &
+else
+  setsid "$_cmd" < /dev/null > /dev/null 2>&1 &
+fi
+printf '{"ok":true,"type":"%s"}\n' "$_type"
+CGI
+chmod 0755 "$CGI_DIR/send-email"
+log "wrote $CGI_DIR/send-email"
+
 log "html: writing data-quality.html..."
 cat > "$WEB_DIR/data-quality.html" <<'HTML'
 <!doctype html>
@@ -85,6 +109,8 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 .ck-ok{background:var(--good-bg);color:var(--good);border:1px solid var(--good)}.ck-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);font-weight:600}.ck-expired{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad);font-weight:600}
 #cookie-update-card textarea{width:100%;box-sizing:border-box;font-family:monospace;font-size:.8rem;padding:.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem;resize:vertical}
 #cookie-save-status.ok{color:var(--good)}#cookie-save-status.err{color:var(--bad)}
+#send-email-card input[type=text],#send-email-card select{font-family:system-ui,Arial,sans-serif;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem}#send-email-card input[type=text]{width:100%;box-sizing:border-box}
+#send-email-status.ok{color:var(--good)}#send-email-status.err{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -100,8 +126,17 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 <div style="display:flex;align-items:center;gap:.75rem;margin:1rem 0 .5rem"><h2 style="margin:0">Latest synchronization</h2><button id="sync-all-btn" class="sync-btn" style="margin:0" onclick="syncAll()">&#8635; Sync all</button></div>
 <section class="sources" id="sources"><div class="source">Loading source status...</div></section>
 <section id="email-status" style="display:none">
-<h2>Email sending</h2>
+<h2>Email</h2>
 <div id="email-cards" class="sources"></div>
+<article class="source" id="send-email-card">
+<h2>Send email now</h2>
+<div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;margin:.4rem 0">
+  <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Type</label><select id="email-type-sel"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option></select></div>
+  <div style="flex:1;min-width:180px"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Override recipients (optional)</label><input type="text" id="email-to-override" placeholder="you@example.com — leave empty for defaults"></div>
+  <button class="sync-btn" style="margin:0;flex-shrink:0" onclick="sendEmail()">&#9993; Send</button>
+</div>
+<div id="send-email-status" style="font-size:.88rem"></div>
+</article>
 </section>
 <section id="cookie-status" style="display:none">
 <h2>Session cookie</h2>
@@ -146,10 +181,21 @@ function renderActivityList(activities){
 var SYNC_STATUS_URLS={strava:'strava-sync-status.json',healthsync:'healthsync-sync-status.json',leaderboard:'../leaderboard-sync-status.json'};
 var SYNC_LIVE_LOG_URLS={strava:'strava-sync-live.log',healthsync:'healthsync-sync-live.log',leaderboard:'../leaderboard-sync-live.log'};
 var SYNC_RUNNING_URLS={strava:'strava-sync-running',healthsync:'healthsync-sync-running',leaderboard:'../leaderboard-sync-running'};
+var SRC_NAMES={strava:'Strava',healthsync:'HealthSync',leaderboard:'Club leaderboard'};
 var _knownAttempt={strava:0,healthsync:0,leaderboard:0};
 function _renderLogEl(el,lines,label){
   el.innerHTML='<details open><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">'+label+' ('+lines.length+' lines)</summary><pre class="run-log">'+lines.map(function(l){return esc(l);}).join('\n')+'</pre></details>';
   var pre=el.querySelector('pre.run-log');if(pre)pre.scrollTop=pre.scrollHeight;
+}
+function refreshSourceCard(src,name,status){
+  var logEl=document.getElementById('log-section-'+src);
+  if(!logEl)return;
+  var article=logEl.closest('article');
+  if(!article||!article.parentNode)return;
+  var tmp=document.createElement('div');
+  tmp.innerHTML=sourceCard(name,status,src);
+  var newEl=tmp.firstElementChild;
+  if(newEl)article.parentNode.replaceChild(newEl,article);
 }
 function updateLogSection(srcKey,status){
   var el=document.getElementById('log-section-'+srcKey);
@@ -164,7 +210,7 @@ function updateLogSectionRaw(srcKey,text){
   _renderLogEl(el,lines,'Live log');
 }
 function startLivePolling(src,btn,prevAttempt){
-  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],deadline=Date.now()+120000;
+  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],deadline=Date.now()+300000;
   var timer=setInterval(function(){
     if(Date.now()>deadline){clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;return;}
     if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
@@ -173,9 +219,11 @@ function startLivePolling(src,btn,prevAttempt){
       if(!st||!(Number(st.lastAttempt)>prevAttempt))return;
       clearInterval(timer);
       _knownAttempt[src]=Number(st.lastAttempt);
-      updateLogSection(src,st);
       btn.textContent='✓ Done';
-      setTimeout(function(){btn.textContent='↻ Sync now';btn.disabled=false;},4000);
+      setTimeout(function(){
+        fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+        .then(function(freshSt){refreshSourceCard(src,SRC_NAMES[src],freshSt||st);});
+      },3000);
     });}
   },2000);
 }
@@ -255,10 +303,62 @@ function emailCard(name,status){
   var logsHtml=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
   return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful send: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
 }
+var EMAIL_STATUS_URLS={monthly:'../email-monthly-status.json',weekly:'../email-weekly-status.json',yearly:'../email-yearly-status.json'};
+function _refreshEmailCards(){
+  Promise.all([
+    fetch('../email-monthly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+    fetch('../email-weekly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+    fetch('../email-yearly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+  ]).then(function(vs){renderEmailSection(vs[0],vs[1],vs[2]);});
+}
+function _pollEmailDone(type,prevAttempt,btn,statusEl){
+  var url=EMAIL_STATUS_URLS[type],deadline=Date.now()+180000;
+  var timer=setInterval(function(){
+    if(Date.now()>deadline){
+      clearInterval(timer);btn.disabled=false;btn.innerHTML='&#9993; Send';
+      statusEl.className='ok';statusEl.textContent='✓ Sent ('+type+'). Refreshing…';
+      _refreshEmailCards();return;
+    }
+    fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+    .then(function(st){
+      if(!st||!(Number(st.lastAttempt)>prevAttempt))return;
+      clearInterval(timer);btn.disabled=false;btn.innerHTML='&#9993; Send';
+      var ok=st.ok===true;
+      statusEl.className=ok?'ok':'err';
+      statusEl.textContent=ok?'✓ Sent ('+type+') to '+(st.sentCount!=null?st.sentCount:'–')+' recipient(s).':'✗ Send failed — see status card for details.';
+      _refreshEmailCards();
+    });
+  },3000);
+}
+function sendEmail(){
+  var type=document.getElementById('email-type-sel').value;
+  var to=(document.getElementById('email-to-override').value||'').trim();
+  var statusEl=document.getElementById('send-email-status');
+  var btn=document.querySelector('#send-email-card .sync-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  statusEl.className='';statusEl.textContent='';
+  var prevAttempt=0;
+  var url=EMAIL_STATUS_URLS[type];
+  (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
+  .then(function(st){
+    prevAttempt=st?Number(st.lastAttempt)||0:0;
+    return fetch('/cgi-bin/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(to?{type:type,email_to:to}:{type:type})});
+  })
+  .then(function(r){return r.json();})
+  .then(function(j){
+    if(!j.ok){btn.disabled=false;btn.innerHTML='&#9993; Send';statusEl.className='err';statusEl.textContent='Error: '+(j.error||'unknown');return;}
+    statusEl.className='ok';statusEl.textContent='Queued — waiting for completion…';
+    btn.textContent='⏳ Waiting…';
+    _pollEmailDone(type,prevAttempt,btn,statusEl);
+  })
+  .catch(function(e){
+    btn.disabled=false;btn.innerHTML='&#9993; Send';
+    statusEl.className='err';statusEl.textContent='Request failed: '+e.message;
+  });
+}
 function renderEmailSection(monthly,weekly,yearly){
   var cards=emailCard('Monthly email',monthly)+emailCard('Weekly email',weekly)+emailCard('Yearly email',yearly);
   var sec=document.getElementById('email-status');
-  if(!cards){sec.style.display='none';return;}
   sec.style.display='';
   document.getElementById('email-cards').innerHTML=cards;
 }
