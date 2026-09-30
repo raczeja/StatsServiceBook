@@ -643,7 +643,7 @@ function renderGoals(goalsData){
     :"";
 
   var h='<h2 style="display:flex;align-items:center;gap:.4rem">Annual Goals &amp; Progress'+
-       '<span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none;flex:1">&mdash; '+esc(MONTHS_F[selMonth])+' '+esc(yr)+' &middot; Ride</span>'+
+       '<span class="muted" style="font-size:.78rem;font-weight:400;text-transform:none;flex:1">&mdash; '+esc(yr)+' &middot; Ride</span>'+
        '</h2>';
   h+='<div class="goal-wrap">';
   h+='<div class="goal-input-row">';

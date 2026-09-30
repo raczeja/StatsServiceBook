@@ -757,6 +757,64 @@ else
     err "$S" "script-present" "$_dq_script not found in container"
 fi
 
+# ── send-email-validation ─────────────────────────────────────────────────────
+# Mirrors the type whitelist in the send-email CGI.
+S="send-email-validation"
+
+_send_email_type_valid() {
+    case "$1" in
+      monthly|weekly|yearly) printf 'valid' ;;
+      *) printf 'invalid' ;;
+    esac
+}
+
+assert_eq "$S" "monthly-accepted"     "$(_send_email_type_valid monthly)"     "valid"
+assert_eq "$S" "weekly-accepted"      "$(_send_email_type_valid weekly)"      "valid"
+assert_eq "$S" "yearly-accepted"      "$(_send_email_type_valid yearly)"      "valid"
+assert_eq "$S" "empty-rejected"       "$(_send_email_type_valid '')"          "invalid"
+assert_eq "$S" "unknown-rejected"     "$(_send_email_type_valid foo)"         "invalid"
+assert_eq "$S" "injection-rejected"   "$(_send_email_type_valid 'monthly;rm')" "invalid"
+
+_dq_sendemail="/usr/bin/strava-my-html-data-quality.sh"
+if [ -f "$_dq_sendemail" ]; then
+    if grep -q 'STRAVA_EMAIL_TEST_TO' "$_dq_sendemail"; then
+        ok "$S" "override-env-var-present"
+    else
+        err "$S" "override-env-var-present" "STRAVA_EMAIL_TEST_TO not referenced in CGI template"
+    fi
+    if grep -q 'send-email' "$_dq_sendemail"; then
+        ok "$S" "cgi-name-present"
+    else
+        err "$S" "cgi-name-present" "send-email CGI not written in data-quality script"
+    fi
+fi
+
+# ── data-quality-sync-card-refresh ───────────────────────────────────────────
+# After a triggered sync completes, the source card (badge + timestamps) must be
+# refreshed without a page reload. Guard against accidentally removing the two JS
+# symbols that implement this: refreshSourceCard() and SRC_NAMES.
+S="data-quality-sync-card-refresh"
+_dq_html="/usr/bin/strava-my-html-data-quality.sh"
+if [ -f "$_dq_html" ]; then
+    if grep -q 'refreshSourceCard' "$_dq_html"; then
+        ok "$S" "refreshSourceCard-present"
+    else
+        err "$S" "refreshSourceCard-present" "refreshSourceCard() not found — card status won't update after sync"
+    fi
+    if grep -q 'SRC_NAMES' "$_dq_html"; then
+        ok "$S" "SRC_NAMES-present"
+    else
+        err "$S" "SRC_NAMES-present" "SRC_NAMES lookup not found — refreshSourceCard has no source name to pass"
+    fi
+    if grep -q 'refreshSourceCard.*SRC_NAMES' "$_dq_html"; then
+        ok "$S" "refreshSourceCard-uses-SRC_NAMES"
+    else
+        err "$S" "refreshSourceCard-uses-SRC_NAMES" "refreshSourceCard is not called with SRC_NAMES in startLivePolling"
+    fi
+else
+    err "$S" "script-present" "$_dq_html not found in container"
+fi
+
 # ── keepalive-mode ────────────────────────────────────────────────────────────
 # Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
 # after the Drive folder listing when mode is "keepalive".
@@ -2951,6 +3009,168 @@ S="yearly-email-jq"
     assert_eq "$S" "highlights-longest-unit"    "$(printf '%s\n' "$_yej_hl" | sed -n '19p')" "km"
     assert_eq "$S" "highlights-mostelev-type"   "$(printf '%s\n' "$_yej_hl" | sed -n '21p')" "mostelev"
     assert_eq "$S" "highlights-mostelev-unit"   "$(printf '%s\n' "$_yej_hl" | sed -n '24p')" "m"
+}
+
+# ── yearly-email-null-firstseen ──────────────────────────────────────────────
+# Verifies that NDJSON records with null or missing firstSeen do not crash the
+# yearly jq queries (null | startswith() throws a type error in jq).
+# With the // "" guard those records are treated as empty-date and excluded.
+S="yearly-email-null-firstseen"
+{
+    _ynf_nd="$TMP/ynf_acts.ndjson"
+    # Three pathological records + one valid 2026 record.
+    printf '%s\n' \
+        '{"firstname":"Null","lastname":"FS","distance":10000,"moving_time":900,"total_elevation_gain":100,"firstSeen":null,"sport_type":"Run"}' \
+        '{"firstname":"Miss","lastname":"FS","distance":20000,"moving_time":1800,"total_elevation_gain":200,"sport_type":"Run"}' \
+        '{"firstname":"Empty","lastname":"FS","distance":5000,"moving_time":600,"total_elevation_gain":50,"firstSeen":"","sport_type":"Run"}' \
+        '{"firstname":"Valid","lastname":"V","distance":30000,"moving_time":2700,"total_elevation_gain":300,"firstSeen":"2026-07-01","sport_type":"Ride"}' \
+        > "$_ynf_nd"
+
+    _ynf_mf=""
+    for _ynf_lib in \
+        /usr/bin/strava-lib.sh \
+        /opt/strava-lib.sh \
+        "$(dirname "$0")/../strava-lib.sh" \
+        "$(dirname "$0")/strava-lib.sh"; do
+        [ -f "$_ynf_lib" ] && _ynf_mf="$(. "$_ynf_lib" 2>/dev/null; printf '%s' "$JQ_MERGE_FUNC")" && break
+    done
+    _ynf_excl='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
+
+    # top-5 query with // "" guard — must not error and must return only Valid V
+    _ynf_top="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_ynf_mf}${_ynf_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))]
+        | group_by("\(.firstname)|\(.lastname)")
+        | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: (([.[].distance // 0] | add) / 1000)})
+        | sort_by(-.dist) | .[0:5] | to_entries[]
+        | [(.key + 1 | tostring), .value.name, ((.value.dist * 10 | round) / 10 | tostring)] | @tsv' \
+        "$_ynf_nd" 2>&1)"
+    _ynf_exit=$?
+    assert_eq "$S" "no-crash-exit-code"   "$_ynf_exit"                                          "0"
+    assert_eq "$S" "null-firstseen-excluded" \
+        "$(printf '%s' "$_ynf_top" | awk -F'\t' 'NR==1{print $2}')" "Valid V"
+    assert_eq "$S" "only-valid-counted"   \
+        "$(printf '%s\n' "$_ynf_top" | grep -c '^' 2>/dev/null | tr -d ' ')" "1"
+
+    # totals query with // "" guard — must not error, all-null records yield 0 acts
+    _ynf_tot="$(jq -rn \
+        --arg year "2025" --arg merge "" --arg exclude "" \
+        "${_ynf_mf}${_ynf_excl}"'
+        [inputs | applyMerge | select(notExcluded)] | . as $store |
+        ($store | map(select((.firstSeen // "") | startswith($year)))) as $all |
+        ($all | length | tostring)' \
+        "$_ynf_nd" 2>&1)"
+    _ynf_tot_exit=$?
+    assert_eq "$S" "totals-no-crash-exit" "$_ynf_tot_exit" "0"
+    assert_eq "$S" "totals-zero-for-2025" "$_ynf_tot"      "0"
+}
+
+# ── yearly-email-malformed-ndjson ─────────────────────────────────────────────
+# Verifies that the grep '^{.*}$' pre-filter in strava-email-monthly.sh strips
+# truncated/malformed lines so that the jq queries do not see them.
+# Without the filter a single partial line crashes jq (exit ≠ 0) → empty output
+# → "No activities recorded" even when valid 2025 entries are present.
+S="yearly-email-malformed-ndjson"
+{
+    _ymf_raw="$TMP/ymf_raw.ndjson"
+    _ymf_safe="$TMP/ymf_safe.ndjson"
+    # Mix of valid records + a truncated line at the end (simulates interrupted write).
+    printf '%s\n' \
+        '{"firstname":"Anna","lastname":"K","distance":40000,"moving_time":3600,"total_elevation_gain":400,"firstSeen":"2025-03-10","sport_type":"Run"}' \
+        '{"firstname":"Piotr","lastname":"W","distance":25000,"moving_time":2400,"total_elevation_gain":200,"firstSeen":"2025-05-20","sport_type":"Ride"}' \
+        > "$_ymf_raw"
+    # Append a truncated line (no closing brace — simulates an interrupted append).
+    printf '{"firstname":"Broken","lastname":"X","distance":10000,"moving_time":900' >> "$_ymf_raw"
+
+    # Without filter: jq MUST fail (exit non-zero) because the last line is invalid JSON.
+    _ymf_unfiltered_exit=0
+    jq -rn '[inputs | .firstname] | length' "$_ymf_raw" > /dev/null 2>&1 || _ymf_unfiltered_exit=$?
+    assert_ne "$S" "unfiltered-jq-fails" "$_ymf_unfiltered_exit" "0"
+
+    # Apply the same grep filter the email script now uses.
+    grep '^{.*}$' "$_ymf_raw" > "$_ymf_safe" 2>/dev/null || : > "$_ymf_safe"
+
+    # With filter: jq must succeed (exit 0) and see exactly 2 valid records.
+    _ymf_cnt="$(jq -rn '[inputs] | length | tostring' "$_ymf_safe" 2>&1)"
+    _ymf_filtered_exit=$?
+    assert_eq "$S" "filtered-jq-ok"       "$_ymf_filtered_exit" "0"
+    assert_eq "$S" "filtered-record-count" "$_ymf_cnt"          "2"
+
+    # And the year filter finds both 2025 records.
+    _ymf_mf=""
+    for _ymf_lib in \
+        /usr/bin/strava-lib.sh \
+        /opt/strava-lib.sh \
+        "$(dirname "$0")/../strava-lib.sh" \
+        "$(dirname "$0")/strava-lib.sh"; do
+        [ -f "$_ymf_lib" ] && _ymf_mf="$(. "$_ymf_lib" 2>/dev/null; printf '%s' "$JQ_MERGE_FUNC")" && break
+    done
+    _ymf_excl='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
+    _ymf_top="$(jq -rn \
+        --arg year "2025" --arg merge "" --arg exclude "" \
+        "${_ymf_mf}${_ymf_excl}"'
+        [inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))]
+        | group_by("\(.firstname)|\(.lastname)")
+        | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: (([.[].distance // 0] | add) / 1000)})
+        | sort_by(-.dist) | length | tostring' \
+        "$_ymf_safe" 2>&1)"
+    assert_eq "$S" "year-filter-finds-two" "$_ymf_top" "2"
+}
+
+# ── yearly-email-year-target ──────────────────────────────────────────────────
+# Mirrors the TARGET_YEAR computation: default = previous calendar year,
+# overrideable by STRAVA_EMAIL_TEST_YEAR.
+S="yearly-email-year-target"
+{
+    _prev_year() {
+        if [ -n "${1:-}" ]; then printf '%s' "$1"
+        else printf '%d' "$(($(date +%Y) - 1))"; fi
+    }
+    _expected_prev="$(($(date +%Y) - 1))"
+    assert_eq "$S" "default-is-prev-year"   "$(_prev_year '')"     "$_expected_prev"
+    assert_eq "$S" "override-2023"          "$(_prev_year 2023)"   "2023"
+    assert_eq "$S" "override-2025"          "$(_prev_year 2025)"   "2025"
+    assert_eq "$S" "override-empty-is-prev" "$(_prev_year '')"     "$_expected_prev"
+}
+
+# ── yearly-email-no-data-yr-hint ──────────────────────────────────────────────
+# When the requested year has no entries the email shows which years ARE in the
+# store.  Mirrors the _yr_avail jq query added to strava-email-monthly.sh.
+S="yearly-email-no-data-yr-hint"
+{
+    _yndh_nd="$TMP/yndh_acts.ndjson"
+    # Store contains only 2026 entries (mimics clubs seeded after 2025 ended)
+    cat > "$_yndh_nd" <<'NDJSON'
+{"firstname":"Alice","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2026-01-10"}
+{"firstname":"Bob","lastname":"B","distance":20000,"moving_time":2700,"total_elevation_gain":80,"sport_type":"Ride","firstSeen":"2026-02-15"}
+{"firstname":"Alice","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
+NDJSON
+
+    # The year-availability jq: extracts unique year prefixes from firstSeen
+    _yr_avail=$(jq -rn \
+        '[inputs | (.firstSeen // "")] | map(select(length >= 4) | .[0:4]) | unique | sort | join(", ")' \
+        "$_yndh_nd" 2>/dev/null || true)
+
+    assert_eq "$S" "avail-years-detected"   "$_yr_avail"   "2026"
+
+    # When target year is 2025 (not in store), avail should still return 2026
+    _yr_avail_check=$(jq -rn \
+        '[inputs | (.firstSeen // "")] | map(select(length >= 4) | .[0:4]) | unique | sort | join(", ")' \
+        "$_yndh_nd" 2>/dev/null || true)
+    assert_eq "$S" "avail-not-empty-for-2025-request" "$([ -n "$_yr_avail_check" ] && echo yes || echo no)" "yes"
+
+    # Multi-year store should list all years
+    _yndh2_nd="$TMP/yndh2_acts.ndjson"
+    cat > "$_yndh2_nd" <<'NDJSON'
+{"firstname":"Alice","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2024-12-01"}
+{"firstname":"Bob","lastname":"B","distance":20000,"moving_time":2700,"total_elevation_gain":80,"sport_type":"Ride","firstSeen":"2025-06-15"}
+{"firstname":"Alice","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
+NDJSON
+    _yr_multi=$(jq -rn \
+        '[inputs | (.firstSeen // "")] | map(select(length >= 4) | .[0:4]) | unique | sort | join(", ")' \
+        "$_yndh2_nd" 2>/dev/null || true)
+    assert_eq "$S" "multi-year-list"   "$_yr_multi"   "2024, 2025, 2026"
 }
 
 # ── script-syntax-check ──────────────────────────────────────────────────────
