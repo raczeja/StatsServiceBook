@@ -2220,6 +2220,26 @@ assert_eq "$S" "no-user-skips"     "$(_check_email_cfg "smtps://s" "" "a@b")"   
 assert_eq "$S" "no-to-skips"       "$(_check_email_cfg "smtps://s" "u:p" "")"        "skipped"
 assert_eq "$S" "all-set-proceeds"  "$(_check_email_cfg "smtps://s" "u:p" "a@b")"     "proceed"
 
+# ── email-trap-exit-code ──────────────────────────────────────────────────────
+# Regression: EXIT trap used `[ "$_rc" -ne 0 ] && printf ...` which exits 1
+# under set -eu when _rc=0 (condition false → exit 1 from `[`), causing the
+# cron guard to retry and send duplicate emails. Fix: if/fi + return "$_rc".
+S="email-trap-exit-code"
+
+_trap_exit_rc() {
+    # Each invocation runs in its own subshell so set -eu doesn't leak out.
+    _want_rc="$1"
+    ( set -eu
+      _rc="$_want_rc"
+      if [ "$_rc" -ne 0 ]; then printf 'FATAL %s\n' "$_rc" >/dev/null; fi
+      return "$_rc"
+    ) 2>/dev/null
+    printf '%s' "$?"
+}
+
+assert_eq "$S" "success-exits-0"  "$(_trap_exit_rc 0)" "0"
+assert_eq "$S" "failure-exits-1"  "$(_trap_exit_rc 1)" "1"
+
 # ── merge-athletes ────────────────────────────────────────────────────────────
 # Mirrors the STRAVA_MERGE_ATHLETES jq logic in strava-leaderboard.sh:
 # builds $mergeMap from "Canonical=Alias" pairs and renames matching athletes.
