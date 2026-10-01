@@ -192,7 +192,10 @@ write_email_status() {
     ln -sfn "$_sfile" "/www/strava/email-${_mode}-status.json" 2>/dev/null || true
   fi
   rm -rf "$TMP"
-  [ "$_rc" -ne 0 ] && printf '%s [strava-email] FATAL: strava-email exited with code %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$_rc"
+  if [ "$_rc" -ne 0 ]; then
+    printf '%s [strava-email] FATAL: strava-email exited with code %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$_rc"
+  fi
+  return "$_rc"
 }
 trap 'write_email_status' EXIT
 
