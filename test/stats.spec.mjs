@@ -1338,7 +1338,7 @@ test.describe("stats-top10", () => {
       expect(estimatedRows.length).toBeGreaterThan(0);
       expect(estimatedRows.length).toBeLessThanOrEqual(10);
       expect(estimatedRows.every((row) => row.effort.endsWith(" pts (est.)"))).toBeTruthy();
-      expect(estimatedRows.some((row) => row.activity.includes("West Wroclaw"))).toBeFalsy();
+      expect(estimatedRows.some((row) => row.activity.includes("West Wroclaw"))).toBeTruthy();
       expect(estimatedRows[0].link).toMatch(/^activity\.html\?id=/);
     } finally {
       await page.evaluate(({ id, previous }) => {
@@ -1349,6 +1349,39 @@ test.describe("stats-top10", () => {
           render();
         }
       }, original);
+    }
+  });
+
+  test("top10-estimated-empty-state-explains-required-data", async () => {
+    const originals = await page.evaluate(() => {
+      const updates = [];
+      ALL_ACTS.forEach((activity) => {
+        if (activity.average_heartrate != null || activity.moving_time != null) {
+          updates.push([String(activity.id), activity.average_heartrate, activity.moving_time]);
+          activity.average_heartrate = null;
+          activity.moving_time = null;
+        }
+      });
+      render();
+      return updates;
+    });
+    try {
+      await page.selectOption("#top10Sel", "hr_effort_est");
+      const text = await page.$eval("#top10Table", (el) => el.textContent);
+      expect(text).toContain("No estimated HR efforts");
+      expect(text).toContain("heart-rate and moving-time data");
+    } finally {
+      await page.evaluate((updates) => {
+        updates.forEach(([id, avgHr, movingTime]) => {
+          const activity = ALL_ACTS.find((item) => String(item.id) === id);
+          if (!activity) return;
+          if (avgHr == null) delete activity.average_heartrate;
+          else activity.average_heartrate = avgHr;
+          if (movingTime == null) delete activity.moving_time;
+          else activity.moving_time = movingTime;
+        });
+        render();
+      }, originals);
     }
   });
 

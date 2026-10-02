@@ -342,14 +342,19 @@ function estimateHrEffort(points, hrMax){
   return totalSecs?Math.round(weightedSecs/60/7):0;
 }
 
+function estimatedActivityHrEffort(a){
+  var bpm = Number(a.average_heartrate), secs = Number(a.moving_time);
+  if(!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) return null;
+  var hrMax = ATHLETE_AGE > 0 ? 220 - ATHLETE_AGE : (Number(a.max_heartrate) || bpm);
+  return estimateHrEffort([{bpm:bpm,secs:secs}],hrMax);
+}
+
 function activityHrEffort(a){
   var score = Number(a.suffer_score);
   if(a.suffer_score != null && isFinite(score) && score > 0)
     return {score:score, source:"Strava Relative Effort"};
-  var bpm = Number(a.average_heartrate), secs = Number(a.moving_time);
-  if(!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) return null;
-  var hrMax = ATHLETE_AGE > 0 ? 220 - ATHLETE_AGE : (Number(a.max_heartrate) || bpm);
-  return {score:estimateHrEffort([{bpm:bpm,secs:secs}],hrMax), source:"Estimated from average HR"};
+  var estimate=estimatedActivityHrEffort(a);
+  return estimate>0?{score:estimate, source:"Estimated from average HR"}:null;
 }
 
 // ---- personal records -------------------------------------------------------
@@ -392,9 +397,9 @@ function computeRecords(acts){
     if(hrEffort&&hrEffort.source==="Strava Relative Effort"&&hrEffort.score>0&&
        (!most_strava_effort||hrEffort.score>most_strava_effort.score))
       most_strava_effort={score:hrEffort.score,source:hrEffort.source,km:km,s:s,date:a.date,name:a.name,id:a.id};
-    if(hrEffort&&hrEffort.source!=="Strava Relative Effort"&&hrEffort.score>0&&
-       (!most_hr_effort||hrEffort.score>most_hr_effort.score))
-      most_hr_effort={score:hrEffort.score,source:hrEffort.source,km:km,s:s,date:a.date,name:a.name,id:a.id};
+    var estimatedEffort=estimatedActivityHrEffort(a);
+    if(estimatedEffort>0&&(!most_hr_effort||estimatedEffort>most_hr_effort.score))
+      most_hr_effort={score:estimatedEffort,source:"Estimated from average HR",km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(a.date){
       weeks[weekOf(a.date)]=(weeks[weekOf(a.date)]||0)+km;
       var ym=a.date.slice(0,7);
@@ -455,7 +460,7 @@ var TOP10_METRICS = [
    fmt:function(v){return fmtInt(v);}},
   {id:'strava_effort', label:'Strava Relative Effort', fn:function(a){var effort=activityHrEffort(a);return effort&&effort.source==='Strava Relative Effort'?effort.score:0;},
    fmt:function(v){return fmtInt(Math.round(v))+' pts';}},
-  {id:'hr_effort_est', label:'Estimated HR effort', fn:function(a){var effort=activityHrEffort(a);return effort&&effort.source!=='Strava Relative Effort'?effort.score:0;},
+  {id:'hr_effort_est', label:'Estimated HR effort', fn:function(a){return estimatedActivityHrEffort(a)||0;},
    fmt:function(v){return fmtInt(Math.round(v))+' pts (est.)';}}
 ];
 var _top10Acts = [];
@@ -494,7 +499,15 @@ function _drawTop10(){
       hintEl.style.display='none';
     }
   }
-  if(!rows.length){tbl.innerHTML='<div class="empty">No data for this metric.</div>';return;}
+  if(!rows.length){
+    var emptyMsg=metric.id==='strava_effort'
+      ?'No Strava Relative Effort scores for the selected sport and year.'
+      :metric.id==='hr_effort_est'
+        ?'No estimated HR efforts for the selected sport and year. Activities need heart-rate and moving-time data.'
+        :'No data for this metric.';
+    tbl.innerHTML='<div class="empty">'+esc(emptyMsg)+'</div>';
+    return;
+  }
   var head='<tr><th style="width:2rem">#</th><th>Date</th><th>Activity</th>'+
            '<th>'+esc(metric.label)+'</th><th>Distance</th><th>Time</th><th></th></tr>';
   var body=rows.map(function(r,i){
