@@ -405,12 +405,22 @@ test.describe("bike-service", () => {
 
   test("moving-part-preserves-history-costs-and-usage", async () => {
     const original = await page.evaluate(async () => fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json()));
+    await page.evaluate((snapshot) => {
+      MODEL = snapshot;
+      if (!Array.isArray(MODEL.inventory)) MODEL.inventory = [];
+      MODEL.bikes.forEach((bike) => {
+        if (!Array.isArray(bike.parts)) bike.parts = [];
+        bike.parts.forEach(migratePart);
+      });
+      render();
+    }, original);
     const before = await page.evaluate(() => {
       const source = MODEL.bikes.find((b) => b.name === "Road Bike");
       const target = MODEL.bikes.find((b) => b.name === "Gravel Bike");
       return { sourceId: source?.id, targetId: target?.id, part: source?.parts?.find((p) => p.id === "p-chain") };
     });
     expect(before.part, "Road Bike chain fixture is missing").toBeTruthy();
+    expect(before.targetId, "Gravel Bike fixture is missing").toBeTruthy();
     const originalServices = JSON.parse(JSON.stringify(before.part.serviceTypes));
     const originalCost = before.part.cost;
 
@@ -419,7 +429,12 @@ test.describe("bike-service", () => {
         const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
         if (tab) tab.click();
       });
-      await page.locator('#bikepanel .btn.sm').filter({ hasText: "Move" }).first().click();
+      await page.evaluate(() => {
+        const button = Array.from(document.querySelectorAll('#bikepanel .sec[data-sid="parts"] button[onclick*="showMovePart"]'))
+          .find((el) => el.getAttribute("onclick").includes("'p-chain'"));
+        if (!button) throw new Error("Road Bike chain Move button is missing");
+        button.click();
+      });
       await page.selectOption("#move-target", before.targetId);
       await page.getByRole("button", { name: "Move part" }).click();
       await page.waitForFunction(async ({ sourceId, targetId }) => {
@@ -432,6 +447,7 @@ test.describe("bike-service", () => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         return saved.bikes.find((b) => b.id === targetId)?.parts?.find((p) => p.id === "p-chain");
       }, { targetId: before.targetId });
+      expect(moved, "moved chain was not found on Gravel Bike").toBeTruthy();
       expect(moved.usageHistory[0].bikeId).toBe(before.sourceId);
       expect(moved.usageHistory[0].distance).toBeGreaterThan(0);
       expect(moved.usageHistory[0].time).toBeGreaterThan(0);
