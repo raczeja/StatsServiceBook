@@ -67,6 +67,25 @@ test.describe("activity-detail", () => {
     expect(await page.$("#hr-effort-card")).toBeNull();
   });
 
+  test("official-relative-effort-falls-back-to-activity-summary", async () => {
+    const cards = await page.$eval("#cards", (el) => el.innerHTML);
+    try {
+      const score = await page.evaluate(() => {
+        const detail = fillDetailFromActivity(
+          { id: 123, suffer_score: null },
+          { id: 123, suffer_score: 232 },
+        );
+        renderCards(detail);
+        const card = Array.from(document.querySelectorAll("#cards .card"))
+          .find((el) => el.querySelector(".k")?.textContent === "Relative effort");
+        return card?.querySelector(".v")?.textContent.trim();
+      });
+      expect(score).toBe("232");
+    } finally {
+      await page.$eval("#cards", (el, html) => { el.innerHTML = html; }, cards);
+    }
+  });
+
   test("distance-64km", async () => {
     const text = await page.$eval(".cards", (el) => el.textContent);
     expect(
