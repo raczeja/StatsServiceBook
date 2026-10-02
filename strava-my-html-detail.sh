@@ -595,15 +595,19 @@ function renderHrEffort(hrPoints, maxHR, activity, source) {
   for (var i = 0; i < hrPoints.length; i++) {
     var bpm = Number(hrPoints[i].bpm), secs = Number(hrPoints[i].secs);
     if (!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) continue;
-    weightedSecs += secs * (hrZoneIndex(bpm, hrMax) + 1);
+    var zone = bpm < Math.round(.60*hrMax) ? 0
+      : bpm < Math.round(.80*hrMax) ? 1
+      : bpm < Math.round(.90*hrMax) ? 2
+      : bpm < Math.round(hrMax) ? 3 : 4;
+    weightedSecs += secs * (zone + 1);
     totalSecs += secs;
   }
   if (!totalSecs) return;
-  var estimate = Math.round(weightedSecs / 60);
+  var estimate = Math.round(weightedSecs / 60 / 7);
   var method = source === "activity average HR only"
     ? "Only the activity average HR is available, so it is treated as constant throughout moving time."
     : "Calculated from " + source + " and their durations.";
-  var tip = "Estimated HR effort: zone-weighted minutes (zones weighted 1–5 using the same HRmax thresholds as the zone chart). "
+  var tip = "Estimated HR effort: time in Strava-like zones (<60%, 60–80%, 80–90%, 90–100%, >100% of HRmax), weighted 1–5 and divided by 7. "
     + method + " This is an estimate, not Strava’s official Relative Effort score.";
   var html = '<div class="card" id="hr-effort-card" title="' + esc(tip) + '">'
     + '<div class="k">HR effort (est.)</div><div class="v">' + estimate + '</div></div>';
