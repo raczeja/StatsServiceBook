@@ -29,9 +29,9 @@ test.describe("data-quality", () => {
     await expect(page.locator("#sources .source")).toHaveCount(3);
     await expect(page.locator("#sources")).toContainText("Club leaderboard");
     await expect(page.locator("#sources .badge")).toHaveText([
-      "OK",
-      "OK",
-      "OK",
+      /^OK/,
+      /^OK/,
+      /^OK/,
     ]);
     await expect(page.locator("#activity-list")).toContainText("City Loop");
     await expect(page.locator("#activity-list")).toContainText("Magene C606");
@@ -131,6 +131,39 @@ test.describe("data-quality", () => {
     await expect(strava.locator("pre.run-log")).toContainText("line 1");
   });
 
+  test("sync-trigger-opens-log-details", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    await page.route("**/strava-sync-status.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          lastAttempt: now,
+          lastSuccess: now,
+          log: ["line 1", "line 2"],
+        }),
+      }),
+    );
+    await page.route("**/cgi-bin/trigger-sync", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      }),
+    );
+    await page.route("**/strava-sync-live.log", (route) =>
+      route.fulfill({ status: 404, body: "" }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    const strava = page.locator("#sources .source").filter({ has: page.locator("h2", { hasText: /^Strava/ }) });
+    const details = strava.locator("details").first();
+    // starts collapsed
+    await expect(strava.locator("pre.run-log"), "log pre hidden before sync").toBeHidden();
+    // trigger sync
+    await strava.locator("button.sync-btn[data-src]").click();
+    // details should open immediately when startLivePolling runs
+    await expect(details, "log <details> opens when sync is triggered").toHaveAttribute("open", "");
+  });
+
   test("no-status-source-cards-are-hidden", async ({ page }) => {
     await page.route("**/strava-sync-status.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
@@ -228,7 +261,7 @@ test.describe("data-quality", () => {
     await expect(sec, "#email-status should be visible when status files present").toBeVisible();
     await expect(sec.locator("h2").first()).toContainText("Email");
     const card = sec.locator(".source").filter({ hasText: "Monthly email" });
-    await expect(card.locator(".badge")).toHaveText("OK");
+    await expect(card.locator(".badge")).toHaveText(/^OK/);
     await expect(card).toContainText("Strava Leaderboard - August 2026");
     await expect(card).toContainText("Recipients: 3");
   });

@@ -163,6 +163,7 @@ var staleAfter=48*60*60;
 var GPS_OPTIONAL={'Swim':1,'Badminton':1,'Squash':1,'TableTennis':1,'WeightTraining':1,'Yoga':1,'Pilates':1,'Workout':1,'Elliptical':1,'StairStepper':1,'RockClimbing':1,'Crossfit':1,'CoreTraining':1,'HighIntensityIntervalTraining':1,'MartialArts':1,'Boxing':1,'Volleyball':1,'Basketball':1,'Soccer':1,'Tennis':1};
 function esc(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});}
 function stamp(value){if(!value)return "not recorded";var date=new Date(Number(value)*1000);return isNaN(date.getTime())?"not recorded":date.toLocaleString();}
+function timeAgo(secs){if(!secs||secs<0)return '';if(secs<120)return 'just now';if(secs<3600)return Math.floor(secs/60)+'m ago';if(secs<86400)return Math.floor(secs/3600)+'h ago';var d=Math.floor(secs/86400);if(d<30)return d+'d ago';var mo=Math.floor(d/30);if(mo<12)return mo+'mo ago';return Math.floor(mo/12)+'y ago';}
 function renderActivityList(activities){
   var showGps=document.getElementById('filter-gps').checked;
   var showHeartRate=document.getElementById('filter-heart-rate').checked;
@@ -211,6 +212,8 @@ function updateLogSectionRaw(srcKey,text){
 }
 function startLivePolling(src,btn,prevAttempt){
   var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],deadline=Date.now()+300000;
+  var logEl=document.getElementById('log-section-'+src);
+  if(logEl){var det=logEl.querySelector('details');if(det)det.open=true;}
   var timer=setInterval(function(){
     if(Date.now()>deadline){clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;return;}
     if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
@@ -296,7 +299,7 @@ function emailCard(name,status){
   var badge,cls;
   if(status.ok===false){badge='Failed';cls='bad';}
   else if(age!==null&&age>staleLimit){badge='Stale';cls='warn';}
-  else{badge='OK';cls='';}
+  else{badge='OK'+(age!==null?' — '+timeAgo(age):'');cls='';}
   var detail='';
   if(status.subject)detail+='<p>Last subject: <em>'+esc(status.subject)+'</em></p>';
   if(status.recipientCount!=null)detail+='<p>Recipients: '+esc(status.recipientCount)+(status.sentCount!=null&&status.sentCount!==status.recipientCount?' ('+esc(status.sentCount)+' sent OK)':'')+'</p>';
@@ -367,7 +370,7 @@ function sourceCard(name,status,srcKey){
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
   var warning=status.ok===false||disabled||!last||age>staleAfter;
-  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK';
+  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK'+(age!==null?' — '+timeAgo(age):'');
   var cls=status.ok===false?'bad':warning?'warn':'';
   var detail=status.error?'<p class="issues">'+esc(status.error)+'</p>':'';
   if(status.mode==='keepalive')detail+='<p>Latest run checked Drive access only; no activities were imported.</p>';
