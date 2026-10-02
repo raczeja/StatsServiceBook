@@ -83,11 +83,14 @@ jobs:
           TMP_DIR=$(mktemp -d)
           pushd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install @playwright/test >/dev/null
+          npm install @playwright/test v8-to-istanbul@9.3.0 >/dev/null
           npx playwright install chromium --with-deps >/dev/null
           mkdir -p "$GITHUB_WORKSPACE/coverage"
           cp "$GITHUB_WORKSPACE/test/test-urls.mjs" .
           cp "$GITHUB_WORKSPACE/test/coverage.mjs" .
+          cp "$GITHUB_WORKSPACE/test/coverage-utils.mjs" .
+          cp "$GITHUB_WORKSPACE/test/coverage-calculation.test.mjs" .
+          node --test coverage-calculation.test.mjs
           node coverage.mjs > coverage.txt
           cp coverage/coverage-summary.json "$GITHUB_WORKSPACE/coverage/coverage-summary.json"
           cat coverage.txt
