@@ -272,6 +272,15 @@ function rideTimeSince(bike, fromDate){
   }
   return t;  // seconds
 }
+function rideTimeBetween(bike, fromDate, toDate){
+  var t=0;
+  for(var i=0;i<RIDES.length;i++){
+    var r=RIDES[i];
+    if((fromDate&&r.date<fromDate)||(toDate&&r.date>toDate)) continue;
+    if(rideMatchesBike(r,bike)) t+=r.time;
+  }
+  return t;
+}
 function rideMileageSince(bike, fromDate){
   var sum = 0;
   for (var i=0;i<RIDES.length;i++){
@@ -297,6 +306,72 @@ function bikeTotals(bike, dateStr){
     if (!last  || r.date > last)  last  = r.date;
   }
   return { km:km, time:time, elev:elev, first:first, last:last };
+}
+function segmentBike(segment){
+  return {id:segment.bikeId,name:segment.bikeName||"",gearId:segment.gearId||"",isDefault:!!segment.isDefault};
+}
+function nextDate(date){
+  var d=new Date(date+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate()+1);
+  return d.toISOString().slice(0,10);
+}
+function partCurrentUsageFrom(part){
+  var from=part.currentBikeInstalledDate||part.installedDate||"";
+  var history=part.usageHistory||[];
+  if(history.length&&from<=history[history.length-1].toDate) from=nextDate(history[history.length-1].toDate);
+  return from;
+}
+function partHistoryKm(part, untilDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!untilDate||segment.toDate<=untilDate) total+=+segment.distance||0;
+  });
+  return total;
+}
+function partHistoryTime(part, untilDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!untilDate||segment.toDate<=untilDate) total+=+segment.time||0;
+  });
+  return total;
+}
+function partUsedKm(bike, part, untilDate){
+  var end=untilDate||todayStr();
+  var currentOdo=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var currentEnd=Math.min(bikeMileage(bike,end),part.archivedMileage!=null&&part.archivedDate&&part.archivedDate<=end?+part.archivedMileage:Infinity);
+  return partHistoryKm(part,end)+Math.max(0,currentEnd-currentOdo);
+}
+function partUsedTime(bike, part, untilDate){
+  var end=untilDate||todayStr();
+  var from=partCurrentUsageFrom(part);
+  if(part.archivedDate&&part.archivedDate<end) end=part.archivedDate;
+  return partHistoryTime(part,end)+rideTimeBetween(bike,from,end);
+}
+function partKmSince(bike, part, fromDate, fromMileage){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!fromDate||fromDate<=segment.fromDate) total+=+segment.distance||0;
+    else if(fromDate<=segment.toDate) total+=Math.max(0,(+segment.toMileage||0)-(+fromMileage||0));
+  });
+  var currentFrom=partCurrentUsageFrom(part);
+  var lo2=fromDate&&fromDate>currentFrom?fromDate:currentFrom;
+  var hi=part.archivedDate||todayStr();
+  var installedMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var baseline=fromDate&&fromDate>currentFrom?(+fromMileage||0):installedMileage;
+  if(lo2<=hi) total+=Math.max(0,bikeMileage(bike,hi)-baseline);
+  return total;
+}
+function partTimeSince(bike, part, fromDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    var lo=fromDate&&fromDate>segment.fromDate?fromDate:segment.fromDate;
+    if(lo<=segment.toDate) total+=rideTimeBetween(segmentBike(segment),lo,segment.toDate);
+  });
+  var currentFrom=partCurrentUsageFrom(part);
+  var lo2=fromDate&&fromDate>currentFrom?fromDate:currentFrom;
+  var hi=part.archivedDate||todayStr();
+  if(lo2<=hi) total+=rideTimeBetween(bike,lo2,hi);
+  return total;
 }
 // All costs on a bike as [{year, amount, label}].
 function bikeAllCosts(bike){
@@ -351,9 +426,16 @@ function partTotalCost(p){
 // (or every ride when the bike has no gear) ridden on/after the part was fitted,
 // bounded by its archived date if it has one.
 function partRides(bike, part){
-  var lo = part.installedDate || "";
-  var hi = part.archivedDate || "9999-12-31";
   var out = [];
+  (part.usageHistory||[]).forEach(function(segment){
+    var oldBike=segmentBike(segment);
+    RIDES.forEach(function(r){
+      if(r.date>=segment.fromDate&&r.date<=segment.toDate&&rideMatchesBike(r,oldBike)) out.push(r);
+    });
+  });
+  var lo=partCurrentUsageFrom(part);
+  var history=part.usageHistory||[];
+  var hi = part.archivedDate || "9999-12-31";
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (lo && r.date < lo) continue;
@@ -402,9 +484,9 @@ function stPct(bike,p,st){
   var svc=(st.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   var last=svc.length?svc[svc.length-1]:null;
   var fromDate=last?last.date:(p.installedDate||"");
-  var refMileage=last?(+last.mileage||0):(+p.installedMileage||0);
-  var refKm=Math.max(0,bikeMileage(bike)-refMileage);
-  var refH=rideTimeSince(bike,fromDate)/3600;
+  var refMileage=last?(+last.mileage||0):(p.currentBikeInstalledMileage!=null?+p.currentBikeInstalledMileage:+p.installedMileage||0);
+  var refKm=partKmSince(bike,p,fromDate,refMileage);
+  var refH=partTimeSince(bike,p,fromDate)/3600;
   var refDays=calendarDaysSince(fromDate);
   var pctKm=(st.alertKm&&+st.alertKm>0)?(refKm/+st.alertKm*100):0;
   var pctH=(st.alertH&&+st.alertH>0)?(refH/+st.alertH*100):0;
@@ -663,8 +745,8 @@ window.removeSvcType = function(i){
 };
 function partForm(part){
   var b = curBike(); if (!b) return;
-  var date = part ? part.installedDate : todayStr();
-  var mi   = part ? part.installedMileage : Math.round(bikeMileage(b, date)*10)/10;
+  var date = part ? (part.currentBikeInstalledDate||part.installedDate) : todayStr();
+  var mi   = part ? (part.currentBikeInstalledMileage!=null?part.currentBikeInstalledMileage:part.installedMileage) : Math.round(bikeMileage(b, date)*10)/10;
   var types=(part&&part.serviceTypes&&part.serviceTypes.length)?part.serviceTypes:[{id:uid("st-"),name:"Service",alertKm:null,alertH:null}];
   var stHtml=types.map(function(st,i){
     return '<div class="st-block" id="st-'+i+'">'+stBlockHtml(i,st.id,st.name,st.alertKm,st.alertH,st.desc,st.alertTimeN,st.alertTimeUnit)+'</div>';
@@ -693,6 +775,41 @@ function partForm(part){
 }
 window.showAddPart = function(){ partForm(null); };
 window.editPart = function(id){ var p=findPart(id); if(p) partForm(p); };
+window.showMovePart = function(id){
+  var p=findPart(id), source=curBike(); if(!p||!source) return;
+  var options=MODEL.bikes.filter(function(b){return b.id!==source.id;}).map(function(b){
+    return '<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';
+  }).join("");
+  if(!options) return;
+  openModal('<h3>Move '+esc(p.name)+'</h3>'+
+    '<p class="muted">Service history, service types, purchase price and recorded costs move with this part. Previous distance and riding time stay in its history.</p>'+
+    '<label>Move to bike</label><select id="move-target">'+options+'</select>'+
+    '<label>Moved on</label><input id="move-date" type="date" value="'+todayStr()+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn primary" onclick="saveMovePart(\''+id+'\')">Move part</button></div>');
+};
+window.saveMovePart = function(id){
+  var p=findPart(id), source=curBike(); if(!p||!source) return;
+  var targetId=document.getElementById("move-target").value, target=null;
+  MODEL.bikes.forEach(function(b){if(b.id===targetId) target=b;});
+  if(!target||target.id===source.id) return;
+  var date=document.getElementById("move-date").value||todayStr();
+  var fromDate=partCurrentUsageFrom(p);
+  var fromMileage=p.currentBikeInstalledMileage!=null?+p.currentBikeInstalledMileage:+p.installedMileage||0;
+  var toMileage=bikeMileage(source,date);
+  if(!p.usageHistory) p.usageHistory=[];
+  if(fromDate<=date){
+    p.usageHistory.push({bikeId:source.id,bikeName:source.name,gearId:source.gearId||"",isDefault:!!source.isDefault,
+      fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:toMileage,
+      distance:Math.max(0,toMileage-fromMileage),time:rideTimeBetween(source,fromDate,date)});
+  }
+  source.parts=source.parts.filter(function(x){return x.id!==id;});
+  p.currentBikeInstalledDate=date;
+  p.currentBikeInstalledMileage=bikeMileage(target,date);
+  target.parts.push(p);
+  selBike=target.id;
+  closeModal(); persist();
+};
 window.savePart = function(id){
   var b = curBike(); if(!b) return;
   var name = document.getElementById("p-name").value.trim();
@@ -727,7 +844,10 @@ window.savePart = function(id){
   if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
   if (id){
     var p = findPart(id);
-    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.serviceTypes=serviceTypes;
+    if (p){ p.name=name; p.note=note;
+      if(p.usageHistory&&p.usageHistory.length){ p.currentBikeInstalledDate=date; p.currentBikeInstalledMileage=mi; }
+      else { p.installedDate=date; p.installedMileage=mi; }
+      p.serviceTypes=serviceTypes;
       p.emailAlert=emailAlert;
       if(cost!=null) p.cost=cost; else delete p.cost; }
   } else {
@@ -998,9 +1118,10 @@ function render(){
   } else {
     html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th>Cost</th><th></th></tr></thead><tbody>';
     active.forEach(function(p){
-      var ridden = Math.max(0, bikeMileage(b) - (+p.installedMileage || 0));
-      var riddenSec = rideTimeSince(b, p.installedDate);
+      var ridden = partUsedKm(b,p);
+      var riddenSec = partUsedTime(b,p);
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
+      if(p.usageHistory&&p.usageHistory.length) noteLine += '<div class="muted">First fitted: '+esc(p.installedDate||"?")+'</div>';
       var replBadge = p.needsReplacement ? '<span class="needs-repl">Needs replacement</span>' : '';
       var types = p.serviceTypes || [];
       var multiType = types.length > 1;
@@ -1011,8 +1132,8 @@ function render(){
         var last=svc.length?svc[svc.length-1]:null;
         var fromDate=last?last.date:(p.installedDate||"");
         var sinceMileage=last?(+last.mileage||0):(+p.installedMileage||0);
-        var sinceKm=Math.max(0,bikeMileage(b)-sinceMileage);
-        var sinceH=Math.max(0,rideTimeSince(b,fromDate)/3600);
+        var sinceKm=partKmSince(b,p,fromDate,sinceMileage);
+        var sinceH=partTimeSince(b,p,fromDate)/3600;
         var sinceDays=calendarDaysSince(fromDate);
         var adv=alertTimeDays(st);
         var pctKm=(st.alertKm&&+st.alertKm>0)?(sinceKm/+st.alertKm*100):0;
@@ -1052,7 +1173,7 @@ function render(){
           (p.cost&&+p.cost>0?'<div class="muted" style="font-size:.78rem">part: '+fmtCost(p.cost)+'</div>':'')
         : '<span class="muted">—</span>';
       html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+replBadge+noteLine+'</td>'+
-        '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
+        '<td style="white-space:nowrap">'+esc(p.currentBikeInstalledDate||p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.currentBikeInstalledMileage!=null?p.currentBikeInstalledMileage:p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
         '<td>'+sinceCell+'</td>'+
@@ -1060,6 +1181,7 @@ function render(){
         '<td style="white-space:nowrap">'+
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
+          (MODEL.bikes.length>1?'<button class="btn sm" onclick="showMovePart(\''+p.id+'\')">Move</button> ':'')+
           '<button class="btn sm" onclick="editPart(\''+p.id+'\')">Edit</button> '+
           '<button class="btn sm danger" onclick="deletePart(\''+p.id+'\')">✕</button>'+
         '</td></tr>';
@@ -1078,7 +1200,7 @@ function render(){
     html += '<table><thead><tr><th>Part</th><th>Lifespan</th><th>Distance on part</th><th>Services</th><th>Cost</th></tr></thead><tbody>';
     archived.sort(function(a,c){ return (c.archivedDate||"") < (a.archivedDate||"") ? -1 : 1; });
     archived.forEach(function(p){
-      var life = (+p.archivedMileage||0) - (+p.installedMileage||0);
+      var life = partUsedKm(b,p,p.archivedDate||todayStr());
       var allSvc=[];
       (p.serviceTypes||[]).forEach(function(st){ allSvc=allSvc.concat(st.services||[]); });
       allSvc.sort(function(a,c){return a.date<c.date?-1:1;});
@@ -1092,7 +1214,7 @@ function render(){
       var aCostCell = aCostTotal>0 ? fmtCost(aCostTotal) : '<span class="muted">—</span>';
       html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
         '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+(dur?'<div class="muted">'+esc(dur)+'</div>':'')+arcNote+'</td>'+
-        '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div></td>'+
+        '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km'+(p.usageHistory&&p.usageHistory.length?'<div class="muted">across '+(p.usageHistory.length+1)+' bikes</div>':'<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div>')+'</td>'+
         '<td class="svc">'+svcTxt+'</td>'+
         '<td class="num">'+aCostCell+'</td></tr>';
       html += '<tr class="ridesrow archived"><td colspan="5">'+ridesBlock(partRides(b, p))+'</td></tr>';
