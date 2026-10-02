@@ -61,6 +61,12 @@ test.describe("activity-detail", () => {
     expect(n >= 4, `expected >= 4 stat cards, got ${n}`).toBeTruthy();
   });
 
+  test("strava-relative-effort-kept-as-official-score", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    expect(text).toContain("Relative effort121");
+    expect(await page.$("#hr-effort-card")).toBeNull();
+  });
+
   test("distance-64km", async () => {
     const text = await page.$eval(".cards", (el) => el.textContent);
     expect(
@@ -489,6 +495,25 @@ test.describe("activity-detail-healthsync-run", () => {
       text.includes("HealthSync") || text.includes("Run"),
       `expected HealthSync or Run in #name, got "${text}"`,
     ).toBeTruthy();
+  });
+
+  test("estimated-hr-effort-from-recorded-pulse", async () => {
+    await page.waitForFunction(
+      () =>
+        document
+          .getElementById("hr-effort-card")
+          ?.getAttribute("title")
+          .includes("recorded HR samples"),
+      { timeout: 10000 },
+    );
+    const card = await page.$eval("#hr-effort-card", (el) => ({
+      label: el.querySelector(".k")?.textContent,
+      value: el.querySelector(".v")?.textContent,
+      title: el.title,
+    }));
+    expect(card.label).toBe("HR effort (est.)");
+    expect(Number(card.value)).toBeGreaterThan(0);
+    expect(card.title).toContain("not Strava");
   });
 
   test("cards-populated", async () => {

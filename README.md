@@ -51,6 +51,8 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 
 - Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
 - Stat cards: pace/speed, VAM, normalized power + variability index, work, calories, relative effort, gear; Walk/Run/Hike activities show **actual device step count** when available (scrape mode), otherwise an estimate (cadence × 2 × moving time)
+- When Strava's Relative Effort score is unavailable, activities with heart-rate data show an estimated zone-weighted HR effort. The estimate uses recorded HR samples or split averages when available, and falls back to average HR; it is not Strava's official score.
+- Personal records on the Stats page also include the highest HR effort, using Strava's score where available and otherwise an estimate from average HR.
 - **Longest-climb detection** — highlights the single longest continuous climb on the route map (blue segment) with sport-aware grade and gain thresholds; configurable via `STRAVA_MY_CLIMB_MIN_GAIN_*`, `STRAVA_MY_CLIMB_MIN_GRADE_*`, `STRAVA_MY_CLIMB_MIN_DISTANCE`, and `STRAVA_MY_CLIMB_DESCENT_RESET` in the config
 - Weather: temperature, feels-like, wind speed + direction, WMO code icon, precipitation — from [Open-Meteo](https://open-meteo.com/) per activity date + GPS location
 
