@@ -63,13 +63,17 @@ jobs:
           TMP_DIR=$(mktemp -d)
           pushd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install playwright @playwright/test @estruyf/github-actions-reporter >/dev/null
+          npm install playwright @playwright/test v8-to-istanbul@9.3.0 @estruyf/github-actions-reporter >/dev/null
           npx playwright install chromium --with-deps >/dev/null
           cp "$GITHUB_WORKSPACE/test/"*.spec.mjs .
           cp "$GITHUB_WORKSPACE/test/test-urls.mjs" .
+          cp "$GITHUB_WORKSPACE/test/coverage-fixture.mjs" .
+          cp "$GITHUB_WORKSPACE/test/coverage-utils.mjs" .
           cp "$GITHUB_WORKSPACE/test/playwright.config.mjs" .
-          mkdir -p test-results playwright-report
-          CI=true npx playwright test --config playwright.config.mjs || test_status=$?
+          mkdir -p test-results playwright-report coverage-data
+          COVERAGE_OUTPUT_DIR="$TMP_DIR/coverage-data" CI=true npx playwright test --config playwright.config.mjs || test_status=$?
+          mkdir -p "$GITHUB_WORKSPACE/coverage-data"
+          cp -r "$TMP_DIR/coverage-data/." "$GITHUB_WORKSPACE/coverage-data/"
           cp -r test-results "$GITHUB_WORKSPACE/test-results" 2>/dev/null || results_copy_status=$?
           cp -r playwright-report "$GITHUB_WORKSPACE/playwright-report" 2>/dev/null || report_copy_status=$?
           if [ "${test_status:-0}" -ne 0 ]; then exit "$test_status"; fi
@@ -78,20 +82,20 @@ jobs:
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
 
-      - name: Run Playwright JS coverage smoke check
+      - name: Report Playwright JS coverage
         run: |
           TMP_DIR=$(mktemp -d)
           pushd "$TMP_DIR"
           npm init -y >/dev/null
-          npm install @playwright/test v8-to-istanbul@9.3.0 >/dev/null
-          npx playwright install chromium --with-deps >/dev/null
+          npm install v8-to-istanbul@9.3.0 >/dev/null
           mkdir -p "$GITHUB_WORKSPACE/coverage"
+          cp -r "$GITHUB_WORKSPACE/coverage-data" .
           cp "$GITHUB_WORKSPACE/test/test-urls.mjs" .
           cp "$GITHUB_WORKSPACE/test/coverage.mjs" .
           cp "$GITHUB_WORKSPACE/test/coverage-utils.mjs" .
           cp "$GITHUB_WORKSPACE/test/coverage-calculation.test.mjs" .
           node --test coverage-calculation.test.mjs
-          node coverage.mjs > coverage.txt
+          COVERAGE_INPUT_DIR="$TMP_DIR/coverage-data" node coverage.mjs > coverage.txt
           cp coverage/coverage-summary.json "$GITHUB_WORKSPACE/coverage/coverage-summary.json"
           cat coverage.txt
         env:
