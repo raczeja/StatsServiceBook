@@ -146,6 +146,113 @@ the CI job may have been cancelled or the artifact upload may have failed.</p>
 HTML
 fi
 
+# Publish the latest browser-side coverage summary at a stable Pages URL.
+mkdir -p site/coverage
+coverage_file="downloaded-coverage/coverage-summary.json"
+if [ -f "$coverage_file" ]; then
+  cp "$coverage_file" site/coverage/coverage-summary.json
+  COVERAGE_FILE="$coverage_file" COVERAGE_HTML="site/coverage/index.html" \
+    GITHUB_RUN_NUMBER="$GITHUB_RUN_NUMBER" \
+    GITHUB_RUN_URL="${GITHUB_RUN_URL:-}" \
+    python3 - <<'PY'
+import html
+import json
+import os
+from datetime import datetime
+
+with open(os.environ["COVERAGE_FILE"], encoding="utf-8") as source:
+    report = json.load(source)
+
+overall = float(report.get("overallPercent", 0))
+generated = report.get("generatedAt", "")
+try:
+    generated = datetime.fromisoformat(generated.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M UTC")
+except (TypeError, ValueError):
+    generated = "Unknown"
+
+def tone(percent):
+    if percent >= 80:
+        return "good"
+    if percent >= 50:
+        return "medium"
+    return "low"
+
+rows = []
+for page in report.get("pages", []):
+    label = html.escape(str(page.get("label", "Unknown")))
+    percent = float(page.get("percent", 0))
+    used = int(page.get("usedBytes", 0))
+    total = int(page.get("totalBytes", 0))
+    rows.append(
+        '<tr>'
+        f'<th scope="row">{label}</th>'
+        f'<td><strong>{percent:.2f}%</strong>'
+        f'<div class="bar"><span class="{tone(percent)}" style="width:{max(0, min(100, percent)):.2f}%"></span></div></td>'
+        f'<td>{used:,} / {total:,} bytes</td>'
+        '</tr>'
+    )
+
+rows_html = "\n".join(rows) or '<tr><td colspan="3">No page coverage data was collected.</td></tr>'
+run_url = os.environ.get("GITHUB_RUN_URL", "")
+run_link = (
+    f'<a href="{html.escape(run_url, quote=True)}">GitHub Actions run #{html.escape(os.environ["GITHUB_RUN_NUMBER"])}</a>'
+    if run_url else f'GitHub Actions run #{html.escape(os.environ["GITHUB_RUN_NUMBER"])}'
+)
+document = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playwright JavaScript Coverage — StatsServiceBook</title>
+<style>
+:root{{color-scheme:light dark;--bg:#f0f2f5;--card:#fff;--ink:#1a1a2e;--muted:#64748b;--line:#e2e8f0;--blue:#2563eb}}
+@media(prefers-color-scheme:dark){{:root{{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--muted:#94a3b8;--line:#334155;--blue:#60a5fa}}}}
+*{{box-sizing:border-box}}body{{font-family:system-ui,Arial,sans-serif;margin:0;background:var(--bg);color:var(--ink)}}
+.topbar{{background:#1a1a2e;color:#fff;padding:.85rem max(1.25rem,calc((100% - 56rem)/2));font-weight:700}}
+main{{max-width:56rem;margin:0 auto;padding:2rem 1.25rem}}a{{color:var(--blue);text-decoration:none}}a:hover{{text-decoration:underline}}
+.nav{{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;font-size:.9rem}}
+.card{{background:var(--card);border:1px solid var(--line);border-radius:.8rem;padding:1.25rem;margin-bottom:1rem}}
+.summary{{display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap}}.score{{font-size:2.6rem;font-weight:800;line-height:1}}
+.good{{color:#16a34a}}.medium{{color:#ca8a04}}.low{{color:#dc2626}}.muted{{color:var(--muted);font-size:.88rem}}
+table{{width:100%;border-collapse:collapse;text-align:left}}th,td{{padding:.8rem .55rem;border-bottom:1px solid var(--line);vertical-align:middle}}thead th{{font-size:.8rem;color:var(--muted)}}
+.bar{{height:.45rem;background:var(--line);border-radius:99px;overflow:hidden;margin-top:.4rem;max-width:18rem}}.bar span{{display:block;height:100%;border-radius:inherit;background:currentColor}}
+@media(max-width:36rem){{th,td{{padding:.65rem .35rem;font-size:.82rem}}}}
+</style>
+</head>
+<body>
+<header class="topbar">StatsServiceBook · Playwright Coverage</header>
+<main>
+<nav class="nav"><a href="../">← Test reports</a><a href="../stats/">Test statistics — last 30 days</a>{f'<a href="../run-{html.escape(os.environ["GITHUB_RUN_NUMBER"])}/">Playwright report for this run</a>'}</nav>
+<section class="card summary">
+<div class="score {tone(overall)}">{overall:.2f}%</div>
+<div><h1>Browser-side JavaScript coverage</h1><div class="muted">Measured {html.escape(generated)} · {run_link}</div></div>
+</section>
+<section class="card">
+<h2>Coverage by page</h2>
+<p class="muted">Percentage of first-party JavaScript bytes executed during each page's initial load. This is not line coverage and does not include shell scripts or third-party libraries.</p>
+<table><thead><tr><th>Page</th><th>Executed</th><th>Bytes</th></tr></thead><tbody>{rows_html}</tbody></table>
+</section>
+</main>
+</body>
+</html>
+"""
+with open(os.environ["COVERAGE_HTML"], "w", encoding="utf-8") as output:
+    output.write(document)
+PY
+else
+  rm -f site/coverage/coverage-summary.json
+  cat > site/coverage/index.html <<HTML
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playwright coverage unavailable — StatsServiceBook</title>
+<style>body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f0f2f5;color:#1a1a2e}.topbar{background:#1a1a2e;color:#fff;padding:1rem 2rem;font-weight:700}main{max-width:42rem;margin:4rem auto;padding:0 1.5rem}p{color:#64748b}a{color:#2563eb;text-decoration:none}</style>
+</head><body><header class="topbar">StatsServiceBook · Playwright Coverage</header>
+<main><h1>Coverage unavailable</h1>
+<p>No coverage artifact was produced for this workflow run. The test job may have been cancelled or failed before collection completed.</p>
+<p><a href="../">← Back to test reports</a></p></main></body></html>
+HTML
+fi
+
 touch site/.nojekyll
 
 cat > site/404.html <<'HTML'
@@ -204,6 +311,7 @@ echo "[size] Final site size: $(site_size_mb)"
   echo '</div>'
   echo '<div class="page">'
   echo '<a class="stats-link" href="./stats/">📊 Test Statistics — last 30 days</a>'
+  echo '<a class="stats-link" href="./coverage/">📈 Playwright JavaScript Coverage</a>'
   echo '<div class="card">'
   echo '<h2>Recent runs</h2>'
   echo '<ul>'
