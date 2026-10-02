@@ -39,6 +39,13 @@ a{color:var(--accent)}
 .tab{background:var(--surface);border:1px solid var(--border-3);border-radius:.4rem;padding:.35rem .7rem;cursor:pointer;font:inherit;color:var(--text-2)}
 .tab.active{background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:600}
 .tab.add{border-style:dashed;color:var(--accent)}
+.inventory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
+.inventory-item{border:1px solid var(--border-3);border-radius:.4rem;padding:.65rem}
+.inventory-item h3{margin:0 0 .25rem;font-size:1rem}
+.queue-due{color:var(--red);font-weight:700}.queue-upcoming{color:#a66a00;font-weight:600}
+@media(prefers-color-scheme:dark){.queue-upcoming{color:#e5b95c}}
+[data-theme=dark] .queue-upcoming{color:#e5b95c}
+[data-theme=light] .queue-upcoming{color:#8a5a00}
 .panel{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:.5rem;padding:.85rem 1rem;margin:.5rem 0}
 .odo{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:baseline;margin:.2rem 0 .6rem}
 .odo .big{font-size:1.8rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
@@ -167,7 +174,7 @@ var ACT   = null;   // activities.json (rides + gear names)
 var RIDES = [];     // [{date, km, gear}] sorted ascending by date
 var GEARS = {};     // gear_id -> { name }
 var DEFGEAR = "";   // default gear for untagged rides (most recently used bike)
-var MODEL = { version: 1, bikes: [] };
+var MODEL = { version: 1, bikes: [], inventory: [] };
 var selBike = null; // selected bike id
 var SAVING  = false;
 
@@ -272,6 +279,15 @@ function rideTimeSince(bike, fromDate){
   }
   return t;  // seconds
 }
+function rideTimeBetween(bike, fromDate, toDate){
+  var t=0;
+  for(var i=0;i<RIDES.length;i++){
+    var r=RIDES[i];
+    if((fromDate&&r.date<fromDate)||(toDate&&r.date>toDate)) continue;
+    if(rideMatchesBike(r,bike)) t+=r.time;
+  }
+  return t;
+}
 function rideMileageSince(bike, fromDate){
   var sum = 0;
   for (var i=0;i<RIDES.length;i++){
@@ -297,6 +313,72 @@ function bikeTotals(bike, dateStr){
     if (!last  || r.date > last)  last  = r.date;
   }
   return { km:km, time:time, elev:elev, first:first, last:last };
+}
+function segmentBike(segment){
+  return {id:segment.bikeId,name:segment.bikeName||"",gearId:segment.gearId||"",isDefault:!!segment.isDefault};
+}
+function nextDate(date){
+  var d=new Date(date+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate()+1);
+  return d.toISOString().slice(0,10);
+}
+function partCurrentUsageFrom(part){
+  var from=part.currentBikeInstalledDate||part.installedDate||"";
+  var history=part.usageHistory||[];
+  if(history.length&&from<=history[history.length-1].toDate) from=nextDate(history[history.length-1].toDate);
+  return from;
+}
+function partHistoryKm(part, untilDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!untilDate||segment.toDate<=untilDate) total+=+segment.distance||0;
+  });
+  return total;
+}
+function partHistoryTime(part, untilDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!untilDate||segment.toDate<=untilDate) total+=+segment.time||0;
+  });
+  return total;
+}
+function partUsedKm(bike, part, untilDate){
+  var end=untilDate||todayStr();
+  var currentOdo=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var currentEnd=Math.min(bikeMileage(bike,end),part.archivedMileage!=null&&part.archivedDate&&part.archivedDate<=end?+part.archivedMileage:Infinity);
+  return partHistoryKm(part,end)+Math.max(0,currentEnd-currentOdo);
+}
+function partUsedTime(bike, part, untilDate){
+  var end=untilDate||todayStr();
+  var from=partCurrentUsageFrom(part);
+  if(part.archivedDate&&part.archivedDate<end) end=part.archivedDate;
+  return partHistoryTime(part,end)+rideTimeBetween(bike,from,end);
+}
+function partKmSince(bike, part, fromDate, fromMileage){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    if(!fromDate||fromDate<=segment.fromDate) total+=+segment.distance||0;
+    else if(fromDate<=segment.toDate) total+=Math.max(0,(+segment.toMileage||0)-(+fromMileage||0));
+  });
+  var currentFrom=partCurrentUsageFrom(part);
+  var lo2=fromDate&&fromDate>currentFrom?fromDate:currentFrom;
+  var hi=part.archivedDate||todayStr();
+  var installedMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var baseline=fromDate&&fromDate>currentFrom?(+fromMileage||0):installedMileage;
+  if(lo2<=hi) total+=Math.max(0,bikeMileage(bike,hi)-baseline);
+  return total;
+}
+function partTimeSince(bike, part, fromDate){
+  var total=0;
+  (part.usageHistory||[]).forEach(function(segment){
+    var lo=fromDate&&fromDate>segment.fromDate?fromDate:segment.fromDate;
+    if(lo<=segment.toDate) total+=rideTimeBetween(segmentBike(segment),lo,segment.toDate);
+  });
+  var currentFrom=partCurrentUsageFrom(part);
+  var lo2=fromDate&&fromDate>currentFrom?fromDate:currentFrom;
+  var hi=part.archivedDate||todayStr();
+  if(lo2<=hi) total+=rideTimeBetween(bike,lo2,hi);
+  return total;
 }
 // All costs on a bike as [{year, amount, label}].
 function bikeAllCosts(bike){
@@ -351,9 +433,16 @@ function partTotalCost(p){
 // (or every ride when the bike has no gear) ridden on/after the part was fitted,
 // bounded by its archived date if it has one.
 function partRides(bike, part){
-  var lo = part.installedDate || "";
-  var hi = part.archivedDate || "9999-12-31";
   var out = [];
+  (part.usageHistory||[]).forEach(function(segment){
+    var oldBike=segmentBike(segment);
+    RIDES.forEach(function(r){
+      if(r.date>=segment.fromDate&&r.date<=segment.toDate&&rideMatchesBike(r,oldBike)) out.push(r);
+    });
+  });
+  var lo=partCurrentUsageFrom(part);
+  var history=part.usageHistory||[];
+  var hi = part.archivedDate || "9999-12-31";
   for (var i=0;i<RIDES.length;i++){
     var r = RIDES[i];
     if (lo && r.date < lo) continue;
@@ -402,9 +491,9 @@ function stPct(bike,p,st){
   var svc=(st.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   var last=svc.length?svc[svc.length-1]:null;
   var fromDate=last?last.date:(p.installedDate||"");
-  var refMileage=last?(+last.mileage||0):(+p.installedMileage||0);
-  var refKm=Math.max(0,bikeMileage(bike)-refMileage);
-  var refH=rideTimeSince(bike,fromDate)/3600;
+  var refMileage=last?(+last.mileage||0):(p.currentBikeInstalledMileage!=null?+p.currentBikeInstalledMileage:+p.installedMileage||0);
+  var refKm=partKmSince(bike,p,fromDate,refMileage);
+  var refH=partTimeSince(bike,p,fromDate)/3600;
   var refDays=calendarDaysSince(fromDate);
   var pctKm=(st.alertKm&&+st.alertKm>0)?(refKm/+st.alertKm*100):0;
   var pctH=(st.alertH&&+st.alertH>0)?(refH/+st.alertH*100):0;
@@ -418,6 +507,43 @@ function partPct(bike,p){
   var max=0;
   types.forEach(function(st){ max=Math.max(max,stPct(bike,p,st)); });
   return max;
+}
+function serviceQueueHtml(){
+  var items=[];
+  MODEL.bikes.forEach(function(bike){
+    (bike.parts||[]).forEach(function(part){
+      if(part.status==="archived") return;
+      (part.serviceTypes||[]).forEach(function(st){
+        var hasThreshold=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0)||(alertTimeDays(st)>0);
+        if(!hasThreshold) return;
+        var pct=stPct(bike,part,st);
+        if(pct>=80) items.push({bike:bike,part:part,type:st.name||"Service",pct:pct});
+      });
+      if(part.needsReplacement){
+        items.push({bike:bike,part:part,type:"Replacement required",pct:Math.max(100,partPct(bike,part))});
+      }
+    });
+  });
+  var hasOverdue=items.some(function(item){return item.pct>=100;});
+  if(!hasOverdue) return "";
+  items.sort(function(a,b){
+    if(a.pct!==b.pct) return b.pct-a.pct;
+    var bikeOrder=a.bike.name.localeCompare(b.bike.name);
+    if(bikeOrder) return bikeOrder;
+    var partOrder=a.part.name.localeCompare(b.part.name);
+    return partOrder||a.type.localeCompare(b.type);
+  });
+  var rows=items.map(function(item){
+    var overdue=item.pct>=100;
+    return '<tr><td class="'+(overdue?'queue-due':'queue-upcoming')+'">'+
+      (overdue?'Overdue':'Upcoming')+' · '+Math.round(item.pct)+'%</td>'+
+      '<td>'+esc(item.bike.name)+'</td><td><b>'+esc(item.part.name)+'</b>'+
+      '<div class="muted">'+esc(item.type)+'</div></td>'+
+      '<td><button class="btn sm" data-queue-bike="'+esc(item.bike.id)+'">View bike</button></td></tr>';
+  }).join("");
+  return '<div class="sec" data-sid="service-queue"><h2>Service work queue</h2>'+
+    '<table><thead><tr><th>Urgency</th><th>Bike</th><th>Part / service</th><th></th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>';
 }
 // One-time migration: old flat services/alertKm/alertH → serviceTypes array.
 function migratePart(p){
@@ -492,6 +618,7 @@ function loadAll(){
     .then(function(r){ if(!r.ok) throw new Error("bike-service CGI HTTP "+r.status); return r.json(); })
     .then(function(m){
       MODEL = (m && Array.isArray(m.bikes)) ? m : { version:1, bikes:[] };
+      if (!Array.isArray(MODEL.inventory)) MODEL.inventory = [];
       // The CGI accepts any {bikes:[...]} shape; guard against a stored/edited
       // bike that lacks a parts array so render()'s b.parts.filter never throws.
       MODEL.bikes.forEach(function(b){ if (!Array.isArray(b.parts)) b.parts = []; });
@@ -663,8 +790,8 @@ window.removeSvcType = function(i){
 };
 function partForm(part){
   var b = curBike(); if (!b) return;
-  var date = part ? part.installedDate : todayStr();
-  var mi   = part ? part.installedMileage : Math.round(bikeMileage(b, date)*10)/10;
+  var date = part ? (part.currentBikeInstalledDate||part.installedDate) : todayStr();
+  var mi   = part ? (part.currentBikeInstalledMileage!=null?part.currentBikeInstalledMileage:part.installedMileage) : Math.round(bikeMileage(b, date)*10)/10;
   var types=(part&&part.serviceTypes&&part.serviceTypes.length)?part.serviceTypes:[{id:uid("st-"),name:"Service",alertKm:null,alertH:null}];
   var stHtml=types.map(function(st,i){
     return '<div class="st-block" id="st-'+i+'">'+stBlockHtml(i,st.id,st.name,st.alertKm,st.alertH,st.desc,st.alertTimeN,st.alertTimeUnit)+'</div>';
@@ -693,6 +820,41 @@ function partForm(part){
 }
 window.showAddPart = function(){ partForm(null); };
 window.editPart = function(id){ var p=findPart(id); if(p) partForm(p); };
+window.showMovePart = function(id){
+  var p=findPart(id), source=curBike(); if(!p||!source) return;
+  var options=MODEL.bikes.filter(function(b){return b.id!==source.id;}).map(function(b){
+    return '<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';
+  }).join("");
+  if(!options) return;
+  openModal('<h3>Move '+esc(p.name)+'</h3>'+
+    '<p class="muted">Service history, service types, purchase price and recorded costs move with this part. Previous distance and riding time stay in its history.</p>'+
+    '<label>Move to bike</label><select id="move-target">'+options+'</select>'+
+    '<label>Moved on</label><input id="move-date" type="date" value="'+todayStr()+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
+    '<button class="btn primary" onclick="saveMovePart(\''+id+'\')">Move part</button></div>');
+};
+window.saveMovePart = function(id){
+  var p=findPart(id), source=curBike(); if(!p||!source) return;
+  var targetId=document.getElementById("move-target").value, target=null;
+  MODEL.bikes.forEach(function(b){if(b.id===targetId) target=b;});
+  if(!target||target.id===source.id) return;
+  var date=document.getElementById("move-date").value||todayStr();
+  var fromDate=partCurrentUsageFrom(p);
+  var fromMileage=p.currentBikeInstalledMileage!=null?+p.currentBikeInstalledMileage:+p.installedMileage||0;
+  var toMileage=bikeMileage(source,date);
+  if(!p.usageHistory) p.usageHistory=[];
+  if(fromDate<=date){
+    p.usageHistory.push({bikeId:source.id,bikeName:source.name,gearId:source.gearId||"",isDefault:!!source.isDefault,
+      fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:toMileage,
+      distance:Math.max(0,toMileage-fromMileage),time:rideTimeBetween(source,fromDate,date)});
+  }
+  source.parts=source.parts.filter(function(x){return x.id!==id;});
+  p.currentBikeInstalledDate=date;
+  p.currentBikeInstalledMileage=bikeMileage(target,date);
+  target.parts.push(p);
+  selBike=target.id;
+  closeModal(); persist();
+};
 window.savePart = function(id){
   var b = curBike(); if(!b) return;
   var name = document.getElementById("p-name").value.trim();
@@ -727,7 +889,10 @@ window.savePart = function(id){
   if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
   if (id){
     var p = findPart(id);
-    if (p){ p.name=name; p.note=note; p.installedDate=date; p.installedMileage=mi; p.serviceTypes=serviceTypes;
+    if (p){ p.name=name; p.note=note;
+      if(p.usageHistory&&p.usageHistory.length){ p.currentBikeInstalledDate=date; p.currentBikeInstalledMileage=mi; }
+      else { p.installedDate=date; p.installedMileage=mi; }
+      p.serviceTypes=serviceTypes;
       p.emailAlert=emailAlert;
       if(cost!=null) p.cost=cost; else delete p.cost; }
   } else {
@@ -743,6 +908,128 @@ window.deletePart = function(id){
   if (!confirm('Delete part "'+p.name+'" and its service history?')) return;
   var b = curBike(); b.parts = b.parts.filter(function(x){ return x.id!==id; });
   closeModal(); persist();
+};
+window.showAddStock = function(){
+  openModal('<h3>Add to parts inventory</h3>'+
+    '<label>Part name</label><input id="stock-name" placeholder="e.g. Chain, brake pads, tyre">'+
+    '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="1">'+
+    '<label>Original install date</label><input id="stock-installed" type="date" value="'+todayStr()+'">'+
+    '<label>Distance already used (km)</label><input id="stock-distance" type="number" min="0" step="0.1" value="0">'+
+    '<label>Note (optional)</label><textarea id="stock-note"></textarea>'+
+    '<label>Unit cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label><input id="stock-cost" type="number" min="0" step="0.01">'+
+    '<div style="font-size:.82rem;font-weight:600;margin:.5rem 0">Service history</div><div id="stock-services"></div>'+
+    '<button class="btn sm" onclick="addStockService()">＋ Add service record</button>'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveStock()">Add stock</button></div>');
+};
+window.addStockService = function(){
+  var list=document.getElementById("stock-services");if(!list)return;
+  var row=document.createElement("div");row.className="stock-service panel";
+  row.innerHTML='<label>Service type</label><input class="stock-service-type" value="Service">'+
+    '<div class="row"><div><label>Date</label><input class="stock-service-date" type="date" value="'+todayStr()+'"></div>'+
+    '<div><label>Part mileage at service (km)</label><input class="stock-service-mileage" type="number" min="0" step="0.1" value="0"></div></div>'+
+    '<label>Note</label><textarea class="stock-service-note"></textarea>'+
+    '<label>Service cost (optional)</label><input class="stock-service-cost" type="number" min="0" step="0.01">'+
+    '<button class="btn sm danger" onclick="this.parentNode.remove()">Remove service</button>';
+  list.appendChild(row);
+};
+window.saveStock = function(){
+  var name=document.getElementById("stock-name").value.trim();
+  var qty=+document.getElementById("stock-qty").value;
+  if(!name){document.getElementById("stock-name").focus();return;}
+  if(!Number.isInteger(qty)||qty<1){document.getElementById("stock-qty").focus();return;}
+  var installedDate=document.getElementById("stock-installed").value||todayStr();
+  var distance=+document.getElementById("stock-distance").value||0;
+  if(distance<0){document.getElementById("stock-distance").focus();return;}
+  var item={id:uid("inv-"),name:name,quantity:qty,note:document.getElementById("stock-note").value,
+    installedDate:installedDate,installedMileage:0,status:"new",serviceTypes:[]};
+  var servicesByType={};
+  document.querySelectorAll("#stock-services .stock-service").forEach(function(row){
+    var type=row.querySelector(".stock-service-type").value.trim()||"Service";
+    var service={id:uid("s-"),date:row.querySelector(".stock-service-date").value||installedDate,
+      mileage:+row.querySelector(".stock-service-mileage").value||0,note:row.querySelector(".stock-service-note").value};
+    var serviceCost=row.querySelector(".stock-service-cost").value;
+    if(serviceCost!=="")service.cost=+serviceCost;
+    if(!servicesByType[type])servicesByType[type]={id:uid("st-"),name:type,services:[]};
+    servicesByType[type].services.push(service);
+  });
+  item.serviceTypes=Object.keys(servicesByType).map(function(type){return servicesByType[type];});
+  if(distance>0)item.usageHistory=[{bikeId:"inventory-history",bikeName:"Previous use",gearId:"",isDefault:false,
+    fromDate:installedDate,toDate:todayStr(),fromMileage:0,toMileage:distance,distance:distance,time:0}];
+  var cost=document.getElementById("stock-cost").value;
+  if(cost!=="") item.cost=+cost;
+  MODEL.inventory.push(item);
+  closeModal();persist();
+};
+window.showEditStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
+  openModal('<h3>Edit inventory item</h3>'+
+    '<label>Part name</label><input id="stock-name" value="'+esc(item.name)+'">'+
+    '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="'+(+item.quantity||1)+'">'+
+  '<div class="muted">Previously used: '+fmtKm(partHistoryKm(item))+' km · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' service records</div>'+
+  '<label>Note (optional)</label><textarea id="stock-note">'+esc(item.note||"")+'</textarea>'+
+    '<label>Unit cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label><input id="stock-cost" type="number" min="0" step="0.01" value="'+(item.cost!=null?+item.cost:'')+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveStockEdit(\''+id+'\')">Save</button></div>');
+};
+window.saveStockEdit = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
+  var name=document.getElementById("stock-name").value.trim(),qty=+document.getElementById("stock-qty").value;
+  if(!name||!Number.isInteger(qty)||qty<1)return;
+  item.name=name;item.quantity=qty;item.note=document.getElementById("stock-note").value;
+  var cost=document.getElementById("stock-cost").value;
+  if(cost!=="")item.cost=+cost;else delete item.cost;
+  closeModal();persist();
+};
+window.deleteStock = function(id){
+  if(!confirm("Delete this inventory item and its remaining stock?"))return;
+  MODEL.inventory=MODEL.inventory.filter(function(x){return x.id!==id;});persist();
+};
+window.showInstallStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0],bike=curBike();
+  if(!item||!bike||(+item.quantity||0)<1)return;
+  openModal('<h3>Install '+esc(item.name)+'</h3>'+
+    '<p class="muted">One item will be removed from the shared inventory. Its previous service history is retained.</p>'+
+    '<label>Installed date</label><input id="stock-date" type="date" value="'+todayStr()+'">'+
+    '<label>Mileage on this bike (km)</label><input id="stock-mileage" type="number" step="1" value="'+Math.round(bikeMileage(bike,todayStr())*10)/10+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="installStock(\''+id+'\')">Install part</button></div>');
+};
+window.installStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0],bike=curBike();
+  if(!item||!bike||(+item.quantity||0)<1)return;
+  var part=JSON.parse(JSON.stringify(item));
+  delete part.quantity;delete part.compatibleBikeIds;delete part.inventoryMovedAt;delete part.id;
+  part.id=uid("p-");part.status="new";part.needsReplacement=false;
+  var date=document.getElementById("stock-date").value||todayStr();
+  var mileage=+document.getElementById("stock-mileage").value||0;
+  if(part.usageHistory&&part.usageHistory.length){part.currentBikeInstalledDate=date;part.currentBikeInstalledMileage=mileage;}
+  else{part.installedDate=date;part.installedMileage=mileage;}
+  delete part.archivedDate;delete part.archivedMileage;delete part.archiveNote;delete part.replacedById;
+  bike.parts.push(part);item.quantity--;
+  MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
+  closeModal();persist();
+};
+window.movePartToInventory = function(id){
+  var part=findPart(id),bike=curBike();if(!part||!bike)return;
+  var bikeNames=MODEL.bikes.map(function(b){return esc(b.name);}).join(", ");
+  openModal('<h3>Move '+esc(part.name)+' to shared inventory</h3>'+
+    '<p class="muted">Service history and recorded costs move with the part. Mileage and riding time on this bike are saved to its history.</p>'+
+    '<label>Moved on</label><input id="stock-date" type="date" value="'+todayStr()+'">'+
+    '<div class="muted">Available for all bikes: '+bikeNames+'</div>'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveMoveToInventory(\''+id+'\')">Move to inventory</button></div>');
+};
+window.saveMoveToInventory = function(id){
+  var part=findPart(id),bike=curBike();if(!part||!bike)return;
+  var date=document.getElementById("stock-date").value||todayStr();
+  var fromDate=partCurrentUsageFrom(part);
+  var fromMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var toMileage=bikeMileage(bike,date);
+  if(!part.usageHistory)part.usageHistory=[];
+  if(fromDate<=date)part.usageHistory.push({bikeId:bike.id,bikeName:bike.name,gearId:bike.gearId||"",isDefault:!!bike.isDefault,
+    fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:toMileage,
+    distance:Math.max(0,toMileage-fromMileage),time:rideTimeBetween(bike,fromDate,date)});
+  part.quantity=1;
+  part.inventoryMovedAt=date;
+  bike.parts=bike.parts.filter(function(x){return x.id!==id;});
+  MODEL.inventory.push(part);closeModal();persist();
 };
 function findPart(id){
   var b = curBike(); if(!b) return null;
@@ -851,6 +1138,11 @@ window.drop = function(e, targetId, el){
 window.showReplace = function(id){
   var b = curBike(), p = findPart(id); if(!b||!p) return;
   var date = todayStr();
+  var stockOptions='<option value="">New part (not from inventory)</option>';
+  MODEL.inventory.forEach(function(item){
+    if((+item.quantity||0)>0)
+      stockOptions+='<option value="'+esc(item.id)+'"'+(item.name.toLowerCase()===p.name.toLowerCase()?' selected':'')+'>'+esc(item.name)+' ('+item.quantity+' in stock)</option>';
+  });
   openModal(
     '<h3>Replace: '+esc(p.name)+'</h3>'+
     '<p class="muted">The old part moves to <b>Archived</b>, recording its final mileage.</p>'+
@@ -865,6 +1157,7 @@ window.showReplace = function(id){
     '<label>New part name</label><input id="r-newname" value="'+esc(p.name)+'">'+
     '<label>New part cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
     '<input id="r-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00">'+
+    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveReplace(\''+id+'\')">Replace</button></div>'
   );
@@ -880,12 +1173,26 @@ window.saveReplace = function(id){
   p.needsReplacement = false;
   if (note) p.archiveNote = note;
   if (document.getElementById("r-new").checked){
-    var nm = document.getElementById("r-newname").value.trim() || p.name;
-    var rCostEl = document.getElementById("r-cost");
-    var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
-    var np = { id:uid("p-"), name:nm, note:"", installedDate:date,
-      installedMileage:mi, status:"new", services:[] };
-    if(rCost!=null) np.cost=rCost;
+    var stockId=document.getElementById("r-stock").value;
+    var stock=stockId?MODEL.inventory.filter(function(x){return x.id===stockId;})[0]:null;
+    var np;
+    if(stock&&(+stock.quantity||0)>0){
+      np=JSON.parse(JSON.stringify(stock));
+      delete np.quantity;delete np.compatibleBikeIds;delete np.inventoryMovedAt;delete np.id;
+      np.id=uid("p-");
+      if(np.usageHistory&&np.usageHistory.length){np.currentBikeInstalledDate=date;np.currentBikeInstalledMileage=mi;}
+      else{np.installedDate=date;np.installedMileage=mi;}
+      np.status="new";np.needsReplacement=false;delete np.archivedDate;delete np.archivedMileage;delete np.archiveNote;delete np.replacedById;
+      stock.quantity--;
+      MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
+    }else{
+      var nm = document.getElementById("r-newname").value.trim() || p.name;
+      var rCostEl = document.getElementById("r-cost");
+      var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
+      np = { id:uid("p-"), name:nm, note:"", installedDate:date,
+        installedMileage:mi, status:"new", services:[] };
+      if(rCost!=null) np.cost=rCost;
+    }
     b.parts.push(np);
     p.replacedById = np.id;
   }
@@ -900,7 +1207,6 @@ function render(){
   }).join("");
   bt += '<button class="tab add" onclick="showAddBike()">＋ Add bike</button>';
   document.getElementById("bikes").innerHTML = bt;
-
   var gen = (ACT && ACT.generatedAt) ? (" · rides as of " + esc(ACT.generatedAt.slice(0,10))) : "";
   document.getElementById("meta").innerHTML =
     RIDES.length + " outdoor rides found in activities.json" + gen +
@@ -944,8 +1250,26 @@ function render(){
     (bsActiveParts>0?'<div><div class="k">Parts</div><div class="big" style="font-size:1.2rem">'+bsActiveParts+'</div></div>':'')+
     '</div>'+
     '<div><button class="btn primary" onclick="showAddPart()">＋ Add part</button> '+
+    '<button class="btn sm" onclick="showAddStock()">＋ Add stock</button> '+
     '<button class="btn sm" onclick="editBike(\''+b.id+'\')">Edit bike</button> '+
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
+
+  html += serviceQueueHtml();
+
+  if(MODEL.inventory.some(function(item){return +item.quantity>0;})){
+    html+='<div class="sec" data-sid="inventory"><h2>Shared parts inventory</h2>'+
+      '<p class="muted">Spare parts available for any bike. Stock is reduced when a part is installed or used as a replacement.</p>'+
+      '<div class="inventory-grid">';
+    MODEL.inventory.filter(function(item){return +item.quantity>0;}).forEach(function(item){
+      html+='<div class="inventory-item"><h3>'+esc(item.name)+' <span class="muted">× '+(+item.quantity||0)+'</span></h3>'+
+        (item.note?'<div class="muted">'+esc(item.note)+'</div>':'')+
+        '<div class="muted">'+fmtKm(partHistoryKm(item))+' km used · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' services · available for all bikes'+(item.cost!=null?' · '+fmtCost(item.cost)+' each':'')+'</div>'+
+        '<button class="btn sm" onclick="showInstallStock(\''+item.id+'\')">Install on '+esc(b.name)+'</button> '+
+        '<button class="btn sm" onclick="showEditStock(\''+item.id+'\')">Edit</button> '+
+        '<button class="btn sm danger" onclick="deleteStock(\''+item.id+'\')">Delete</button></div>';
+    });
+    html+='</div></div>';
+  }
 
   // cost summary block
   var totalCost = bikeTotalCost(b);
@@ -998,9 +1322,10 @@ function render(){
   } else {
     html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th>Cost</th><th></th></tr></thead><tbody>';
     active.forEach(function(p){
-      var ridden = Math.max(0, bikeMileage(b) - (+p.installedMileage || 0));
-      var riddenSec = rideTimeSince(b, p.installedDate);
+      var ridden = partUsedKm(b,p);
+      var riddenSec = partUsedTime(b,p);
       var noteLine = p.note ? '<div class="muted">'+esc(p.note)+'</div>' : '';
+      if(p.usageHistory&&p.usageHistory.length) noteLine += '<div class="muted">First fitted: '+esc(p.installedDate||"?")+'</div>';
       var replBadge = p.needsReplacement ? '<span class="needs-repl">Needs replacement</span>' : '';
       var types = p.serviceTypes || [];
       var multiType = types.length > 1;
@@ -1011,8 +1336,8 @@ function render(){
         var last=svc.length?svc[svc.length-1]:null;
         var fromDate=last?last.date:(p.installedDate||"");
         var sinceMileage=last?(+last.mileage||0):(+p.installedMileage||0);
-        var sinceKm=Math.max(0,bikeMileage(b)-sinceMileage);
-        var sinceH=Math.max(0,rideTimeSince(b,fromDate)/3600);
+        var sinceKm=partKmSince(b,p,fromDate,sinceMileage);
+        var sinceH=partTimeSince(b,p,fromDate)/3600;
         var sinceDays=calendarDaysSince(fromDate);
         var adv=alertTimeDays(st);
         var pctKm=(st.alertKm&&+st.alertKm>0)?(sinceKm/+st.alertKm*100):0;
@@ -1052,7 +1377,7 @@ function render(){
           (p.cost&&+p.cost>0?'<div class="muted" style="font-size:.78rem">part: '+fmtCost(p.cost)+'</div>':'')
         : '<span class="muted">—</span>';
       html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+replBadge+noteLine+'</td>'+
-        '<td style="white-space:nowrap">'+esc(p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.installedMileage)+' km</div></td>'+
+        '<td style="white-space:nowrap">'+esc(p.currentBikeInstalledDate||p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.currentBikeInstalledMileage!=null?p.currentBikeInstalledMileage:p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
         '<td>'+sinceCell+'</td>'+
@@ -1060,6 +1385,8 @@ function render(){
         '<td style="white-space:nowrap">'+
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
+          (MODEL.bikes.length>1?'<button class="btn sm" onclick="showMovePart(\''+p.id+'\')">Move</button> ':'')+
+          '<button class="btn sm" onclick="movePartToInventory(\''+p.id+'\')">To inventory</button> '+
           '<button class="btn sm" onclick="editPart(\''+p.id+'\')">Edit</button> '+
           '<button class="btn sm danger" onclick="deletePart(\''+p.id+'\')">✕</button>'+
         '</td></tr>';
@@ -1078,7 +1405,7 @@ function render(){
     html += '<table><thead><tr><th>Part</th><th>Lifespan</th><th>Distance on part</th><th>Services</th><th>Cost</th></tr></thead><tbody>';
     archived.sort(function(a,c){ return (c.archivedDate||"") < (a.archivedDate||"") ? -1 : 1; });
     archived.forEach(function(p){
-      var life = (+p.archivedMileage||0) - (+p.installedMileage||0);
+      var life = partUsedKm(b,p,p.archivedDate||todayStr());
       var allSvc=[];
       (p.serviceTypes||[]).forEach(function(st){ allSvc=allSvc.concat(st.services||[]); });
       allSvc.sort(function(a,c){return a.date<c.date?-1:1;});
@@ -1092,7 +1419,7 @@ function render(){
       var aCostCell = aCostTotal>0 ? fmtCost(aCostTotal) : '<span class="muted">—</span>';
       html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
         '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+(dur?'<div class="muted">'+esc(dur)+'</div>':'')+arcNote+'</td>'+
-        '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div></td>'+
+        '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km'+(p.usageHistory&&p.usageHistory.length?'<div class="muted">across '+(p.usageHistory.length+1)+' bikes</div>':'<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div>')+'</td>'+
         '<td class="svc">'+svcTxt+'</td>'+
         '<td class="num">'+aCostCell+'</td></tr>';
       html += '<tr class="ridesrow archived"><td colspan="5">'+ridesBlock(partRides(b, p))+'</td></tr>';
@@ -1145,6 +1472,9 @@ function render(){
   }
 
   panel.innerHTML = html;
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-queue-bike]"),function(button){
+    button.addEventListener("click",function(){selectBike(button.getAttribute("data-queue-bike"));});
+  });
   if(typeof window._bikeSecAfterRender==='function')window._bikeSecAfterRender();
 }
 
@@ -1161,7 +1491,7 @@ loadAll();
 })();
 (function(){
   var BIKE_SEC_KEY='ssb-bike-sec';
-  var BIKE_SEC_DEFAULT=['parts','archived','stats'];
+  var BIKE_SEC_DEFAULT=['service-queue','parts','inventory','archived','stats'];
   var panel=document.getElementById('bikepanel');
   if(!panel)return;
   var dragSrc=null;
