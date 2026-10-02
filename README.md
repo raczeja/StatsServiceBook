@@ -26,7 +26,7 @@ A router-native activity stats and bike service tracker for OpenWrt. A single PO
 | **Personal stats**    | `/strava/me/stats.html`        | Aggregate KPIs, personal records, Top 10 leaderboard per metric, year-over-year heatmap, sport breakdown     |
 | **Activity heatmap**  | `/strava/me/heatmap.html`      | Full-viewport Leaflet heat overlay of all GPS routes; period + sport-type filter                             |
 card for synch is also not updated when Sync C| **Data completeness** | `/strava/me/data-quality.html` | Missing GPS/HR/detail audit, per-source sync health, Sync now buttons, email status + manual send, cookie management |
-| **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike: parts, service types with km/hour/calendar thresholds, auto-mileage, cost tracking |
+| **Bike service**      | `/strava/me/bike.html`         | Maintenance log per bike with a cross-bike queue of overdue and upcoming services, auto-mileage, and cost tracking |
 
 ## Features
 
@@ -77,6 +77,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 **Bike service tracker**
 
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
+- **Service work queue** — one urgency-sorted list across all bikes; shows overdue services and items at ≥ 80% of their configured interval, and appears only while at least one service is overdue
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
 - Move active parts between bikes while preserving service history, service types, costs, and accumulated distance/riding time; hidden when only one bike exists
@@ -122,6 +123,10 @@ Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wik
 |                                             Personal stats                                              |                                              Activity detail (map + splits)                                              |                                                Bike service tracker                                                |
 | :-----------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
 | ![My Stats](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/stats.png) | ![Activity detail](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/activity-detail.png) | ![Bike service](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service.png) |
+
+| Bike service queue (light) | Bike service queue (dark) |
+| :---: | :---: |
+| ![Bike service queue](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service-queue.png) | ![Bike service queue dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service-queue-dark.png) |
 
 |                                             Activity heatmap                                             |
 | :------------------------------------------------------------------------------------------------------: |
@@ -231,6 +236,8 @@ Run functional tests:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
 ```
+
+The CI workflow publishes the latest browser-side JavaScript coverage report at [GitHub Pages](https://raczeja.github.io/StatsServiceBook/coverage/), alongside the [test reports](https://raczeja.github.io/StatsServiceBook/) and [30-day test statistics](https://raczeja.github.io/StatsServiceBook/stats/). It measures first-party JavaScript bytes executed during initial page loads; it is not line coverage and excludes shell scripts and third-party libraries.
 
 Full instructions for running with real credentials, HealthSync, or Windows WSL: [Running-Locally](https://github.com/raczeja/StatsServiceBook/wiki/Running-Locally).
 
