@@ -234,6 +234,71 @@ test.describe("bike-service", () => {
     expect(/PLN/i.test(labelText), `expected currency code (PLN) in purchase cost label, got: "${labelText}"`).toBeTruthy();
     await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
   });
+
+  test("move-option-hidden-with-only-one-bike", async () => {
+    const visible = await page.evaluate(() => {
+      const bikes = MODEL.bikes;
+      const selected = selBike;
+      const singleBike = bikes.find((b) => b.name === "Road Bike") || bikes[0];
+      MODEL.bikes = [singleBike];
+      selBike = singleBike.id;
+      render();
+      const hasMove = !!document.querySelector('#bikepanel button[onclick*="showMovePart"]');
+      MODEL.bikes = bikes;
+      selBike = selected;
+      render();
+      return hasMove;
+    });
+    expect(visible, "Move action should be hidden when there is only one bike").toBe(false);
+  });
+
+  test("moving-part-preserves-history-costs-and-usage", async () => {
+    const original = await page.evaluate(async () => fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json()));
+    const before = await page.evaluate(() => {
+      const source = MODEL.bikes.find((b) => b.name === "Road Bike");
+      const target = MODEL.bikes.find((b) => b.name === "Gravel Bike");
+      return { sourceId: source?.id, targetId: target?.id, part: source?.parts?.find((p) => p.id === "p-chain") };
+    });
+    expect(before.part, "Road Bike chain fixture is missing").toBeTruthy();
+    const originalServices = JSON.parse(JSON.stringify(before.part.serviceTypes));
+    const originalCost = before.part.cost;
+
+    try {
+      await page.evaluate(() => {
+        const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
+        if (tab) tab.click();
+      });
+      await page.locator('#bikepanel .btn.sm').filter({ hasText: "Move" }).first().click();
+      await page.selectOption("#move-target", before.targetId);
+      await page.getByRole("button", { name: "Move part" }).click();
+      await page.waitForFunction(async ({ sourceId, targetId }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return !saved.bikes.find((b) => b.id === sourceId)?.parts?.some((p) => p.id === "p-chain") &&
+          saved.bikes.find((b) => b.id === targetId)?.parts?.some((p) => p.id === "p-chain" && p.usageHistory?.length);
+      }, { sourceId: before.sourceId, targetId: before.targetId });
+
+      const moved = await page.evaluate(async ({ targetId }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.bikes.find((b) => b.id === targetId)?.parts?.find((p) => p.id === "p-chain");
+      }, { targetId: before.targetId });
+      expect(moved.usageHistory[0].bikeId).toBe(before.sourceId);
+      expect(moved.usageHistory[0].distance).toBeGreaterThan(0);
+      expect(moved.usageHistory[0].time).toBeGreaterThan(0);
+      expect(moved.serviceTypes).toEqual(originalServices);
+      expect(moved.cost).toBe(originalCost);
+      expect(moved.installedDate).toBe(before.part.installedDate);
+      expect(moved.currentBikeInstalledMileage).toBeDefined();
+    } finally {
+      await page.evaluate(async (snapshot) => {
+        await fetch("/cgi-bin/bike-service", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(snapshot),
+        });
+      }, original);
+      await page.reload({ waitUntil: "networkidle", timeout: 20000 });
+    }
+  });
 });
 
 // ── Bike Input Step and Odo ────────────────────────────────────────────────────
