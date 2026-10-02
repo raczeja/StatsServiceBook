@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml/badge.svg)](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raczeja/6941c42a1229a771c51380029a6fd797/raw/tests.json)](https://github.com/raczeja/StatsServiceBook/actions/workflows/ci.yml)
+[![JS coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraczeja.github.io%2FStatsServiceBook%2Fcoverage%2Fbadge.json)](https://raczeja.github.io/StatsServiceBook/coverage/)
 [![Docker Hub](https://img.shields.io/docker/pulls/jraczek/statsservicebook)](https://hub.docker.com/r/jraczek/statsservicebook)
 [![Test stats](https://img.shields.io/badge/test%20stats-30%20days-blue)](https://raczeja.github.io/StatsServiceBook/stats/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/raczeja/StatsServiceBook)
