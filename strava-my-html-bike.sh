@@ -39,6 +39,9 @@ a{color:var(--accent)}
 .tab{background:var(--surface);border:1px solid var(--border-3);border-radius:.4rem;padding:.35rem .7rem;cursor:pointer;font:inherit;color:var(--text-2)}
 .tab.active{background:#fc4c02;border-color:#fc4c02;color:#fff;font-weight:600}
 .tab.add{border-style:dashed;color:var(--accent)}
+.inventory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
+.inventory-item{border:1px solid var(--border-3);border-radius:.4rem;padding:.65rem}
+.inventory-item h3{margin:0 0 .25rem;font-size:1rem}
 .panel{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:.5rem;padding:.85rem 1rem;margin:.5rem 0}
 .odo{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:baseline;margin:.2rem 0 .6rem}
 .odo .big{font-size:1.8rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
@@ -167,7 +170,7 @@ var ACT   = null;   // activities.json (rides + gear names)
 var RIDES = [];     // [{date, km, gear}] sorted ascending by date
 var GEARS = {};     // gear_id -> { name }
 var DEFGEAR = "";   // default gear for untagged rides (most recently used bike)
-var MODEL = { version: 1, bikes: [] };
+var MODEL = { version: 1, bikes: [], inventory: [] };
 var selBike = null; // selected bike id
 var SAVING  = false;
 
@@ -574,6 +577,7 @@ function loadAll(){
     .then(function(r){ if(!r.ok) throw new Error("bike-service CGI HTTP "+r.status); return r.json(); })
     .then(function(m){
       MODEL = (m && Array.isArray(m.bikes)) ? m : { version:1, bikes:[] };
+      if (!Array.isArray(MODEL.inventory)) MODEL.inventory = [];
       // The CGI accepts any {bikes:[...]} shape; guard against a stored/edited
       // bike that lacks a parts array so render()'s b.parts.filter never throws.
       MODEL.bikes.forEach(function(b){ if (!Array.isArray(b.parts)) b.parts = []; });
@@ -864,6 +868,128 @@ window.deletePart = function(id){
   var b = curBike(); b.parts = b.parts.filter(function(x){ return x.id!==id; });
   closeModal(); persist();
 };
+window.showAddStock = function(){
+  openModal('<h3>Add to parts inventory</h3>'+
+    '<label>Part name</label><input id="stock-name" placeholder="e.g. Chain, brake pads, tyre">'+
+    '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="1">'+
+    '<label>Original install date</label><input id="stock-installed" type="date" value="'+todayStr()+'">'+
+    '<label>Distance already used (km)</label><input id="stock-distance" type="number" min="0" step="0.1" value="0">'+
+    '<label>Note (optional)</label><textarea id="stock-note"></textarea>'+
+    '<label>Unit cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label><input id="stock-cost" type="number" min="0" step="0.01">'+
+    '<div style="font-size:.82rem;font-weight:600;margin:.5rem 0">Service history</div><div id="stock-services"></div>'+
+    '<button class="btn sm" onclick="addStockService()">＋ Add service record</button>'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveStock()">Add stock</button></div>');
+};
+window.addStockService = function(){
+  var list=document.getElementById("stock-services");if(!list)return;
+  var row=document.createElement("div");row.className="stock-service panel";
+  row.innerHTML='<label>Service type</label><input class="stock-service-type" value="Service">'+
+    '<div class="row"><div><label>Date</label><input class="stock-service-date" type="date" value="'+todayStr()+'"></div>'+
+    '<div><label>Part mileage at service (km)</label><input class="stock-service-mileage" type="number" min="0" step="0.1" value="0"></div></div>'+
+    '<label>Note</label><textarea class="stock-service-note"></textarea>'+
+    '<label>Service cost (optional)</label><input class="stock-service-cost" type="number" min="0" step="0.01">'+
+    '<button class="btn sm danger" onclick="this.parentNode.remove()">Remove service</button>';
+  list.appendChild(row);
+};
+window.saveStock = function(){
+  var name=document.getElementById("stock-name").value.trim();
+  var qty=+document.getElementById("stock-qty").value;
+  if(!name){document.getElementById("stock-name").focus();return;}
+  if(!Number.isInteger(qty)||qty<1){document.getElementById("stock-qty").focus();return;}
+  var installedDate=document.getElementById("stock-installed").value||todayStr();
+  var distance=+document.getElementById("stock-distance").value||0;
+  if(distance<0){document.getElementById("stock-distance").focus();return;}
+  var item={id:uid("inv-"),name:name,quantity:qty,note:document.getElementById("stock-note").value,
+    installedDate:installedDate,installedMileage:0,status:"new",serviceTypes:[]};
+  var servicesByType={};
+  document.querySelectorAll("#stock-services .stock-service").forEach(function(row){
+    var type=row.querySelector(".stock-service-type").value.trim()||"Service";
+    var service={id:uid("s-"),date:row.querySelector(".stock-service-date").value||installedDate,
+      mileage:+row.querySelector(".stock-service-mileage").value||0,note:row.querySelector(".stock-service-note").value};
+    var serviceCost=row.querySelector(".stock-service-cost").value;
+    if(serviceCost!=="")service.cost=+serviceCost;
+    if(!servicesByType[type])servicesByType[type]={id:uid("st-"),name:type,services:[]};
+    servicesByType[type].services.push(service);
+  });
+  item.serviceTypes=Object.keys(servicesByType).map(function(type){return servicesByType[type];});
+  if(distance>0)item.usageHistory=[{bikeId:"inventory-history",bikeName:"Previous use",gearId:"",isDefault:false,
+    fromDate:installedDate,toDate:todayStr(),fromMileage:0,toMileage:distance,distance:distance,time:0}];
+  var cost=document.getElementById("stock-cost").value;
+  if(cost!=="") item.cost=+cost;
+  MODEL.inventory.push(item);
+  closeModal();persist();
+};
+window.showEditStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
+  openModal('<h3>Edit inventory item</h3>'+
+    '<label>Part name</label><input id="stock-name" value="'+esc(item.name)+'">'+
+    '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="'+(+item.quantity||1)+'">'+
+  '<div class="muted">Previously used: '+fmtKm(partHistoryKm(item))+' km · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' service records</div>'+
+  '<label>Note (optional)</label><textarea id="stock-note">'+esc(item.note||"")+'</textarea>'+
+    '<label>Unit cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label><input id="stock-cost" type="number" min="0" step="0.01" value="'+(item.cost!=null?+item.cost:'')+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveStockEdit(\''+id+'\')">Save</button></div>');
+};
+window.saveStockEdit = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
+  var name=document.getElementById("stock-name").value.trim(),qty=+document.getElementById("stock-qty").value;
+  if(!name||!Number.isInteger(qty)||qty<1)return;
+  item.name=name;item.quantity=qty;item.note=document.getElementById("stock-note").value;
+  var cost=document.getElementById("stock-cost").value;
+  if(cost!=="")item.cost=+cost;else delete item.cost;
+  closeModal();persist();
+};
+window.deleteStock = function(id){
+  if(!confirm("Delete this inventory item and its remaining stock?"))return;
+  MODEL.inventory=MODEL.inventory.filter(function(x){return x.id!==id;});persist();
+};
+window.showInstallStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0],bike=curBike();
+  if(!item||!bike||(+item.quantity||0)<1)return;
+  openModal('<h3>Install '+esc(item.name)+'</h3>'+
+    '<p class="muted">One item will be removed from the shared inventory. Its previous service history is retained.</p>'+
+    '<label>Installed date</label><input id="stock-date" type="date" value="'+todayStr()+'">'+
+    '<label>Mileage on this bike (km)</label><input id="stock-mileage" type="number" step="1" value="'+Math.round(bikeMileage(bike,todayStr())*10)/10+'">'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="installStock(\''+id+'\')">Install part</button></div>');
+};
+window.installStock = function(id){
+  var item=MODEL.inventory.filter(function(x){return x.id===id;})[0],bike=curBike();
+  if(!item||!bike||(+item.quantity||0)<1)return;
+  var part=JSON.parse(JSON.stringify(item));
+  delete part.quantity;delete part.compatibleBikeIds;delete part.inventoryMovedAt;delete part.id;
+  part.id=uid("p-");part.status="new";part.needsReplacement=false;
+  var date=document.getElementById("stock-date").value||todayStr();
+  var mileage=+document.getElementById("stock-mileage").value||0;
+  if(part.usageHistory&&part.usageHistory.length){part.currentBikeInstalledDate=date;part.currentBikeInstalledMileage=mileage;}
+  else{part.installedDate=date;part.installedMileage=mileage;}
+  delete part.archivedDate;delete part.archivedMileage;delete part.archiveNote;delete part.replacedById;
+  bike.parts.push(part);item.quantity--;
+  MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
+  closeModal();persist();
+};
+window.movePartToInventory = function(id){
+  var part=findPart(id),bike=curBike();if(!part||!bike)return;
+  var bikeNames=MODEL.bikes.map(function(b){return esc(b.name);}).join(", ");
+  openModal('<h3>Move '+esc(part.name)+' to shared inventory</h3>'+
+    '<p class="muted">Service history and recorded costs move with the part. Mileage and riding time on this bike are saved to its history.</p>'+
+    '<label>Moved on</label><input id="stock-date" type="date" value="'+todayStr()+'">'+
+    '<div class="muted">Available for all bikes: '+bikeNames+'</div>'+
+    '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveMoveToInventory(\''+id+'\')">Move to inventory</button></div>');
+};
+window.saveMoveToInventory = function(id){
+  var part=findPart(id),bike=curBike();if(!part||!bike)return;
+  var date=document.getElementById("stock-date").value||todayStr();
+  var fromDate=partCurrentUsageFrom(part);
+  var fromMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
+  var toMileage=bikeMileage(bike,date);
+  if(!part.usageHistory)part.usageHistory=[];
+  if(fromDate<=date)part.usageHistory.push({bikeId:bike.id,bikeName:bike.name,gearId:bike.gearId||"",isDefault:!!bike.isDefault,
+    fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:toMileage,
+    distance:Math.max(0,toMileage-fromMileage),time:rideTimeBetween(bike,fromDate,date)});
+  part.quantity=1;
+  part.inventoryMovedAt=date;
+  bike.parts=bike.parts.filter(function(x){return x.id!==id;});
+  MODEL.inventory.push(part);closeModal();persist();
+};
 function findPart(id){
   var b = curBike(); if(!b) return null;
   for (var i=0;i<b.parts.length;i++) if (b.parts[i].id===id) return b.parts[i];
@@ -971,6 +1097,11 @@ window.drop = function(e, targetId, el){
 window.showReplace = function(id){
   var b = curBike(), p = findPart(id); if(!b||!p) return;
   var date = todayStr();
+  var stockOptions='<option value="">New part (not from inventory)</option>';
+  MODEL.inventory.forEach(function(item){
+    if((+item.quantity||0)>0)
+      stockOptions+='<option value="'+esc(item.id)+'"'+(item.name.toLowerCase()===p.name.toLowerCase()?' selected':'')+'>'+esc(item.name)+' ('+item.quantity+' in stock)</option>';
+  });
   openModal(
     '<h3>Replace: '+esc(p.name)+'</h3>'+
     '<p class="muted">The old part moves to <b>Archived</b>, recording its final mileage.</p>'+
@@ -985,6 +1116,7 @@ window.showReplace = function(id){
     '<label>New part name</label><input id="r-newname" value="'+esc(p.name)+'">'+
     '<label>New part cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
     '<input id="r-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00">'+
+    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveReplace(\''+id+'\')">Replace</button></div>'
   );
@@ -1000,12 +1132,26 @@ window.saveReplace = function(id){
   p.needsReplacement = false;
   if (note) p.archiveNote = note;
   if (document.getElementById("r-new").checked){
-    var nm = document.getElementById("r-newname").value.trim() || p.name;
-    var rCostEl = document.getElementById("r-cost");
-    var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
-    var np = { id:uid("p-"), name:nm, note:"", installedDate:date,
-      installedMileage:mi, status:"new", services:[] };
-    if(rCost!=null) np.cost=rCost;
+    var stockId=document.getElementById("r-stock").value;
+    var stock=stockId?MODEL.inventory.filter(function(x){return x.id===stockId;})[0]:null;
+    var np;
+    if(stock&&(+stock.quantity||0)>0){
+      np=JSON.parse(JSON.stringify(stock));
+      delete np.quantity;delete np.compatibleBikeIds;delete np.inventoryMovedAt;delete np.id;
+      np.id=uid("p-");
+      if(np.usageHistory&&np.usageHistory.length){np.currentBikeInstalledDate=date;np.currentBikeInstalledMileage=mi;}
+      else{np.installedDate=date;np.installedMileage=mi;}
+      np.status="new";np.needsReplacement=false;delete np.archivedDate;delete np.archivedMileage;delete np.archiveNote;delete np.replacedById;
+      stock.quantity--;
+      MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
+    }else{
+      var nm = document.getElementById("r-newname").value.trim() || p.name;
+      var rCostEl = document.getElementById("r-cost");
+      var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
+      np = { id:uid("p-"), name:nm, note:"", installedDate:date,
+        installedMileage:mi, status:"new", services:[] };
+      if(rCost!=null) np.cost=rCost;
+    }
     b.parts.push(np);
     p.replacedById = np.id;
   }
@@ -1020,7 +1166,6 @@ function render(){
   }).join("");
   bt += '<button class="tab add" onclick="showAddBike()">＋ Add bike</button>';
   document.getElementById("bikes").innerHTML = bt;
-
   var gen = (ACT && ACT.generatedAt) ? (" · rides as of " + esc(ACT.generatedAt.slice(0,10))) : "";
   document.getElementById("meta").innerHTML =
     RIDES.length + " outdoor rides found in activities.json" + gen +
@@ -1064,8 +1209,24 @@ function render(){
     (bsActiveParts>0?'<div><div class="k">Parts</div><div class="big" style="font-size:1.2rem">'+bsActiveParts+'</div></div>':'')+
     '</div>'+
     '<div><button class="btn primary" onclick="showAddPart()">＋ Add part</button> '+
+    '<button class="btn sm" onclick="showAddStock()">＋ Add stock</button> '+
     '<button class="btn sm" onclick="editBike(\''+b.id+'\')">Edit bike</button> '+
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
+
+  if(MODEL.inventory.some(function(item){return +item.quantity>0;})){
+    html+='<div class="sec" data-sid="inventory"><h2>Shared parts inventory</h2>'+
+      '<p class="muted">Spare parts available for any bike. Stock is reduced when a part is installed or used as a replacement.</p>'+
+      '<div class="inventory-grid">';
+    MODEL.inventory.filter(function(item){return +item.quantity>0;}).forEach(function(item){
+      html+='<div class="inventory-item"><h3>'+esc(item.name)+' <span class="muted">× '+(+item.quantity||0)+'</span></h3>'+
+        (item.note?'<div class="muted">'+esc(item.note)+'</div>':'')+
+        '<div class="muted">'+fmtKm(partHistoryKm(item))+' km used · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' services · available for all bikes'+(item.cost!=null?' · '+fmtCost(item.cost)+' each':'')+'</div>'+
+        '<button class="btn sm" onclick="showInstallStock(\''+item.id+'\')">Install on '+esc(b.name)+'</button> '+
+        '<button class="btn sm" onclick="showEditStock(\''+item.id+'\')">Edit</button> '+
+        '<button class="btn sm danger" onclick="deleteStock(\''+item.id+'\')">Delete</button></div>';
+    });
+    html+='</div></div>';
+  }
 
   // cost summary block
   var totalCost = bikeTotalCost(b);
@@ -1182,6 +1343,7 @@ function render(){
           '<button class="btn sm" onclick="showService(\''+p.id+'\')">Service</button> '+
           '<button class="btn sm" onclick="showReplace(\''+p.id+'\')">Replace</button> '+
           (MODEL.bikes.length>1?'<button class="btn sm" onclick="showMovePart(\''+p.id+'\')">Move</button> ':'')+
+          '<button class="btn sm" onclick="movePartToInventory(\''+p.id+'\')">To inventory</button> '+
           '<button class="btn sm" onclick="editPart(\''+p.id+'\')">Edit</button> '+
           '<button class="btn sm danger" onclick="deletePart(\''+p.id+'\')">✕</button>'+
         '</td></tr>';
@@ -1283,7 +1445,7 @@ loadAll();
 })();
 (function(){
   var BIKE_SEC_KEY='ssb-bike-sec';
-  var BIKE_SEC_DEFAULT=['parts','archived','stats'];
+  var BIKE_SEC_DEFAULT=['parts','inventory','archived','stats'];
   var panel=document.getElementById('bikepanel');
   if(!panel)return;
   var dragSrc=null;

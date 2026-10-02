@@ -185,6 +185,13 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
+  console.log("  → bike-modal-add-stock");
+  await page.evaluate(() => showAddStock());
+  await page.waitForSelector("#stock-distance", { timeout: 3000 });
+  await shot(page, "bike-modal-add-stock");
+  await page.evaluate(() => closeModal());
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+
   // ── Multi-bike overview screenshots ──────────────────────────────────────────
   async function shotMultiBike(darkMode, shotName) {
     await page.evaluate((isDark) => {
