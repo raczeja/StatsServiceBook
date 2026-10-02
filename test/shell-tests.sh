@@ -1559,6 +1559,18 @@ assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq '
 
 # ── gpx-heart-rate-summary ────────────────────────────────────────────────────
 S="gpx-heart-rate-summary"
+_tab="$(printf '\t')"
+printf '17469224282\tgpx/17469224282.gpx\t9339\t0\n' > "$TMP/hr-gpx-queue.tsv"
+: > "$TMP/hr-gpx-cached.txt"
+: > "$TMP/hr-gpx-pending.tsv"
+while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+    if ! grep -qx "$_hr_id" "$TMP/hr-gpx-cached.txt"; then
+        printf '%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" >> "$TMP/hr-gpx-pending.tsv"
+    fi
+done < "$TMP/hr-gpx-queue.tsv"
+assert_eq "$S" "queue-preserves-id" "$(cut -f1 "$TMP/hr-gpx-pending.tsv")" "17469224282"
+assert_eq "$S" "queue-preserves-gpx-path" "$(cut -f2 "$TMP/hr-gpx-pending.tsv")" "gpx/17469224282.gpx"
+assert_eq "$S" "queue-preserves-moving-time" "$(cut -f3 "$TMP/hr-gpx-pending.tsv")" "9339"
 _hr_lib=""
 for _hr_lib_path in \
     /usr/bin/strava-lib.sh \
