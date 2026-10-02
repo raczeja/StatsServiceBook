@@ -326,6 +326,22 @@ function fmtPeriod(acts){
   return parts.join(", ");
 }
 
+function estimateHrEffort(points, hrMax){
+  if(!isFinite(hrMax) || hrMax <= 0) return 0;
+  var weightedSecs=0,totalSecs=0;
+  points.forEach(function(p){
+    var bpm=Number(p.bpm),secs=Number(p.secs);
+    if(!isFinite(bpm)||bpm<=0||!isFinite(secs)||secs<=0) return;
+    var zone=bpm<Math.round(.60*hrMax)?0
+      :bpm<Math.round(.80*hrMax)?1
+      :bpm<Math.round(.90*hrMax)?2
+      :bpm<Math.round(hrMax)?3:4;
+    weightedSecs+=secs*(zone+1);
+    totalSecs+=secs;
+  });
+  return totalSecs?Math.round(weightedSecs/60/7):0;
+}
+
 function activityHrEffort(a){
   var score = Number(a.suffer_score);
   if(a.suffer_score != null && isFinite(score) && score > 0)
@@ -333,17 +349,14 @@ function activityHrEffort(a){
   var bpm = Number(a.average_heartrate), secs = Number(a.moving_time);
   if(!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) return null;
   var hrMax = ATHLETE_AGE > 0 ? 220 - ATHLETE_AGE : (Number(a.max_heartrate) || bpm);
-  var zone = bpm < Math.round(.60*hrMax) ? 0
-    : bpm < Math.round(.70*hrMax) ? 1
-    : bpm < Math.round(.80*hrMax) ? 2
-    : bpm < Math.round(.90*hrMax) ? 3 : 4;
-  return {score:Math.round(secs/60*(zone+1)), source:"Estimated from average HR"};
+  return {score:estimateHrEffort([{bpm:bpm,secs:secs}],hrMax), source:"Estimated from average HR"};
 }
 
 // ---- personal records -------------------------------------------------------
 function computeRecords(acts){
   var longest=null, longest_t=null, most_e=null, fastest=null, max_spd=null;
-  var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null, most_hr_effort=null;
+  var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null;
+  var most_strava_effort=null, most_hr_effort=null;
   var weeks={}, months={}, months_count={}, dates={};
   var _stepSports={Walk:1,Hike:1};
   acts.forEach(function(a){
@@ -376,7 +389,11 @@ function computeRecords(acts){
         most_steps={steps:st,km:km,s:s,date:a.date,name:a.name,id:a.id};
     }
     var hrEffort=activityHrEffort(a);
-    if(hrEffort&&hrEffort.score>0&&(!most_hr_effort||hrEffort.score>most_hr_effort.score))
+    if(hrEffort&&hrEffort.source==="Strava Relative Effort"&&hrEffort.score>0&&
+       (!most_strava_effort||hrEffort.score>most_strava_effort.score))
+      most_strava_effort={score:hrEffort.score,source:hrEffort.source,km:km,s:s,date:a.date,name:a.name,id:a.id};
+    if(hrEffort&&hrEffort.source!=="Strava Relative Effort"&&hrEffort.score>0&&
+       (!most_hr_effort||hrEffort.score>most_hr_effort.score))
       most_hr_effort={score:hrEffort.score,source:hrEffort.source,km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(a.date){
       weeks[weekOf(a.date)]=(weeks[weekOf(a.date)]||0)+km;
@@ -405,7 +422,8 @@ function computeRecords(acts){
   return {
     longest:longest, longest_t:longest_t, most_e:most_e, fastest:fastest, max_spd:max_spd,
     most_pow:most_pow, most_kj:most_kj, most_vam:most_vam, most_steps:most_steps,
-    most_single_climb:most_single_climb, most_hr_effort:most_hr_effort,
+    most_single_climb:most_single_climb, most_strava_effort:most_strava_effort,
+    most_hr_effort:most_hr_effort,
     bwk:bwk?{week:bwk,km:bwkKm}:null,
     bmo:bmo?{month:bmo,km:bmoKm}:null,
     bmoCount:bmoCount?{month:bmoCount,n:bmoCountN}:null,
@@ -434,7 +452,11 @@ var TOP10_METRICS = [
   {id:'climb',     label:'Longest climb', fn:function(a){return a.max_single_climb||0;},
    fmt:function(v){return fmtInt(Math.round(v))+' m';}},
   {id:'steps',     label:'Steps (walk)',  fn:function(a){var ws={Walk:1,Hike:1};return (ws[a.sport_type]&&a.average_cadence&&a.moving_time)?Math.round(a.average_cadence*2*a.moving_time/60):0;},
-   fmt:function(v){return fmtInt(v);}}
+   fmt:function(v){return fmtInt(v);}},
+  {id:'strava_effort', label:'Strava Relative Effort', fn:function(a){var effort=activityHrEffort(a);return effort&&effort.source==='Strava Relative Effort'?effort.score:0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' pts';}},
+  {id:'hr_effort_est', label:'Estimated HR effort', fn:function(a){var effort=activityHrEffort(a);return effort&&effort.source!=='Strava Relative Effort'?effort.score:0;},
+   fmt:function(v){return fmtInt(Math.round(v))+' pts (est.)';}}
 ];
 var _top10Acts = [];
 var _top10Inited = false;
@@ -481,7 +503,7 @@ function _drawTop10(){
       '<td class="num top10-rank">'+(i+1)+'</td>'+
       '<td>'+esc(a.date||'')+'</td>'+
       '<td>'+esc(a.name||'')+'</td>'+
-      '<td class="num"><span class="top10-val">'+esc(metric.fmt(r.v))+'</span></td>'+
+      '<td class="num"><span class="top10-val">'+esc(metric.fmt(r.v,a))+'</span></td>'+
       '<td class="num">'+fmtKmD(distKm)+' km</td>'+
       '<td class="num">'+fmtH(a.moving_time||0)+'</td>'+
       '<td style="white-space:nowrap">'+(a.id?'<a href="activity.html?id='+esc(String(a.id))+'">View →</a>':'')+'</td>'+
@@ -1073,8 +1095,11 @@ function render(){
   if(rec.most_steps)
     ri.push(mkRec("Most steps", fmtInt(rec.most_steps.steps),
                   rec.most_steps.date+"  "+fmtKmD(rec.most_steps.km)+" km\n"+rec.most_steps.name, _aLink(rec.most_steps.id)));
+  if(rec.most_strava_effort)
+    ri.push(mkRec("Highest Strava Relative Effort", fmtInt(Math.round(rec.most_strava_effort.score)),
+                  rec.most_strava_effort.date+"  "+fmtKmD(rec.most_strava_effort.km)+" km\n"+rec.most_strava_effort.name, _aLink(rec.most_strava_effort.id)));
   if(rec.most_hr_effort)
-    ri.push(mkRec("Highest HR effort", fmtInt(Math.round(rec.most_hr_effort.score)),
+    ri.push(mkRec("Highest estimated HR effort", fmtInt(Math.round(rec.most_hr_effort.score))+" (est.)",
                   rec.most_hr_effort.source+" · "+rec.most_hr_effort.date+"  "+fmtKmD(rec.most_hr_effort.km)+" km\n"+rec.most_hr_effort.name, _aLink(rec.most_hr_effort.id)));
   if(rec.bwk){
     var bwDate=rec.bwk.week;
