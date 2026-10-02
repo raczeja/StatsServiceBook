@@ -42,6 +42,10 @@ a{color:var(--accent)}
 .inventory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
 .inventory-item{border:1px solid var(--border-3);border-radius:.4rem;padding:.65rem}
 .inventory-item h3{margin:0 0 .25rem;font-size:1rem}
+.queue-due{color:var(--red);font-weight:700}.queue-upcoming{color:#a66a00;font-weight:600}
+@media(prefers-color-scheme:dark){.queue-upcoming{color:#e5b95c}}
+[data-theme=dark] .queue-upcoming{color:#e5b95c}
+[data-theme=light] .queue-upcoming{color:#8a5a00}
 .panel{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:.5rem;padding:.85rem 1rem;margin:.5rem 0}
 .odo{display:flex;flex-wrap:wrap;gap:1.25rem;align-items:baseline;margin:.2rem 0 .6rem}
 .odo .big{font-size:1.8rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
@@ -503,6 +507,43 @@ function partPct(bike,p){
   var max=0;
   types.forEach(function(st){ max=Math.max(max,stPct(bike,p,st)); });
   return max;
+}
+function serviceQueueHtml(){
+  var items=[];
+  MODEL.bikes.forEach(function(bike){
+    (bike.parts||[]).forEach(function(part){
+      if(part.status==="archived") return;
+      (part.serviceTypes||[]).forEach(function(st){
+        var hasThreshold=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0)||(alertTimeDays(st)>0);
+        if(!hasThreshold) return;
+        var pct=stPct(bike,part,st);
+        if(pct>=80) items.push({bike:bike,part:part,type:st.name||"Service",pct:pct});
+      });
+      if(part.needsReplacement){
+        items.push({bike:bike,part:part,type:"Replacement required",pct:Math.max(100,partPct(bike,part))});
+      }
+    });
+  });
+  var hasOverdue=items.some(function(item){return item.pct>=100;});
+  if(!hasOverdue) return "";
+  items.sort(function(a,b){
+    if(a.pct!==b.pct) return b.pct-a.pct;
+    var bikeOrder=a.bike.name.localeCompare(b.bike.name);
+    if(bikeOrder) return bikeOrder;
+    var partOrder=a.part.name.localeCompare(b.part.name);
+    return partOrder||a.type.localeCompare(b.type);
+  });
+  var rows=items.map(function(item){
+    var overdue=item.pct>=100;
+    return '<tr><td class="'+(overdue?'queue-due':'queue-upcoming')+'">'+
+      (overdue?'Overdue':'Upcoming')+' · '+Math.round(item.pct)+'%</td>'+
+      '<td>'+esc(item.bike.name)+'</td><td><b>'+esc(item.part.name)+'</b>'+
+      '<div class="muted">'+esc(item.type)+'</div></td>'+
+      '<td><button class="btn sm" data-queue-bike="'+esc(item.bike.id)+'">View bike</button></td></tr>';
+  }).join("");
+  return '<div class="sec" data-sid="service-queue"><h2>Service work queue</h2>'+
+    '<table><thead><tr><th>Urgency</th><th>Bike</th><th>Part / service</th><th></th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>';
 }
 // One-time migration: old flat services/alertKm/alertH → serviceTypes array.
 function migratePart(p){
@@ -1213,6 +1254,8 @@ function render(){
     '<button class="btn sm" onclick="editBike(\''+b.id+'\')">Edit bike</button> '+
     '<button class="btn sm danger" onclick="deleteBike(\''+b.id+'\')">Delete bike</button></div></div>';
 
+  html += serviceQueueHtml();
+
   if(MODEL.inventory.some(function(item){return +item.quantity>0;})){
     html+='<div class="sec" data-sid="inventory"><h2>Shared parts inventory</h2>'+
       '<p class="muted">Spare parts available for any bike. Stock is reduced when a part is installed or used as a replacement.</p>'+
@@ -1429,6 +1472,9 @@ function render(){
   }
 
   panel.innerHTML = html;
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-queue-bike]"),function(button){
+    button.addEventListener("click",function(){selectBike(button.getAttribute("data-queue-bike"));});
+  });
   if(typeof window._bikeSecAfterRender==='function')window._bikeSecAfterRender();
 }
 
@@ -1445,7 +1491,7 @@ loadAll();
 })();
 (function(){
   var BIKE_SEC_KEY='ssb-bike-sec';
-  var BIKE_SEC_DEFAULT=['parts','inventory','archived','stats'];
+  var BIKE_SEC_DEFAULT=['service-queue','parts','inventory','archived','stats'];
   var panel=document.getElementById('bikepanel');
   if(!panel)return;
   var dragSrc=null;
