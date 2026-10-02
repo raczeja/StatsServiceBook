@@ -238,7 +238,7 @@ Run functional tests:
 powershell -ExecutionPolicy Bypass -File .\test\run-tests.ps1
 ```
 
-The CI workflow publishes the latest browser-side JavaScript coverage report at [GitHub Pages](https://raczeja.github.io/StatsServiceBook/coverage/), alongside the [test reports](https://raczeja.github.io/StatsServiceBook/) and [30-day test statistics](https://raczeja.github.io/StatsServiceBook/stats/). It measures first-party JavaScript statements executed during each page's initial load, converted from Chromium V8 coverage data. This is not line coverage, does not exercise page interactions, and excludes shell scripts and third-party libraries.
+The CI workflow publishes the latest browser-side JavaScript coverage report at [GitHub Pages](https://raczeja.github.io/StatsServiceBook/coverage/), alongside the [test reports](https://raczeja.github.io/StatsServiceBook/) and [30-day test statistics](https://raczeja.github.io/StatsServiceBook/stats/). It measures first-party JavaScript statements executed while the Playwright functional tests run, including their clicks, filters, and other interactions. Repeated visits to the same page are merged so a statement is counted once and considered covered if any test executes it. This is statement coverage, not a measure of feature correctness; it excludes shell scripts and third-party libraries.
 
 Full instructions for running with real credentials, HealthSync, or Windows WSL: [Running-Locally](https://github.com/raczeja/StatsServiceBook/wiki/Running-Locally).
 

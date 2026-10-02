@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./coverage-fixture.mjs";
 import { CGI } from "./test-urls.mjs";
 
 // ── CGI: Bike Service ─────────────────────────────────────────────────────────

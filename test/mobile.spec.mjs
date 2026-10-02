@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./coverage-fixture.mjs";
 import { URLS } from "./test-urls.mjs";
 
 // All tests in this file run at a narrow touch viewport so @media(pointer:coarse)
