@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./coverage-fixture.mjs";
 import { URLS } from "./test-urls.mjs";
 
 test.describe("data-quality", () => {
@@ -222,6 +222,58 @@ test.describe("data-quality", () => {
     ).toBeVisible();
   });
 
+  test("cookie-save-posts-the-value-and-clears-the-input", async ({ page }) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const future = new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10);
+    await page.route("**/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          generatedAt: new Date().toISOString(),
+          scrapeMeta: { cookieVerifiedAt: today, cookieRefreshNeededBy: future },
+        }),
+      }),
+    );
+    let postedCookie;
+    await page.route("**/cgi-bin/update-cookie", async (route) => {
+      postedCookie = route.request().postDataJSON();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, updated: 2 }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const input = page.locator("#cookie-input");
+    await input.fill("new-session-cookie");
+    await page.getByRole("button", { name: "Save cookie" }).click();
+    await expect(page.locator("#cookie-save-status")).toContainText(
+      "Cookie saved to 2 config file(s)",
+    );
+    await expect(input).toHaveValue("");
+    expect(postedCookie).toEqual({ cookie: "new-session-cookie" });
+  });
+
+  test("cookie-save-requires-a-value", async ({ page }) => {
+    await page.route("**/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          generatedAt: new Date().toISOString(),
+          scrapeMeta: { cookieRefreshNeededBy: "2099-01-01" },
+        }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    await page.getByRole("button", { name: "Save cookie" }).click();
+    await expect(page.locator("#cookie-save-status")).toHaveText(
+      "Please paste a cookie value.",
+    );
+  });
+
   test("cookie-section-warn-state-when-expiry-near", async ({ page }) => {
     const today = new Date().toISOString().slice(0, 10);
     const soon = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
@@ -283,6 +335,77 @@ test.describe("data-quality", () => {
     await expect(sec.locator("#email-type-sel"), "type dropdown should be present").toBeVisible();
     await expect(sec.locator("#email-to-override"), "override field should be present").toBeVisible();
     await expect(sec.locator("#email-cards .source"), "no status cards when no files").toHaveCount(0);
+  });
+
+  test("send-email-reports-a-rejected-request", async ({ page }) => {
+    for (const type of ["monthly", "weekly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    let postedEmail;
+    await page.route("**/cgi-bin/send-email", async (route) => {
+      postedEmail = route.request().postDataJSON();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, error: "SMTP unavailable" }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#email-type-sel").selectOption("yearly");
+    await page.locator("#email-to-override").fill("rider@example.com");
+    await page.locator("#send-email-card .sync-btn").click();
+
+    await expect(page.locator("#send-email-status")).toHaveText(
+      "Error: SMTP unavailable",
+    );
+    await expect(page.locator("#send-email-card .sync-btn")).toBeEnabled();
+    expect(postedEmail).toEqual({
+      type: "yearly",
+      email_to: "rider@example.com",
+    });
+  });
+
+  test("send-email-polls-until-the-send-completes", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    for (const type of ["monthly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    let weeklyStatusReads = 0;
+    await page.route("**/email-weekly-status.json", async (route) => {
+      weeklyStatusReads += 1;
+      const complete = weeklyStatusReads >= 3;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          mode: "weekly",
+          ok: true,
+          lastAttempt: complete ? now + 1 : now,
+          lastSuccess: complete ? now + 1 : now,
+          sentCount: complete ? 2 : 0,
+        }),
+      });
+    });
+    let postedEmail;
+    await page.route("**/cgi-bin/send-email", async (route) => {
+      postedEmail = route.request().postDataJSON();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#email-type-sel").selectOption("weekly");
+    await page.locator("#send-email-card .sync-btn").click();
+
+    await expect(page.locator("#send-email-status")).toHaveText(
+      "✓ Sent (weekly) to 2 recipient(s).",
+      { timeout: 10000 },
+    );
+    await expect(page.locator("#send-email-card .sync-btn")).toBeEnabled();
+    expect(postedEmail).toEqual({ type: "weekly" });
   });
 
   test("existing pages link to data completeness", async ({ page }) => {
