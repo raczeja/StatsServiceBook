@@ -165,6 +165,14 @@ with open(os.environ["COVERAGE_FILE"], encoding="utf-8") as source:
 
 overall = float(report.get("overallPercent", 0))
 generated = report.get("generatedAt", "")
+badge = {
+    "schemaVersion": 1,
+    "label": "JS coverage",
+    "message": f"{overall:.2f}%",
+    "color": "brightgreen" if overall >= 80 else "yellow" if overall >= 50 else "orange" if overall > 0 else "red",
+}
+with open(os.path.join(os.path.dirname(os.environ["COVERAGE_HTML"]), "badge.json"), "w", encoding="utf-8") as output:
+    json.dump(badge, output)
 try:
     generated = datetime.fromisoformat(generated.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M UTC")
 except (TypeError, ValueError):
@@ -241,6 +249,9 @@ with open(os.environ["COVERAGE_HTML"], "w", encoding="utf-8") as output:
 PY
 else
   rm -f site/coverage/coverage-summary.json
+  cat > site/coverage/badge.json <<'JSON'
+{"schemaVersion":1,"label":"JS coverage","message":"unavailable","color":"lightgrey"}
+JSON
   cat > site/coverage/index.html <<HTML
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
