@@ -1,0 +1,58 @@
+{
+  "metric": "statement coverage across Playwright functional tests",
+  "overallPercent": 91.01,
+  "coveredStatements": 4799,
+  "totalStatements": 5273,
+  "pages": [
+    {
+      "label": "club",
+      "url": "http://localhost:8080/strava/index.html",
+      "percent": 98.72,
+      "coveredStatements": 463,
+      "totalStatements": 469
+    },
+    {
+      "label": "dashboard",
+      "url": "http://localhost:8080/strava/me/index.html",
+      "percent": 92.93,
+      "coveredStatements": 618,
+      "totalStatements": 665
+    },
+    {
+      "label": "stats",
+      "url": "http://localhost:8080/strava/me/stats.html",
+      "percent": 93.85,
+      "coveredStatements": 1069,
+      "totalStatements": 1139
+    },
+    {
+      "label": "heatmap",
+      "url": "http://localhost:8080/strava/me/heatmap.html",
+      "percent": 91.43,
+      "coveredStatements": 160,
+      "totalStatements": 175
+    },
+    {
+      "label": "data-quality",
+      "url": "http://localhost:8080/strava/me/data-quality.html",
+      "percent": 77.54,
+      "coveredStatements": 221,
+      "totalStatements": 285
+    },
+    {
+      "label": "activity-detail",
+      "url": "http://localhost:8080/strava/me/activity.html",
+      "percent": 91.08,
+      "coveredStatements": 1021,
+      "totalStatements": 1121
+    },
+    {
+      "label": "bike-service",
+      "url": "http://localhost:8080/strava/me/bike.html",
+      "percent": 87.88,
+      "coveredStatements": 1247,
+      "totalStatements": 1419
+    }
+  ],
+  "generatedAt": "2026-10-02T22:11:27.445Z"
+}
