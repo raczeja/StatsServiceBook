@@ -105,6 +105,7 @@ _RUNNING_FLAG="$WEB_DIR/strava-sync-running"
 printf '1' > "$_RUNNING_FLAG" 2>/dev/null || true
 write_sync_status() {
   _rc=$?
+  [ "$_rc" -eq 0 ] || log "FATAL: strava-my-activities exited with code $_rc"
   _now="$(date +%s)"
   _status_tmp="$WEB_DIR/.strava-sync-status.$$"
   _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
@@ -129,7 +130,6 @@ write_sync_status() {
   mv "$_status_tmp" "$WEB_DIR/strava-sync-status.json"
   rm -f "$_RUNNING_FLAG" 2>/dev/null || true
   rm -rf "$TMP" "$LOCKFILE"
-  [ "$_rc" -eq 0 ] || log "FATAL: strava-my-activities exited with code $_rc"
 }
 trap 'write_sync_status' EXIT
 
@@ -634,6 +634,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     | sort -r > "$TMP/hr-gpx-paths.txt" || : > "$TMP/hr-gpx-paths.txt"
   jq -r 'keys[]' "$_hr_cache" > "$TMP/hr-cached-ids.txt" 2>/dev/null || : > "$TMP/hr-cached-ids.txt"
   : > "$TMP/hr-gpx-pending.txt"
+  _tab="$(printf '\t')"
   while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
     if ! grep -qx "$_hr_id" "$TMP/hr-cached-ids.txt"; then
       printf '%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" >> "$TMP/hr-gpx-pending.txt"
@@ -643,7 +644,6 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   _hr_todo="$(wc -l < "$TMP/hr-gpx-paths.txt" | tr -d ' ')"
   _hr_computed=0
   _hr_batch=100
-  _tab="$(printf '\t')"
   while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
     [ "$_hr_computed" -ge "$_hr_batch" ] && break
     _hr_gpx_path="$WEB_DIR/$_hr_gpx"
