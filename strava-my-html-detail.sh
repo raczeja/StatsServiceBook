@@ -302,6 +302,19 @@ function getId(){
   return decodeURIComponent(m[1]).replace(/[^a-zA-Z0-9-]/g, "");
 }
 
+function fillDetailFromActivity(d, act){
+  if (!act) return d;
+  var fields = [
+    "suffer_score", "average_heartrate", "max_heartrate",
+    "average_temp", "temp_source", "apparent_temp", "wind_speed",
+    "wind_dir", "weathercode", "precipitation", "max_single_climb"
+  ];
+  fields.forEach(function(key){
+    if (d[key] == null && act[key] != null) d[key] = act[key];
+  });
+  return d;
+}
+
 function card(k, v){ return '<div class="card"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
 // Same card, with a hover explanation (native tooltip) for cryptic metrics.
 function cardTip(k, v, tip){ return '<div class="card" title="'+esc(tip)+'"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
@@ -1270,14 +1283,7 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
     if (meta && meta.activities) {
       var act = meta.activities.find(function(a){ return String(a.id) === String(id); });
       if (act) {
-        if (d.average_temp    == null && act.average_temp    != null) d.average_temp    = act.average_temp;
-        if (d.temp_source     == null && act.temp_source     != null) d.temp_source     = act.temp_source;
-        if (d.apparent_temp   == null && act.apparent_temp   != null) d.apparent_temp   = act.apparent_temp;
-        if (d.wind_speed      == null && act.wind_speed      != null) d.wind_speed      = act.wind_speed;
-        if (d.wind_dir        == null && act.wind_dir        != null) d.wind_dir        = act.wind_dir;
-        if (d.weathercode     == null && act.weathercode     != null) d.weathercode     = act.weathercode;
-        if (d.precipitation   == null && act.precipitation   != null) d.precipitation   = act.precipitation;
-        if (d.max_single_climb == null && act.max_single_climb != null) d.max_single_climb = act.max_single_climb;
+        fillDetailFromActivity(d, act);
       }
     }
     render(d, id);
