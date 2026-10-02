@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./coverage-fixture.mjs";
 import { URLS, CGI } from "./test-urls.mjs";
 
 const BIKE_CGI = `${CGI}/bike-service`;

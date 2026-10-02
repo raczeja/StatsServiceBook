@@ -22,3 +22,4 @@ test-results.xml
 .playwright-mcp
 test-results/
 coverage/
+coverage-data/

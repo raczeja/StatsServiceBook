@@ -237,7 +237,7 @@ table{{width:100%;border-collapse:collapse;text-align:left}}th,td{{padding:.8rem
 </section>
 <section class="card">
 <h2>Coverage by page</h2>
-<p class="muted">Percentage of first-party JavaScript statements executed during each page's initial load, converted from Chromium V8 coverage. This does not include shell scripts, third-party libraries, or page interactions.</p>
+<p class="muted">Percentage of first-party JavaScript statements executed during the Playwright functional tests, including page interactions. Repeated visits are merged; a statement is covered if any test executes it. This does not include shell scripts or third-party libraries.</p>
 <table><thead><tr><th>Page</th><th>Coverage</th><th>Statements</th></tr></thead><tbody>{rows_html}</tbody></table>
 </section>
 </main>
