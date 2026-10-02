@@ -63,8 +63,8 @@ test.describe("activity-detail", () => {
 
   test("strava-relative-effort-kept-as-official-score", async () => {
     const text = await page.$eval(".cards", (el) => el.textContent);
-    expect(text).toContain("Relative effort121");
-    expect(await page.$("#hr-effort-card")).toBeNull();
+    expect(text).toContain("Strava Relative Effort121");
+    expect(await page.$("#hr-effort-card")).not.toBeNull();
   });
 
   test("official-relative-effort-falls-back-to-activity-summary", async () => {
@@ -77,10 +77,33 @@ test.describe("activity-detail", () => {
         );
         renderCards(detail);
         const card = Array.from(document.querySelectorAll("#cards .card"))
-          .find((el) => el.querySelector(".k")?.textContent === "Relative effort");
+          .find((el) => el.querySelector(".k")?.textContent === "Strava Relative Effort");
         return card?.querySelector(".v")?.textContent.trim();
       });
       expect(score).toBe("232");
+    } finally {
+      await page.$eval("#cards", (el, html) => { el.innerHTML = html; }, cards);
+    }
+  });
+
+  test("official-score-and-estimate-are-shown-separately", async () => {
+    const cards = await page.$eval("#cards", (el) => el.innerHTML);
+    try {
+      const result = await page.evaluate(() => {
+        const detail = fillDetailFromActivity(
+          { id: 123, suffer_score: null, average_heartrate: 150, max_heartrate: 190, moving_time: 3600 },
+          { id: 123, suffer_score: 232 },
+        );
+        renderCards(detail);
+        return {
+          official: Array.from(document.querySelectorAll("#cards .card"))
+            .find((el) => el.querySelector(".k")?.textContent === "Strava Relative Effort")
+            ?.querySelector(".v")?.textContent.trim(),
+          estimated: document.querySelector("#hr-effort-card .v")?.textContent.trim(),
+        };
+      });
+      expect(result.official).toBe("232");
+      expect(Number(result.estimated)).toBeGreaterThan(0);
     } finally {
       await page.$eval("#cards", (el, html) => { el.innerHTML = html; }, cards);
     }
