@@ -25,6 +25,98 @@ test.describe("bike-service", () => {
     } catch (_) {}
   });
 
+  test("shared-inventory-moves-preserve-history-and-consume-stock", async ({ page }) => {
+    const originalResponse = await fetch(BIKE_CGI, { cache: "no-store" });
+    const original = await originalResponse.json();
+    const postStore = async (store) => {
+      const response = await fetch(BIKE_CGI, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(store),
+      });
+      expect(response.ok, `bike-service POST failed with ${response.status}`).toBeTruthy();
+    };
+
+    try {
+      await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+      await page.waitForSelector(".bikes .tab:not(.add)");
+
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      const chainId = await page.evaluate(() =>
+        MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((part) => part.name === "Chain").id
+      );
+      await page.evaluate((id) => movePartToInventory(id), chainId);
+      await page.getByRole("button", { name: "Move to inventory" }).click();
+      await page.waitForFunction(async () => {
+        const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return store.inventory?.some((item) => item.id === "p-chain");
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(1);
+
+      let store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const storedChain = store.inventory.find((item) => item.id === "p-chain");
+      expect(storedChain.quantity).toBe(1);
+      expect(storedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
+      expect(storedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
+
+      await page.getByRole("button", { name: "Gravel Bike", exact: true }).click();
+      await page.getByRole("button", { name: "Install on Gravel Bike" }).click();
+      await page.getByRole("button", { name: "Install part", exact: true }).click();
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return !saved.inventory?.some((item) => item.id === "p-chain");
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
+      store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const installedChain = store.bikes.find((bike) => bike.id === "b-gravel").parts.find((part) =>
+        part.name === "Chain" && part.usageHistory?.some((segment) => segment.bikeName === "Road Bike")
+      );
+      expect(installedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
+      expect(installedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
+
+      await page.getByRole("button", { name: "＋ Add stock" }).click();
+      await page.locator("#stock-name").fill("Inventory test chain");
+      await page.locator("#stock-qty").fill("2");
+      await page.locator("#stock-distance").fill("120");
+      await page.getByRole("button", { name: "＋ Add service record" }).click();
+      await page.locator(".stock-service-type").fill("Lubricate");
+      await page.locator(".stock-service-mileage").fill("60");
+      await page.locator(".stock-service-note").fill("recorded before storage");
+      await page.getByRole("button", { name: "Add stock", exact: true }).click();
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 2);
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(1);
+
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      const replaceId = await page.evaluate(() =>
+        MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((part) => part.name === "Rear tyre").id
+      );
+      await page.evaluate((id) => showReplace(id), replaceId);
+      const stockId = await page.locator("#r-stock option").evaluateAll((options) =>
+        options.find((option) => option.textContent.includes("Inventory test chain (2 in stock)")).value
+      );
+      await page.locator("#r-stock").selectOption(stockId);
+      await page.evaluate((id) => saveReplace(id), replaceId);
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 1);
+      });
+      store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const stocked = store.inventory.find((item) => item.name === "Inventory test chain");
+      expect(stocked.usageHistory?.[0]?.distance).toBe(120);
+      expect(stocked.serviceTypes?.[0]?.services?.[0]?.note).toBe("recorded before storage");
+      expect(store.bikes.find((bike) => bike.name === "Road Bike").parts.some((part) =>
+        part.name === "Inventory test chain" && part.status !== "archived" &&
+        part.usageHistory?.[0]?.distance === 120 &&
+        part.serviceTypes?.[0]?.services?.[0]?.note === "recorded before storage"
+      )).toBeTruthy();
+    } finally {
+      await postStore(original);
+    }
+  });
+
   test.afterAll(async () => { await page.close(); });
 
   test("no-js-errors", () => {
@@ -34,6 +126,10 @@ test.describe("bike-service", () => {
   test("meta-not-loading", async () => {
     const text = await page.$eval("#meta", (el) => el.textContent);
     expect(!text.includes("Loading"), `#meta still says Loading`).toBeTruthy();
+  });
+
+  test("inventory-section-hidden-when-empty", async () => {
+    await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
   });
 
   test("bike-tabs-present", async () => {
