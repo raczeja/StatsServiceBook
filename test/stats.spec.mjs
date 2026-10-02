@@ -142,10 +142,10 @@ test.describe("stats", () => {
     ).toBeTruthy();
   });
 
-  test("records-highest-hr-effort", async () => {
+  test("records-highest-estimated-hr-effort", async () => {
     const record = await page.evaluate(() => {
       for (const rec of document.querySelectorAll("#recs .rec")) {
-        if (rec.querySelector(".rl")?.textContent.includes("Highest HR effort")) {
+        if (rec.querySelector(".rl")?.textContent.includes("Highest estimated HR effort")) {
           return {
             value: rec.querySelector(".rv")?.textContent,
             details: rec.querySelector(".rs")?.textContent,
@@ -155,10 +155,22 @@ test.describe("stats", () => {
       }
       return null;
     });
-    expect(record, "expected a highest HR effort personal record").toBeTruthy();
-    expect(Number(record.value.replace(/\s/g, ""))).toBeGreaterThan(0);
+    expect(record, "expected a highest estimated HR effort personal record").toBeTruthy();
+    expect(record.value).toContain("(est.)");
+    expect(Number(record.value.replace(/[^\d]/g, ""))).toBeGreaterThan(0);
     expect(record.details).toContain("Estimated from average HR");
     expect(record.href).toMatch(/^activity\.html\?id=/);
+  });
+
+  test("hr-effort-estimate-matches-strava-example", async () => {
+    const score = await page.evaluate(() =>
+      estimateHrEffort([
+        { bpm: 105, secs: 12 * 60 + 46 },
+        { bpm: 120, secs: 50 * 60 + 5 },
+        { bpm: 150, secs: 9 },
+      ], 176),
+    );
+    expect(score).toBe(16);
   });
 
   test("year-table-has-row", async () => {
@@ -1281,7 +1293,67 @@ test.describe("stats-top10", () => {
     expect(n > 0, `expected rows after switching to distance, got ${n}`).toBeTruthy();
   });
 
+  test("top10-hr-effort-has-separate-official-and-estimated-options", async () => {
+    const option = await page.$eval("#top10Sel", (el) =>
+      Array.from(el.options).map((item) => [item.value, item.textContent]),
+    );
+    expect(option).toContainEqual(["strava_effort", "Strava Relative Effort"]);
+    expect(option).toContainEqual(["hr_effort_est", "Estimated HR effort"]);
+    const calibratedExample = await page.evaluate(() =>
+      estimateHrEffort([
+        { bpm: 105, secs: 12 * 60 + 46 },
+        { bpm: 120, secs: 50 * 60 + 5 },
+        { bpm: 150, secs: 9 },
+      ], 176),
+    );
+    expect(calibratedExample).toBe(16);
+
+    const original = await page.evaluate(() => {
+      const activity = ALL_ACTS.find((a) => String(a.id) === "18784255013");
+      if (!activity) throw new Error("fixture activity missing");
+      const previous = activity.suffer_score;
+      activity.suffer_score = 9999;
+      render();
+      return { id: String(activity.id), previous };
+    });
+    try {
+      await page.selectOption("#top10Sel", "strava_effort");
+      const officialRows = await page.$$eval("#top10Table tbody tr", (els) =>
+        els.map((el) => ({
+          activity: el.children[2]?.textContent,
+          effort: el.querySelector(".top10-val")?.textContent.trim(),
+        })),
+      );
+      expect(officialRows[0].activity).toContain("West Wroclaw");
+      expect(officialRows[0].effort).toBe("9 999 pts");
+
+      await page.selectOption("#top10Sel", "hr_effort_est");
+      const estimatedRows = await page.$$eval("#top10Table tbody tr", (els) =>
+        els.map((el) => ({
+          activity: el.children[2]?.textContent,
+          effort: el.querySelector(".top10-val")?.textContent.trim(),
+          link: el.querySelector("a[href]")?.getAttribute("href"),
+        })),
+      );
+      expect(estimatedRows.length).toBeGreaterThan(0);
+      expect(estimatedRows.length).toBeLessThanOrEqual(10);
+      expect(estimatedRows.every((row) => row.effort.endsWith(" pts (est.)"))).toBeTruthy();
+      expect(estimatedRows.some((row) => row.activity.includes("West Wroclaw"))).toBeFalsy();
+      expect(estimatedRows[0].link).toMatch(/^activity\.html\?id=/);
+    } finally {
+      await page.evaluate(({ id, previous }) => {
+        const activity = ALL_ACTS.find((a) => String(a.id) === id);
+        if (activity) {
+          if (previous == null) delete activity.suffer_score;
+          else activity.suffer_score = previous;
+          render();
+        }
+      }, original);
+    }
+  });
+
   test("top10-subtitle-updates-on-select-change", async () => {
+    await page.selectOption("#top10Sel", "distance");
     const sub = await page.$eval("#top10Subtitle", (el) => el.textContent);
     expect(sub.includes("Distance"), `expected "Distance" in subtitle, got: "${sub}"`).toBeTruthy();
   });
