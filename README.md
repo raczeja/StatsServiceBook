@@ -79,6 +79,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
+- Move active parts between bikes while preserving service history, service types, costs, and accumulated distance/riding time; hidden when only one bike exists
 - **Bike comparison** — when 2+ bikes exist, a "Bike Statistics" section compares all bikes side by side (distance, ride time, elevation, avg ride, services, current parts)
 - **Cost tracking** — optional purchase price per part and cost per service; total and per-year summary shown in the bike header; currency set via `STRAVA_MY_CURRENCY` in the config (default `PLN`)
 - **Email alerts** — per-part checkbox in the Edit modal; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue

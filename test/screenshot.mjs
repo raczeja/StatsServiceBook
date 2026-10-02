@@ -175,6 +175,16 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
+  console.log("  → bike-modal-move-part");
+  await page.evaluate(() => {
+    const button = document.querySelector('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showMovePart"]');
+    if (button) button.click();
+  });
+  await page.waitForSelector("#move-target", { timeout: 3000 });
+  await shot(page, "bike-modal-move-part");
+  await page.evaluate(() => closeModal());
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+
   // ── Multi-bike overview screenshots ──────────────────────────────────────────
   async function shotMultiBike(darkMode, shotName) {
     await page.evaluate((isDark) => {
