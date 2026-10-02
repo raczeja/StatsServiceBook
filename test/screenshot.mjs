@@ -120,6 +120,44 @@ try {
   await page.goto(`${BASE}/bike.html`, { waitUntil: "networkidle", timeout: 20000 });
   await waitBikeReady(page);
 
+  await page.evaluate(() => {
+    window.__bikeQueueScreenshotState = { model: MODEL, selected: selBike, rides: RIDES };
+    const today = todayStr();
+    const makeBike = (id, name, mileage) => ({
+      id, name, gearId: "", baseMileage: mileage, parts: [{
+        id: `${id}-chain`, name: "Chain", installedDate: today, installedMileage: 0,
+        status: "new", serviceTypes: [{
+          id: `${id}-clean`, name: "Clean & Lube", alertKm: 100, alertH: null, services: [],
+        }],
+      }],
+    });
+    RIDES = [];
+    MODEL = {
+      version: 1,
+      bikes: [makeBike("queue-road", "Road Bike", 120), makeBike("queue-gravel", "Gravel Bike", 85)],
+      inventory: [],
+    };
+    selBike = "queue-road";
+    render();
+  });
+  const queue = page.locator('.sec[data-sid="service-queue"]');
+  await queue.waitFor({ state: "visible", timeout: 5000 });
+  console.log("  → bike-service-queue");
+  await queue.screenshot({ path: path.join(outDir, "bike-service-queue.png") });
+  await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+  console.log("  → bike-service-queue-dark");
+  await queue.screenshot({ path: path.join(outDir, "bike-service-queue-dark.png") });
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "light";
+    const saved = window.__bikeQueueScreenshotState;
+    MODEL = saved.model;
+    selBike = saved.selected;
+    RIDES = saved.rides;
+    delete window.__bikeQueueScreenshotState;
+    render();
+  });
+  await waitBikeReady(page);
+
   console.log("  → bike-modal-add-bike");
   await page.evaluate(() => showAddBike());
   await page.waitForSelector("#b-name", { timeout: 3000 });
@@ -172,6 +210,23 @@ try {
   });
   await page.waitForSelector("#r-note", { timeout: 3000 });
   await shot(page, "bike-modal-replace-part");
+  await page.evaluate(() => closeModal());
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+
+  console.log("  → bike-modal-move-part");
+  await page.evaluate(() => {
+    const button = document.querySelector('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showMovePart"]');
+    if (button) button.click();
+  });
+  await page.waitForSelector("#move-target", { timeout: 3000 });
+  await shot(page, "bike-modal-move-part");
+  await page.evaluate(() => closeModal());
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
+
+  console.log("  → bike-modal-add-stock");
+  await page.evaluate(() => showAddStock());
+  await page.waitForSelector("#stock-distance", { timeout: 3000 });
+  await shot(page, "bike-modal-add-stock");
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
