@@ -216,6 +216,7 @@ function progressDone(){
 }
 var DATA = null, ALL_ACTS = [], genStr = "";
 var selSport = "Ride", selYear = "";
+var ATHLETE_AGE = 0;
 var CLIMB_GAIN_BY_SPORT = {"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10};
 var CLIMB_GRADE_BY_SPORT = {"gRide":3,"gRun":2,"gHike":2,"gWalk":1,"gOther":2};
 var CLIMB_MIN_DIST = 100;
@@ -325,10 +326,24 @@ function fmtPeriod(acts){
   return parts.join(", ");
 }
 
+function activityHrEffort(a){
+  var score = Number(a.suffer_score);
+  if(a.suffer_score != null && isFinite(score) && score > 0)
+    return {score:score, source:"Strava Relative Effort"};
+  var bpm = Number(a.average_heartrate), secs = Number(a.moving_time);
+  if(!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) return null;
+  var hrMax = ATHLETE_AGE > 0 ? 220 - ATHLETE_AGE : (Number(a.max_heartrate) || bpm);
+  var zone = bpm < Math.round(.60*hrMax) ? 0
+    : bpm < Math.round(.70*hrMax) ? 1
+    : bpm < Math.round(.80*hrMax) ? 2
+    : bpm < Math.round(.90*hrMax) ? 3 : 4;
+  return {score:Math.round(secs/60*(zone+1)), source:"Estimated from average HR"};
+}
+
 // ---- personal records -------------------------------------------------------
 function computeRecords(acts){
   var longest=null, longest_t=null, most_e=null, fastest=null, max_spd=null;
-  var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null;
+  var most_pow=null, most_kj=null, most_vam=null, most_steps=null, most_single_climb=null, most_hr_effort=null;
   var weeks={}, months={}, months_count={}, dates={};
   var _stepSports={Walk:1,Hike:1};
   acts.forEach(function(a){
@@ -360,6 +375,9 @@ function computeRecords(acts){
       if(!most_steps||st>most_steps.steps)
         most_steps={steps:st,km:km,s:s,date:a.date,name:a.name,id:a.id};
     }
+    var hrEffort=activityHrEffort(a);
+    if(hrEffort&&hrEffort.score>0&&(!most_hr_effort||hrEffort.score>most_hr_effort.score))
+      most_hr_effort={score:hrEffort.score,source:hrEffort.source,km:km,s:s,date:a.date,name:a.name,id:a.id};
     if(a.date){
       weeks[weekOf(a.date)]=(weeks[weekOf(a.date)]||0)+km;
       var ym=a.date.slice(0,7);
@@ -387,7 +405,7 @@ function computeRecords(acts){
   return {
     longest:longest, longest_t:longest_t, most_e:most_e, fastest:fastest, max_spd:max_spd,
     most_pow:most_pow, most_kj:most_kj, most_vam:most_vam, most_steps:most_steps,
-    most_single_climb:most_single_climb,
+    most_single_climb:most_single_climb, most_hr_effort:most_hr_effort,
     bwk:bwk?{week:bwk,km:bwkKm}:null,
     bmo:bmo?{month:bmo,km:bmoKm}:null,
     bmoCount:bmoCount?{month:bmoCount,n:bmoCountN}:null,
@@ -1055,6 +1073,9 @@ function render(){
   if(rec.most_steps)
     ri.push(mkRec("Most steps", fmtInt(rec.most_steps.steps),
                   rec.most_steps.date+"  "+fmtKmD(rec.most_steps.km)+" km\n"+rec.most_steps.name, _aLink(rec.most_steps.id)));
+  if(rec.most_hr_effort)
+    ri.push(mkRec("Highest HR effort", fmtInt(Math.round(rec.most_hr_effort.score)),
+                  rec.most_hr_effort.source+" · "+rec.most_hr_effort.date+"  "+fmtKmD(rec.most_hr_effort.km)+" km\n"+rec.most_hr_effort.name, _aLink(rec.most_hr_effort.id)));
   if(rec.bwk){
     var bwDate=rec.bwk.week;
     ri.push(mkRec("Best week (km)", fmtKmD(rec.bwk.km)+" km",
@@ -1140,6 +1161,7 @@ function load(){
     .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
     .then(function(d){
       DATA=d; ALL_ACTS=(d.activities||[]);
+      ATHLETE_AGE=Number(d.athleteAge)||0;
       var curY=String(new Date().getFullYear());
       selYear=curY;
 
