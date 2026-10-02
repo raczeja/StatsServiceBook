@@ -142,6 +142,25 @@ test.describe("stats", () => {
     ).toBeTruthy();
   });
 
+  test("records-highest-hr-effort", async () => {
+    const record = await page.evaluate(() => {
+      for (const rec of document.querySelectorAll("#recs .rec")) {
+        if (rec.querySelector(".rl")?.textContent.includes("Highest HR effort")) {
+          return {
+            value: rec.querySelector(".rv")?.textContent,
+            details: rec.querySelector(".rs")?.textContent,
+            href: rec.querySelector("a[href]")?.getAttribute("href"),
+          };
+        }
+      }
+      return null;
+    });
+    expect(record, "expected a highest HR effort personal record").toBeTruthy();
+    expect(Number(record.value.replace(/\s/g, ""))).toBeGreaterThan(0);
+    expect(record.details).toContain("Estimated from average HR");
+    expect(record.href).toMatch(/^activity\.html\?id=/);
+  });
+
   test("year-table-has-row", async () => {
     const n = await page.$$eval("#yearTable tbody tr", (rows) => rows.length);
     expect(n >= 1, `expected year table rows, got ${n}`).toBeTruthy();
