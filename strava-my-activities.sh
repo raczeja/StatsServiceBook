@@ -300,6 +300,9 @@ if [ -s "$TMP/changed_ids.txt" ]; then
   done < "$TMP/changed_ids.txt"
   log "detail: invalidated $CHANGED changed activities for re-fetch"
 fi
+if [ -s "$TMP/deleted_ids.txt" ] || [ -s "$TMP/changed_ids.txt" ]; then
+  printf '{}' > "$STATE_DIR/hr-summary.json"
+fi
 
 # Cross-check every stored gear_id against the cached detail file's .gear.id.
 # Catches gear changes that silently propagated to the feed (and thus to the store)
@@ -527,6 +530,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     jq -c --arg fileid "$_detail_id" '
       select(.id != null) as $d
       | ($d | {
+          moving_time:           (.moving_time // null),
           elapsed_time:           (.elapsed_time // null),
           total_elevation_gain:   (.total_elevation_gain // null),
           average_speed:          (.average_speed // null),
@@ -613,6 +617,55 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   _climbs_remaining=$((_climbs_todo - _climbs_computed))
   [ "$_climbs_remaining" -gt 0 ] \
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
+  _hr_cache="$STATE_DIR/hr-summary.json"
+  [ -f "$_hr_cache" ] || printf '{}' > "$_hr_cache"
+  jq -c 'to_entries[] | {(.key): .value}' "$_hr_cache" > "$TMP/hr-summary-parts.ndjson"
+  jq -s 'map({(.id | tostring): {moving_time: (.moving_time // null), max_heartrate: (.max_heartrate // null)}}) | add // {}' \
+    "$STORE" > "$TMP/hr-feed-fields.json"
+  jq -r --slurpfile fields "$TMP/hr-feed-fields.json" '
+    ($fields[0] // {}) as $feed
+    | to_entries[]
+    | select(.value.gpx_file != null and .value.average_heartrate == null)
+    | [.key, .value.gpx_file,
+       ($feed[.key].moving_time // .value.moving_time // 0),
+       ($feed[.key].max_heartrate // .value.max_heartrate // 0)]
+    | @tsv
+  ' "$TMP/enrich.json" 2>/dev/null \
+    | sort -r > "$TMP/hr-gpx-paths.txt" || : > "$TMP/hr-gpx-paths.txt"
+  jq -r 'keys[]' "$_hr_cache" > "$TMP/hr-cached-ids.txt" 2>/dev/null || : > "$TMP/hr-cached-ids.txt"
+  : > "$TMP/hr-gpx-pending.txt"
+  while read -r _hr_id _hr_gpx; do
+    grep -qx "$_hr_id" "$TMP/hr-cached-ids.txt" || printf '%s %s\n' "$_hr_id" "$_hr_gpx" >> "$TMP/hr-gpx-pending.txt"
+  done < "$TMP/hr-gpx-paths.txt"
+  mv "$TMP/hr-gpx-pending.txt" "$TMP/hr-gpx-paths.txt"
+  _hr_todo="$(wc -l < "$TMP/hr-gpx-paths.txt" | tr -d ' ')"
+  _hr_computed=0
+  _hr_batch=100
+  _tab="$(printf '\t')"
+  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+    [ "$_hr_computed" -ge "$_hr_batch" ] && break
+    _hr_gpx_path="$WEB_DIR/$_hr_gpx"
+    [ -f "$_hr_gpx_path" ] || continue
+    _hr_values="$(gpx_hr_summary "$_hr_gpx_path" "$_hr_time" "$_hr_rawmax" "$ATHLETE_AGE" 2>/dev/null)" || _hr_values=""
+    case "$_hr_values" in
+      *"$_tab"*) ;;
+      *) _hr_values="null${_tab}null${_tab}null" ;;
+    esac
+    _hr_avg="${_hr_values%%"$_tab"*}"
+    _hr_values="${_hr_values#*"$_tab"}"
+    _hr_max="${_hr_values%%"$_tab"*}"
+    _hr_effort="${_hr_values#*"$_tab"}"
+    printf '{"%s":{"average_heartrate":%s,"max_heartrate":%s,"estimated_hr_effort":%s}}\n' \
+      "$_hr_id" "$_hr_avg" "$_hr_max" "$_hr_effort" >> "$TMP/hr-summary-parts.ndjson"
+    printf '%s\n' "$_hr_id" >> "$TMP/hr-cached-ids.txt"
+    _hr_computed=$((_hr_computed + 1))
+  done < "$TMP/hr-gpx-paths.txt"
+  jq -s 'add // {}' "$TMP/hr-summary-parts.ndjson" > "$TMP/hr-summary.json"
+  cp "$TMP/hr-summary.json" "$_hr_cache"
+  [ "$_hr_computed" -gt 0 ] && log "render: cached GPX heart-rate summaries for $_hr_computed activities"
+  _hr_remaining=$((_hr_todo - _hr_computed))
+  [ "$_hr_remaining" -gt 0 ] \
+    && log "render: HR summary batch limit $_hr_batch reached; $_hr_remaining activities queued for next run"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with
@@ -646,6 +699,7 @@ else
   echo '{}' > "$TMP/enrich.json"
   echo '{}' > "$TMP/gps.json"
   printf '{}' > "$TMP/max-climbs.json"
+  printf '{}' > "$TMP/hr-summary.json"
 fi
 
 # Gear (bike) names: detailed activities carry a .gear object with the gear's id
@@ -668,6 +722,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   --argjson scrapeMeta "$_sc_meta" \
   --slurpfile det "$TMP/detail_ids.json" \
   --slurpfile enr "$TMP/enrich.json" \
+  --slurpfile hr "$TMP/hr-summary.json" \
   --slurpfile gps "$TMP/gps.json" \
   --slurpfile gears "$TMP/gears.json" \
   --slurpfile climbs "$TMP/max-climbs.json" \
@@ -675,6 +730,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   --slurpfile wcache "$WEATHER_CACHE" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
   | ($enr[0] // {}) as $enrich
+  | ($hr[0] // {}) as $hr_by_id
   | ($gps[0] // {}) as $gps_by_id
   | ($assigns[0] // {}) as $A
   | ($wcache[0] // {}) as $W
@@ -704,8 +760,9 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           total_elevation_gain:   (if (.total_elevation_gain // 0) > 0 then .total_elevation_gain else ($e.total_elevation_gain // 0) end),
           average_speed:          (if (.average_speed // 0) > 0 then .average_speed else ($e.average_speed // 0) end),
           max_speed:              (if (.max_speed // 0) > 0 then .max_speed else ($e.max_speed // 0) end),
-          average_heartrate:      (.average_heartrate // $e.average_heartrate),
-          max_heartrate:          (.max_heartrate // $e.max_heartrate),
+          average_heartrate:      (.average_heartrate // $e.average_heartrate // $hr_by_id[(.id | tostring)].average_heartrate),
+          max_heartrate:          (.max_heartrate // $e.max_heartrate // $hr_by_id[(.id | tostring)].max_heartrate),
+          estimated_hr_effort:   ($hr_by_id[(.id | tostring)].estimated_hr_effort // null),
           average_cadence:        (.average_cadence // $e.average_cadence),
           average_watts:          (.average_watts // $e.average_watts),
           weighted_average_watts: (.weighted_average_watts // $e.weighted_average_watts),
