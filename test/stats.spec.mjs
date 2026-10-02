@@ -173,6 +173,18 @@ test.describe("stats", () => {
     expect(score).toBe(16);
   });
 
+  test("uses-gpx-sample-effort-when-cached", async () => {
+    const score = await page.evaluate(() =>
+      estimatedActivityHrEffort({
+        average_heartrate: null,
+        max_heartrate: null,
+        moving_time: 9339,
+        estimated_hr_effort: 42,
+      }),
+    );
+    expect(score).toBe(42);
+  });
+
   test("year-table-has-row", async () => {
     const n = await page.$$eval("#yearTable tbody tr", (rows) => rows.length);
     expect(n >= 1, `expected year table rows, got ${n}`).toBeTruthy();

@@ -398,7 +398,7 @@ function renderCards(d){
   if (d.max_watts)         html += card("Max power", Math.round(d.max_watts) + " W");
   if (d.kilojoules)        html += card("Work", Math.round(d.kilojoules) + " kJ");
   if (d.calories)          html += card("Calories", Math.round(d.calories));
-  if (d.suffer_score != null) html += cardTip("Relative effort", Math.round(d.suffer_score), "Strava’s Relative Effort — measures workout intensity based on time spent in each heart rate zone. Higher values indicate a harder or longer effort.");
+  if (d.suffer_score != null) html += cardTip("Strava Relative Effort", Math.round(d.suffer_score), "Official score supplied by Strava’s activity data.");
   if (d.average_temp != null || d.wind_speed != null) {
     var _ts = d.temp_source;
     var _srcLabel = _ts === "archive"   ? '<span class="wx-src wx-arch" title="Weather archive — historical data from Open-Meteo for the activity location and time.">hist</span>'
@@ -433,7 +433,7 @@ function renderCards(d){
   if (d.gear && d.gear.name) html += card("Gear", esc(d.gear.name));
   if (d.device_name)       html += card("Device", esc(d.device_name));
   document.getElementById("cards").innerHTML = html;
-  if (d.suffer_score == null && d.average_heartrate > 0)
+  if (d.average_heartrate > 0)
     renderHrEffort([{bpm:d.average_heartrate, secs:d.moving_time || 0}], d.max_heartrate || 0, d, "activity average HR only");
 }
 
@@ -601,7 +601,7 @@ function hrZoneIndex(bpm, hrMax) {
 }
 
 function renderHrEffort(hrPoints, maxHR, activity, source) {
-  if (activity.suffer_score != null || !hrPoints.length) return;
+  if (!hrPoints.length) return;
   var hrMax = resolveHrMax(hrPoints, maxHR);
   if (!hrMax) return;
   var weightedSecs = 0, totalSecs = 0;

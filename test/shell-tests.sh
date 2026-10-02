@@ -1557,6 +1557,36 @@ _scrape_meta="$(jq -n --argjson ts "$_ts" '{
 assert_eq "$S" "scrape-mode-no-dryrun"     "$(printf '%s' "$_scrape_meta" | jq 'has("dryRun")')"     "false"
 assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq 'has("feedTestOk")')" "false"
 
+# ── gpx-heart-rate-summary ────────────────────────────────────────────────────
+S="gpx-heart-rate-summary"
+_hr_lib=""
+for _hr_lib_path in \
+    /usr/bin/strava-lib.sh \
+    /opt/strava-lib.sh \
+    "$(dirname "$0")/../strava-lib.sh" \
+    "$(dirname "$0")/strava-lib.sh"; do
+    if [ -f "$_hr_lib_path" ]; then
+        _hr_lib="$_hr_lib_path"
+        break
+    fi
+done
+if [ -n "$_hr_lib" ]; then
+    . "$_hr_lib"
+    cat > "$TMP/hr-summary.gpx" << 'GPX'
+<trkpt><extensions><gpxtpx:hr>110</gpxtpx:hr><gpxtpx:hr>130</gpxtpx:hr></extensions></trkpt>
+<trkpt><extensions><heartrate>150</heartrate></extensions></trkpt>
+GPX
+    _hr_summary="$(gpx_hr_summary "$TMP/hr-summary.gpx" 4200 150 0)"
+    assert_eq "$S" "average-heart-rate" "$(printf '%s' "$_hr_summary" | cut -f1)" "130.0"
+    assert_eq "$S" "maximum-heart-rate" "$(printf '%s' "$_hr_summary" | cut -f2)" "150"
+    assert_eq "$S" "estimated-effort-from-samples" "$(printf '%s' "$_hr_summary" | cut -f3)" "33"
+    printf '<trkpt><ele>120</ele></trkpt>\n' > "$TMP/hr-empty.gpx"
+    _hr_summary="$(gpx_hr_summary "$TMP/hr-empty.gpx" 4200 0 0)"
+    assert_eq "$S" "no-heart-rate-samples" "$_hr_summary" "$(printf 'null\tnull\tnull')"
+else
+    err "$S" "library-found" "could not locate strava-lib.sh"
+fi
+
 # ── set-eu-rw-coords ─────────────────────────────────────────────────────────
 # _rw_coords id gpx_file detail_dir web_dir (from strava-lib.sh) must exit 0
 # in all paths under BusyBox set -eu and must correctly prefer detail JSON,

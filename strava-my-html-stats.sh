@@ -343,6 +343,8 @@ function estimateHrEffort(points, hrMax){
 }
 
 function estimatedActivityHrEffort(a){
+  var cached = Number(a.estimated_hr_effort);
+  if(a.estimated_hr_effort != null && isFinite(cached) && cached > 0) return cached;
   var bpm = Number(a.average_heartrate), secs = Number(a.moving_time);
   if(!isFinite(bpm) || bpm <= 0 || !isFinite(secs) || secs <= 0) return null;
   var hrMax = ATHLETE_AGE > 0 ? 220 - ATHLETE_AGE : (Number(a.max_heartrate) || bpm);

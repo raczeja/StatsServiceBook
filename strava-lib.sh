@@ -32,6 +32,50 @@ curl_retry() {
   done
 }
 
+# gpx_hr_summary file moving_time max_heartrate athlete_age
+# Prints average HR, peak HR, and estimated HR effort as tab-separated values.
+gpx_hr_summary() {
+  [ -r "$1" ] || return 1
+  awk -v moving="$2" -v provided_max="$3" -v age="$4" '
+    {
+      s=$0
+      while (match(s, /<(gpxtpx:)?(hr|heartrate)>[0-9]+<\/(gpxtpx:)?(hr|heartrate)>/)) {
+        next_pos=RSTART+RLENGTH
+        value=substr(s,RSTART,RLENGTH)
+        gsub(/[^0-9]/,"",value)
+        bpm=value+0
+        sum+=bpm
+        count++
+        if (bpm>max) max=bpm
+        samples[count]=bpm
+        s=substr(s,next_pos)
+      }
+    }
+    END {
+      if (!count) {
+        printf "null\tnull\tnull"
+        exit
+      }
+      if (age>0) hrmax=220-age
+      else if (provided_max>0) hrmax=provided_max
+      else hrmax=max
+      weighted=0
+      for (i=1; i<=count; i++) {
+        bpm=samples[i]
+        if (bpm<int(0.60*hrmax+0.5)) zone=0
+        else if (bpm<int(0.80*hrmax+0.5)) zone=1
+        else if (bpm<int(0.90*hrmax+0.5)) zone=2
+        else if (bpm<int(hrmax+0.5)) zone=3
+        else zone=4
+        weighted+=zone+1
+      }
+      if (moving>0 && hrmax>0) effort=int((weighted/count*moving/60/7)+0.5)
+      else effort="null"
+      printf "%.1f\t%d\t%s",sum/count,max,effort
+    }
+  ' "$1"
+}
+
 # fetch_weather_temp lat lon date  →  prints integer °C or "" on error/unavailable
 # On success sets globals: _fw_temp_source ("archive"/"forecast"),
 # _fw_apparent_temp (feels-like °C integer), _fw_wind_speed (km/h integer),
