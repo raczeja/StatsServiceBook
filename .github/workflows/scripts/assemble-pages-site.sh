@@ -181,14 +181,14 @@ rows = []
 for page in report.get("pages", []):
     label = html.escape(str(page.get("label", "Unknown")))
     percent = float(page.get("percent", 0))
-    used = int(page.get("usedBytes", 0))
-    total = int(page.get("totalBytes", 0))
+    covered = int(page.get("coveredStatements", 0))
+    total = int(page.get("totalStatements", 0))
     rows.append(
         '<tr>'
         f'<th scope="row">{label}</th>'
         f'<td><strong>{percent:.2f}%</strong>'
         f'<div class="bar"><span class="{tone(percent)}" style="width:{max(0, min(100, percent)):.2f}%"></span></div></td>'
-        f'<td>{used:,} / {total:,} bytes</td>'
+        f'<td>{covered:,} / {total:,} statements</td>'
         '</tr>'
     )
 
@@ -229,8 +229,8 @@ table{{width:100%;border-collapse:collapse;text-align:left}}th,td{{padding:.8rem
 </section>
 <section class="card">
 <h2>Coverage by page</h2>
-<p class="muted">Percentage of first-party JavaScript bytes executed during each page's initial load. This is not line coverage and does not include shell scripts or third-party libraries.</p>
-<table><thead><tr><th>Page</th><th>Executed</th><th>Bytes</th></tr></thead><tbody>{rows_html}</tbody></table>
+<p class="muted">Percentage of first-party JavaScript statements executed during each page's initial load, converted from Chromium V8 coverage. This does not include shell scripts, third-party libraries, or page interactions.</p>
+<table><thead><tr><th>Page</th><th>Coverage</th><th>Statements</th></tr></thead><tbody>{rows_html}</tbody></table>
 </section>
 </main>
 </body>
