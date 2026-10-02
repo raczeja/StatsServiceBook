@@ -132,6 +132,61 @@ test.describe("bike-service", () => {
     await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
   });
 
+  test("service-queue-includes-all-bikes-sorts-by-urgency-and-hides-without-overdue-work", async () => {
+    const result = await page.evaluate(() => {
+      const saved = { model: MODEL, selected: selBike, rides: RIDES };
+      const today = todayStr();
+      const makeBike = (id, name, mileage) => ({
+        id, name, gearId: "", baseMileage: mileage, parts: [{
+          id: `${id}-chain`, name: "Chain", installedDate: today, installedMileage: 0,
+          status: "new", serviceTypes: [{
+            id: `${id}-clean`, name: "Clean & Lube", alertKm: 100, alertH: null, services: [],
+          }],
+        }],
+      });
+      try {
+        RIDES = [];
+        MODEL = {
+          version: 1,
+          bikes: [makeBike("queue-road", "Road Bike", 120), makeBike("queue-gravel", "Gravel Bike", 85)],
+          inventory: [],
+        };
+        selBike = "queue-road";
+        render();
+        const queue = document.querySelector('.sec[data-sid="service-queue"]');
+        const rows = queue
+          ? Array.from(queue.querySelectorAll("tbody tr")).map((row) => ({
+            text: row.textContent.trim(),
+            state: row.querySelector("td")?.classList.contains("queue-due") ? "overdue" : "upcoming",
+          }))
+          : [];
+
+        queue.querySelector('[data-queue-bike="queue-gravel"]').click();
+        const viewBikeSelectsCorrectBike = selBike === "queue-gravel";
+        MODEL.bikes[0].baseMileage = 20;
+        render();
+        return {
+          rows,
+          viewBikeSelectsCorrectBike,
+          upcomingOnlyStillHidden: !document.querySelector('.sec[data-sid="service-queue"]'),
+        };
+      } finally {
+        MODEL = saved.model;
+        selBike = saved.selected;
+        RIDES = saved.rides;
+        render();
+      }
+    });
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].text).toContain("Road Bike");
+    expect(result.rows[0].state).toBe("overdue");
+    expect(result.rows[1].text).toContain("Gravel Bike");
+    expect(result.rows[1].state).toBe("upcoming");
+    expect(result.viewBikeSelectsCorrectBike).toBeTruthy();
+    expect(result.upcomingOnlyStillHidden).toBeTruthy();
+  });
+
   test("bike-tabs-present", async () => {
     const n = await page.$$eval(".bikes .tab:not(.add)", (els) => els.length);
     expect(n >= 4, `expected >= 4 bike tabs, got ${n}`).toBeTruthy();
@@ -480,7 +535,7 @@ test.describe("bike-input-step-and-odo", () => {
     });
     await page.waitForSelector("#bikepanel table", { timeout: 5000 });
     const riddenText = await page.$eval(
-      "#bikepanel tbody tr:not(.ridesrow) td:nth-child(3)",
+      '#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow) td:nth-child(3)',
       (el) => el.textContent.trim(),
     );
     const km = parseFloat(riddenText.replace(/[\s ]/g, "").replace(",", "."));
@@ -1034,7 +1089,7 @@ test.describe("needs-replacement", () => {
   test("flagged-part-sorts-first", async () => {
     if (skipSuite) return;
     const firstRowHasBadge = await page.evaluate(() => {
-      const rows = document.querySelectorAll("#bikepanel tbody tr:not(.ridesrow)");
+      const rows = document.querySelectorAll('#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow)');
       return rows.length > 0 && !!rows[0].querySelector(".needs-repl");
     });
     expect(firstRowHasBadge, "expected the flagged part to be the first row in the active-parts table").toBeTruthy();
@@ -1042,7 +1097,7 @@ test.describe("needs-replacement", () => {
 
   test("service-modal-checkbox-prechecked-for-flagged-part", async () => {
     if (skipSuite) return;
-    const svcBtns = await page.$$('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showService"]');
+    const svcBtns = await page.$$('#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow) button[onclick*="showService"]');
     expect(svcBtns.length >= 1, "no Service button found").toBeTruthy();
     await svcBtns[0].click();
     await page.waitForSelector("#s-needs-repl", { timeout: 3000 });
@@ -1219,7 +1274,7 @@ test.describe("bike-section-order", () => {
     const sids = await page.$$eval("#bikepanel .sec[data-sid]", (els) =>
       els.map((el) => el.getAttribute("data-sid")),
     );
-    expect(sids[0], `after reset, expected "parts" first, got "${sids[0]}"`).toBe("parts");
+    expect(sids[0], `after reset, expected "service-queue" first, got "${sids[0]}"`).toBe("service-queue");
   });
 });
 
