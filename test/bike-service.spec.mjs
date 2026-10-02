@@ -25,6 +25,98 @@ test.describe("bike-service", () => {
     } catch (_) {}
   });
 
+  test("shared-inventory-moves-preserve-history-and-consume-stock", async ({ page }) => {
+    const originalResponse = await fetch(BIKE_CGI, { cache: "no-store" });
+    const original = await originalResponse.json();
+    const postStore = async (store) => {
+      const response = await fetch(BIKE_CGI, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(store),
+      });
+      expect(response.ok, `bike-service POST failed with ${response.status}`).toBeTruthy();
+    };
+
+    try {
+      await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+      await page.waitForSelector(".bikes .tab:not(.add)");
+
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      const chainId = await page.evaluate(() =>
+        MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((part) => part.name === "Chain").id
+      );
+      await page.evaluate((id) => movePartToInventory(id), chainId);
+      await page.getByRole("button", { name: "Move to inventory" }).click();
+      await page.waitForFunction(async () => {
+        const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return store.inventory?.some((item) => item.id === "p-chain");
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(1);
+
+      let store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const storedChain = store.inventory.find((item) => item.id === "p-chain");
+      expect(storedChain.quantity).toBe(1);
+      expect(storedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
+      expect(storedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
+
+      await page.getByRole("button", { name: "Gravel Bike", exact: true }).click();
+      await page.getByRole("button", { name: "Install on Gravel Bike" }).click();
+      await page.getByRole("button", { name: "Install part", exact: true }).click();
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return !saved.inventory?.some((item) => item.id === "p-chain");
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
+      store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const installedChain = store.bikes.find((bike) => bike.id === "b-gravel").parts.find((part) =>
+        part.name === "Chain" && part.usageHistory?.some((segment) => segment.bikeName === "Road Bike")
+      );
+      expect(installedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
+      expect(installedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
+
+      await page.getByRole("button", { name: "＋ Add stock" }).click();
+      await page.locator("#stock-name").fill("Inventory test chain");
+      await page.locator("#stock-qty").fill("2");
+      await page.locator("#stock-distance").fill("120");
+      await page.getByRole("button", { name: "＋ Add service record" }).click();
+      await page.locator(".stock-service-type").fill("Lubricate");
+      await page.locator(".stock-service-mileage").fill("60");
+      await page.locator(".stock-service-note").fill("recorded before storage");
+      await page.getByRole("button", { name: "Add stock", exact: true }).click();
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 2);
+      });
+      await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(1);
+
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      const replaceId = await page.evaluate(() =>
+        MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((part) => part.name === "Rear tyre").id
+      );
+      await page.evaluate((id) => showReplace(id), replaceId);
+      const stockId = await page.locator("#r-stock option").evaluateAll((options) =>
+        options.find((option) => option.textContent.includes("Inventory test chain (2 in stock)")).value
+      );
+      await page.locator("#r-stock").selectOption(stockId);
+      await page.evaluate((id) => saveReplace(id), replaceId);
+      await page.waitForFunction(async () => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 1);
+      });
+      store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const stocked = store.inventory.find((item) => item.name === "Inventory test chain");
+      expect(stocked.usageHistory?.[0]?.distance).toBe(120);
+      expect(stocked.serviceTypes?.[0]?.services?.[0]?.note).toBe("recorded before storage");
+      expect(store.bikes.find((bike) => bike.name === "Road Bike").parts.some((part) =>
+        part.name === "Inventory test chain" && part.status !== "archived" &&
+        part.usageHistory?.[0]?.distance === 120 &&
+        part.serviceTypes?.[0]?.services?.[0]?.note === "recorded before storage"
+      )).toBeTruthy();
+    } finally {
+      await postStore(original);
+    }
+  });
+
   test.afterAll(async () => { await page.close(); });
 
   test("no-js-errors", () => {
@@ -34,6 +126,65 @@ test.describe("bike-service", () => {
   test("meta-not-loading", async () => {
     const text = await page.$eval("#meta", (el) => el.textContent);
     expect(!text.includes("Loading"), `#meta still says Loading`).toBeTruthy();
+  });
+
+  test("inventory-section-hidden-when-empty", async () => {
+    await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
+  });
+
+  test("service-queue-includes-all-bikes-sorts-by-urgency-and-hides-without-overdue-work", async () => {
+    const result = await page.evaluate(() => {
+      const saved = { model: MODEL, selected: selBike, rides: RIDES };
+      const today = todayStr();
+      const makeBike = (id, name, mileage) => ({
+        id, name, gearId: "", baseMileage: mileage, parts: [{
+          id: `${id}-chain`, name: "Chain", installedDate: today, installedMileage: 0,
+          status: "new", serviceTypes: [{
+            id: `${id}-clean`, name: "Clean & Lube", alertKm: 100, alertH: null, services: [],
+          }],
+        }],
+      });
+      try {
+        RIDES = [];
+        MODEL = {
+          version: 1,
+          bikes: [makeBike("queue-road", "Road Bike", 120), makeBike("queue-gravel", "Gravel Bike", 85)],
+          inventory: [],
+        };
+        selBike = "queue-road";
+        render();
+        const queue = document.querySelector('.sec[data-sid="service-queue"]');
+        const rows = queue
+          ? Array.from(queue.querySelectorAll("tbody tr")).map((row) => ({
+            text: row.textContent.trim(),
+            state: row.querySelector("td")?.classList.contains("queue-due") ? "overdue" : "upcoming",
+          }))
+          : [];
+
+        queue.querySelector('[data-queue-bike="queue-gravel"]').click();
+        const viewBikeSelectsCorrectBike = selBike === "queue-gravel";
+        MODEL.bikes[0].baseMileage = 20;
+        render();
+        return {
+          rows,
+          viewBikeSelectsCorrectBike,
+          upcomingOnlyStillHidden: !document.querySelector('.sec[data-sid="service-queue"]'),
+        };
+      } finally {
+        MODEL = saved.model;
+        selBike = saved.selected;
+        RIDES = saved.rides;
+        render();
+      }
+    });
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0].text).toContain("Road Bike");
+    expect(result.rows[0].state).toBe("overdue");
+    expect(result.rows[1].text).toContain("Gravel Bike");
+    expect(result.rows[1].state).toBe("upcoming");
+    expect(result.viewBikeSelectsCorrectBike).toBeTruthy();
+    expect(result.upcomingOnlyStillHidden).toBeTruthy();
   });
 
   test("bike-tabs-present", async () => {
@@ -234,6 +385,87 @@ test.describe("bike-service", () => {
     expect(/PLN/i.test(labelText), `expected currency code (PLN) in purchase cost label, got: "${labelText}"`).toBeTruthy();
     await page.evaluate(() => { if (typeof closeModal === "function") closeModal(); });
   });
+
+  test("move-option-hidden-with-only-one-bike", async () => {
+    const visible = await page.evaluate(() => {
+      const bikes = MODEL.bikes;
+      const selected = selBike;
+      const singleBike = bikes.find((b) => b.name === "Road Bike") || bikes[0];
+      MODEL.bikes = [singleBike];
+      selBike = singleBike.id;
+      render();
+      const hasMove = !!document.querySelector('#bikepanel button[onclick*="showMovePart"]');
+      MODEL.bikes = bikes;
+      selBike = selected;
+      render();
+      return hasMove;
+    });
+    expect(visible, "Move action should be hidden when there is only one bike").toBe(false);
+  });
+
+  test("moving-part-preserves-history-costs-and-usage", async () => {
+    const original = await page.evaluate(async () => fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json()));
+    await page.evaluate((snapshot) => {
+      MODEL = snapshot;
+      if (!Array.isArray(MODEL.inventory)) MODEL.inventory = [];
+      MODEL.bikes.forEach((bike) => {
+        if (!Array.isArray(bike.parts)) bike.parts = [];
+        bike.parts.forEach(migratePart);
+      });
+      render();
+    }, original);
+    const before = await page.evaluate(() => {
+      const source = MODEL.bikes.find((b) => b.name === "Road Bike");
+      const target = MODEL.bikes.find((b) => b.name === "Gravel Bike");
+      return { sourceId: source?.id, targetId: target?.id, part: source?.parts?.find((p) => p.id === "p-chain") };
+    });
+    expect(before.part, "Road Bike chain fixture is missing").toBeTruthy();
+    expect(before.targetId, "Gravel Bike fixture is missing").toBeTruthy();
+    const originalServices = JSON.parse(JSON.stringify(before.part.serviceTypes));
+    const originalCost = before.part.cost;
+
+    try {
+      await page.evaluate(() => {
+        const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
+        if (tab) tab.click();
+      });
+      await page.evaluate(() => {
+        const button = Array.from(document.querySelectorAll('#bikepanel .sec[data-sid="parts"] button[onclick*="showMovePart"]'))
+          .find((el) => el.getAttribute("onclick").includes("'p-chain'"));
+        if (!button) throw new Error("Road Bike chain Move button is missing");
+        button.click();
+      });
+      await page.selectOption("#move-target", before.targetId);
+      await page.getByRole("button", { name: "Move part" }).click();
+      await page.waitForFunction(async ({ sourceId, targetId }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return !saved.bikes.find((b) => b.id === sourceId)?.parts?.some((p) => p.id === "p-chain") &&
+          saved.bikes.find((b) => b.id === targetId)?.parts?.some((p) => p.id === "p-chain" && p.usageHistory?.length);
+      }, { sourceId: before.sourceId, targetId: before.targetId });
+
+      const moved = await page.evaluate(async ({ targetId }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        return saved.bikes.find((b) => b.id === targetId)?.parts?.find((p) => p.id === "p-chain");
+      }, { targetId: before.targetId });
+      expect(moved, "moved chain was not found on Gravel Bike").toBeTruthy();
+      expect(moved.usageHistory[0].bikeId).toBe(before.sourceId);
+      expect(moved.usageHistory[0].distance).toBeGreaterThan(0);
+      expect(moved.usageHistory[0].time).toBeGreaterThan(0);
+      expect(moved.serviceTypes).toEqual(originalServices);
+      expect(moved.cost).toBe(originalCost);
+      expect(moved.installedDate).toBe(before.part.installedDate);
+      expect(moved.currentBikeInstalledMileage).toBeDefined();
+    } finally {
+      await page.evaluate(async (snapshot) => {
+        await fetch("/cgi-bin/bike-service", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(snapshot),
+        });
+      }, original);
+      await page.reload({ waitUntil: "networkidle", timeout: 20000 });
+    }
+  });
 });
 
 // ── Bike Input Step and Odo ────────────────────────────────────────────────────
@@ -319,7 +551,7 @@ test.describe("bike-input-step-and-odo", () => {
     });
     await page.waitForSelector("#bikepanel table", { timeout: 5000 });
     const riddenText = await page.$eval(
-      "#bikepanel tbody tr:not(.ridesrow) td:nth-child(3)",
+      '#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow) td:nth-child(3)',
       (el) => el.textContent.trim(),
     );
     const km = parseFloat(riddenText.replace(/[\s ]/g, "").replace(",", "."));
@@ -873,7 +1105,7 @@ test.describe("needs-replacement", () => {
   test("flagged-part-sorts-first", async () => {
     if (skipSuite) return;
     const firstRowHasBadge = await page.evaluate(() => {
-      const rows = document.querySelectorAll("#bikepanel tbody tr:not(.ridesrow)");
+      const rows = document.querySelectorAll('#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow)');
       return rows.length > 0 && !!rows[0].querySelector(".needs-repl");
     });
     expect(firstRowHasBadge, "expected the flagged part to be the first row in the active-parts table").toBeTruthy();
@@ -881,7 +1113,7 @@ test.describe("needs-replacement", () => {
 
   test("service-modal-checkbox-prechecked-for-flagged-part", async () => {
     if (skipSuite) return;
-    const svcBtns = await page.$$('#bikepanel tbody tr:not(.ridesrow) button[onclick*="showService"]');
+    const svcBtns = await page.$$('#bikepanel .sec[data-sid="parts"] tbody tr:not(.ridesrow) button[onclick*="showService"]');
     expect(svcBtns.length >= 1, "no Service button found").toBeTruthy();
     await svcBtns[0].click();
     await page.waitForSelector("#s-needs-repl", { timeout: 3000 });
@@ -1058,7 +1290,7 @@ test.describe("bike-section-order", () => {
     const sids = await page.$$eval("#bikepanel .sec[data-sid]", (els) =>
       els.map((el) => el.getAttribute("data-sid")),
     );
-    expect(sids[0], `after reset, expected "parts" first, got "${sids[0]}"`).toBe("parts");
+    expect(sids[0], `after reset, expected "service-queue" first, got "${sids[0]}"`).toBe("service-queue");
   });
 });
 
