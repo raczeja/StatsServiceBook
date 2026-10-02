@@ -634,8 +634,10 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     | sort -r > "$TMP/hr-gpx-paths.txt" || : > "$TMP/hr-gpx-paths.txt"
   jq -r 'keys[]' "$_hr_cache" > "$TMP/hr-cached-ids.txt" 2>/dev/null || : > "$TMP/hr-cached-ids.txt"
   : > "$TMP/hr-gpx-pending.txt"
-  while read -r _hr_id _hr_gpx; do
-    grep -qx "$_hr_id" "$TMP/hr-cached-ids.txt" || printf '%s %s\n' "$_hr_id" "$_hr_gpx" >> "$TMP/hr-gpx-pending.txt"
+  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+    if ! grep -qx "$_hr_id" "$TMP/hr-cached-ids.txt"; then
+      printf '%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" >> "$TMP/hr-gpx-pending.txt"
+    fi
   done < "$TMP/hr-gpx-paths.txt"
   mv "$TMP/hr-gpx-pending.txt" "$TMP/hr-gpx-paths.txt"
   _hr_todo="$(wc -l < "$TMP/hr-gpx-paths.txt" | tr -d ' ')"
