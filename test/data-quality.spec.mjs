@@ -47,6 +47,78 @@ test.describe("data-quality", () => {
     );
   });
 
+  test("filters missing data and handles unknown and optional GPS", async ({
+    page,
+  }) => {
+    await page.route("**/me/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          generatedAt: new Date().toISOString(),
+          activities: [
+            {
+              id: "missing-all",
+              name: "Missing everything",
+              date: "2026-01-01",
+              sport_type: "Ride",
+              detail: false,
+              has_gps: false,
+              average_heartrate: 0,
+            },
+            {
+              id: "unknown-gps",
+              name: "Unknown GPS",
+              date: "2026-01-02",
+              sport_type: "Ride",
+              detail: true,
+              has_gps: null,
+              average_heartrate: null,
+            },
+            {
+              id: "yoga-no-gps",
+              name: "GPS optional",
+              date: "2026-01-03",
+              sport_type: "Yoga",
+              detail: true,
+              has_gps: false,
+              average_heartrate: 100,
+            },
+            {
+              id: "complete",
+              name: "Complete activity",
+              date: "2026-01-04",
+              sport_type: "Ride",
+              detail: true,
+              has_gps: true,
+              average_heartrate: 120,
+            },
+          ],
+        }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    await expect(page.locator("#count-total")).toHaveText("4");
+    await expect(page.locator("#count-gps")).toHaveText("1");
+    await expect(page.locator("#state")).toContainText("1 activity has unknown GPS status");
+    const rows = page.locator("#activity-list tbody tr");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText("Missing everything");
+    await expect(rows.first().locator("td").nth(3)).toHaveText("Details, GPS");
+    await expect(page.locator("#activity-list")).not.toContainText("GPS optional");
+    await expect(page.locator("#activity-list")).not.toContainText("Unknown GPS");
+
+    await page.locator("#filter-gps").uncheck();
+    await expect(rows.first().locator("td").nth(3)).toHaveText("Details");
+    await page.locator("#filter-details").uncheck();
+    await expect(page.locator("#activity-list .empty")).toContainText(
+      "No activities match",
+    );
+    await page.locator("#filter-heart-rate").check();
+    await expect(page.locator("#activity-list tbody tr")).toHaveCount(2);
+    await expect(page.locator("#activity-list")).toContainText("Heart rate");
+  });
+
   test("flags failed and stale imports", async ({ page }) => {
     const now = Math.floor(Date.now() / 1000);
     await page.route("**/strava-sync-status.json", (route) =>
@@ -85,6 +157,48 @@ test.describe("data-quality", () => {
     await expect(strava).toContainText("token refresh failed");
     await expect(healthsync.locator(".badge").first()).toHaveText("Stale");
     await expect(healthsync).toContainText("last 48 hours");
+  });
+
+  test("shows disabled, keepalive, and never-successful import states", async ({
+    page,
+  }) => {
+    const now = Math.floor(Date.now() / 1000);
+    await page.route("**/strava-sync-status.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ lastAttempt: now, lastSuccess: 0 }),
+      }),
+    );
+    await page.route("**/healthsync-sync-status.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          mode: "keepalive",
+          importEnabled: false,
+          ok: true,
+          lastAttempt: now,
+          lastSuccess: now,
+          error: "<config unavailable>",
+        }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const strava = page
+      .locator("#sources .source")
+      .filter({ has: page.locator("h2", { hasText: /^Strava/ }) });
+    const healthsync = page
+      .locator("#sources .source")
+      .filter({ has: page.locator("h2", { hasText: "HealthSync" }) });
+    await expect(strava.locator(".badge")).toHaveText("No successful import");
+    await expect(healthsync.locator(".badge")).toHaveText("Disabled");
+    await expect(healthsync).toContainText(
+      "Latest run checked Drive access only; no activities were imported.",
+    );
+    await expect(healthsync).toContainText("Activity import is disabled");
+    await expect(healthsync.locator(".issues")).toHaveText(
+      "<config unavailable>",
+    );
   });
 
   test("sync-now-buttons-and-sync-all-visible", async ({ page }) => {
@@ -131,6 +245,20 @@ test.describe("data-quality", () => {
     await expect(strava.locator("pre.run-log")).toContainText("line 1");
   });
 
+  test("renders-a-run-log-from-refreshed-status", async ({ page }) => {
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.evaluate(() =>
+      updateLogSection("strava", { log: ["stored run log entry"] }),
+    );
+
+    const log = page.locator("#log-section-strava");
+    await expect(log.locator("details")).toHaveAttribute("open", "");
+    await expect(log.locator("summary")).toContainText("Run log (1 lines)");
+    await expect(log.locator("pre.run-log")).toContainText(
+      "stored run log entry",
+    );
+  });
+
   test("sync-trigger-opens-log-details", async ({ page }) => {
     const now = Math.floor(Date.now() / 1000);
     await page.route("**/strava-sync-status.json", (route) =>
@@ -164,6 +292,130 @@ test.describe("data-quality", () => {
     await expect(details, "log <details> opens when sync is triggered").toHaveAttribute("open", "");
   });
 
+  test("detects-a-sync-started-outside-the-page", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    let statusReads = 0;
+    await page.route("**/strava-sync-status.json", (route) => {
+      statusReads += 1;
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          lastAttempt: statusReads === 1 ? now : now + 1,
+          lastSuccess: now + 1,
+        }),
+      });
+    });
+    await page.route("**/strava-sync-running", (route) =>
+      route.fulfill({ status: 200, body: "running" }),
+    );
+    await page.route("**/strava-sync-live.log", (route) =>
+      route.fulfill({ contentType: "text/plain", body: "cron sync started" }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.evaluate(() => {
+      window.__sawCronSyncState = false;
+      const observer = new MutationObserver(() => {
+        const button = document.querySelector(
+          '#sources .sync-btn[data-src="strava"]',
+        );
+        if (button?.disabled && button.textContent.includes("Running")) {
+          window.__sawCronSyncState = true;
+        }
+      });
+      observer.observe(document.getElementById("sources"), {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    });
+    await expect
+      .poll(() => page.evaluate(() => window.__sawCronSyncState), {
+        timeout: 8000,
+      })
+      .toBeTruthy();
+  });
+
+  test("sync-completion-renders-live-log-and-refreshes-source-card", async ({
+    page,
+  }) => {
+    const now = Math.floor(Date.now() / 1000);
+    let statusReads = 0;
+    await page.route("**/strava-sync-status.json", (route) => {
+      statusReads += 1;
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          lastAttempt: statusReads <= 2 ? now : now + 1,
+          lastSuccess: now + 1,
+          log: ["final status log"],
+        }),
+      });
+    });
+    await page.route("**/cgi-bin/trigger-sync", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      }),
+    );
+    await page.route("**/strava-sync-live.log", (route) =>
+      route.fulfill({ contentType: "text/plain", body: "sync started\n<unsafe> line\n\n" }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const strava = page
+      .locator("#sources .source")
+      .filter({ has: page.locator("h2", { hasText: /^Strava/ }) });
+    const button = strava.locator("button.sync-btn[data-src]");
+    await button.click();
+    await expect(button).toHaveText("✓ Done", { timeout: 7000 });
+    await expect(strava.locator("pre.run-log")).toContainText("<unsafe> line");
+    await expect(strava.locator("pre.run-log")).not.toContainText("<unsafe><");
+    await expect(strava.locator("details summary")).toContainText("Show run log");
+    await expect(strava.locator(".badge")).toContainText("OK");
+  });
+
+  test("sync-trigger-reports-server-error-and-recovers-button", async ({
+    page,
+  }) => {
+    await page.route("**/cgi-bin/trigger-sync", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, error: "sync queue is full" }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const button = page.locator(
+      '#sources .source h2:has-text("Strava")',
+    ).locator("..").locator("button.sync-btn[data-src]");
+    await button.click();
+    await expect(button).toHaveText("Error: sync queue is full");
+    await expect(button).toBeEnabled();
+  });
+
+  test("sync-all-triggers-only-enabled-source-buttons", async ({ page }) => {
+    const triggered = [];
+    await page.route("**/cgi-bin/trigger-sync", async (route) => {
+      triggered.push(new URLSearchParams(route.request().postData()).get("source"));
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, error: "test response" }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    const healthsyncButton = page.locator(
+      '#sources .source h2:has-text("HealthSync")',
+    ).locator("..").locator("button.sync-btn[data-src]");
+    await healthsyncButton.evaluate((button) => { button.disabled = true; });
+
+    await page.locator("#sync-all-btn").click();
+    await expect.poll(() => triggered.length).toBe(2);
+    expect(triggered).toEqual(["strava", "leaderboard"]);
+  });
+
   test("no-status-source-cards-are-hidden", async ({ page }) => {
     await page.route("**/strava-sync-status.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
@@ -195,6 +447,27 @@ test.describe("data-quality", () => {
       page.locator("#cookie-status"),
       "#cookie-status should be hidden when scrapeMeta is null",
     ).toBeHidden();
+  });
+
+  test("cookie-section-omits-card-without-expiry-or-dry-run-expiry", async ({
+    page,
+  }) => {
+    await page.route("**/me/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ activities: [], scrapeMeta: {} }),
+      }),
+    );
+    await page.route("**/strava/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ activities: [] }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    await expect(page.locator("#cookie-status")).toBeVisible();
+    await expect(page.locator("#cookie-cards .source")).toHaveCount(0);
   });
 
   test("cookie-section-shows-when-scrapeMeta-present", async ({ page }) => {
@@ -294,6 +567,149 @@ test.describe("data-quality", () => {
     ).toBeVisible();
   });
 
+  test("cookie-section-shows-expired-dry-run-and-feed-test-states", async ({
+    page,
+  }) => {
+    const expired = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    await page.route("**/me/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          scrapeMeta: {
+            cookieVerifiedAt: "2026-01-01",
+            cookieRefreshNeededBy: expired,
+          },
+        }),
+      }),
+    );
+    await page.route("**/strava/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          scrapeMeta: {
+            dryRun: true,
+            cookieValid: false,
+            feedTestOk: false,
+          },
+        }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const cards = page.locator("#cookie-cards .source");
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0)).toContainText("Expired");
+    await expect(cards.nth(0)).toContainText("Cookie has expired");
+    await expect(cards.nth(1)).toContainText("(api+dry-run)");
+    await expect(cards.nth(1).locator(".badge")).toHaveText("Expired");
+    await expect(cards.nth(1)).toContainText("Feed test failed");
+  });
+
+  test("cookie-save-shows-server-error", async ({ page }) => {
+    await page.route("**/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          scrapeMeta: { cookieRefreshNeededBy: "2099-01-01" },
+        }),
+      }),
+    );
+    await page.route("**/cgi-bin/update-cookie", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, error: "config is read-only" }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#cookie-input").fill("session-value");
+    await page.getByRole("button", { name: "Save cookie" }).click();
+
+    await expect(page.locator("#cookie-save-status")).toHaveText(
+      "Error: config is read-only",
+    );
+    await expect(page.locator("#cookie-input")).toHaveValue("session-value");
+  });
+
+  test("cookie-save-shows-network-failure", async ({ page }) => {
+    await page.route("**/activities.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          activities: [],
+          scrapeMeta: { cookieRefreshNeededBy: "2099-01-01" },
+        }),
+      }),
+    );
+    await page.route("**/cgi-bin/update-cookie", (route) =>
+      route.abort("failed"),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#cookie-input").fill("session-value");
+    await page.getByRole("button", { name: "Save cookie" }).click();
+
+    await expect(page.locator("#cookie-save-status")).toContainText(
+      "Request failed:",
+    );
+  });
+
+  test("email-cards-show-failed-stale-and-partial-send-statuses", async ({
+    page,
+  }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const statusByType = {
+      monthly: {
+        mode: "monthly",
+        ok: false,
+        lastAttempt: now,
+        lastSuccess: 0,
+        subject: "<Monthly report>",
+        recipientCount: 4,
+        sentCount: 2,
+        log: ["<smtp> rejected two recipients"],
+      },
+      weekly: {
+        mode: "weekly",
+        ok: true,
+        lastAttempt: now,
+        lastSuccess: now - 9 * 86400,
+        recipientCount: 2,
+        sentCount: 2,
+      },
+      yearly: {
+        mode: "yearly",
+        ok: true,
+        lastAttempt: now,
+        lastSuccess: now - 371 * 86400,
+      },
+    };
+    for (const [type, status] of Object.entries(statusByType)) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(status),
+        }),
+      );
+    }
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const cards = page.locator("#email-cards .source");
+    await expect(cards).toHaveCount(3);
+    const monthly = cards.filter({ hasText: "Monthly email" });
+    await expect(monthly.locator(".badge")).toHaveText("Failed");
+    await expect(monthly).toContainText("<Monthly report>");
+    await expect(monthly).toContainText("2 sent OK");
+    await expect(monthly.locator("pre.run-log")).toContainText(
+      "<smtp> rejected two recipients",
+    );
+    await expect(cards.filter({ hasText: "Weekly email" }).locator(".badge"))
+      .toHaveText("Stale");
+    await expect(cards.filter({ hasText: "Yearly email" }).locator(".badge"))
+      .toHaveText("Stale");
+  });
+
   test("email-section-visible-when-status-files-present", async ({ page }) => {
     const now = Math.floor(Date.now() / 1000);
     await page.route("**/email-monthly-status.json", (route) =>
@@ -364,6 +780,90 @@ test.describe("data-quality", () => {
       type: "yearly",
       email_to: "rider@example.com",
     });
+  });
+
+  test("send-email-reports-an-asynchronous-send-failure", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    for (const type of ["monthly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    let sendQueued = false;
+    await page.route("**/email-weekly-status.json", (route) => {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          mode: "weekly",
+          ok: !sendQueued,
+          lastAttempt: now + (sendQueued ? 1 : 0),
+          lastSuccess: now,
+        }),
+      });
+    });
+    await page.route("**/cgi-bin/send-email", (route) => {
+      sendQueued = true;
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#email-type-sel").selectOption("weekly");
+    await page.locator("#send-email-card .sync-btn").click();
+
+    await expect(page.locator("#send-email-status")).toHaveText(
+      "✗ Send failed — see status card for details.",
+      { timeout: 10000 },
+    );
+    await expect(page.locator("#send-email-card .sync-btn")).toBeEnabled();
+  });
+
+  test("send-email-poll-timeout-restores-send-button", async ({ page }) => {
+    for (const type of ["monthly", "weekly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    await page.route("**/cgi-bin/send-email", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.clock.install();
+    await page.locator("#send-email-card .sync-btn").click();
+    await expect(page.locator("#send-email-status")).toContainText(
+      "Queued — waiting for completion",
+    );
+
+    await page.clock.fastForward(181000);
+
+    await expect(page.locator("#send-email-status")).toHaveText(
+      "✓ Sent (monthly). Refreshing…",
+    );
+    await expect(page.locator("#send-email-card .sync-btn")).toBeEnabled();
+  });
+
+  test("send-email-shows-request-failure-and-omits-empty-override", async ({
+    page,
+  }) => {
+    for (const type of ["monthly", "weekly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    await page.route("**/cgi-bin/send-email", (route) =>
+      route.abort("failed"),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    await page.locator("#send-email-card .sync-btn").click();
+
+    await expect(page.locator("#send-email-status")).toContainText(
+      "Request failed:",
+    );
+    await expect(page.locator("#send-email-card .sync-btn")).toBeEnabled();
   });
 
   test("send-email-polls-until-the-send-completes", async ({ page }) => {
