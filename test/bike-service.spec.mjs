@@ -45,17 +45,39 @@ test.describe("bike-service", () => {
       const chainId = await page.evaluate(() =>
         MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((part) => part.name === "Chain").id
       );
-      await page.evaluate((id) => movePartToInventory(id), chainId);
+      await page.evaluate((id) => {
+        const part = MODEL.bikes.find((bike) => bike.name === "Road Bike").parts.find((item) => item.id === id);
+        part.emailAlert = true;
+        if (!Array.isArray(part.serviceTypes) || !part.serviceTypes.length) {
+          part.serviceTypes = [{ id: "move-alert-test", name: "Service", services: [] }];
+        }
+        part.serviceTypes[0].alertKm = 777;
+        part.serviceTypes[0].alertH = 33;
+        part.serviceTypes[0].alertTimeN = 3;
+        part.serviceTypes[0].alertTimeUnit = "years";
+        movePartToInventory(id);
+      }, chainId);
       await page.getByRole("button", { name: "Move to inventory" }).click();
       await page.waitForFunction(async () => {
         const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
-        return store.inventory?.some((item) => item.id === "p-chain");
+        const chain = store.inventory?.find((item) => item.id === "p-chain");
+        const service = chain?.serviceTypes?.[0];
+        return chain?.emailAlert === true && service?.alertKm === 777 &&
+          service?.alertH === 33 && service?.alertTimeN === 3 &&
+          service?.alertTimeUnit === "years";
       });
       await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(1);
 
       let store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
       const storedChain = store.inventory.find((item) => item.id === "p-chain");
       expect(storedChain.quantity).toBe(1);
+      expect(storedChain.emailAlert).toBe(true);
+      expect(storedChain.serviceTypes[0]).toMatchObject({
+        alertKm: 777,
+        alertH: 33,
+        alertTimeN: 3,
+        alertTimeUnit: "years",
+      });
       expect(storedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
       expect(storedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
 
@@ -64,13 +86,27 @@ test.describe("bike-service", () => {
       await page.getByRole("button", { name: "Install part", exact: true }).click();
       await page.waitForFunction(async () => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
-        return !saved.inventory?.some((item) => item.id === "p-chain");
+        const chain = saved.bikes.find((bike) => bike.id === "b-gravel")?.parts.find((part) =>
+          part.name === "Chain" && part.usageHistory?.some((segment) => segment.bikeName === "Road Bike")
+        );
+        const service = chain?.serviceTypes?.[0];
+        return !saved.inventory?.some((item) => item.id === "p-chain") &&
+          chain?.emailAlert === true && service?.alertKm === 777 &&
+          service?.alertH === 33 && service?.alertTimeN === 3 &&
+          service?.alertTimeUnit === "years";
       });
       await expect(page.locator('.sec[data-sid="inventory"]')).toHaveCount(0);
       store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
       const installedChain = store.bikes.find((bike) => bike.id === "b-gravel").parts.find((part) =>
         part.name === "Chain" && part.usageHistory?.some((segment) => segment.bikeName === "Road Bike")
       );
+      expect(installedChain.emailAlert).toBe(true);
+      expect(installedChain.serviceTypes[0]).toMatchObject({
+        alertKm: 777,
+        alertH: 33,
+        alertTimeN: 3,
+        alertTimeUnit: "years",
+      });
       expect(installedChain.serviceTypes?.[0]?.services?.length).toBeGreaterThan(0);
       expect(installedChain.usageHistory?.at(-1)?.bikeName).toBe("Road Bike");
 
