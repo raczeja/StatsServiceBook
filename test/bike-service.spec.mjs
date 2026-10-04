@@ -1010,9 +1010,14 @@ test.describe("bike-modal-crud", () => {
         MODEL.partNames.includes(partName) && MODEL.vendors.includes(vendor), { partName, vendor });
 
       await page.evaluate(() => showAddPart());
-      await expect(page.locator('#part-name-options option[value="' + partName + '"]')).toHaveCount(1);
-      await expect(page.locator('#vendor-options option[value="' + vendor + '"]')).toHaveCount(1);
-      await expect(page.locator('#part-name-options option[value="Chain"]')).toHaveCount(1);
+      await page.locator("#p-name").fill("An existing value");
+      await page.locator("#p-name-choice").selectOption("Chain");
+      await expect(page.locator("#p-name")).toHaveValue("Chain");
+      await page.locator("#p-name-choice").selectOption(partName);
+      await expect(page.locator("#p-name")).toHaveValue(partName);
+      await page.locator("#p-vendor").fill("An existing vendor");
+      await page.locator("#p-vendor-choice").selectOption(vendor);
+      await expect(page.locator("#p-vendor")).toHaveValue(vendor);
       await page.evaluate(() => closeModal());
     } finally {
       await fetch(BIKE_CGI, {

@@ -228,10 +228,17 @@ function normalizeDictionaries(){
   });
   return changed;
 }
-function dictionaryOptions(id, values){
-  return '<datalist id="'+id+'">'+values.map(function(value){
-    return '<option value="'+esc(value)+'"></option>';
-  }).join("")+'</datalist>';
+function dictionarySelect(id, inputId, values, label){
+  return '<label>'+label+'</label><select id="'+id+'" onchange="selectDictionaryValue(\''+inputId+'\',this.value)">'+
+    '<option value="">Choose a suggestion...</option>'+values.map(function(value){
+    return '<option value="'+esc(value)+'">'+esc(value)+'</option>';
+  }).join("")+'</select>';
+}
+function selectDictionaryValue(inputId, value){
+  if(value){
+    var input=document.getElementById(inputId);
+    if(input) input.value=value;
+  }
 }
 function rememberPartDetails(name, vendor){
   addDictionaryValue("partNames",name);
@@ -854,10 +861,10 @@ function partForm(part){
   }).join("");
   openModal(
     '<h3>'+(part?'Edit part':'Add part')+'</h3>'+
-    '<label>Name</label><input id="p-name" list="part-name-options" value="'+esc(part?part.name:"")+'" placeholder="e.g. Chain, Rear tyre, Brake pads">'+
-    dictionaryOptions("part-name-options",MODEL.partNames)+
-    '<label>Vendor</label><input id="p-vendor" list="vendor-options" value="'+esc(part?part.vendor:"")+'" placeholder="e.g. Shimano">'+
-    dictionaryOptions("vendor-options",MODEL.vendors)+
+    dictionarySelect("p-name-choice","p-name",MODEL.partNames,"Choose a part name (optional)")+
+    '<label>Name (or type your own)</label><input id="p-name" value="'+esc(part?part.name:"")+'" placeholder="e.g. Chain, Rear tyre, Brake pads">'+
+    dictionarySelect("p-vendor-choice","p-vendor",MODEL.vendors,"Choose a vendor (optional)")+
+    '<label>Vendor (or type your own)</label><input id="p-vendor" value="'+esc(part?part.vendor:"")+'" placeholder="e.g. Shimano">'+
     '<label>Model (optional)</label><input id="p-model" value="'+esc(part?part.model:"")+'" placeholder="e.g. Ultegra CS-R8101">'+
     '<label>Note (optional)</label><textarea id="p-note" placeholder="free text">'+esc(part?part.note:"")+'</textarea>'+
     '<div class="row"><div><label>Installed date</label>'+
@@ -974,10 +981,10 @@ window.deletePart = function(id){
 };
 window.showAddStock = function(){
   openModal('<h3>Add to parts inventory</h3>'+
-    '<label>Part name</label><input id="stock-name" list="stock-part-name-options" placeholder="e.g. Chain, brake pads, tyre">'+
-    dictionaryOptions("stock-part-name-options",MODEL.partNames)+
-    '<label>Vendor</label><input id="stock-vendor" list="stock-vendor-options" placeholder="e.g. Shimano">'+
-    dictionaryOptions("stock-vendor-options",MODEL.vendors)+
+    dictionarySelect("stock-name-choice","stock-name",MODEL.partNames,"Choose a part name (optional)")+
+    '<label>Part name (or type your own)</label><input id="stock-name" placeholder="e.g. Chain, brake pads, tyre">'+
+    dictionarySelect("stock-vendor-choice","stock-vendor",MODEL.vendors,"Choose a vendor (optional)")+
+    '<label>Vendor (or type your own)</label><input id="stock-vendor" placeholder="e.g. Shimano">'+
     '<label>Model (optional)</label><input id="stock-model" placeholder="e.g. Ultegra CS-R8101">'+
     '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="1">'+
     '<label>Original install date</label><input id="stock-installed" type="date" value="'+todayStr()+'">'+
@@ -1074,10 +1081,10 @@ window.saveStock = function(){
 window.showEditStock = function(id){
   var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
   openModal('<h3>Edit inventory item</h3>'+
-    '<label>Part name</label><input id="stock-name" list="stock-part-name-options" value="'+esc(item.name)+'">'+
-    dictionaryOptions("stock-part-name-options",MODEL.partNames)+
-    '<label>Vendor</label><input id="stock-vendor" list="stock-vendor-options" value="'+esc(item.vendor||"")+'">'+
-    dictionaryOptions("stock-vendor-options",MODEL.vendors)+
+    dictionarySelect("stock-name-choice","stock-name",MODEL.partNames,"Choose a part name (optional)")+
+    '<label>Part name (or type your own)</label><input id="stock-name" value="'+esc(item.name)+'">'+
+    dictionarySelect("stock-vendor-choice","stock-vendor",MODEL.vendors,"Choose a vendor (optional)")+
+    '<label>Vendor (or type your own)</label><input id="stock-vendor" value="'+esc(item.vendor||"")+'">'+
     '<label>Model (optional)</label><input id="stock-model" value="'+esc(item.model||"")+'">'+
     '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="'+(+item.quantity||1)+'">'+
   '<div class="muted">Previously used: '+fmtKm(partHistoryKm(item))+' km · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' service records</div>'+
@@ -1333,16 +1340,16 @@ window.showReplace = function(id){
       '<input id="f-mileage" type="number" step="1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Reason / note (optional)</label><textarea id="r-note" placeholder="e.g. worn out at 0.75 on the chain checker"></textarea>'+
-    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-vendor\').disabled=!this.checked;document.getElementById(\'r-model\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
+    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-name-choice\').disabled=!this.checked;document.getElementById(\'r-vendor\').disabled=!this.checked;document.getElementById(\'r-vendor-choice\').disabled=!this.checked;document.getElementById(\'r-model\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
       '<label style="margin:0">Install a replacement now</label></div>'+
-    '<label>New part name</label><input id="r-newname" list="replace-part-name-options" value="'+esc(p.name)+'">'+
-    dictionaryOptions("replace-part-name-options",MODEL.partNames)+
-    '<label>Vendor</label><input id="r-vendor" list="replace-vendor-options" value="'+esc(p.vendor||"")+'">'+
-    dictionaryOptions("replace-vendor-options",MODEL.vendors)+
+    dictionarySelect("r-name-choice","r-newname",MODEL.partNames,"Choose a part name (optional)")+
+    '<label>New part name (or type your own)</label><input id="r-newname" value="'+esc(p.name)+'">'+
+    dictionarySelect("r-vendor-choice","r-vendor",MODEL.vendors,"Choose a vendor (optional)")+
+    '<label>Vendor (or type your own)</label><input id="r-vendor" value="'+esc(p.vendor||"")+'">'+
     '<label>Model (optional)</label><input id="r-model" value="'+esc(p.model||"")+'">'+
     '<label>New part cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
     '<input id="r-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00">'+
-    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-vendor\').disabled=!!this.value;document.getElementById(\'r-model\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
+    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-name-choice\').disabled=!!this.value;document.getElementById(\'r-vendor\').disabled=!!this.value;document.getElementById(\'r-vendor-choice\').disabled=!!this.value;document.getElementById(\'r-model\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveReplace(\''+id+'\')">Replace</button></div>'
   );
