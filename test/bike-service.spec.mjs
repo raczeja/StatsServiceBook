@@ -114,6 +114,7 @@ test.describe("bike-service", () => {
       await page.locator("#stock-name").fill("Inventory test chain");
       await page.locator("#stock-qty").fill("2");
       await page.locator("#stock-distance").fill("120");
+      await page.locator("#stock-st-list .st-name").fill("Lubricate");
       await page.getByRole("button", { name: "＋ Add service record" }).click();
       await page.locator(".stock-service-type").fill("Lubricate");
       await page.locator(".stock-service-mileage").fill("60");
@@ -148,6 +149,100 @@ test.describe("bike-service", () => {
         part.usageHistory?.[0]?.distance === 120 &&
         part.serviceTypes?.[0]?.services?.[0]?.note === "recorded before storage"
       )).toBeTruthy();
+    } finally {
+      await postStore(original);
+    }
+  });
+
+  test("inventory-alerts-are-configurable-and-start-working-after-install", async ({
+    page,
+  }) => {
+    const original = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+    const postStore = async (store) => {
+      const response = await fetch(BIKE_CGI, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(store),
+      });
+      expect(response.ok, `bike-service POST failed with ${response.status}`).toBeTruthy();
+    };
+    const partName = `Alert inventory part ${Date.now()}`;
+
+    try {
+      await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      await page.getByRole("button", { name: "＋ Add stock" }).click();
+      await page.locator("#stock-name").fill(partName);
+      await page.locator("#stock-qty").fill("1");
+      await page.locator("#stock-installed").fill("2020-01-01");
+      await page.locator("#stock-distance").fill("120");
+      const firstType = page.locator("#stock-st-list .st-block").first();
+      await firstType.locator(".st-name").fill("Chain service");
+      await firstType.locator(".st-km").fill("1000");
+      await firstType.locator(".st-h").fill("25");
+      await firstType.locator(".st-timen").fill("1");
+      await firstType.locator(".st-timeunit").selectOption("weeks");
+      await page.getByRole("button", { name: "＋ Add service type" }).click();
+      const secondType = page.locator("#stock-st-list .st-block").nth(1);
+      await secondType.locator(".st-name").fill("Safety inspection");
+      await secondType.locator(".st-km").fill("250");
+      await secondType.locator(".st-h").fill("10");
+      await page.locator("#stock-email-alert").check();
+      await page.getByRole("button", { name: "Add stock", exact: true }).click();
+
+      await page.waitForFunction(async (name) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        const item = saved.inventory?.find((entry) => entry.name === name);
+        return item?.emailAlert === true && item.serviceTypes?.length === 2;
+      }, partName);
+      let saved = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const stock = saved.inventory.find((item) => item.name === partName);
+      expect(stock.emailAlert).toBe(true);
+      expect(stock.serviceTypes).toMatchObject([
+        {
+          name: "Chain service",
+          alertKm: 1000,
+          alertH: 25,
+          alertTimeN: 1,
+          alertTimeUnit: "weeks",
+        },
+        {
+          name: "Safety inspection",
+          alertKm: 250,
+          alertH: 10,
+          alertTimeN: null,
+        },
+      ]);
+
+      const itemCard = page.locator(".inventory-item").filter({ hasText: partName });
+      await itemCard.getByRole("button", { name: "Install on Road Bike" }).click();
+      await page.locator("#stock-date").fill("2020-01-01");
+      await page.getByRole("button", { name: "Install part", exact: true }).click();
+      await page.waitForFunction(async (name) => {
+        const data = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        const bike = data.bikes.find((entry) => entry.name === "Road Bike");
+        return bike?.parts.some((part) => part.name === name && part.emailAlert === true);
+      }, partName);
+
+      saved = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const installed = saved.bikes.find((bike) => bike.name === "Road Bike").parts
+        .find((part) => part.name === partName);
+      expect(installed.emailAlert).toBe(true);
+      expect(installed.serviceTypes).toMatchObject(stock.serviceTypes);
+      const pctAfterReinstall = await page.evaluate((partName) => {
+        const bike = MODEL.bikes.find((entry) => entry.name === "Road Bike");
+        const part = JSON.parse(JSON.stringify(
+          bike.parts.find((entry) => entry.name === partName),
+        ));
+        part.installedDate = "2020-01-01";
+        part.currentBikeInstalledDate = todayStr();
+        part.currentBikeInstalledMileage = bikeMileage(bike, todayStr());
+        return stPct(bike, part, part.serviceTypes[0]);
+      }, partName);
+      expect(pctAfterReinstall).toBe(0);
+      await expect(
+        page.locator('.sec[data-sid="service-queue"]').filter({ hasText: partName }),
+      ).toContainText("Chain service");
     } finally {
       await postStore(original);
     }
