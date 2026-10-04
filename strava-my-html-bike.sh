@@ -490,7 +490,7 @@ function servicesBlock(services){
 function stPct(bike,p,st){
   var svc=(st.services||[]).slice().sort(function(a,c){ return a.date<c.date?-1:1; });
   var last=svc.length?svc[svc.length-1]:null;
-  var fromDate=last?last.date:(p.installedDate||"");
+  var fromDate=last?last.date:(p.currentBikeInstalledDate||p.installedDate||"");
   var refMileage=last?(+last.mileage||0):(p.currentBikeInstalledMileage!=null?+p.currentBikeInstalledMileage:+p.installedMileage||0);
   var refKm=partKmSince(bike,p,fromDate,refMileage);
   var refH=partTimeSince(bike,p,fromDate)/3600;
@@ -757,11 +757,11 @@ window.deleteBike = function(id){
 window.selectBike = function(id){ selBike = id; render(); };
 
 // ---- part: add / edit -----------------------------------------------------
-function stBlockHtml(i,stId,name,km,h,desc,timeN,timeUnit){
+function stBlockHtml(i,stId,name,km,h,desc,timeN,timeUnit,removeFn){
   return '<input type="hidden" class="st-id" value="'+esc(stId||'')+'">'+
     '<div style="display:flex;align-items:center;gap:.4rem">'+
     '<input class="st-name" style="flex:1;font:inherit;border:1px solid #ccc;border-radius:.4rem;padding:.35rem .5rem;background:#fff;color:#222" placeholder="e.g. Clean &amp; Lube" value="'+esc(name||'')+'">'+
-    '<button class="btn sm danger" onclick="removeSvcType('+i+')" title="Remove">✕</button></div>'+
+    '<button class="btn sm danger" onclick="'+(removeFn||'removeSvcType')+'('+i+')" title="Remove">✕</button></div>'+
     '<input class="st-desc" style="width:100%;box-sizing:border-box;font:inherit;font-size:.82rem;border:1px solid #ccc;border-radius:.4rem;padding:.28rem .5rem;margin-top:.3rem;background:#fff;color:#222" placeholder="Description / tooltip (optional)" value="'+esc(desc||'')+'">'+
     '<div class="row" style="margin-top:.35rem">'+
     '<div><label>Alert after km (optional)</label><input class="st-km" type="number" step="1" min="0" placeholder="e.g. 500" value="'+(km!=null&&km!==''?km:'')+'"></div>'+
@@ -917,9 +917,31 @@ window.showAddStock = function(){
     '<label>Distance already used (km)</label><input id="stock-distance" type="number" min="0" step="0.1" value="0">'+
     '<label>Note (optional)</label><textarea id="stock-note"></textarea>'+
     '<label>Unit cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label><input id="stock-cost" type="number" min="0" step="0.01">'+
+    '<div style="font-size:.82rem;font-weight:600;margin:.7rem 0 .2rem">Service alerts</div>'+
+    '<p class="muted">Alerts start counting when an item is installed on a bike.</p>'+
+    '<div id="stock-st-list"><div class="st-block" id="stock-st-0">'+stBlockHtml(0,uid("st-"),"Service",null,null,"",null,"months","removeStockSvcType")+'</div></div>'+
+    '<button class="btn sm" onclick="addStockSvcType()" style="margin:.3rem 0">＋ Add service type</button>'+
+    '<div class="chk"><input type="checkbox" id="stock-email-alert">'+
+    '<label style="margin:0">Email alert when service threshold is reached'+
+    (_CFG&&_CFG.emailConfigured?'':' <span class="muted" style="font-weight:400;font-size:.8rem">(set STRAVA_MY_BIKE_EMAIL to enable)</span>')+
+    '</label></div>'+
     '<div style="font-size:.82rem;font-weight:600;margin:.5rem 0">Service history</div><div id="stock-services"></div>'+
     '<button class="btn sm" onclick="addStockService()">＋ Add service record</button>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveStock()">Add stock</button></div>');
+};
+window.addStockSvcType = function(){
+  var list=document.getElementById("stock-st-list");if(!list)return;
+  var i=list.children.length;
+  while(document.getElementById("stock-st-"+i))i++;
+  var div=document.createElement("div");
+  div.className="st-block";div.id="stock-st-"+i;
+  div.innerHTML=stBlockHtml(i,uid("st-"),"",null,null,"",null,"months","removeStockSvcType");
+  list.appendChild(div);
+};
+window.removeStockSvcType = function(i){
+  var list=document.getElementById("stock-st-list");if(!list)return;
+  if(list.querySelectorAll(".st-block").length<=1){alert("An inventory item must have at least one service type.");return;}
+  var el=document.getElementById("stock-st-"+i);if(el)el.remove();
 };
 window.addStockService = function(){
   var list=document.getElementById("stock-services");if(!list)return;
@@ -941,8 +963,9 @@ window.saveStock = function(){
   var distance=+document.getElementById("stock-distance").value||0;
   if(distance<0){document.getElementById("stock-distance").focus();return;}
   var item={id:uid("inv-"),name:name,quantity:qty,note:document.getElementById("stock-note").value,
-    installedDate:installedDate,installedMileage:0,status:"new",serviceTypes:[]};
-  var servicesByType={};
+    installedDate:installedDate,installedMileage:0,status:"new",
+    emailAlert:document.getElementById("stock-email-alert").checked,serviceTypes:[]};
+  var servicesByType=Object.create(null);
   document.querySelectorAll("#stock-services .stock-service").forEach(function(row){
     var type=row.querySelector(".stock-service-type").value.trim()||"Service";
     var service={id:uid("s-"),date:row.querySelector(".stock-service-date").value||installedDate,
@@ -952,7 +975,25 @@ window.saveStock = function(){
     if(!servicesByType[type])servicesByType[type]={id:uid("st-"),name:type,services:[]};
     servicesByType[type].services.push(service);
   });
-  item.serviceTypes=Object.keys(servicesByType).map(function(type){return servicesByType[type];});
+  var serviceTypes=[];
+  document.querySelectorAll("#stock-st-list .st-block").forEach(function(el){
+    var name=el.querySelector(".st-name").value.trim()||"Service";
+    var km=el.querySelector(".st-km").value,h=el.querySelector(".st-h").value;
+    var timeN=el.querySelector(".st-timen").value,timeUnit=el.querySelector(".st-timeunit").value||"months";
+    serviceTypes.push({
+      id:el.querySelector(".st-id").value||uid("st-"),
+      name:name,
+      desc:el.querySelector(".st-desc").value.trim()||undefined,
+      alertKm:km!==""?(+km||null):null,
+      alertH:h!==""?(+h||null):null,
+      alertTimeN:timeN!==""&&+timeN>=1?(+timeN):null,
+      alertTimeUnit:timeN!==""&&+timeN>=1?timeUnit:undefined,
+      services:servicesByType[name]?servicesByType[name].services:[]
+    });
+    delete servicesByType[name];
+  });
+  Object.keys(servicesByType).forEach(function(type){serviceTypes.push(servicesByType[type]);});
+  item.serviceTypes=serviceTypes;
   if(distance>0)item.usageHistory=[{bikeId:"inventory-history",bikeName:"Previous use",gearId:"",isDefault:false,
     fromDate:installedDate,toDate:todayStr(),fromMileage:0,toMileage:distance,distance:distance,time:0}];
   var cost=document.getElementById("stock-cost").value;

@@ -85,10 +85,10 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
 - Move active parts between bikes while preserving service history, service types, costs, and accumulated distance/riding time; hidden when only one bike exists
-- Shared parts inventory across all bikes: track spare-part quantities, add new or already-used parts with prior distance and service records, move in-use parts into stock without losing their histories, and install any stock on any bike; replacement from stock automatically decrements quantity
+- Shared parts inventory across all bikes: track spare-part quantities, add new or already-used parts with prior distance, service records, and configurable service alerts, move in-use parts into stock without losing their histories, and install any stock on any bike; alert thresholds start from the installation date/mileage on the destination bike, and replacement from stock automatically decrements quantity
 - **Bike comparison** — when 2+ bikes exist, a "Bike Statistics" section compares all bikes side by side (distance, ride time, elevation, avg ride, services, current parts)
 - **Cost tracking** — optional purchase price per part and cost per service; total and per-year summary shown in the bike header; currency set via `STRAVA_MY_CURRENCY` in the config (default `PLN`)
-- **Email alerts** — per-part checkbox in the Edit modal; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue
+- **Email alerts** — per-part checkbox in the Add/Edit part and Add stock modals; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue
 - Saves via a small CGI — daily cron never touches your data
 
 **Data management**
