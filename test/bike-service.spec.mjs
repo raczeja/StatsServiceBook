@@ -154,6 +154,117 @@ test.describe("bike-service", () => {
     }
   });
 
+  test("moving-between-archive-and-inventory-preserves-part-data", async ({ page }) => {
+    const original = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+    const postStore = async (store) => {
+      const response = await fetch(BIKE_CGI, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(store),
+      });
+      expect(response.ok, `bike-service POST failed with ${response.status}`).toBeTruthy();
+    };
+    const partName = `Reversible archive part ${Date.now()}`;
+    const seeded = JSON.parse(JSON.stringify(original));
+    const roadBike = seeded.bikes.find((bike) => bike.name === "Road Bike");
+    expect(roadBike, "Road Bike fixture is missing").toBeTruthy();
+    roadBike.parts.push({
+      id: "p-reversible-archive-test",
+      name: partName,
+      installedDate: "2020-01-01",
+      installedMileage: 100,
+      currentBikeInstalledDate: "2021-01-01",
+      currentBikeInstalledMileage: 200,
+      status: "archived",
+      archivedDate: "2022-01-01",
+      archivedMileage: 350,
+      archiveNote: "test archive reason",
+      emailAlert: true,
+      serviceTypes: [{
+        id: "st-reversible-archive-test",
+        name: "Test service",
+        alertKm: 777,
+        alertH: 33,
+        alertTimeN: 3,
+        alertTimeUnit: "years",
+        services: [{ id: "s-reversible-archive-test", date: "2021-06-01", mileage: 275, note: "test service record" }],
+      }],
+    });
+
+    try {
+      await postStore(seeded);
+      await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+      await page.waitForSelector(".bikes .tab:not(.add)");
+      await page.getByRole("button", { name: "Road Bike", exact: true }).click();
+      const archivedRow = page.locator("#bikepanel tr.archived:not(.ridesrow)").filter({ hasText: partName });
+      await archivedRow.getByRole("button", { name: "To inventory" }).click();
+      await page.waitForFunction(async (name) => {
+        const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        const item = store.inventory?.find((entry) => entry.name === name);
+        return item?.emailAlert === true && item?.usageHistory?.at(-1)?.distance === 150 &&
+          item?.archiveHistory?.[0]?.note === "test archive reason" &&
+          item?.serviceTypes?.[0]?.services?.[0]?.note === "test service record";
+      }, partName);
+
+      let store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const inventoryPart = store.inventory.find((item) => item.name === partName);
+      expect(inventoryPart.quantity).toBe(1);
+      expect(inventoryPart.serviceTypes[0]).toMatchObject({
+        alertKm: 777,
+        alertH: 33,
+        alertTimeN: 3,
+        alertTimeUnit: "years",
+      });
+      expect(inventoryPart.archiveHistory[0]).toMatchObject({
+        bikeName: "Road Bike",
+        date: "2022-01-01",
+        mileage: 350,
+        note: "test archive reason",
+      });
+      await page.evaluate(async (name) => {
+        const item = MODEL.inventory.find((entry) => entry.name === name);
+        item.quantity = 2;
+        await persist();
+      }, partName);
+
+      await page.getByRole("button", { name: "Gravel Bike", exact: true }).click();
+      await page.locator(".inventory-item").filter({ hasText: partName })
+        .getByRole("button", { name: "Archive", exact: true }).click();
+      const archiveDate = await page.evaluate(() => todayStr());
+      await page.locator("#archive-stock-date").fill(archiveDate);
+      await page.locator("#archive-stock-mileage").fill("9876");
+      await page.locator("#archive-stock-note").fill("retired from inventory");
+      await page.getByRole("button", { name: "Archive one item" }).click();
+      await page.waitForFunction(async ({ name, date }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        const archived = saved.bikes.find((bike) => bike.name === "Gravel Bike")?.parts
+          .find((part) => part.name === name && part.status === "archived");
+        return archived?.archivedDate === date &&
+          archived?.archivedMileage === 9876 &&
+          archived?.archiveNote === "retired from inventory" &&
+          archived?.emailAlert === true &&
+          archived?.serviceTypes?.[0]?.alertKm === 777 &&
+          archived?.serviceTypes?.[0]?.services?.[0]?.note === "test service record" &&
+          archived?.usageHistory?.[0]?.bikeName === "Road Bike" &&
+          archived?.archiveHistory?.[0]?.note === "test archive reason";
+      }, { name: partName, date: archiveDate });
+
+      store = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+      const archivedAgain = store.bikes.find((bike) => bike.name === "Gravel Bike").parts
+        .find((part) => part.name === partName);
+      expect(store.inventory.find((item) => item.name === partName).quantity).toBe(1);
+      expect(archivedAgain.currentBikeInstalledMileage).toBe(9876);
+      expect(archivedAgain.serviceTypes[0]).toMatchObject({
+        alertKm: 777,
+        alertH: 33,
+        alertTimeN: 3,
+        alertTimeUnit: "years",
+      });
+    } finally {
+      await postStore(original);
+    }
+  });
+
   test("inventory-alerts-are-configurable-and-start-working-after-install", async ({
     page,
   }) => {
