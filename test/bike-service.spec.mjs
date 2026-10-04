@@ -984,6 +984,46 @@ test.describe("bike-modal-crud", () => {
     ).toBeTruthy();
   });
 
+  test("custom-part-vendor-and-model-are-saved-and-suggested", async () => {
+    const original = await (await fetch(BIKE_CGI, { cache: "no-store" })).json();
+    const partName = `CustomPart-${Date.now()}`;
+    const vendor = `CustomVendor-${Date.now()}`;
+    try {
+      await page.evaluate(() => {
+        const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)"))
+          .find((el) => el.textContent.includes("Road Bike"));
+        if (tab) tab.click();
+      });
+      await page.waitForSelector("#bikepanel .big", { timeout: 5000 });
+      await page.evaluate(() => showAddPart());
+      await page.locator("#p-name").fill(partName);
+      await page.locator("#p-vendor").fill(vendor);
+      await page.locator("#p-model").fill("Custom Model 42");
+      await page.evaluate(() => savePart(null));
+      await page.waitForFunction(async ({ partName, vendor }) => {
+        const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
+        const part = saved.bikes.flatMap((bike) => bike.parts || []).find((item) => item.name === partName);
+        return part?.vendor === vendor && part?.model === "Custom Model 42" &&
+          saved.partNames?.includes(partName) && saved.vendors?.includes(vendor);
+      }, { partName, vendor });
+      await page.waitForFunction(({ partName, vendor }) =>
+        MODEL.partNames.includes(partName) && MODEL.vendors.includes(vendor), { partName, vendor });
+
+      await page.evaluate(() => showAddPart());
+      await expect(page.locator('#part-name-options option[value="' + partName + '"]')).toHaveCount(1);
+      await expect(page.locator('#vendor-options option[value="' + vendor + '"]')).toHaveCount(1);
+      await expect(page.locator('#part-name-options option[value="Chain"]')).toHaveCount(1);
+      await page.evaluate(() => closeModal());
+    } finally {
+      await fetch(BIKE_CGI, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(original),
+      });
+      await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+    }
+  });
+
   test("add-part-modal-opens", async () => {
     await page.evaluate(() => {
       const tabs = document.querySelectorAll(".bikes .tab:not(.add)");
