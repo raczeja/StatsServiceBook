@@ -259,6 +259,31 @@ test.describe("data-quality", () => {
     );
   });
 
+  test("live-log-preserves-scroll-position-unless-already-at-bottom", async ({ page }) => {
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    const logText = (count) =>
+      Array.from({ length: count }, (_, i) => `line ${i + 1}`).join("\n");
+    await page.evaluate((text) => updateLogSectionRaw("strava", text), logText(40));
+
+    const pre = page.locator("#log-section-strava pre.run-log");
+    await expect(pre).toBeVisible();
+    await pre.evaluate((el) => { el.scrollTop = 0; });
+    await page.evaluate(
+      (text) => updateLogSectionRaw("strava", text),
+      logText(41),
+    );
+    await expect.poll(() => pre.evaluate((el) => el.scrollTop)).toBe(0);
+
+    await pre.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    await page.evaluate(
+      (text) => updateLogSectionRaw("strava", text),
+      logText(42),
+    );
+    await expect.poll(() =>
+      pre.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop),
+    ).toBeLessThanOrEqual(1);
+  });
+
   test("sync-trigger-opens-log-details", async ({ page }) => {
     const now = Math.floor(Date.now() / 1000);
     await page.route("**/strava-sync-status.json", (route) =>
