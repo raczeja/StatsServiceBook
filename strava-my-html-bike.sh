@@ -174,7 +174,7 @@ var ACT   = null;   // activities.json (rides + gear names)
 var RIDES = [];     // [{date, km, gear}] sorted ascending by date
 var GEARS = {};     // gear_id -> { name }
 var DEFGEAR = "";   // default gear for untagged rides (most recently used bike)
-var MODEL = { version: 1, bikes: [], inventory: [] };
+var MODEL = { version: 1, bikes: [], inventory: [], partNames: [], vendors: [] };
 var selBike = null; // selected bike id
 var SAVING  = false;
 
@@ -187,6 +187,62 @@ function todayStr(){
   return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
 }
 function uid(pfx){ return pfx + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+var DEFAULT_PART_NAMES = [
+  "Chain", "Cassette", "Chainring", "Crankset", "Bottom bracket", "Pedals",
+  "Brake pads", "Brake rotors", "Brake cables", "Shifter cable", "Derailleur",
+  "Derailleur hanger", "Tyre", "Inner tube", "Tubeless sealant", "Rim tape",
+  "Spokes", "Wheel bearings", "Headset bearings", "Handlebar tape", "Grips",
+  "Saddle", "Seatpost", "Seatpost clamp", "Suspension fork", "Rear shock"
+];
+var DEFAULT_VENDORS = [
+  "Shimano", "SRAM", "Campagnolo", "KMC", "YBN", "Continental", "Schwalbe",
+  "Maxxis", "Pirelli", "Vittoria", "Specialized", "Bontrager", "Trek", "Giant",
+  "DT Swiss", "Mavic", "Hope", "Magura", "TRP", "Jagwire", "RockShox", "FOX",
+  "Cane Creek", "WTB", "Selle Italia"
+];
+function addDictionaryValue(key, value){
+  value = String(value == null ? "" : value).trim();
+  if (!value) return false;
+  if (!Array.isArray(MODEL[key])) MODEL[key] = [];
+  var normalized = value.toLowerCase();
+  if (MODEL[key].some(function(item){ return String(item).toLowerCase() === normalized; })) return false;
+  MODEL[key].push(value);
+  MODEL[key].sort(function(a,b){ return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); });
+  return true;
+}
+function normalizeDictionaries(){
+  var changed = false;
+  if (!Array.isArray(MODEL.partNames)) MODEL.partNames = [];
+  if (!Array.isArray(MODEL.vendors)) MODEL.vendors = [];
+  DEFAULT_PART_NAMES.forEach(function(name){ if(addDictionaryValue("partNames",name)) changed=true; });
+  DEFAULT_VENDORS.forEach(function(name){ if(addDictionaryValue("vendors",name)) changed=true; });
+  MODEL.bikes.forEach(function(bike){
+    (bike.parts||[]).forEach(function(part){
+      if(addDictionaryValue("partNames",part.name)) changed=true;
+      if(addDictionaryValue("vendors",part.vendor)) changed=true;
+    });
+  });
+  MODEL.inventory.forEach(function(item){
+    if(addDictionaryValue("partNames",item.name)) changed=true;
+    if(addDictionaryValue("vendors",item.vendor)) changed=true;
+  });
+  return changed;
+}
+function dictionaryOptions(id, values){
+  return '<datalist id="'+id+'">'+values.map(function(value){
+    return '<option value="'+esc(value)+'"></option>';
+  }).join("")+'</datalist>';
+}
+function rememberPartDetails(name, vendor){
+  addDictionaryValue("partNames",name);
+  addDictionaryValue("vendors",vendor);
+}
+function partMetaLine(part){
+  var details=[];
+  if(part.vendor) details.push(part.vendor);
+  if(part.model) details.push(part.model);
+  return details.length ? '<div class="muted">'+esc(details.join(" · "))+'</div>' : "";
+}
 // km with a space as thousands separator and one decimal: 1234.5 -> "1 234.5".
 function fmtKm(km){
   var s = (Math.round((km||0)*10)/10).toFixed(1);
@@ -630,7 +686,7 @@ function loadAll(){
       var mapped = {};
       var mappedNames = {};
       MODEL.bikes.forEach(function(b){ if (b.gearId) mapped[b.gearId] = true; if (b.name) mappedNames[b.name] = true; });
-      var seeded = false;
+      var seeded = normalizeDictionaries();
       Object.keys(GEARS)
         .sort(function(a,b){ var na=GEARS[a].name||a, nb=GEARS[b].name||b; return na<nb?-1:1; })
         .forEach(function(gid){
@@ -798,7 +854,11 @@ function partForm(part){
   }).join("");
   openModal(
     '<h3>'+(part?'Edit part':'Add part')+'</h3>'+
-    '<label>Name</label><input id="p-name" value="'+esc(part?part.name:"")+'" placeholder="e.g. Chain, Rear tyre, Brake pads">'+
+    '<label>Name</label><input id="p-name" list="part-name-options" value="'+esc(part?part.name:"")+'" placeholder="e.g. Chain, Rear tyre, Brake pads">'+
+    dictionaryOptions("part-name-options",MODEL.partNames)+
+    '<label>Vendor</label><input id="p-vendor" list="vendor-options" value="'+esc(part?part.vendor:"")+'" placeholder="e.g. Shimano">'+
+    dictionaryOptions("vendor-options",MODEL.vendors)+
+    '<label>Model (optional)</label><input id="p-model" value="'+esc(part?part.model:"")+'" placeholder="e.g. Ultegra CS-R8101">'+
     '<label>Note (optional)</label><textarea id="p-note" placeholder="free text">'+esc(part?part.note:"")+'</textarea>'+
     '<div class="row"><div><label>Installed date</label>'+
       '<input id="f-date" type="date" value="'+esc(date)+'" onchange="recalc()"></div>'+
@@ -859,6 +919,9 @@ window.savePart = function(id){
   var b = curBike(); if(!b) return;
   var name = document.getElementById("p-name").value.trim();
   if (!name){ document.getElementById("p-name").focus(); return; }
+  var vendor = document.getElementById("p-vendor").value.trim();
+  var model = document.getElementById("p-model").value.trim();
+  rememberPartDetails(name,vendor);
   var note = document.getElementById("p-note").value;
   var date = document.getElementById("f-date").value || todayStr();
   var mi   = +document.getElementById("f-mileage").value || 0;
@@ -889,14 +952,14 @@ window.savePart = function(id){
   if(!serviceTypes.length) serviceTypes=[{id:uid("st-"),name:"Service",alertKm:null,alertH:null,services:[]}];
   if (id){
     var p = findPart(id);
-    if (p){ p.name=name; p.note=note;
+    if (p){ p.name=name; p.vendor=vendor; p.model=model; p.note=note;
       if(p.usageHistory&&p.usageHistory.length){ p.currentBikeInstalledDate=date; p.currentBikeInstalledMileage=mi; }
       else { p.installedDate=date; p.installedMileage=mi; }
       p.serviceTypes=serviceTypes;
       p.emailAlert=emailAlert;
       if(cost!=null) p.cost=cost; else delete p.cost; }
   } else {
-    var np2 = { id:uid("p-"), name:name, note:note, installedDate:date,
+    var np2 = { id:uid("p-"), name:name, vendor:vendor, model:model, note:note, installedDate:date,
       installedMileage:mi, status:"new", needsReplacement:false, emailAlert:emailAlert, serviceTypes:serviceTypes };
     if(cost!=null) np2.cost=cost;
     b.parts.push(np2);
@@ -911,7 +974,11 @@ window.deletePart = function(id){
 };
 window.showAddStock = function(){
   openModal('<h3>Add to parts inventory</h3>'+
-    '<label>Part name</label><input id="stock-name" placeholder="e.g. Chain, brake pads, tyre">'+
+    '<label>Part name</label><input id="stock-name" list="stock-part-name-options" placeholder="e.g. Chain, brake pads, tyre">'+
+    dictionaryOptions("stock-part-name-options",MODEL.partNames)+
+    '<label>Vendor</label><input id="stock-vendor" list="stock-vendor-options" placeholder="e.g. Shimano">'+
+    dictionaryOptions("stock-vendor-options",MODEL.vendors)+
+    '<label>Model (optional)</label><input id="stock-model" placeholder="e.g. Ultegra CS-R8101">'+
     '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="1">'+
     '<label>Original install date</label><input id="stock-installed" type="date" value="'+todayStr()+'">'+
     '<label>Distance already used (km)</label><input id="stock-distance" type="number" min="0" step="0.1" value="0">'+
@@ -956,13 +1023,16 @@ window.addStockService = function(){
 };
 window.saveStock = function(){
   var name=document.getElementById("stock-name").value.trim();
+  var vendor=document.getElementById("stock-vendor").value.trim();
+  var model=document.getElementById("stock-model").value.trim();
   var qty=+document.getElementById("stock-qty").value;
   if(!name){document.getElementById("stock-name").focus();return;}
   if(!Number.isInteger(qty)||qty<1){document.getElementById("stock-qty").focus();return;}
   var installedDate=document.getElementById("stock-installed").value||todayStr();
   var distance=+document.getElementById("stock-distance").value||0;
   if(distance<0){document.getElementById("stock-distance").focus();return;}
-  var item={id:uid("inv-"),name:name,quantity:qty,note:document.getElementById("stock-note").value,
+  rememberPartDetails(name,vendor);
+  var item={id:uid("inv-"),name:name,vendor:vendor,model:model,quantity:qty,note:document.getElementById("stock-note").value,
     installedDate:installedDate,installedMileage:0,status:"new",
     emailAlert:document.getElementById("stock-email-alert").checked,serviceTypes:[]};
   var servicesByType=Object.create(null);
@@ -1004,7 +1074,11 @@ window.saveStock = function(){
 window.showEditStock = function(id){
   var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
   openModal('<h3>Edit inventory item</h3>'+
-    '<label>Part name</label><input id="stock-name" value="'+esc(item.name)+'">'+
+    '<label>Part name</label><input id="stock-name" list="stock-part-name-options" value="'+esc(item.name)+'">'+
+    dictionaryOptions("stock-part-name-options",MODEL.partNames)+
+    '<label>Vendor</label><input id="stock-vendor" list="stock-vendor-options" value="'+esc(item.vendor||"")+'">'+
+    dictionaryOptions("stock-vendor-options",MODEL.vendors)+
+    '<label>Model (optional)</label><input id="stock-model" value="'+esc(item.model||"")+'">'+
     '<label>Quantity</label><input id="stock-qty" type="number" min="1" step="1" value="'+(+item.quantity||1)+'">'+
   '<div class="muted">Previously used: '+fmtKm(partHistoryKm(item))+' km · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' service records</div>'+
   '<label>Note (optional)</label><textarea id="stock-note">'+esc(item.note||"")+'</textarea>'+
@@ -1015,7 +1089,10 @@ window.saveStockEdit = function(id){
   var item=MODEL.inventory.filter(function(x){return x.id===id;})[0];if(!item)return;
   var name=document.getElementById("stock-name").value.trim(),qty=+document.getElementById("stock-qty").value;
   if(!name||!Number.isInteger(qty)||qty<1)return;
-  item.name=name;item.quantity=qty;item.note=document.getElementById("stock-note").value;
+  var vendor=document.getElementById("stock-vendor").value.trim();
+  rememberPartDetails(name,vendor);
+  item.name=name;item.vendor=vendor;item.model=document.getElementById("stock-model").value.trim();
+  item.quantity=qty;item.note=document.getElementById("stock-note").value;
   var cost=document.getElementById("stock-cost").value;
   if(cost!=="")item.cost=+cost;else delete item.cost;
   closeModal();persist();
@@ -1256,12 +1333,16 @@ window.showReplace = function(id){
       '<input id="f-mileage" type="number" step="1" value="'+Math.round(bikeMileage(b,date)*10)/10+'">'+
       '<div class="hint">auto-filled from the date</div></div></div>'+
     '<label>Reason / note (optional)</label><textarea id="r-note" placeholder="e.g. worn out at 0.75 on the chain checker"></textarea>'+
-    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
+    '<div class="chk"><input type="checkbox" id="r-new" checked onchange="document.getElementById(\'r-newname\').disabled=!this.checked;document.getElementById(\'r-vendor\').disabled=!this.checked;document.getElementById(\'r-model\').disabled=!this.checked;document.getElementById(\'r-cost\').disabled=!this.checked">'+
       '<label style="margin:0">Install a replacement now</label></div>'+
-    '<label>New part name</label><input id="r-newname" value="'+esc(p.name)+'">'+
+    '<label>New part name</label><input id="r-newname" list="replace-part-name-options" value="'+esc(p.name)+'">'+
+    dictionaryOptions("replace-part-name-options",MODEL.partNames)+
+    '<label>Vendor</label><input id="r-vendor" list="replace-vendor-options" value="'+esc(p.vendor||"")+'">'+
+    dictionaryOptions("replace-vendor-options",MODEL.vendors)+
+    '<label>Model (optional)</label><input id="r-model" value="'+esc(p.model||"")+'">'+
     '<label>New part cost (optional, '+((_CFG&&_CFG.currency)||'PLN')+')</label>'+
     '<input id="r-cost" type="number" step="0.01" min="0" placeholder="e.g. 25.00">'+
-    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
+    '<label>Replacement from shared inventory (optional)</label><select id="r-stock" onchange="document.getElementById(\'r-newname\').disabled=!!this.value;document.getElementById(\'r-vendor\').disabled=!!this.value;document.getElementById(\'r-model\').disabled=!!this.value;document.getElementById(\'r-cost\').disabled=!!this.value">'+stockOptions+'</select>'+
     '<div class="actions"><button class="btn" onclick="closeModal()">Cancel</button>'+
     '<button class="btn primary" onclick="saveReplace(\''+id+'\')">Replace</button></div>'
   );
@@ -1291,9 +1372,12 @@ window.saveReplace = function(id){
       MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
     }else{
       var nm = document.getElementById("r-newname").value.trim() || p.name;
+      var vendor = document.getElementById("r-vendor").value.trim();
+      var model = document.getElementById("r-model").value.trim();
+      rememberPartDetails(nm,vendor);
       var rCostEl = document.getElementById("r-cost");
       var rCost = rCostEl && rCostEl.value !== "" ? +rCostEl.value : null;
-      np = { id:uid("p-"), name:nm, note:"", installedDate:date,
+      np = { id:uid("p-"), name:nm, vendor:vendor, model:model, note:"", installedDate:date,
         installedMileage:mi, status:"new", services:[] };
       if(rCost!=null) np.cost=rCost;
     }
@@ -1366,6 +1450,7 @@ function render(){
       '<div class="inventory-grid">';
     MODEL.inventory.filter(function(item){return +item.quantity>0;}).forEach(function(item){
       html+='<div class="inventory-item"><h3>'+esc(item.name)+' <span class="muted">× '+(+item.quantity||0)+'</span></h3>'+
+        partMetaLine(item)+
         (item.note?'<div class="muted">'+esc(item.note)+'</div>':'')+
         '<div class="muted">'+fmtKm(partHistoryKm(item))+' km used · '+(item.serviceTypes||[]).reduce(function(n,st){return n+(st.services||[]).length;},0)+' services'+(item.archiveHistory&&item.archiveHistory.length?' · '+item.archiveHistory.length+' prior archive'+(item.archiveHistory.length===1?'':'s'):'')+' · available for all bikes'+(item.cost!=null?' · '+fmtCost(item.cost)+' each':'')+'</div>'+
         '<button class="btn sm" onclick="showInstallStock(\''+item.id+'\')">Install on '+esc(b.name)+'</button> '+
@@ -1481,7 +1566,7 @@ function render(){
         ? '<span style="font-variant-numeric:tabular-nums">'+fmtCost(pCostTotal)+'</span>'+
           (p.cost&&+p.cost>0?'<div class="muted" style="font-size:.78rem">part: '+fmtCost(p.cost)+'</div>':'')
         : '<span class="muted">—</span>';
-      html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+replBadge+noteLine+'</td>'+
+      html += '<tr'+dnd+(isWarn?' class="warn"':'')+'><td><b>'+esc(p.name)+'</b>'+partMetaLine(p)+replBadge+noteLine+'</td>'+
         '<td style="white-space:nowrap">'+esc(p.currentBikeInstalledDate||p.installedDate||"?")+'<div class="muted">@ '+fmtKm(p.currentBikeInstalledMileage!=null?p.currentBikeInstalledMileage:p.installedMileage)+' km</div></td>'+
         '<td class="num"><b>'+fmtKm(ridden<0?0:ridden)+'</b> km<div class="muted">'+(riddenSec/3600).toFixed(1)+' h</div></td>'+
         '<td>'+lastCell+'</td>'+
@@ -1522,7 +1607,7 @@ function render(){
       var dur = fmtDuration(p.installedDate, p.archivedDate);
       var aCostTotal = partTotalCost(p);
       var aCostCell = aCostTotal>0 ? fmtCost(aCostTotal) : '<span class="muted">—</span>';
-      html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+noteLine+'</td>'+
+      html += '<tr class="archived"><td><b>'+esc(p.name)+'</b>'+partMetaLine(p)+noteLine+'</td>'+
         '<td>'+esc(p.installedDate||"?")+' → '+esc(p.archivedDate||"?")+(dur?'<div class="muted">'+esc(dur)+'</div>':'')+arcNote+'</td>'+
         '<td class="num"><b>'+fmtKm(life<0?0:life)+'</b> km'+(p.usageHistory&&p.usageHistory.length?'<div class="muted">across '+(p.usageHistory.length+1)+' bikes</div>':'<div class="muted">'+fmtKm(p.installedMileage)+' → '+fmtKm(p.archivedMileage)+'</div>')+'</td>'+
         '<td class="svc">'+svcTxt+'</td>'+

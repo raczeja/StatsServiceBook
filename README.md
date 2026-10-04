@@ -81,6 +81,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 **Bike service tracker**
 
 - Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
+- Part names and vendors have built-in suggestions plus persistent custom dictionaries; entries remain free-form, and each part can record its vendor and model
 - **Service work queue** — one urgency-sorted list across all bikes; shows overdue services and items at ≥ 80% of their configured interval, and appears only while at least one service is overdue
 - Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
 - Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
