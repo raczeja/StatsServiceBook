@@ -185,8 +185,11 @@ var SYNC_RUNNING_URLS={strava:'strava-sync-running',healthsync:'healthsync-sync-
 var SRC_NAMES={strava:'Strava',healthsync:'HealthSync',leaderboard:'Club leaderboard'};
 var _knownAttempt={strava:0,healthsync:0,leaderboard:0};
 function _renderLogEl(el,lines,label){
+  var previous=el.querySelector('pre.run-log');
+  var shouldFollow=!previous||previous.scrollHeight-previous.clientHeight-previous.scrollTop<=24;
+  var previousScrollTop=previous?previous.scrollTop:0;
   el.innerHTML='<details open><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">'+label+' ('+lines.length+' lines)</summary><pre class="run-log">'+lines.map(function(l){return esc(l);}).join('\n')+'</pre></details>';
-  var pre=el.querySelector('pre.run-log');if(pre)pre.scrollTop=pre.scrollHeight;
+  var pre=el.querySelector('pre.run-log');if(pre)pre.scrollTop=shouldFollow?pre.scrollHeight:previousScrollTop;
 }
 function refreshSourceCard(src,name,status){
   var logEl=document.getElementById('log-section-'+src);
