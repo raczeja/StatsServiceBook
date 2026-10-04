@@ -234,24 +234,28 @@ function triggerSync(src,btn){
   btn.disabled=true;btn.textContent='↻ Running…';
   var url=SYNC_STATUS_URLS[src];
   var prevAttempt=0;
-  (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
+  return (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
   .then(function(st){
     prevAttempt=st?Number(st.lastAttempt)||0:0;
     return fetch('/cgi-bin/trigger-sync',{method:'POST',body:'source='+src,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
   })
   .then(function(r){return r.json();})
   .then(function(j){
-    if(!j.ok){btn.textContent='Error: '+(j.error||'?');btn.disabled=false;return;}
-    if(!url){btn.textContent='✓ Triggered';return;}
+    if(!j.ok){btn.textContent='Error: '+(j.error||'?');btn.disabled=false;return false;}
+    if(!url){btn.textContent='✓ Triggered';return true;}
     startLivePolling(src,btn,prevAttempt);
+    return true;
   })
-  .catch(function(){btn.textContent='Failed';btn.disabled=false;});
+  .catch(function(){btn.textContent='Failed';btn.disabled=false;return false;});
 }
-function syncAll(){
+async function syncAll(){
   var allBtn=document.getElementById('sync-all-btn');
   if(allBtn)allBtn.disabled=true;
-  document.querySelectorAll('.sync-btn[data-src]').forEach(function(b){if(!b.disabled)triggerSync(b.dataset.src,b);});
-  setTimeout(function(){if(allBtn)allBtn.disabled=false;},5000);
+  var buttons=Array.from(document.querySelectorAll('.sync-btn[data-src]')).filter(function(b){return !b.disabled;});
+  for(var i=0;i<buttons.length;i++){
+    await triggerSync(buttons[i].dataset.src,buttons[i]);
+  }
+  if(allBtn)allBtn.disabled=false;
 }
 function cookieDaysLeft(meta){if(!meta||!meta.cookieRefreshNeededBy)return null;return Math.ceil((new Date(meta.cookieRefreshNeededBy)-new Date())/86400000);}
 function cookieStatusCard(title,meta){
