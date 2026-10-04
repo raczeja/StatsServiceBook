@@ -42,7 +42,7 @@ if [ -n "$BIKE_EMAIL" ] && [ -f "$BIKE_DATA" ] && [ -f "$WEB_DIR/activities.json
       . as $st |
       select(($st.alertKm//0|tonum)>0 or ($st.alertH//0|tonum)>0 or ($st.alertTimeN//0|tonum)>0) |
       (($st.services//[])|sort_by(.date)|if length>0 then .[-1].date else null end) as $ld |
-      ($ld//($part.installedDate//"")) as $from |
+      ($ld//($part.currentBikeInstalledDate//$part.installedDate//"")) as $from |
       [$acts[]|
         select(.sport_type=="Ride")|
         select($from=="" or .date>=$from)|
