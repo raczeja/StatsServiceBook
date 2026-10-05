@@ -500,7 +500,11 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
     var stride = n > 120 ? 5 : n > 60 ? 2 : 1;
     for (i = 0; i < n; i += stride) {
       x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
-      html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + xLabels[i] + '</text>';
+      var labelText = String(xLabels[i]);
+      if ((i === 0 || Number(xLabels[i]) === 0) && labelText === "0") {
+        labelText = "0" + unit;
+      }
+      html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + labelText + '</text>';
     }
   }
   // Build per-point tooltip data and add a transparent hit overlay.

@@ -76,13 +76,21 @@ test.describe("activity-detail", () => {
           { id: 123, suffer_score: 232 },
         );
         renderCards(detail);
-        const card = Array.from(document.querySelectorAll("#cards .card"))
-          .find((el) => el.querySelector(".k")?.textContent === "Strava Relative Effort");
+        const card = Array.from(document.querySelectorAll("#cards .card")).find(
+          (el) =>
+            el.querySelector(".k")?.textContent === "Strava Relative Effort",
+        );
         return card?.querySelector(".v")?.textContent.trim();
       });
       expect(score).toBe("232");
     } finally {
-      await page.$eval("#cards", (el, html) => { el.innerHTML = html; }, cards);
+      await page.$eval(
+        "#cards",
+        (el, html) => {
+          el.innerHTML = html;
+        },
+        cards,
+      );
     }
   });
 
@@ -91,21 +99,40 @@ test.describe("activity-detail", () => {
     try {
       const result = await page.evaluate(() => {
         const detail = fillDetailFromActivity(
-          { id: 123, suffer_score: null, average_heartrate: 150, max_heartrate: 190, moving_time: 3600 },
+          {
+            id: 123,
+            suffer_score: null,
+            average_heartrate: 150,
+            max_heartrate: 190,
+            moving_time: 3600,
+          },
           { id: 123, suffer_score: 232 },
         );
         renderCards(detail);
         return {
           official: Array.from(document.querySelectorAll("#cards .card"))
-            .find((el) => el.querySelector(".k")?.textContent === "Strava Relative Effort")
-            ?.querySelector(".v")?.textContent.trim(),
-          estimated: document.querySelector("#hr-effort-card .v")?.textContent.trim(),
+            .find(
+              (el) =>
+                el.querySelector(".k")?.textContent ===
+                "Strava Relative Effort",
+            )
+            ?.querySelector(".v")
+            ?.textContent.trim(),
+          estimated: document
+            .querySelector("#hr-effort-card .v")
+            ?.textContent.trim(),
         };
       });
       expect(result.official).toBe("232");
       expect(Number(result.estimated)).toBeGreaterThan(0);
     } finally {
-      await page.$eval("#cards", (el, html) => { el.innerHTML = html; }, cards);
+      await page.$eval(
+        "#cards",
+        (el, html) => {
+          el.innerHTML = html;
+        },
+        cards,
+      );
     }
   });
 
@@ -146,6 +173,14 @@ test.describe("activity-detail", () => {
     expect(
       n >= 2,
       `expected >= 2 path elements in #svg-elev (fill + line), got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("svg-elev-axis-starts-at-0m", async () => {
+    const text = await page.$eval("#svg-elev", (el) => el.textContent);
+    expect(
+      /0m/.test(text),
+      `expected #svg-elev x-axis to include a 0m label, got: ${text.slice(0, 200)}`,
     ).toBeTruthy();
   });
 

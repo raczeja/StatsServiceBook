@@ -117,7 +117,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - Network pre-flight: pings a configurable IP before each run; if unreachable, waits up to `STRAVA_NET_CHECK_WAIT` seconds (default 2 min) for the WAN to come back, then aborts cleanly — no false-positive alerts during a brief reconnect
 - Automatic retry: re-runs the script up to `STRAVA_CRON_RETRIES` times (default 2) with `STRAVA_CRON_RETRY_DELAY` seconds (default 5 min) between attempts; alert email is only sent after all retries are exhausted, and the subject line reports the total attempt count
 
-Full feature details: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Features)
+Feature guides: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Features) · [My Activities dashboard](https://github.com/raczeja/StatsServiceBook/wiki/Features-My-Activities-Dashboard) · [Activity detail](https://github.com/raczeja/StatsServiceBook/wiki/Features-Activity-Detail) · [Club leaderboard](https://github.com/raczeja/StatsServiceBook/wiki/Features-Club-Leaderboard) · [Personal stats](https://github.com/raczeja/StatsServiceBook/wiki/Features-Personal-Stats) · [Data completeness](https://github.com/raczeja/StatsServiceBook/wiki/Features-Data-Completeness) · [Bike service](https://github.com/raczeja/StatsServiceBook/wiki/Features-Bike-Service)
 
 ## Screenshots
 
