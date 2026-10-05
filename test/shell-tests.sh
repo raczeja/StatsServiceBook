@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 # shell-tests.sh — unit tests for shell script logic
 #
 # Tests the core algorithms from healthsync-activities.sh and strava-lib.sh
@@ -902,17 +902,17 @@ S="scrape-activity-dedup"
 
 # Seed the known store with one already-seen activity.
 printf '%s\n' \
-    '{"signature":"act-111","firstname":"Alice","name":"Old Ride","distance":10000}' \
+    '{"signature":"act-111","firstname":"Gwen","name":"Old Ride","distance":10000}' \
     > "$TMP/sc_store.ndjson"
 jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json"
 
 # Feed: act-111 (known→skip), act-222 (new), GroupActivity (skip), act-222 again (dedup).
 cat > "$TMP/sc_feed.json" << 'FEED'
 [
-  {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","lastName":"Smith","avatarUrl":"https://example.com/alice.jpg"},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstname":"Gwen","lastname":"Marsh","avatarUrl":"https://example.com/alice.jpg"},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastname":"Bellamy","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
   {"entity":"GroupActivity","activity":{"id":"act-333","activityName":"Filtered Out"}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastname":"Bellamy","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
 ]
 FEED
 
@@ -987,8 +987,8 @@ printf '[]\n' > "$TMP/sc_known.json"
 # Feed: act-old (2026-06-01) and act-recent (2026-06-20), both unknown.
 cat > "$TMP/sc_feed.json" << 'FEED'
 [
-  {"entity":"Activity","activity":{"id":"act-old","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstName":"Alice","lastName":"Smith","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
-  {"entity":"Activity","activity":{"id":"act-recent","activityName":"Recent Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-20T09:00:00Z","athlete":{"firstName":"Bob","lastName":"Jones","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+  {"entity":"Activity","activity":{"id":"act-old","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstname":"Gwen","lastname":"Marsh","avatarUrl":""},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"act-recent","activityName":"Recent Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-20T09:00:00Z","athlete":{"firstName":"Bob","lastname":"Bellamy","avatarUrl":""},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
 ]
 FEED
 
@@ -1026,13 +1026,13 @@ cat > "$TMP/sc_norm_feed.json" << 'FEED'
   {"entity":"Activity","activity":{
     "id":"norm-act-1","activityName":"Solo Ride","elapsedTime":3600,"type":"Ride",
     "startDate":"2026-07-01T08:00:00Z",
-    "athlete":{"firstName":"Piotr","lastName":"Król","avatarUrl":"https://example.com/piotr.jpg"},
+    "athlete":{"firstName":"Finn","lastName":"Caldwell","avatarUrl":"https://example.com/finn.jpg"},
     "stats":[{"key":"stat_one","value":"30.00"},{"key":"stat_two","value":"200"},{"key":"stat_three","value":"1h"}]
   }},
   {"entity":"GroupActivity","rowData":{"activities":[
     {"entity_id_str":"norm-grp-1","name":"Group Ride","type":"Ride",
      "start_date":"2026-07-02T09:00:00Z","elapsed_time":7200,
-     "athlete_firstname":"Anna","athlete_name":"Anna Vance","athlete_avatar_url":"https://example.com/anna.jpg",
+     "athlete_firstname":"Sara","athlete_name":"Sara Vance","athlete_avatar_url":"https://example.com/sara.jpg",
      "stats":[{"key":"stat_one","value":"50.00"},{"key":"stat_two","value":"500"},{"key":"stat_three","value":"2h"}]}
   ]}}
 ]}
@@ -1101,15 +1101,15 @@ _norm="$(_norm_parse)"
 
 # Activity entity: lastName → lastname
 _norm_act="$(printf '%s' "$_norm" | jq '.[] | select(.s == "norm-act-1")')"
-assert_eq "$S" "activity-firstname"     "$(printf '%s' "$_norm_act" | jq -r '.firstname')"     "Piotr"
-assert_eq "$S" "activity-lastname"      "$(printf '%s' "$_norm_act" | jq -r '.lastname')"      "Król"
-assert_eq "$S" "activity-avatar"        "$(printf '%s' "$_norm_act" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
+assert_eq "$S" "activity-firstname"     "$(printf '%s' "$_norm_act" | jq -r '.firstname')"     "Finn"
+assert_eq "$S" "activity-lastname"      "$(printf '%s' "$_norm_act" | jq -r '.lastname')"      "Caldwell"
+assert_eq "$S" "activity-avatar"        "$(printf '%s' "$_norm_act" | jq -r '.profile_medium')" "https://example.com/finn.jpg"
 
 # GroupActivity entity: athleteName → lastname (existing path, unchanged)
 _norm_grp="$(printf '%s' "$_norm" | jq '.[] | select(.s == "norm-grp-1")')"
-assert_eq "$S" "group-firstname"        "$(printf '%s' "$_norm_grp" | jq -r '.firstname')"     "Anna"
+assert_eq "$S" "group-firstname"        "$(printf '%s' "$_norm_grp" | jq -r '.firstname')"     "Sara"
 assert_eq "$S" "group-lastname"         "$(printf '%s' "$_norm_grp" | jq -r '.lastname')"      "Vance"
-assert_eq "$S" "group-avatar"           "$(printf '%s' "$_norm_grp" | jq -r '.profile_medium')" "https://example.com/anna.jpg"
+assert_eq "$S" "group-avatar"           "$(printf '%s' "$_norm_grp" | jq -r '.profile_medium')" "https://example.com/sara.jpg"
 
 # Both entities present in result
 assert_eq "$S" "both-entities-present"  "$(printf '%s' "$_norm" | jq 'length')" "2"
@@ -1127,9 +1127,9 @@ S="scrape-name-backfill"
 # bf-act-old: ID NOT in feed (scrolled off) but same firstname as act-1 → patched via fn_map path.
 # bf-act-2: already has a correct lastname → must not be touched.
 cat > "$TMP/bf_store_pre.ndjson" << 'STORE'
-{"signature":"bf-act-1","firstname":"Piotr","lastname":"","profile_medium":"","name":"Old Ride","distance":30000,"moving_time":3600,"elapsed_time":3600,"total_elevation_gain":200,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-01"}
-{"signature":"bf-act-old","firstname":"Piotr","lastname":"","profile_medium":"","name":"Very Old Ride","distance":25000,"moving_time":3300,"elapsed_time":3300,"total_elevation_gain":150,"type":"Ride","sport_type":"Ride","firstSeen":"2026-03-10"}
-{"signature":"bf-act-2","firstname":"Anna","lastname":"Vance","profile_medium":"https://example.com/anna.jpg","name":"Another Ride","distance":20000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":100,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-02"}
+{"signature":"bf-act-1","firstname":"Finn","lastname":"","profile_medium":"","name":"Old Ride","distance":30000,"moving_time":3600,"elapsed_time":3600,"total_elevation_gain":200,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-01"}
+{"signature":"bf-act-old","firstname":"Finn","lastname":"","profile_medium":"","name":"Very Old Ride","distance":25000,"moving_time":3300,"elapsed_time":3300,"total_elevation_gain":150,"type":"Ride","sport_type":"Ride","firstSeen":"2026-03-10"}
+{"signature":"bf-act-2","firstname":"Sara","lastname":"Vance","profile_medium":"https://example.com/sara.jpg","name":"Another Ride","distance":20000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":100,"type":"Ride","sport_type":"Ride","firstSeen":"2026-05-02"}
 STORE
 
 # New entries from this run (empty — nothing new).
@@ -1142,13 +1142,13 @@ cat > "$TMP/bf_merge_input.json" << 'FEED'
   {"entity":"Activity","activity":{
     "id":"bf-act-1","activityName":"Old Ride","elapsedTime":3600,"type":"Ride",
     "startDate":"2026-05-01T08:00:00Z",
-    "athlete":{"firstName":"Piotr","lastName":"Król","avatarUrl":"https://example.com/piotr.jpg"},
+    "athlete":{"firstName":"Finn","lastName":"Caldwell","avatarUrl":"https://example.com/finn.jpg"},
     "stats":[{"key":"stat_one","value":"30.00"},{"key":"stat_two","value":"200"},{"key":"stat_three","value":"1h"}]
   }},
   {"entity":"Activity","activity":{
     "id":"bf-act-3","activityName":"New Ride","elapsedTime":1800,"type":"Ride",
     "startDate":"2026-06-01T08:00:00Z",
-    "athlete":{"firstName":"Tom","lastName":"Jones","avatarUrl":"https://example.com/tom.jpg"},
+    "athlete":{"firstName":"Marc","lastName":"Bellamy","avatarUrl":"https://example.com/marc.jpg"},
     "stats":[{"key":"stat_one","value":"15.00"},{"key":"stat_two","value":"50"},{"key":"stat_three","value":"30m"}]
   }}
 ]}
@@ -1218,19 +1218,19 @@ _bf_result="$(_bf_apply)"
 
 # bf-act-1: blank lastname patched from feed via exact activity-ID match (nm path)
 _bf_act1="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-1")')"
-assert_eq "$S" "act1-lastname-patched"    "$(printf '%s' "$_bf_act1" | jq -r '.lastname')"       "Król"
-assert_eq "$S" "act1-avatar-patched"      "$(printf '%s' "$_bf_act1" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
-assert_eq "$S" "act1-firstname-preserved" "$(printf '%s' "$_bf_act1" | jq -r '.firstname')"      "Piotr"
+assert_eq "$S" "act1-lastname-patched"    "$(printf '%s' "$_bf_act1" | jq -r '.lastname')"       "Caldwell"
+assert_eq "$S" "act1-avatar-patched"      "$(printf '%s' "$_bf_act1" | jq -r '.profile_medium')" "https://example.com/finn.jpg"
+assert_eq "$S" "act1-firstname-preserved" "$(printf '%s' "$_bf_act1" | jq -r '.firstname')"      "Finn"
 
 # bf-act-old: ID not in current feed — patched via fn_map (firstname-based fallback)
 _bf_old="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-old")')"
-assert_eq "$S" "old-lastname-fn-patched"  "$(printf '%s' "$_bf_old" | jq -r '.lastname')"       "Król"
-assert_eq "$S" "old-avatar-fn-patched"    "$(printf '%s' "$_bf_old" | jq -r '.profile_medium')" "https://example.com/piotr.jpg"
+assert_eq "$S" "old-lastname-fn-patched"  "$(printf '%s' "$_bf_old" | jq -r '.lastname')"       "Caldwell"
+assert_eq "$S" "old-avatar-fn-patched"    "$(printf '%s' "$_bf_old" | jq -r '.profile_medium')" "https://example.com/finn.jpg"
 
 # bf-act-2: already had a lastname — must not be touched
 _bf_act2="$(printf '%s' "$_bf_result" | jq 'select(.signature == "bf-act-2")')"
 assert_eq "$S" "act2-lastname-unchanged"  "$(printf '%s' "$_bf_act2" | jq -r '.lastname')"       "Vance"
-assert_eq "$S" "act2-avatar-unchanged"    "$(printf '%s' "$_bf_act2" | jq -r '.profile_medium')" "https://example.com/anna.jpg"
+assert_eq "$S" "act2-avatar-unchanged"    "$(printf '%s' "$_bf_act2" | jq -r '.profile_medium')" "https://example.com/sara.jpg"
 
 # All three pre-existing entries survive in output (no rows lost)
 assert_eq "$S" "pre-entries-preserved"   "$(printf '%s' "$_bf_result" | jq -s 'length')"         "3"
@@ -1258,39 +1258,39 @@ JQ
 
 _na_result="$(jq -f "$TMP/normArr.jq" << 'JSON'
 [
-  {"firstname":"Jacek","lastname":"","distance":10000},
-  {"firstname":"Jacek","lastname":"Caldwell","distance":20000},
-  {"firstname":"Anna","lastname":"Vance","distance":5000},
-  {"firstname":"Piotr","lastname":"","distance":8000},
-  {"firstname":"Piotr","lastname":"Hargrove","distance":9000},
-  {"firstname":"Tom","lastname":"","distance":3000},
-  {"firstname":"Tom","lastname":"Jones","distance":4000},
+  {"firstname":"Finn","lastname":"","distance":10000},
+  {"firstname":"Finn","lastname":"Caldwell","distance":20000},
+  {"firstname":"Sara","lastname":"Vance","distance":5000},
+  {"firstname":"Lena","lastname":"","distance":8000},
+  {"firstname":"Lena","lastname":"Hargrove","distance":9000},
+  {"firstname":"Marc","lastname":"","distance":3000},
+  {"firstname":"Marc","lastname":"Bellamy","distance":4000},
   {"firstname":"Amy","lastname":"","distance":1000}
 ]
 JSON
 )"
 
-# Blank "Jacek" gets patched to "Caldwell" (unambiguous mapping)
-assert_eq "$S" "blank-patched-to-kolonko" \
-  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Jacek" and .distance==10000)) | .[0].lastname')" \
+# Blank "Finn" gets patched to "Caldwell" (unambiguous mapping)
+assert_eq "$S" "blank-patched-to-caldwell" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Finn" and .distance==10000)) | .[0].lastname')" \
   "Caldwell"
 
 # Existing "Finn Caldwell" entry unchanged
-assert_eq "$S" "existing-kolonko-unchanged" \
-  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Jacek" and .distance==20000)) | .[0].lastname')" \
+assert_eq "$S" "existing-caldwell-unchanged" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Finn" and .distance==20000)) | .[0].lastname')" \
   "Caldwell"
 
-# Anna with correct lastname unchanged
-assert_eq "$S" "anna-unchanged" \
-  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Anna")) | .[0].lastname')" \
+# Sara with correct lastname unchanged
+assert_eq "$S" "sara-unchanged" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Sara")) | .[0].lastname')" \
   "Vance"
 
-# Piotr and Tom also patched (both have one non-empty lastname each)
-assert_eq "$S" "piotr-patched" \
-  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Piotr" and .distance==8000)) | .[0].lastname')" \
+# Lena and Marc also patched (both have one non-empty lastname each)
+assert_eq "$S" "lena-patched" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Lena" and .distance==8000)) | .[0].lastname')" \
   "Hargrove"
 assert_eq "$S" "tom-patched" \
-  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Tom" and .distance==3000)) | .[0].lastname')" \
+  "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Marc" and .distance==3000)) | .[0].lastname')" \
   "Jones"
 
 # Amy has no entry with a non-empty lastname at all — stays blank
@@ -1305,8 +1305,8 @@ assert_eq "$S" "count-unchanged" \
 
 # ── applyMerge-trim ───────────────────────────────────────────────────────────
 # Verifies that the rtrimstr(" ") fix in applyMerge allows aliases with a blank
-# lastname (e.g. canonical "Finn Caldwell", alias "Jacek" with no lastname) to
-# match an activity that has firstname="Jacek" and lastname="".
+# lastname (e.g. canonical "Finn Caldwell", alias "Finn" with no lastname) to
+# match an activity that has firstname="Finn" and lastname="".
 S="applyMerge-trim"
 
 cat > "$TMP/applyMerge.jq" << 'JQ'
@@ -1326,26 +1326,26 @@ def applyMerge:
 . | applyMerge
 JQ
 
-# Entry with blank lastname matches alias "Jacek" → canonical "Finn Caldwell"
-_amt_blank="$(printf '{"firstname":"Jacek","lastname":""}' | \
-  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Jacek")"
+# Entry with blank lastname matches alias "Finn" → canonical "Finn Caldwell"
+_amt_blank="$(printf '{"firstname":"Finn","lastname":""}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Finn")"
 assert_eq "$S" "blank-lastname-alias-matches" \
   "$(printf '%s' "$_amt_blank" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
   "Finn Caldwell"
 
-# Entry with correct lastname is not re-mapped (it's not the alias "Jacek")
-_amt_ok="$(printf '{"firstname":"Jacek","lastname":"Caldwell"}' | \
-  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Jacek")"
+# Entry with correct lastname is not re-mapped (it's not the alias "Finn")
+_amt_ok="$(printf '{"firstname":"Finn","lastname":"Caldwell"}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Finn")"
 assert_eq "$S" "correct-entry-not-remapped" \
   "$(printf '%s' "$_amt_ok" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
   "Finn Caldwell"
 
 # Entry not in merge map is left untouched
-_amt_other="$(printf '{"firstname":"Anna","lastname":"Vance"}' | \
-  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Jacek")"
+_amt_other="$(printf '{"firstname":"Sara","lastname":"Vance"}' | \
+  jq -f "$TMP/applyMerge.jq" --arg merge "Finn Caldwell=Finn")"
 assert_eq "$S" "unrelated-entry-untouched" \
   "$(printf '%s' "$_amt_other" | jq -r '.firstname + " " + .lastname | rtrimstr(" ")')" \
-  "Anna Vance"
+  "Sara Vance"
 
 # ── scrape-distance-sanity ─────────────────────────────────────────────────────
 # Verifies that the distance > 2 000 000 m filter rejects impossible entries
@@ -1354,8 +1354,8 @@ S="scrape-distance-sanity"
 
 # Inline the relevant part of the scrape merge jq: entries with distance > 2 000 000 m must be dropped.
 _ds_input='{"known":[],"fetched":[
-  {"entity":"Activity","activity":{"id":"good-1","activityName":"Normal Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-09-01T08:00:00Z","athlete":{"firstName":"Piotr","lastName":"Krol","avatarUrl":""},"stats":[{"key":"stat_one","value":"50.00"},{"key":"stat_two","value":"500"},{"key":"stat_three","value":"1h 30m"}]}},
-  {"entity":"Activity","activity":{"id":"bad-1","activityName":"Impossible Ride","elapsedTime":9000,"type":"Ride","startDate":"2026-09-02T08:00:00Z","athlete":{"firstName":"Jacek","lastName":"K","avatarUrl":""},"stats":[{"key":"stat_one","value":"5047.00"},{"key":"stat_two","value":"583"},{"key":"stat_three","value":"2h 31m"}]}}
+  {"entity":"Activity","activity":{"id":"good-1","activityName":"Normal Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-09-01T08:00:00Z","athlete":{"firstname":"Lena","lastName":"Krol","avatarUrl":""},"stats":[{"key":"stat_one","value":"50.00"},{"key":"stat_two","value":"500"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"Activity","activity":{"id":"bad-1","activityName":"Impossible Ride","elapsedTime":9000,"type":"Ride","startDate":"2026-09-02T08:00:00Z","athlete":{"firstname":"Finn","lastName":"K","avatarUrl":""},"stats":[{"key":"stat_one","value":"5047.00"},{"key":"stat_two","value":"583"},{"key":"stat_three","value":"2h 31m"}]}}
 ]}'
 
 _ds_new="$(printf '%s' "$_ds_input" | jq -c --arg cutoff "" '
@@ -2084,7 +2084,7 @@ _month_name() {
     esac
 }
 
-assert_eq "$S" "jan"  "$(_month_name 2026-01)" "January"
+assert_eq "$S" "Leo"  "$(_month_name 2026-01)" "January"
 assert_eq "$S" "jul"  "$(_month_name 2026-07)" "July"
 assert_eq "$S" "dec"  "$(_month_name 2026-12)" "December"
 assert_eq "$S" "nov"  "$(_month_name 2025-11)" "November"
@@ -2095,10 +2095,10 @@ assert_eq "$S" "nov"  "$(_month_name 2025-11)" "November"
 S="monthly-email-ndjson-filter"
 
 printf '%s\n' \
-    '{"firstSeen":"2026-06-15","firstname":"Alice","lastname":"Smith","distance":25000,"moving_time":3600,"total_elevation_gain":200}' \
-    '{"firstSeen":"2026-06-22","firstname":"Bob","lastname":"Jones","distance":15000,"moving_time":2700,"total_elevation_gain":100}' \
-    '{"firstSeen":"2026-07-01","firstname":"Alice","lastname":"Smith","distance":30000,"moving_time":4000,"total_elevation_gain":250}' \
-    '{"firstSeen":"2026-06-10","firstname":"Alice","lastname":"Smith","distance":20000,"moving_time":3200,"total_elevation_gain":150}' \
+    '{"firstSeen":"2026-06-15","firstname":"Gwen","lastname":"Marsh","distance":25000,"moving_time":3600,"total_elevation_gain":200}' \
+    '{"firstSeen":"2026-06-22","firstname":"Bob","lastname":"Bellamy","distance":15000,"moving_time":2700,"total_elevation_gain":100}' \
+    '{"firstSeen":"2026-07-01","firstname":"Gwen","lastname":"Marsh","distance":30000,"moving_time":4000,"total_elevation_gain":250}' \
+    '{"firstSeen":"2026-06-10","firstname":"Gwen","lastname":"Marsh","distance":20000,"moving_time":3200,"total_elevation_gain":150}' \
     > "$TMP/mo_june.ndjson"
 
 _june_count="$(jq -rn --arg m "2026-06" \
@@ -2128,14 +2128,14 @@ _top="$(jq -rn --arg m "2026-06" '
       })
     | sort_by(-.dist)
     | .[0].name' "$TMP/mo_june.ndjson")"
-assert_eq "$S" "alice-ranked-first"    "$_top" "Alice Smith"
+assert_eq "$S" "gwen-ranked-first"    "$_top" "Gwen Marsh"
 
-_alice_dist="$(jq -rn --arg m "2026-06" '
+_gwen_dist="$(jq -rn --arg m "2026-06" '
     [inputs | select(.firstSeen | startswith($m))]
     | group_by("\(.firstname)|\(.lastname)")
     | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: ([.[].distance] | add)})
     | sort_by(-.dist) | .[0].dist' "$TMP/mo_june.ndjson")"
-assert_eq "$S" "alice-june-dist-45000" "$_alice_dist" "45000"
+assert_eq "$S" "gwen-june-dist-45000" "$_gwen_dist" "45000"
 
 _athlete_count="$(jq -rn --arg m "2026-06" '
     [inputs | select(.firstSeen | startswith($m))]
@@ -2149,7 +2149,7 @@ _dist_km="$(jq -rn --arg m "2026-06" '
     | map({name: "\(.[0].firstname) \(.[0].lastname)", dist: ([.[].distance] | add)})
     | sort_by(-.dist)
     | .[1].dist / 1000' "$TMP/mo_june.ndjson")"
-assert_eq "$S" "bob-dist-km-15"        "$_dist_km" "15"
+assert_eq "$S" "hugo-dist-km-15"        "$_dist_km" "15"
 
 # ── stale-lock-handling ──────────────────────────────────────────────────────
 # Mirrors the lock logic added to strava-my-activities.sh, strava-leaderboard.sh,
@@ -2223,12 +2223,12 @@ else
 fi
 
 printf '%s\n' \
-    '{"firstSeen":"2026-06-10","firstname":"piotr","lastname":"k.","distance":15000,"moving_time":2000,"total_elevation_gain":100}' \
-    '{"firstSeen":"2026-06-12","firstname":"Piotr","lastname":"Ko.","distance":20000,"moving_time":2500,"total_elevation_gain":150}' \
-    '{"firstSeen":"2026-06-14","firstname":"Alice","lastname":"Smith","distance":30000,"moving_time":3600,"total_elevation_gain":200}' \
+    '{"firstSeen":"2026-06-10","firstname":"Lena","lastname":"k.","distance":15000,"moving_time":2000,"total_elevation_gain":100}' \
+    '{"firstSeen":"2026-06-12","firstname":"Lena","lastname":"Ca.","distance":20000,"moving_time":2500,"total_elevation_gain":150}' \
+    '{"firstSeen":"2026-06-14","firstname":"Gwen","lastname":"Marsh","distance":30000,"moving_time":3600,"total_elevation_gain":200}' \
     > "$TMP/me_merge.ndjson"
 
-_MERGE="Piotr Ko.=piotr k.,Piotr Ko.=piotr ko."
+_MERGE="Lena Ca.=lena k.,Lena Ca.=lena ca."
 
 _me_result="$(jq -rn --arg month "2026-06" --arg merge "$_MERGE" \
     "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
@@ -2237,9 +2237,9 @@ _me_result="$(jq -rn --arg month "2026-06" --arg merge "$_MERGE" \
      | sort_by(-.dist)' "$TMP/me_merge.ndjson")"
 
 assert_eq "$S" "merged-into-two-groups"    "$(printf '%s' "$_me_result" | jq 'length')"          "2"
-assert_eq "$S" "merged-athlete-ranked-first" "$(printf '%s' "$_me_result" | jq -r '.[0].name')"  "Piotr Ko."
+assert_eq "$S" "merged-athlete-ranked-first" "$(printf '%s' "$_me_result" | jq -r '.[0].name')"  "Lena Ca."
 assert_eq "$S" "merged-distance-sum"       "$(printf '%s' "$_me_result" | jq '.[0].dist')"       "35000"
-assert_eq "$S" "unmerged-athlete-present"  "$(printf '%s' "$_me_result" | jq -r '.[1].name')"    "Alice Smith"
+assert_eq "$S" "unmerged-athlete-present"  "$(printf '%s' "$_me_result" | jq -r '.[1].name')"    "Gwen Marsh"
 
 _me_no_merge="$(jq -rn --arg month "2026-06" --arg merge "" \
     "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
@@ -2305,19 +2305,19 @@ _apply_merge() {
 }
 
 # No-op: empty MERGE_ATHLETES leaves name unchanged.
-_r="$(_apply_merge '{"firstname":"Jan","lastname":"Kowalski"}' '')"
-assert_eq "$S" "empty-merge-no-change-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Jan"
-assert_eq "$S" "empty-merge-no-change-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Kowalski"
+_r="$(_apply_merge '{"firstname":"Leo","lastname":"Stafford"}' '')"
+assert_eq "$S" "empty-merge-no-change-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Leo"
+assert_eq "$S" "empty-merge-no-change-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Stafford"
 
 # Basic rename: alias → canonical (case-insensitive match on alias).
-_r="$(_apply_merge '{"firstname":"piotr","lastname":"k."}' 'Piotr Ko.=piotr k.')"
-assert_eq "$S" "alias-renamed-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Piotr"
-assert_eq "$S" "alias-renamed-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Ko."
+_r="$(_apply_merge '{"firstname":"Lena","lastname":"k."}' 'Finn Ca.=finn c.')"
+assert_eq "$S" "alias-renamed-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Finn"
+assert_eq "$S" "alias-renamed-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Ca."
 
 # No match: athlete not in map → name unchanged.
-_r="$(_apply_merge '{"firstname":"Alice","lastname":"Smith"}' 'Piotr Ko.=piotr k.')"
-assert_eq "$S" "no-match-first-unchanged" "$(printf '%s' "$_r" | jq -r '.firstname')" "Alice"
-assert_eq "$S" "no-match-last-unchanged"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Smith"
+_r="$(_apply_merge '{"firstname":"Gwen","lastname":"Marsh"}' 'Finn Ca.=finn c.')"
+assert_eq "$S" "no-match-first-unchanged" "$(printf '%s' "$_r" | jq -r '.firstname')" "Gwen"
+assert_eq "$S" "no-match-last-unchanged"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Marsh"
 
 # Single-word canonical (no space) → lastname becomes empty string.
 _r="$(_apply_merge '{"firstname":"jon","lastname":"d."}' 'Jonathan=jon d.')"
@@ -2325,21 +2325,21 @@ assert_eq "$S" "single-word-canonical-first" "$(printf '%s' "$_r" | jq -r '.firs
 assert_eq "$S" "single-word-canonical-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  ""
 
 # Multiple pairs in one merge string — each alias resolved independently.
-_merge="Piotr Ko.=piotr k.,Alice Smith=alice s."
-_r1="$(_apply_merge '{"firstname":"piotr","lastname":"k."}' "$_merge")"
-_r2="$(_apply_merge '{"firstname":"alice","lastname":"s."}' "$_merge")"
-assert_eq "$S" "multi-pair-first-renamed"  "$(printf '%s' "$_r1" | jq -r '.firstname')" "Piotr"
-assert_eq "$S" "multi-pair-second-renamed" "$(printf '%s' "$_r2" | jq -r '.firstname')" "Alice"
-assert_eq "$S" "multi-pair-second-last"    "$(printf '%s' "$_r2" | jq -r '.lastname')"  "Smith"
+_merge="Lena Ca.=lena k.,Gwen Marsh=gwen m."
+_r1="$(_apply_merge '{"firstname":"Lena","lastname":"k."}' "$_merge")"
+_r2="$(_apply_merge '{"firstname":"gwen","lastname":"m."}' "$_merge")"
+assert_eq "$S" "multi-pair-first-renamed"  "$(printf '%s' "$_r1" | jq -r '.firstname')" "Lena"
+assert_eq "$S" "multi-pair-second-renamed" "$(printf '%s' "$_r2" | jq -r '.firstname')" "Gwen"
+assert_eq "$S" "multi-pair-second-last"    "$(printf '%s' "$_r2" | jq -r '.lastname')"  "Marsh"
 
 # After merge, two records with different original names but same canonical name
 # share the same athleteKey (firstname|lastname) → they group correctly.
 printf '%s\n' \
-    '{"firstname":"piotr","lastname":"k.","distance":15000}' \
-    '{"firstname":"Piotr","lastname":"Ko.","distance":20000}' \
+    '{"firstname":"Lena","lastname":"k.","distance":15000}' \
+    '{"firstname":"Lena","lastname":"Ca.","distance":20000}' \
     > "$TMP/ma_input.ndjson"
 
-jq -sc --arg merge "Piotr Ko.=piotr k.,Piotr Ko.=piotr ko." '
+jq -sc --arg merge "Lena Ca.=lena k.,Lena Ca.=lena ca." '
     ($merge | if . == "" then {}
               else split(",") | map(split("=")) | map(select(length == 2))
                  | map({ key:   (.[1] | ascii_downcase | ltrimstr(" ") | rtrimstr(" ")),
@@ -2363,7 +2363,7 @@ assert_eq "$S" "merged-into-one-group" \
 assert_eq "$S" "merged-group-distance-sum" \
     "$(jq '.[0].total' "$TMP/ma_grouped.json")" "35000"
 assert_eq "$S" "merged-group-canonical-name" \
-    "$(jq -r '.[0].name' "$TMP/ma_grouped.json")" "Piotr Ko."
+    "$(jq -r '.[0].name' "$TMP/ma_grouped.json")" "Lena Ca."
 
 # ── my-scrape-time-parse ──────────────────────────────────────────────────────
 # Mirrors parse_time(v) in the STRAVA_MY_SOURCE=scrape normalization block of
@@ -3146,8 +3146,8 @@ S="yearly-email-malformed-ndjson"
     _ymf_safe="$TMP/ymf_safe.ndjson"
     # Mix of valid records + a truncated line at the end (simulates interrupted write).
     printf '%s\n' \
-        '{"firstname":"Anna","lastname":"K","distance":40000,"moving_time":3600,"total_elevation_gain":400,"firstSeen":"2025-03-10","sport_type":"Run"}' \
-        '{"firstname":"Piotr","lastname":"W","distance":25000,"moving_time":2400,"total_elevation_gain":200,"firstSeen":"2025-05-20","sport_type":"Ride"}' \
+        '{"firstname":"Sara","lastname":"K","distance":40000,"moving_time":3600,"total_elevation_gain":400,"firstSeen":"2025-03-10","sport_type":"Run"}' \
+        '{"firstname":"Lena","lastname":"W","distance":25000,"moving_time":2400,"total_elevation_gain":200,"firstSeen":"2025-05-20","sport_type":"Ride"}' \
         > "$_ymf_raw"
     # Append a truncated line (no closing brace — simulates an interrupted append).
     printf '{"firstname":"Broken","lastname":"X","distance":10000,"moving_time":900' >> "$_ymf_raw"
@@ -3211,9 +3211,9 @@ S="yearly-email-no-data-yr-hint"
     _yndh_nd="$TMP/yndh_acts.ndjson"
     # Store contains only 2026 entries (mimics clubs seeded after 2025 ended)
     cat > "$_yndh_nd" <<'NDJSON'
-{"firstname":"Alice","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2026-01-10"}
+{"firstname":"Gwen","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2026-01-10"}
 {"firstname":"Bob","lastname":"B","distance":20000,"moving_time":2700,"total_elevation_gain":80,"sport_type":"Ride","firstSeen":"2026-02-15"}
-{"firstname":"Alice","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
+{"firstname":"Gwen","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
 NDJSON
 
     # The year-availability jq: extracts unique year prefixes from firstSeen
@@ -3232,9 +3232,9 @@ NDJSON
     # Multi-year store should list all years
     _yndh2_nd="$TMP/yndh2_acts.ndjson"
     cat > "$_yndh2_nd" <<'NDJSON'
-{"firstname":"Alice","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2024-12-01"}
+{"firstname":"Gwen","lastname":"A","distance":30000,"moving_time":3600,"total_elevation_gain":100,"sport_type":"Ride","firstSeen":"2024-12-01"}
 {"firstname":"Bob","lastname":"B","distance":20000,"moving_time":2700,"total_elevation_gain":80,"sport_type":"Ride","firstSeen":"2025-06-15"}
-{"firstname":"Alice","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
+{"firstname":"Gwen","lastname":"A","distance":25000,"moving_time":3200,"total_elevation_gain":90,"sport_type":"Ride","firstSeen":"2026-03-20"}
 NDJSON
     _yr_multi=$(jq -rn \
         '[inputs | (.firstSeen // "")] | map(select(length >= 4) | .[0:4]) | unique | sort | join(", ")' \
@@ -3865,6 +3865,260 @@ assert_eq "$S" "lb-src-still-present" \
     "$([ -f "$LB_SRC" ] && printf yes || printf no)" "yes"
 
 unset AJ_DIR AJ_FILE AJ_TMP LB_SRC LB_TMP LB_DST _age_during _age_after _stored_age _aj_out
+
+# ── leaderboard-name-selfheal ─────────────────────────────────────────────────
+# Mirrors the store-internal self-heal block in strava-leaderboard.sh (scrape
+# mode). Historically-known lastnames (>2 chars) must be propagated to blank or
+# truncated entries for the same firstname; ambiguous firstnames must be left
+# alone; entries that already carry a longer name must not be shortened.
+S="leaderboard-name-selfheal"
+
+_selfheal_store="$TMP/sh_store.ndjson"
+
+# Five athletes:
+# Alice   — old entry "Thornton", new entry "" → both should become "Thornton"
+# Bob     — all entries "" (never seen full name) → unchanged
+# Chris   — entries "Mercer" and "Dayton" (ambiguous) → unchanged
+# dot     — old entry ".", new entry "." → only 1-char, not a valid reference → unchanged
+# Dana    — already "Prentiss" → must not be touched
+cat > "$_selfheal_store" << 'STORE'
+{"firstname":"Gwen","lastname":"Thornton","firstSeen":"2026-09-01"}
+{"firstname":"Gwen","lastname":"","firstSeen":"2026-10-05"}
+{"firstname":"Bob","lastname":"","firstSeen":"2026-10-05"}
+{"firstname":"Chris","lastname":"Mercer","firstSeen":"2026-09-01"}
+{"firstname":"Chris","lastname":"Dayton","firstSeen":"2026-10-05"}
+{"firstname":"dot","lastname":".","firstSeen":"2026-09-01"}
+{"firstname":"dot","lastname":".","firstSeen":"2026-10-05"}
+{"firstname":"Dana","lastname":"Prentiss","firstSeen":"2026-10-05"}
+STORE
+
+_sh_healed="$(jq -sc '
+  (group_by(.firstname)
+    | map({
+        fn: .[0].firstname,
+        lns: ([.[].lastname // ""] | map(select(length > 1)) | unique)
+      })
+    | map(select(.fn != "" and (.lns | length) == 1))
+    | map({(.fn): .lns[0]}) | add // {}) as $km |
+  [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
+         then . + {lastname: $km[.firstname]}
+         else . end] | .[]
+' "$_selfheal_store")"
+
+# Alice blank entry must be filled from old entry
+assert_eq "$S" "blank-filled-from-history" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Gwen" and .firstSeen=="2026-10-05") | .lastname')" \
+    "Thornton"
+
+# Alice old entry must remain unchanged
+assert_eq "$S" "old-entry-unchanged" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Gwen" and .firstSeen=="2026-09-01") | .lastname')" \
+    "Thornton"
+
+# Bob has no history → stays blank
+assert_eq "$S" "no-history-stays-blank" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Bob") | .lastname')" \
+    ""
+
+# Chris is ambiguous (two lastnames) → both entries unchanged
+assert_eq "$S" "ambiguous-firstname-mercer-kept" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Chris" and .lastname=="Mercer") | .lastname')" \
+    "Mercer"
+assert_eq "$S" "ambiguous-firstname-dayton-kept" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Chris" and .lastname=="Dayton") | .lastname')" \
+    "Dayton"
+
+# Single-char "." entries are not a valid reference → dot stays "."
+assert_eq "$S" "dot-lastname-not-used-as-reference" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r '[select(.firstname=="dot") | .lastname] | unique | join(",")' 2>/dev/null)" \
+    "."
+
+# Dana already has full name → must not be changed
+assert_eq "$S" "full-name-not-overwritten" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Dana") | .lastname')" \
+    "Prentiss"
+
+# Total record count must be preserved (no duplicates, no drops)
+assert_eq "$S" "record-count-preserved" \
+    "$(printf '%s\n' "$_sh_healed" | jq -s 'length')" "8"
+
+# ── leaderboard-name-lb-patch ─────────────────────────────────────────────────
+# Mirrors the leaderboard endpoint name-patch step in strava-leaderboard.sh:
+# recursive-descent JSON parsing + "replace only if longer" update logic.
+S="leaderboard-name-lb-patch"
+
+_lb_store="$TMP/lb_store.ndjson"
+cat > "$_lb_store" << 'STORE'
+{"firstname":"Kai","lastname":"","firstSeen":"2026-10-01"}
+{"firstname":"pieczara","lastname":".","firstSeen":"2026-10-01"}
+{"firstname":"Nico","lastname":"","firstSeen":"2026-10-01"}
+{"firstname":"Dana","lastname":"Prentiss","firstSeen":"2026-10-01"}
+{"firstname":"Eve","lastname":"M.","firstSeen":"2026-10-01"}
+STORE
+
+# Leaderboard endpoint JSON — deliberately nested under "data" to test recursive descent
+_lb_api_json="$TMP/lb_api.json"
+cat > "$_lb_api_json" << 'JSON'
+{
+  "data": {
+    "current_week": [
+      {"athlete_firstname":"Kai","athlete_lastname":"Novarro","distance":15000},
+      {"athlete_firstname":"Nico","athlete_lastname":"Fontaine","distance":7000}
+    ],
+    "last_week": [
+      {"athlete_firstname":"pieczara","athlete_lastname":".","distance":74000}
+    ]
+  }
+}
+JSON
+
+_lb_names="$(jq -r '
+  try ([
+    .. | objects
+    | (.athlete_firstname // .first_name // "") as $fn
+    | (.athlete_lastname  // .last_name  // "") as $ln
+    | select(($fn | length) > 0 and ($ln | length) > 0)
+    | "\($fn)\t\($ln)"
+  ] | unique | .[]) catch ""
+' "$_lb_api_json" | sort -u)"
+
+_lb_nm_file="$TMP/lb_nm.json"
+printf '%s\n' "$_lb_names" \
+  | jq -Rs '[split("\n")[] | select(length > 0) | split("\t") | select(length == 2)]
+            | group_by(.[0]) | map(select(length == 1))
+            | map({(.[0][0]): .[0][1]}) | add // {}' \
+  > "$_lb_nm_file"
+
+_lb_patched="$(jq -sc --argjson lm "$(cat "$_lb_nm_file")" '
+  [.[] | if (.lastname // "" | length) < ($lm[.firstname] // "" | length)
+         then . + {lastname: $lm[.firstname]}
+         else . end] | .[]
+' "$_lb_store")"
+
+# Kai had blank → patched with "Novarro" from leaderboard
+assert_eq "$S" "blank-filled-from-lb" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Kai") | .lastname')" \
+    "Novarro"
+
+# Nico had blank → patched with "Fontaine"
+assert_eq "$S" "nico-filled-from-lb" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Nico") | .lastname')" \
+    "Fontaine"
+
+# pieczara: leaderboard also returns "." → stored "." not replaced (same length)
+assert_eq "$S" "dot-not-replaced-by-dot" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="pieczara") | .lastname')" \
+    "."
+
+# Dana already has longer name "Prentiss" → not shortened
+assert_eq "$S" "longer-stored-name-kept" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Dana") | .lastname')" \
+    "Prentiss"
+
+# Eve has "M." (2 chars) — leaderboard has no entry for Eve → stays "M."
+assert_eq "$S" "no-lb-entry-unchanged" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Eve") | .lastname')" \
+    "M."
+
+# Recursive descent found Kai and Nico even though data is nested under "data.current_week"
+assert_eq "$S" "recursive-descent-found-kai" \
+    "$(printf '%s' "$_lb_names" | grep -c 'Kai' || printf 0)" "1"
+assert_eq "$S" "recursive-descent-found-nico" \
+    "$(printf '%s' "$_lb_names" | grep -c 'Nico' || printf 0)" "1"
+
+# ── email-month-filter-names ───────────────────────────────────────────────────
+# Simulates the root cause of the regression: the store has old full-name entries
+# and new blank-lastname entries for the same athlete. After self-heal the monthly
+# email query must show the full name, not just the first name.
+S="email-month-filter-names"
+
+_em_store="$TMP/em_store.ndjson"
+cat > "$_em_store" << 'STORE'
+{"firstname":"Finn","lastname":"Caldwell","distance":140000,"firstSeen":"2026-09-15"}
+{"firstname":"Finn","lastname":"","distance":80000,"firstSeen":"2026-10-03"}
+{"firstname":"Eve","lastname":"M.","distance":67000,"firstSeen":"2026-09-20"}
+{"firstname":"Eve","lastname":"","distance":30000,"firstSeen":"2026-10-02"}
+STORE
+
+# Step 1: apply self-heal (same jq as production)
+_em_healed_store="$TMP/em_healed.ndjson"
+jq -sc '
+  (group_by(.firstname)
+    | map({
+        fn: .[0].firstname,
+        lns: ([.[].lastname // ""] | map(select(length > 1)) | unique)
+      })
+    | map(select(.fn != "" and (.lns | length) == 1))
+    | map({(.fn): .lns[0]}) | add // {}) as $km |
+  [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
+         then . + {lastname: $km[.firstname]}
+         else . end] | .[]
+' "$_em_store" > "$_em_healed_store"
+
+# Step 2: query October entries only (email month filter)
+_em_oct="$(jq -sc '[.[] | select(.firstSeen | startswith("2026-10"))]' "$_em_healed_store")"
+
+# After self-heal, October Finn entry must have "Caldwell" filled in
+assert_eq "$S" "finn-october-has-caldwell" \
+    "$(printf '%s' "$_em_oct" \
+        | jq -r '.[] | select(.firstname=="Finn") | .lastname')" \
+    "Caldwell"
+
+# Eve: "M." (2 chars) IS used as reference (> 1 required), so October blank entry is healed to "M."
+assert_eq "$S" "eve-m-healed-from-history" \
+    "$(printf '%s' "$_em_oct" \
+        | jq -r '.[] | select(.firstname=="Eve") | .lastname')" \
+    "M."
+
+# Before self-heal, October-only filter would show blank lastname — sanity check
+_em_oct_raw="$(jq -sc '[.[] | select(.firstSeen | startswith("2026-10"))]' "$_em_store")"
+assert_eq "$S" "without-selfheal-blank-lastname" \
+    "$(printf '%s' "$_em_oct_raw" \
+        | jq -r '.[] | select(.firstname=="Finn") | .lastname')" \
+    ""
+
+# ── leaderboard-name-override ─────────────────────────────────────────────────
+# Mirrors the manual name-overrides.json step: overrides win unconditionally,
+# including over automatic sources; missing overrides leave entries unchanged.
+S="leaderboard-name-override"
+
+_ov_store="$TMP/ov_store.ndjson"
+cat > "$_ov_store" << 'STORE'
+{"firstname":"Carl","lastname":"","firstSeen":"2026-10-01"}
+{"firstname":"Dana","lastname":"Prentiss","firstSeen":"2026-10-01"}
+{"firstname":"Marc","lastname":"Bellamy","firstSeen":"2026-10-01"}
+STORE
+
+_ov_file="$TMP/name-overrides.json"
+printf '{"Carl":"Zanetti","Dana":"Override"}\n' > "$_ov_file"
+
+_ov_result="$(jq -sc --argjson ov "$(cat "$_ov_file")" '
+  [.[] | if ($ov[.firstname] // "" | length) > 0
+         then . + {lastname: $ov[.firstname]}
+         else . end] | .[]
+' "$_ov_store")"
+
+# Carl blank → filled by override
+assert_eq "$S" "blank-filled-by-override" \
+    "$(printf '%s\n' "$_ov_result" | jq -r 'select(.firstname=="Carl") | .lastname')" \
+    "Zanetti"
+
+# Dana already had "Prentiss" but override wins (override is intentional)
+assert_eq "$S" "override-beats-existing" \
+    "$(printf '%s\n' "$_ov_result" | jq -r 'select(.firstname=="Dana") | .lastname')" \
+    "Override"
+
+# Marc has no override entry → unchanged
+assert_eq "$S" "no-override-unchanged" \
+    "$(printf '%s\n' "$_ov_result" | jq -r 'select(.firstname=="Marc") | .lastname')" \
+    "Bellamy"
 
 # ── summary ───────────────────────────────────────────────────────────────────
 
