@@ -910,9 +910,9 @@ jq -s '[ .[].signature ]' "$TMP/sc_store.ndjson" > "$TMP/sc_known.json"
 cat > "$TMP/sc_feed.json" << 'FEED'
 [
   {"entity":"Activity","activity":{"id":"act-111","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-06-01T08:00:00Z","athlete":{"firstname":"Gwen","lastname":"Marsh","avatarUrl":"https://example.com/alice.jpg"},"stats":[{"key":"stat_one","value":"10.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastname":"Bellamy","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"New Ride","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Hugo","lastName":"Ward","avatarUrl":"https://example.com/hugo.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}},
   {"entity":"GroupActivity","activity":{"id":"act-333","activityName":"Filtered Out"}},
-  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Bob","lastname":"Bellamy","avatarUrl":"https://example.com/bob.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
+  {"entity":"Activity","activity":{"id":"act-222","activityName":"Duplicate","elapsedTime":5400,"type":"Ride","startDate":"2026-06-10T09:00:00Z","athlete":{"firstName":"Hugo","lastName":"Ward","avatarUrl":"https://example.com/hugo.jpg"},"stats":[{"key":"stat_one","value":"25.50"},{"key":"stat_two","value":"300"},{"key":"stat_three","value":"1h 30m"}]}}
 ]
 FEED
 
@@ -974,7 +974,7 @@ assert_eq "$S" "distance-parsed-km"    "$(printf '%s' "$_sc_new" | jq '.[0].dist
 assert_eq "$S" "moving-time-parsed"    "$(printf '%s' "$_sc_new" | jq '.[0].moving_time')" "5400"
 assert_eq "$S" "elev-parsed"           "$(printf '%s' "$_sc_new" | jq '.[0].total_elevation_gain')" "300"
 assert_eq "$S" "first-seen-from-date"  "$(printf '%s' "$_sc_new" | jq -r '.[0].firstSeen')" "2026-06-10"
-assert_eq "$S" "lastname-trimmed"      "$(printf '%s' "$_sc_new" | jq -r '.[0].lastname')" "Jones"
+assert_eq "$S" "lastname-trimmed"      "$(printf '%s' "$_sc_new" | jq -r '.[0].lastname')" "Ward"
 
 # ── scrape-start-date ─────────────────────────────────────────────────────────
 # Mirrors the STRAVA_SCRAPE_START_DATE cutoff: activities before the date are
@@ -1291,7 +1291,7 @@ assert_eq "$S" "lena-patched" \
   "Hargrove"
 assert_eq "$S" "tom-patched" \
   "$(printf '%s' "$_na_result" | jq -r 'map(select(.firstname=="Marc" and .distance==3000)) | .[0].lastname')" \
-  "Jones"
+  "Bellamy"
 
 # Amy has no entry with a non-empty lastname at all — stays blank
 assert_eq "$S" "amy-stays-blank" \
@@ -2310,7 +2310,7 @@ assert_eq "$S" "empty-merge-no-change-first" "$(printf '%s' "$_r" | jq -r '.firs
 assert_eq "$S" "empty-merge-no-change-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Stafford"
 
 # Basic rename: alias → canonical (case-insensitive match on alias).
-_r="$(_apply_merge '{"firstname":"Lena","lastname":"k."}' 'Finn Ca.=finn c.')"
+_r="$(_apply_merge '{"firstname":"Lena","lastname":"k."}' 'Finn Ca.=lena k.')"
 assert_eq "$S" "alias-renamed-first" "$(printf '%s' "$_r" | jq -r '.firstname')" "Finn"
 assert_eq "$S" "alias-renamed-last"  "$(printf '%s' "$_r" | jq -r '.lastname')"  "Ca."
 
@@ -3936,7 +3936,7 @@ assert_eq "$S" "ambiguous-firstname-dayton-kept" \
 # Single-char "." entries are not a valid reference → dot stays "."
 assert_eq "$S" "dot-lastname-not-used-as-reference" \
     "$(printf '%s\n' "$_sh_healed" \
-        | jq -r '[select(.firstname=="dot") | .lastname] | unique | join(",")' 2>/dev/null)" \
+        | jq -rs '[.[] | select(.firstname=="dot") | .lastname] | unique | join(",")' 2>/dev/null)" \
     "."
 
 # Dana already has full name → must not be changed
