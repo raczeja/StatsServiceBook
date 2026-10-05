@@ -280,6 +280,26 @@ function hideTip(){
   tipEl.style.display = "none";
 }
 
+// --- Synchronized scrolling across all .chart-scroll containers ------------
+// Scroll events do not bubble, so use capture phase to intercept them all.
+var _scrollSyncing = false;
+document.addEventListener("scroll", function(e) {
+  if (_scrollSyncing) return;
+  var src = e.target;
+  if (!src || !src.classList || !src.classList.contains("chart-scroll")) return;
+  var all = document.querySelectorAll(".chart-scroll");
+  var maxScroll = src.scrollWidth - src.clientWidth;
+  if (maxScroll <= 0) return;
+  var ratio = src.scrollLeft / maxScroll;
+  _scrollSyncing = true;
+  for (var _i = 0; _i < all.length; _i++) {
+    if (all[_i] === src) continue;
+    var t = all[_i], tm = t.scrollWidth - t.clientWidth;
+    if (tm > 0) t.scrollLeft = Math.round(ratio * tm);
+  }
+  _scrollSyncing = false;
+}, true);
+
 // --- Google encoded-polyline decoder ---------------------------------------
 // Returns an array of [lat, lng] pairs. Standard precision-5 algorithm.
 function decodePolyline(str){
@@ -440,9 +460,10 @@ function renderCards(d){
 // --- Generic area line chart (elevation profile / heart rate) ----------------
 // points: numeric array; color: stroke/fill hex; unit: label suffix (e.g. "m", "bpm")
 // xLabels: optional string array (same length as points) — when provided the chart
-// uses 30 px/point spacing (matching the splits bar chart) and renders x-axis ticks.
-// Without xLabels (GPX charts with hundreds of points) the chart stays compact.
-function drawLineSvg(svgId, points, color, unit, xLabels) {
+// renders x-axis ticks. compactLabels=true keeps compact chart width and shows only
+// whole-km boundary labels (for GPX charts with hundreds of points).
+// Without xLabels the chart stays compact.
+function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
   var n = points.length;
   if (!n) return;
   var minV = points[0], maxV = points[0], i;
@@ -456,7 +477,7 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
   var yaxisSvg = document.getElementById(svgId + "-yaxis");
   var px = yaxisSvg ? 0 : YAX_W;  // no left margin when y-axis lives in a separate fixed SVG
   var labelH = xLabels ? 20 : 0;
-  var W = xLabels ? (px + n * barW + 16) : Math.max(n * 3, 900);
+  var W = (xLabels && !compactLabels) ? (px + n * barW + 16) : Math.max(n * 3, 900);
   var H = 200, ch = H - 18 - labelH;
   var path = "", x, y;
   for (i = 0; i < n; i++) {
@@ -497,14 +518,23 @@ function drawLineSvg(svgId, points, color, unit, xLabels) {
     '<path d="' + fill + '" fill="' + color + '" opacity=".18"/>' +
     '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>';
   if (xLabels) {
-    var stride = n > 120 ? 5 : n > 60 ? 2 : 1;
-    for (i = 0; i < n; i += stride) {
-      x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
-      var labelText = String(xLabels[i]);
-      if ((i === 0 || Number(xLabels[i]) === 0) && labelText === "0") {
-        labelText = "0" + unit;
+    if (compactLabels) {
+      var lastKm = -1;
+      for (i = 0; i < n; i++) {
+        var kmVal = Math.floor(parseFloat(xLabels[i]));
+        if (isNaN(kmVal) || kmVal === lastKm) continue;
+        lastKm = kmVal;
+        x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+        html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + kmVal + ' km</text>';
       }
-      html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + labelText + '</text>';
+    } else {
+      var stride = n > 120 ? 5 : n > 60 ? 2 : 1;
+      for (i = 0; i < n; i += stride) {
+        x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+        var labelText = String(xLabels[i]);
+        if (i === 0 && labelText === "0") labelText = "0 km";
+        html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + labelText + '</text>';
+      }
     }
   }
   // Build per-point tooltip data and add a transparent hit overlay.
@@ -876,42 +906,54 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
       var doc = (new DOMParser()).parseFromString(txt, "application/xml");
       var i, step;
 
-      // Elevation from <ele> elements
-      var eles = doc.getElementsByTagNameNS("*", "ele");
-      if (eles.length) {
-        var allE = [];
-        for (i = 0; i < eles.length; i++) allE.push(parseFloat(eles[i].textContent) || 0);
-        step = Math.max(1, Math.floor(allE.length / 600));
-        var se = [];
-        for (i = 0; i < allE.length; i += step) se.push(allE[i]);
-        document.getElementById("elev-box").style.display = "";
-        drawLineSvg("svg-elev", se, "#fc4c02", "m");
-      }
-
-      // Heart rate from track-point extensions (<gpxtpx:hr>, <hr>, <heartrate>)
+      // One pass over all track points: collect elevation, HR, cadence, and cumulative distance.
       var trkpts = doc.getElementsByTagNameNS("*", "trkpt");
       if (!trkpts.length) trkpts = doc.getElementsByTagNameNS("*", "rtept");
-      var climbTrackPts = [], climbPt;
+      var climbTrackPts = [];
+      var allE = [], allEDist = [];
+      var allH = [], allHDist = [];
+      var allC = [], allCDist = [];
+      var cumDist = 0, prevLat = null, prevLon = null;
       for (i = 0; i < trkpts.length; i++) {
-        climbPt = trkpts[i];
-        var climbEleEl = climbPt.getElementsByTagNameNS("*", "ele")[0];
-        climbTrackPts.push({lat:parseFloat(climbPt.getAttribute("lat")), lon:parseFloat(climbPt.getAttribute("lon")), ele:climbEleEl ? parseFloat(climbEleEl.textContent) : null});
+        var pt = trkpts[i];
+        var lat = parseFloat(pt.getAttribute("lat")), lon = parseFloat(pt.getAttribute("lon"));
+        if (prevLat !== null) cumDist += haversineM(prevLat, prevLon, lat, lon);
+        prevLat = lat; prevLon = lon;
+        var km = cumDist / 1000;
+        var eleEl = pt.getElementsByTagNameNS("*", "ele")[0];
+        var eleV = eleEl ? parseFloat(eleEl.textContent) : null;
+        climbTrackPts.push({lat: lat, lon: lon, ele: eleV});
+        if (eleV !== null) { allE.push(eleV); allEDist.push(km); }
+        var hrEls = pt.getElementsByTagNameNS("*", "hr");
+        if (!hrEls.length) hrEls = pt.getElementsByTagNameNS("*", "heartrate");
+        var bpm = hrEls.length ? (parseFloat(hrEls[0].textContent) || 0) : 0;
+        if (bpm > 0) { allH.push(bpm); allHDist.push(km); }
+        var cadEls = pt.getElementsByTagNameNS("*", "cad");
+        if (!cadEls.length) cadEls = pt.getElementsByTagNameNS("*", "cadence");
+        var rpm = cadEls.length ? (parseFloat(cadEls[0].textContent) || 0) : 0;
+        if (rpm > 0) { allC.push(rpm); allCDist.push(km); }
       }
+
       var gpxClimb = findLongestClimb(climbTrackPts, sport);
       updateLongestClimbCard(gpxClimb || (maxSingleClimb > 0 ? {gain: maxSingleClimb, distance: null} : null));
-      var allH = [], hrEls, bpm;
-      for (i = 0; i < trkpts.length; i++) {
-        hrEls = trkpts[i].getElementsByTagNameNS("*", "hr");
-        if (!hrEls.length) hrEls = trkpts[i].getElementsByTagNameNS("*", "heartrate");
-        bpm = hrEls.length ? (parseFloat(hrEls[0].textContent) || 0) : 0;
-        if (bpm > 0) allH.push(bpm);
+
+      function dsWithKmLabels(arr, distArr) {
+        var s = Math.max(1, Math.floor(arr.length / 600));
+        var vals = [], labels = [];
+        for (var j = 0; j < arr.length; j += s) { vals.push(arr[j]); labels.push(distArr[j].toFixed(2)); }
+        return {vals: vals, labels: labels};
       }
+
+      if (allE.length) {
+        var dsE = dsWithKmLabels(allE, allEDist);
+        document.getElementById("elev-box").style.display = "";
+        drawLineSvg("svg-elev", dsE.vals, "#fc4c02", "m", dsE.labels, true);
+      }
+
       if (allH.length) {
-        step = Math.max(1, Math.floor(allH.length / 600));
-        var sh = [];
-        for (i = 0; i < allH.length; i += step) sh.push(allH[i]);
+        var dsH = dsWithKmLabels(allH, allHDist);
         document.getElementById("hr-box").style.display = "";
-        drawLineSvg("svg-hr", sh, "#e91e63", "bpm");
+        drawLineSvg("svg-hr", dsH.vals, "#e91e63", "bpm", dsH.labels, true);
         // Distribute movingTime equally across all HR track points for zone estimation.
         var secsPerPt = allH.length > 0 ? (movingTime || allH.length) / allH.length : 1;
         var gpxZonePts = [];
@@ -920,20 +962,10 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         renderHrZones(gpxZonePts, maxHR);
       }
 
-      // Cadence from track-point extensions (<gpxtpx:cad>, <cad>, <cadence>)
-      var allC = [], cadEls, rpm;
-      for (i = 0; i < trkpts.length; i++) {
-        cadEls = trkpts[i].getElementsByTagNameNS("*", "cad");
-        if (!cadEls.length) cadEls = trkpts[i].getElementsByTagNameNS("*", "cadence");
-        rpm = cadEls.length ? (parseFloat(cadEls[0].textContent) || 0) : 0;
-        if (rpm > 0) allC.push(rpm);
-      }
       if (allC.length) {
-        step = Math.max(1, Math.floor(allC.length / 600));
-        var sc = [];
-        for (i = 0; i < allC.length; i += step) sc.push(allC[i]);
+        var dsC = dsWithKmLabels(allC, allCDist);
         document.getElementById("cad-box").style.display = "";
-        drawLineSvg("svg-cad", sc, "#8e24aa", "rpm");
+        drawLineSvg("svg-cad", dsC.vals, "#8e24aa", "rpm", dsC.labels, true);
       }
 
       // Per-km splits computed from trkpts (lat/lon + time + ele + HR + cad)

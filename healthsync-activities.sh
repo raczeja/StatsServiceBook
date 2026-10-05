@@ -97,7 +97,7 @@ write_sync_status() {
         --argjson logs "$_log_json" \
         '{source:"HealthSync",mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),log:$logs}' > "$_status_tmp"
     mv "$_status_tmp" "$WEB_DIR/healthsync-sync-status.json"
-    rm -f "$_RUNNING_FLAG" 2>/dev/null || true
+    printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
     rm -rf "$TMP" "$LOCKFILE"
     [ "$_rc" -eq 0 ] || log "FATAL: healthsync-activities exited with code $_rc"
 }

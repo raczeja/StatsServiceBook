@@ -128,7 +128,7 @@ write_sync_status() {
       '{source:$source,ok:false,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/strava-sync-status.json"
-  rm -f "$_RUNNING_FLAG" 2>/dev/null || true
+  printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
   rm -rf "$TMP" "$LOCKFILE"
 }
 trap 'write_sync_status' EXIT

@@ -104,7 +104,7 @@ write_sync_status() {
       '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/leaderboard-sync-status.json"
-  rm -f "$_RUNNING_FLAG" 2>/dev/null || true
+  printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
   rm -rf "$TMP" "$LOCKFILE"
   [ "$_rc" -eq 0 ] || log "FATAL: strava-leaderboard exited with code $_rc"
 }
@@ -495,6 +495,88 @@ while IFS= read -r club_id; do
           mv "$TMP/store_backfilled.ndjson" "$CLUB_STORE"
           log "club $club_id: backfilled names/avatars for existing entries (${_bf_any} blank)"
         fi
+      fi
+
+      # Self-heal: infer missing lastnames from other entries for the same firstname
+      # already in the store. When a firstname uniquely maps to exactly one non-empty
+      # lastname across all stored entries, backfill any blank-lastname entries for
+      # that firstname. Fixes the case where recent Strava feed privacy changes
+      # cause new activities to arrive with only a first name.
+      _sh_any="$(jq -sc '[.[] | select((.lastname // "" | length) <= 1)] | length' "$CLUB_STORE" 2>/dev/null || printf '0')"
+      if [ "${_sh_any:-0}" -gt 0 ]; then
+        jq -sc '
+          (group_by(.firstname)
+            | map({
+                fn: .[0].firstname,
+                lns: ([.[].lastname // ""] | map(select(length > 1)) | unique)
+              })
+            | map(select(.fn != "" and (.lns | length) == 1))
+            | map({(.fn): .lns[0]}) | add // {}) as $km |
+          [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
+                 then . + {lastname: $km[.firstname]}
+                 else . end] | .[]
+        ' "$CLUB_STORE" > "$TMP/store_selfheal_${club_id}.ndjson" \
+          && mv "$TMP/store_selfheal_${club_id}.ndjson" "$CLUB_STORE" \
+          && log "club $club_id: self-healed missing/truncated lastnames (${_sh_any} short entries)" \
+          || log "WARNING: club $club_id: lastname self-heal jq failed"
+      fi
+
+      # Extra name enrichment: fetch the club leaderboard endpoint which returns
+      # full lastnames even when privacy hides them from the activities feed.
+      _lb_any="$(jq -sc '[.[] | select((.lastname // "" | length) <= 1)] | length' "$CLUB_STORE" 2>/dev/null || printf '0')"
+      if [ "${_lb_any:-0}" -gt 0 ]; then
+        _lb_json="$TMP/lb_${club_id}.json"
+        if curl_retry -s -f \
+            -H "Accept: application/json, text/javascript, */*; q=0.01" \
+            -H "X-Requested-With: XMLHttpRequest" \
+            -H "Referer: https://www.strava.com/clubs/$club_id" \
+            -b "$STATE_DIR/strava_cookies.txt" \
+            "https://www.strava.com/clubs/$club_id/leaderboard" \
+            -o "$_lb_json" 2>/dev/null \
+            && jq -e '.' "$_lb_json" >/dev/null 2>&1; then
+          _lb_names="$(jq -r '
+            try ([
+              .. | objects
+              | (.athlete_firstname // .first_name // "") as $fn
+              | (.athlete_lastname  // .last_name  // "") as $ln
+              | select(($fn | length) > 0 and ($ln | length) > 0)
+              | "\($fn)\t\($ln)"
+            ] | unique | .[]) catch ""
+          ' "$_lb_json" 2>/dev/null | sort -u || true)"
+          log "club $club_id: leaderboard endpoint returned $(printf '%s\n' "$_lb_names" | grep -c . || printf 0) named athletes"
+          if [ -n "$_lb_names" ]; then
+            printf '%s\n' "$_lb_names" \
+              | jq -Rs '[split("\n")[] | select(length > 0) | split("\t") | select(length == 2)]
+                        | group_by(.[0]) | map(select(length == 1))
+                        | map({(.[0][0]): .[0][1]}) | add // {}' \
+              > "$TMP/lb_nm_${club_id}.json"
+            jq -sc --argjson lm "$(cat "$TMP/lb_nm_${club_id}.json")" '
+              [.[] | if (.lastname // "" | length) < ($lm[.firstname] // "" | length)
+                     then . + {lastname: $lm[.firstname]}
+                     else . end] | .[]
+            ' "$CLUB_STORE" > "$TMP/store_lb_patched.ndjson" \
+              && mv "$TMP/store_lb_patched.ndjson" "$CLUB_STORE" \
+              && log "club $club_id: applied leaderboard name patch (${_lb_any} truncated lastnames resolved)" \
+              || log "WARNING: club $club_id: leaderboard name patch jq failed"
+          fi
+        else
+          log "club $club_id: leaderboard endpoint unavailable or non-JSON (skipping name enrichment)"
+        fi
+      fi
+
+      # Manual name overrides: $STATE_DIR/name-overrides.json
+      # Format: {"Firstname": "Lastname"} — applied last, wins over all automatic sources.
+      # Useful for athletes whose full name Strava never returns in any feed or endpoint.
+      _nm_override="$STATE_DIR/name-overrides.json"
+      if [ -f "$_nm_override" ] && jq -e 'type == "object"' "$_nm_override" >/dev/null 2>&1; then
+        jq -sc --argjson ov "$(cat "$_nm_override")" '
+          [.[] | if ($ov[.firstname] // "" | length) > 0
+                 then . + {lastname: $ov[.firstname]}
+                 else . end] | .[]
+        ' "$CLUB_STORE" > "$TMP/store_nm_override_${club_id}.ndjson" \
+          && mv "$TMP/store_nm_override_${club_id}.ndjson" "$CLUB_STORE" \
+          && log "club $club_id: applied manual name overrides from name-overrides.json" \
+          || log "WARNING: club $club_id: manual name override jq failed"
       fi
       ;;
   esac

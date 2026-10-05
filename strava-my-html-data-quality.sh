@@ -65,15 +65,19 @@ printf 'Content-Type: application/json\r\n\r\n'
 read -r _body 2>/dev/null || true
 _type="$(printf '%s' "$_body" | jq -r '.type // empty' 2>/dev/null)"
 _to="$(printf '%s' "$_body" | jq -r '.email_to // empty' 2>/dev/null)"
+_period="$(printf '%s' "$_body" | jq -r '.period // empty' 2>/dev/null)"
 case "$_type" in
-  monthly)   _cmd=/usr/bin/strava-email-monthly ;;
-  weekly)    _cmd=/usr/bin/strava-email-weekly ;;
-  yearly)    _cmd=/usr/bin/strava-email-yearly ;;
+  monthly) _cmd=/usr/bin/strava-email-monthly; _penv=STRAVA_EMAIL_TEST_MONTH ;;
+  weekly)  _cmd=/usr/bin/strava-email-weekly;  _penv=STRAVA_WEEKLY_TEST_MONTH ;;
+  yearly)  _cmd=/usr/bin/strava-email-yearly;  _penv=STRAVA_EMAIL_TEST_YEAR ;;
   *) printf '{"ok":false,"error":"unknown email type"}\n'; exit 0 ;;
 esac
 [ -x "$_cmd" ] || { printf '{"ok":false,"error":"script not found"}\n'; exit 0; }
-if [ -n "$_to" ]; then
-  setsid env STRAVA_EMAIL_TEST_TO="$_to" "$_cmd" < /dev/null > /dev/null 2>&1 &
+set --
+[ -n "$_to"     ] && set -- "$@" "STRAVA_EMAIL_TEST_TO=$_to"
+[ -n "$_period" ] && set -- "$@" "$_penv=$_period"
+if [ "$#" -gt 0 ]; then
+  setsid env "$@" "$_cmd" < /dev/null > /dev/null 2>&1 &
 else
   setsid "$_cmd" < /dev/null > /dev/null 2>&1 &
 fi
@@ -110,7 +114,10 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 #cookie-update-card textarea{width:100%;box-sizing:border-box;font-family:monospace;font-size:.8rem;padding:.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem;resize:vertical}
 #cookie-save-status.ok{color:var(--good)}#cookie-save-status.err{color:var(--bad)}
 #send-email-card input[type=text],#send-email-card select{font-family:system-ui,Arial,sans-serif;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem}#send-email-card input[type=text]{width:100%;box-sizing:border-box}
+#email-period-sel{font-family:system-ui,Arial,sans-serif;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem;color-scheme:light}
+[data-theme=dark] #email-period-sel{color-scheme:dark}
 #send-email-status.ok{color:var(--good)}#send-email-status.err{color:var(--bad)}
+#email-to-override.invalid{border-color:var(--bad)!important;outline:none}
 </style>
 </head>
 <body>
@@ -131,8 +138,9 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 <article class="source" id="send-email-card">
 <h2>Send email now</h2>
 <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;margin:.4rem 0">
-  <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Type</label><select id="email-type-sel"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option></select></div>
-  <div style="flex:1;min-width:180px"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Override recipients (optional)</label><input type="text" id="email-to-override" placeholder="you@example.com — leave empty for defaults"></div>
+  <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Type</label><select id="email-type-sel" onchange="updatePeriodInput()"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option></select></div>
+  <div id="email-period-wrap" style="flex-shrink:0"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Period</label><input id="email-period-sel" type="month" style="width:9rem"></div>
+  <div style="flex:1;min-width:160px"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Override recipients (optional)</label><input type="email" id="email-to-override" autocomplete="email" placeholder="you@example.com — leave empty for defaults" style="width:100%;box-sizing:border-box"></div>
   <button class="sync-btn" style="margin:0;flex-shrink:0" onclick="sendEmail()">&#9993; Send</button>
 </div>
 <div id="send-email-status" style="font-size:.88rem"></div>
@@ -340,11 +348,56 @@ function _pollEmailDone(type,prevAttempt,btn,statusEl){
     });
   },3000);
 }
+function isoWeekStr(d){
+  var day=d.getDay()||7;
+  var thu=new Date(d);thu.setDate(d.getDate()-day+4);
+  var y=thu.getFullYear();
+  var jan4=new Date(y,0,4);var w=Math.ceil(((thu-jan4)/86400000+((jan4.getDay()||7)-1)+1)/7);
+  return y+'-W'+String(w).padStart(2,'0');
+}
+function weekToMonth(wStr){
+  var p=wStr.split('-W');if(p.length!==2)return '';
+  var yr=parseInt(p[0]),wk=parseInt(p[1]);
+  var jan4=new Date(yr,0,4);var dow=(jan4.getDay()||7);
+  var mon=new Date(jan4);mon.setDate(jan4.getDate()-dow+1+(wk-1)*7);
+  return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0');
+}
+function updatePeriodInput(){
+  var type=document.getElementById('email-type-sel').value;
+  var inp=document.getElementById('email-period-sel');
+  var now=new Date();
+  if(type==='yearly'){
+    inp.type='number';inp.min='2020';inp.max=now.getFullYear();inp.style.width='5rem';
+    inp.value=now.getFullYear()-1;
+  } else if(type==='weekly'){
+    inp.type='week';inp.style.width='9rem';
+    inp.value=isoWeekStr(now);
+  } else {
+    inp.type='month';inp.style.width='9rem';
+    var mm=String(now.getMonth()+1).padStart(2,'0');
+    inp.value=now.getFullYear()+'-'+mm;
+  }
+}
+function validEmail(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);}
 function sendEmail(){
   var type=document.getElementById('email-type-sel').value;
-  var to=(document.getElementById('email-to-override').value||'').trim();
+  var toEl=document.getElementById('email-to-override');
+  var to=(toEl.value||'').trim();
+  var _praw=(document.getElementById('email-period-sel').value||'').trim();
+  var period=type==='weekly'?weekToMonth(_praw):_praw;
   var statusEl=document.getElementById('send-email-status');
   var btn=document.querySelector('#send-email-card .sync-btn');
+  toEl.classList.remove('invalid');
+  if(to){
+    var addrs=to.split(/[\s,;]+/).filter(Boolean);
+    var bad=addrs.filter(function(a){return !validEmail(a);});
+    if(bad.length){
+      toEl.classList.add('invalid');
+      statusEl.className='err';
+      statusEl.textContent='Invalid address'+(bad.length>1?'es':'')+': '+bad.join(', ');
+      return;
+    }
+  }
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
   statusEl.className='';statusEl.textContent='';
   var prevAttempt=0;
@@ -352,7 +405,8 @@ function sendEmail(){
   (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
   .then(function(st){
     prevAttempt=st?Number(st.lastAttempt)||0:0;
-    return fetch('/cgi-bin/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(to?{type:type,email_to:to}:{type:type})});
+    var body={type:type};if(to)body.email_to=to;if(period)body.period=period;
+    return fetch('/cgi-bin/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   })
   .then(function(r){return r.json();})
   .then(function(j){
@@ -373,7 +427,7 @@ function renderEmailSection(monthly,weekly,yearly){
   document.getElementById('email-cards').innerHTML=cards;
 }
 function sourceCard(name,status,srcKey){
-  if(!status)return '';
+  if(!status||(!status.lastAttempt&&status.importEnabled===false))return '';
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
   var warning=status.ok===false||disabled||!last||age>staleAfter;
@@ -422,14 +476,16 @@ Promise.all([
   fetch('../email-weekly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../email-yearly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
 ]).then(function(values){render(values[0],{strava:values[1],healthsync:values[2],leaderboard:values[3],emailMonthly:values[5],emailWeekly:values[6],emailYearly:values[7]},values[4]);}).catch(function(error){document.getElementById('state').textContent='Could not load activity data: '+error.message;});
+updatePeriodInput();
 // Continuous poll: detect syncs triggered by cron while the page is open (GET, not HEAD — uhttpd compatibility)
 setInterval(function(){
   ['strava','healthsync','leaderboard'].forEach(function(src){
     var btn=document.querySelector('.sync-btn[data-src="'+src+'"]');
     if(!btn||btn.disabled)return;
     fetch(SYNC_RUNNING_URLS[src],{cache:'no-store'})
-    .then(function(r){
-      if(!r.ok)return;
+    .then(function(r){return r.ok?r.text():null;})
+    .then(function(t){
+      if(t!=='1')return;
       btn.textContent='↻ Running…';btn.disabled=true;
       startLivePolling(src,btn,_knownAttempt[src]||0);
     }).catch(function(){});

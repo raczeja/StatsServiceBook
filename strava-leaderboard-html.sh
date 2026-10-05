@@ -45,6 +45,8 @@ cat > "$WEB_DIR/index.html" <<'HTML'
   .person-row{cursor:pointer}
   .person-row:hover td{background:var(--hover-row)}
   .expand-btn{float:right;font-size:.8rem;opacity:.6}
+  .ath-cell{display:flex;align-items:center;gap:.4rem}
+  .ath-avatar{width:1.4rem;height:1.4rem;border-radius:50%;object-fit:cover;flex-shrink:0;opacity:.9}
   .detail-row td{padding:0;background:var(--surface-2)}
   .detail-table{border-collapse:collapse;width:100%;font-size:.83rem}
   .detail-table th{background:var(--detail-th);color:var(--text-2);font-weight:600;padding:.3rem .6rem}
@@ -245,7 +247,7 @@ function renderClubTable(acts, tablePrefix, allActs, lastWeek, n2p){
     var lw = lwMap[m._key]||0;
     html += '<tr class="person-row" onclick="toggleDetail(\''+did+'\')" title="Click to show activities">'+
       '<td class="num">'+(i+1)+'</td>'+
-      '<td>'+esc(m.firstname)+' '+esc(m.lastname)+'<span class="expand-btn">▾</span></td>'+
+      '<td><div class="ath-cell">'+(m.pm?'<img class="ath-avatar" src="'+esc(m.pm)+'" alt="" loading="lazy">':'')+esc(m.firstname)+' '+esc(m.lastname)+'<span class="expand-btn">▾</span></div></td>'+
       '<td class="num">'+fmtKm(m.distance)+' km<div class="bar" style="width:'+pct+'%"></div></td>'+
       '<td class="num">'+fmtTime(m.moving_time)+'</td>'+
       '<td class="num">'+fmtNum(m.elev)+'</td>'+

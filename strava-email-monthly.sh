@@ -296,6 +296,8 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
+            def fmtint: . as $n | if $n < 1000 then ($n|tostring) else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+            def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) + (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);
             [inputs | applyMerge | select(notExcluded)] | normArr as $store |
             ($store | map(select((.firstSeen // "") | startswith($year)))) as $all |
             ($all | length) as $acts |
@@ -306,9 +308,9 @@ for club_id in $CLUB_IDS; do
             ($all | map(.firstSeen // "") | map(select(. != "")) | sort | .[0] // "") as $first_in_year |
             ($store | map(.firstSeen // "") | map(select(. != "")) | min // "") as $alltime_first |
             [
-              (($dist_m / 1000 * 10 | round) / 10 | tostring),
+              ($dist_m / 1000 | fmtkm),
               ($acts | tostring),
-              ($elev | round | tostring),
+              ($elev | round | fmtint),
               ($ath | tostring),
               (if $time_s > 0 then ($dist_m / $time_s * 3.6 * 10 | round) / 10 else 0 end | tostring),
               $first_in_year,
@@ -323,10 +325,12 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
+            def fmtint: . as $n | if $n < 1000 then ($n|tostring) else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+            def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) + (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);
             [inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))]
             | normArr | group_by("\(.firstname)|\(.lastname)")
             | map({
-                name: "\(.[0].firstname) \(.[0].lastname)",
+                name: ("\(.[0].firstname) \(([.[].lastname // ""] | map(select(length > 0)) | first // ""))" | rtrimstr(" ")),
                 dist: (([.[].distance // 0] | add) / 1000),
                 time_s: ([.[].moving_time // 0] | add),
                 elev: (([.[].total_elevation_gain // 0] | add) | round),
@@ -338,10 +342,10 @@ for club_id in $CLUB_IDS; do
             | [
                 (.key + 1 | tostring),
                 (.value.name | @html),
-                ((.value.dist * 10 | round) / 10 | tostring),
+                (.value.dist | fmtkm),
                 (.value.time_s / 3600 | floor | tostring),
                 (.value.time_s % 3600 / 60 | floor | tostring),
-                (.value.elev | tostring),
+                (.value.elev | fmtint),
                 (.value.cnt | tostring),
                 (if .value.time_s > 0 then
                    (.value.dist / (.value.time_s / 3600) * 10 | round) / 10
@@ -357,6 +361,8 @@ for club_id in $CLUB_IDS; do
             --arg merge "$MERGE_ATHLETES" \
             --arg exclude "$EXCLUDE_ATHLETES" \
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'
+            def fmtint: . as $n | if $n < 1000 then ($n|tostring) else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+            def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) + (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);
             ([inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($year))] | normArr) as $yr_all |
             ($yr_all | map(select((.distance // 0) > 1000))) as $all |
             ($yr_all | group_by("\(.firstname)|\(.lastname)") | sort_by(-length) | .[0]) as $mact |
@@ -377,7 +383,7 @@ for club_id in $CLUB_IDS; do
               if $tclimb != null and ($tclimb.elev // 0) > 0 then
                 "topclimber",
                 ($tclimb.name | @html),
-                ($tclimb.elev | round | tostring),
+                ($tclimb.elev | round | fmtint),
                 "m total",
                 ""
               else empty end
@@ -395,7 +401,7 @@ for club_id in $CLUB_IDS; do
               if $long != null then
                 "longest",
                 (("\($long.firstname // "") \($long.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
-                ((($long.distance // 0) / 1000 * 10 | round) / 10 | tostring),
+                (($long.distance // 0) / 1000 | fmtkm),
                 "km",
                 (($long.sport_type // "") | @html)
               else empty end
@@ -404,7 +410,7 @@ for club_id in $CLUB_IDS; do
               if $elev != null then
                 "mostelev",
                 (("\($elev.firstname // "") \($elev.lastname // "")") | ltrimstr(" ") | rtrimstr(" ") | @html),
-                (($elev.total_elevation_gain // 0) | round | tostring),
+                (($elev.total_elevation_gain // 0) | round | fmtint),
                 "m",
                 (($elev.sport_type // "") | @html)
               else empty end
@@ -431,14 +437,15 @@ for club_id in $CLUB_IDS; do
             {
                 printf '<div style="padding:12px 16px 4px">'
                 printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Year in Numbers</div>'
-                printf '<table style="width:100%%;border-collapse:collapse;background:#f5f5f5;border-radius:4px"><tr>'
+                printf '<div style="border-radius:4px;overflow:hidden">'
+                printf '<table style="width:100%%;border-collapse:collapse;background:#f5f5f5"><tr>'
                 _yn_cell() { printf '<td style="text-align:center;padding:10px 6px;border-right:1px solid #e0e0e0"><div style="font-size:18px;font-weight:700;color:#fc4c02">%s</div><div style="font-size:10px;color:#888;margin-top:2px">%s</div></td>' "$1" "$2"; }
                 _yn_cell "$_ykm"   "km"
                 _yn_cell "$_yacts" "activities"
                 _yn_cell "$_yelev" "m elev"
                 _yn_cell "$_yath"  "athletes"
-                _yn_cell "$_yavg"  "avg km/h"
-                printf '</tr></table></div>\n'
+                printf '<td style="text-align:center;padding:10px 6px"><div style="font-size:18px;font-weight:700;color:#fc4c02">%s</div><div style="font-size:10px;color:#888;margin-top:2px">%s</div></td>' "$_yavg" "avg km/h"
+                printf '</tr></table></div></div>\n'
             } >> "$BODY"
         fi
 
@@ -475,7 +482,7 @@ for club_id in $CLUB_IDS; do
             {
                 printf '<div style="padding:0 16px 14px">'
                 printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Highlights</div>'
-                printf '<table style="width:100%%;border-collapse:collapse"><tr>'
+                printf '<table style="width:100%%;border-collapse:separate;border-spacing:4px 0"><tr>'
             } >> "$BODY"
 
             while IFS= read -r _htype && \
@@ -491,7 +498,7 @@ for club_id in $CLUB_IDS; do
                     mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
                     *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
                 esac
-                printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
+                printf '<td style="padding:10px 8px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
                     "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
                     "$([ -n "$_hsport" ] && printf '<div style="font-size:9px;color:#aaa">%s</div>' "$_hsport")" >> "$BODY"
             done < "$YHL"
@@ -518,7 +525,7 @@ for club_id in $CLUB_IDS; do
              | ($ma | group_by("\(.firstname)|\(.lastname)")
                   | map({
                       key:    "\(.[0].firstname)|\(.[0].lastname)",
-                      name:   "\(.[0].firstname) \(.[0].lastname)",
+                      name:   ("\(.[0].firstname) \(([.[].lastname // ""] | map(select(length > 0)) | first // ""))" | rtrimstr(" ")),
                       dist:   (([.[].distance]             | add) / 1000),
                       time_s: ([.[].moving_time]            | add),
                       elev:   (([.[].total_elevation_gain] | add) | round),
@@ -549,7 +556,7 @@ for club_id in $CLUB_IDS; do
             "$JQ_MERGE_FUNC$_JQ_EXCL_DEF"'[inputs | applyMerge | select(notExcluded) | select((.firstSeen // "") | startswith($month))]
              | normArr | group_by("\(.firstname)|\(.lastname)")
              | map({
-                 name: "\(.[0].firstname) \(.[0].lastname)",
+                 name: ("\(.[0].firstname) \(([.[].lastname // ""] | map(select(length > 0)) | first // ""))" | rtrimstr(" ")),
                  dist: (([.[].distance] | add) / 1000),
                  time_s: ([.[].moving_time] | add),
                  elev: (([.[].total_elevation_gain] | add) | round),
@@ -670,7 +677,7 @@ for club_id in $CLUB_IDS; do
         {
             printf '<div style="padding:0 16px 14px">'
             printf '<div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Highlights</div>'
-            printf '<table style="width:100%%;border-collapse:collapse"><tr>'
+            printf '<table style="width:100%%;border-collapse:separate;border-spacing:4px 0"><tr>'
         } >> "$BODY"
         while IFS= read -r _htype && \
               IFS= read -r _hname && \
@@ -685,7 +692,7 @@ for club_id in $CLUB_IDS; do
                 mostelev)   _hicon="&#127956;"; _hlabel="Best Elev. Single" ;;
                 *)          _hicon="&#9679;"  ; _hlabel="$_htype"           ;;
             esac
-            printf '<td style="padding:10px 10px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
+            printf '<td style="padding:10px 8px;vertical-align:top;border:1px solid #eee;border-radius:4px"><div style="font-size:18px;line-height:1.2">%s</div><div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:3px 0 2px">%s</div><div style="font-size:15px;font-weight:700;color:#fc4c02;line-height:1.1">%s %s</div><div style="font-size:10px;color:#444;margin-top:2px">%s</div>%s</td>\n' \
                 "$_hicon" "$_hlabel" "$_hval" "$_hunit" "$_hname" \
                 "$([ -n "$_hsport" ] && printf '<div style="font-size:9px;color:#aaa">%s</div>' "$_hsport")" >> "$BODY"
         done < "$MHL"
