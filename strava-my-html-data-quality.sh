@@ -139,7 +139,7 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 <h2>Send email now</h2>
 <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;margin:.4rem 0">
   <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Type</label><select id="email-type-sel" onchange="updatePeriodInput()"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option></select></div>
-  <div id="email-period-wrap" style="flex-shrink:0"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Period</label><input id="email-period-sel" type="month" style="width:9rem"></div>
+  <div id="email-period-wrap" style="flex-shrink:0"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Period</label><input id="email-period-sel" type="month" style="width:9rem" oninput="_emailPeriodUserSet=true"></div>
   <div style="flex:1;min-width:160px"><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Override recipients (optional)</label><input type="email" id="email-to-override" autocomplete="email" placeholder="you@example.com — leave empty for defaults" style="width:100%;box-sizing:border-box"></div>
   <button class="sync-btn" style="margin:0;flex-shrink:0" onclick="sendEmail()">&#9993; Send</button>
 </div>
@@ -362,6 +362,7 @@ function weekToMonth(wStr){
   var mon=new Date(jan4);mon.setDate(jan4.getDate()-dow+1+(wk-1)*7);
   return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0');
 }
+var _emailPeriodUserSet=false;
 function updatePeriodInput(){
   var type=document.getElementById('email-type-sel').value;
   var inp=document.getElementById('email-period-sel');
@@ -377,6 +378,7 @@ function updatePeriodInput(){
     var mm=String(now.getMonth()+1).padStart(2,'0');
     inp.value=now.getFullYear()+'-'+mm;
   }
+  _emailPeriodUserSet=false;
 }
 function validEmail(s){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);}
 function sendEmail(){
@@ -405,7 +407,7 @@ function sendEmail(){
   (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
   .then(function(st){
     prevAttempt=st?Number(st.lastAttempt)||0:0;
-    var body={type:type};if(to)body.email_to=to;if(period)body.period=period;
+    var body={type:type};if(to)body.email_to=to;if(period&&_emailPeriodUserSet)body.period=period;
     return fetch('/cgi-bin/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   })
   .then(function(r){return r.json();})
@@ -485,7 +487,7 @@ setInterval(function(){
     fetch(SYNC_RUNNING_URLS[src],{cache:'no-store'})
     .then(function(r){return r.ok?r.text():null;})
     .then(function(t){
-      if(t!=='1')return;
+      if(!t)return;
       btn.textContent='↻ Running…';btn.disabled=true;
       startLivePolling(src,btn,_knownAttempt[src]||0);
     }).catch(function(){});

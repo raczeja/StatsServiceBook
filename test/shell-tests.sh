@@ -3242,6 +3242,173 @@ NDJSON
     assert_eq "$S" "multi-year-list"   "$_yr_multi"   "2024, 2025, 2026"
 }
 
+# ── yearly-email-fmtkm ────────────────────────────────────────────────────────
+# Verifies the fmtint / fmtkm jq helper functions used in strava-email-monthly.sh
+# to format distance and elevation numbers with space thousands separator.
+# These helpers are NOT tested by the existing yearly-email-jq suite, which uses
+# simplified arithmetic instead of the production formatting code.
+S="yearly-email-fmtkm"
+{
+    _fmtjq='
+def fmtint: . as $n | if $n < 1000 then ($n|tostring)
+            else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) +
+           (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);'
+
+    # fmtint: values < 1000 are unchanged
+    assert_eq "$S" "fmtint-0"     "$(jq -n "${_fmtjq} 0|fmtint")"     '"0"'
+    assert_eq "$S" "fmtint-999"   "$(jq -n "${_fmtjq} 999|fmtint")"   '"999"'
+    # fmtint: 1000–9999 gains one space
+    assert_eq "$S" "fmtint-1000"  "$(jq -n "${_fmtjq} 1000|fmtint")"  '"1 000"'
+    assert_eq "$S" "fmtint-78905" "$(jq -n "${_fmtjq} 78905|fmtint")" '"78 905"'
+    # fmtint: millions
+    assert_eq "$S" "fmtint-1000000" "$(jq -n "${_fmtjq} 1000000|fmtint")" '"1 000 000"'
+    # fmtkm: no decimal when exactly whole
+    assert_eq "$S" "fmtkm-whole-30"   "$(jq -n "${_fmtjq} 30|fmtkm")"    '"30"'
+    assert_eq "$S" "fmtkm-whole-1000" "$(jq -n "${_fmtjq} 1000|fmtkm")"  '"1 000"'
+    # fmtkm: decimal only when fractional tenth is nonzero
+    assert_eq "$S" "fmtkm-13262.9"   "$(jq -n "${_fmtjq} 13262.9|fmtkm")" '"13 262.9"'
+    assert_eq "$S" "fmtkm-0.1"       "$(jq -n "${_fmtjq} 0.1|fmtkm")"     '"0.1"'
+    assert_eq "$S" "fmtkm-99.05-rounds" "$(jq -n "${_fmtjq} 99.05|fmtkm")" '"99.1"'
+}
+
+# ── yearly-email-newclub-label ────────────────────────────────────────────────
+# Verifies the _ynewclub / "since" display logic:
+# _ynewclub=1 (→ show "since YYYY-MM-DD") when the earliest all-time activity
+# is within the target year; _ynewclub=0 when older data exists.
+# Mirrors the jq expression: (if $alltime_first < $year then "0" else "1" end)
+S="yearly-email-newclub-label"
+{
+    _yncl_nd="$TMP/yncl_acts.ndjson"
+
+    # Store has activities in 2025 and 2026 → all-time first is 2025 → _ynewclub=0
+    printf '%s\n' \
+        '{"firstname":"Alex","lastname":"R","distance":30000,"moving_time":3600,"total_elevation_gain":200,"firstSeen":"2025-11-01","sport_type":"Ride"}' \
+        '{"firstname":"Alex","lastname":"R","distance":20000,"moving_time":2700,"total_elevation_gain":100,"firstSeen":"2026-03-15","sport_type":"Ride"}' \
+        > "$_yncl_nd"
+
+    _yncl_result_0="$(jq -rn --arg year "2026" '
+        [inputs | (.firstSeen // "")] as $dates |
+        ($dates | map(select(. != "")) | min // "") as $alltime_first |
+        (if $alltime_first < $year then "0" else "1" end)' \
+        "$_yncl_nd")"
+    assert_eq "$S" "older-data-ynewclub-0"  "$_yncl_result_0" "0"
+
+    # Store has only 2026 data → all-time first is 2026 → _ynewclub=1
+    printf '%s\n' \
+        '{"firstname":"Marta","lastname":"K","distance":25000,"moving_time":3000,"total_elevation_gain":150,"firstSeen":"2026-05-15","sport_type":"Ride"}' \
+        '{"firstname":"Marta","lastname":"K","distance":15000,"moving_time":2000,"total_elevation_gain":80,"firstSeen":"2026-09-10","sport_type":"Ride"}' \
+        > "$_yncl_nd"
+
+    _yncl_result_1="$(jq -rn --arg year "2026" '
+        [inputs | (.firstSeen // "")] as $dates |
+        ($dates | map(select(. != "")) | min // "") as $alltime_first |
+        (if $alltime_first < $year then "0" else "1" end)' \
+        "$_yncl_nd")"
+    assert_eq "$S" "new-club-ynewclub-1"    "$_yncl_result_1" "1"
+
+    # first_in_year = earliest firstSeen in target year (not across all years)
+    _yncl_first_in_yr="$(jq -rn --arg year "2026" '
+        [inputs | select((.firstSeen // "") | startswith($year)) | .firstSeen] | min // ""' \
+        "$_yncl_nd")"
+    assert_eq "$S" "first-in-year-date"     "$_yncl_first_in_yr" "2026-05-15"
+
+    # Empty store → _ynewclub=0 (no data, min→"", "" < "2026" is true)
+    _yncl_empty="$(jq -rn --arg year "2026" '
+        [inputs | (.firstSeen // "")] as $dates |
+        ($dates | map(select(. != "")) | min // "") as $alltime_first |
+        (if $alltime_first < $year then "0" else "1" end)' \
+        /dev/null)"
+    assert_eq "$S" "empty-store-ynewclub-0" "$_yncl_empty" "0"
+}
+
+# ── yearly-email-totals-formatted ────────────────────────────────────────────
+# Verifies the full YTOTALS jq (including fmtint/fmtkm formatting) produces the
+# exact TSV values that strava-email-monthly.sh reads into shell variables.
+# Cross-checks the formatted km/elev output that appears in the email.
+S="yearly-email-totals-formatted"
+{
+    _ytf_nd="$TMP/ytf_acts.ndjson"
+    # 3 athletes, 4 activities in 2026, 1 in 2025 (must be excluded by year filter)
+    # Alex: 10 km + 3.3 km = 13.3 km, 900 + 330 m elev
+    # Marta: 30 km, 300 m elev
+    # Bob: 2025 (excluded)
+    printf '%s\n' \
+        '{"firstname":"Alex","lastname":"R","distance":10000,"moving_time":3600,"total_elevation_gain":900,"firstSeen":"2026-01-10","sport_type":"Run"}' \
+        '{"firstname":"Alex","lastname":"R","distance":3300,"moving_time":1200,"total_elevation_gain":330,"firstSeen":"2026-06-01","sport_type":"Run"}' \
+        '{"firstname":"Marta","lastname":"K","distance":30000,"moving_time":2700,"total_elevation_gain":300,"firstSeen":"2026-07-01","sport_type":"Ride"}' \
+        '{"firstname":"Gwen","lastname":"B","distance":20000,"moving_time":1800,"total_elevation_gain":200,"firstSeen":"2025-12-01","sport_type":"Run"}' \
+        > "$_ytf_nd"
+
+    _ytf_mf=""
+    for _ytf_lib in \
+        /usr/bin/strava-lib.sh \
+        /opt/strava-lib.sh \
+        "$(dirname "$0")/../strava-lib.sh" \
+        "$(dirname "$0")/strava-lib.sh"; do
+        [ -f "$_ytf_lib" ] && _ytf_mf="$(. "$_ytf_lib" 2>/dev/null; printf '%s' "$JQ_MERGE_FUNC")" && break
+    done
+    _ytf_excl='($exclude | if . == "" then [] else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != "")) end) as $excl | def notExcluded: ((.firstname // "" | ascii_downcase) + " " + (.lastname // "" | ascii_downcase)) as $name | (($excl | length) == 0 or ([$excl[] | select(. == $name)] | length == 0));'
+
+    # Run the exact YTOTALS jq from strava-email-monthly.sh (with fmtint/fmtkm).
+    _ytf_tot="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_ytf_mf}${_ytf_excl}"'
+        def fmtint: . as $n | if $n < 1000 then ($n|tostring)
+                    else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+        def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) +
+                   (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);
+        [inputs | applyMerge | select(notExcluded)] | normArr as $store |
+        ($store | map(select((.firstSeen // "") | startswith($year)))) as $all |
+        ($all | length) as $acts |
+        ($all | map(.distance // 0) | add // 0) as $dist_m |
+        ($all | map(.total_elevation_gain // 0) | add // 0) as $elev |
+        ($all | map(.moving_time // 0) | add // 0) as $time_s |
+        ($all | group_by("\(.firstname)|\(.lastname)") | length) as $ath |
+        ($all | map(.firstSeen // "") | map(select(. != "")) | sort | .[0] // "") as $first_in_year |
+        ($store | map(.firstSeen // "") | map(select(. != "")) | min // "") as $alltime_first |
+        [
+          ($dist_m / 1000 | fmtkm),
+          ($acts | tostring),
+          ($elev | round | fmtint),
+          ($ath | tostring),
+          (if $time_s > 0 then ($dist_m / $time_s * 3.6 * 10 | round) / 10 else 0 end | tostring),
+          $first_in_year,
+          (if $alltime_first < $year then "0" else "1" end)
+        ] | @tsv' \
+        "$_ytf_nd" 2>&1)"
+
+    # 10000+3300+30000 = 43300 m = 43.3 km
+    assert_eq "$S" "totals-km-formatted"      "$(printf '%s' "$_ytf_tot" | cut -f1)" "43.3"
+    assert_eq "$S" "totals-acts"              "$(printf '%s' "$_ytf_tot" | cut -f2)" "3"
+    # 900+330+300 = 1530 m
+    assert_eq "$S" "totals-elev-formatted"    "$(printf '%s' "$_ytf_tot" | cut -f3)" "1 530"
+    assert_eq "$S" "totals-athletes"          "$(printf '%s' "$_ytf_tot" | cut -f4)" "2"
+    assert_eq "$S" "totals-first-in-year"     "$(printf '%s' "$_ytf_tot" | cut -f6)" "2026-01-10"
+    # 2025 activity in store → alltime_first=2025-12 < 2026 → _ynewclub=0
+    assert_eq "$S" "totals-ynewclub-0"        "$(printf '%s' "$_ytf_tot" | cut -f7)" "0"
+
+    # With only 2026 data (drop Gwen's 2025 entry) → _ynewclub=1
+    _ytf_nd2="$TMP/ytf2_acts.ndjson"
+    printf '%s\n' \
+        '{"firstname":"Alex","lastname":"R","distance":10000,"moving_time":3600,"total_elevation_gain":900,"firstSeen":"2026-01-10","sport_type":"Run"}' \
+        '{"firstname":"Marta","lastname":"K","distance":30000,"moving_time":2700,"total_elevation_gain":300,"firstSeen":"2026-07-01","sport_type":"Ride"}' \
+        > "$_ytf_nd2"
+    _ytf_new="$(jq -rn \
+        --arg year "2026" --arg merge "" --arg exclude "" \
+        "${_ytf_mf}${_ytf_excl}"'
+        def fmtint: . as $n | if $n < 1000 then ($n|tostring)
+                    else (($n/1000|floor)|fmtint) + " " + ($n%1000|.+1000|tostring|.[1:]) end;
+        def fmtkm: (. * 10 | round) as $k10 | ($k10/10|floor|fmtint) +
+                   (if $k10%10 > 0 then "." + ($k10%10|tostring) else "" end);
+        [inputs | applyMerge | select(notExcluded)] | normArr as $store |
+        ($store | map(select((.firstSeen // "") | startswith($year)))) as $all |
+        ($store | map(.firstSeen // "") | map(select(. != "")) | min // "") as $alltime_first |
+        [(if $alltime_first < $year then "0" else "1" end)] | @tsv' \
+        "$_ytf_nd2" 2>&1)"
+    assert_eq "$S" "totals-ynewclub-1-new-store" "$_ytf_new" "1"
+}
+
 # ── script-syntax-check ──────────────────────────────────────────────────────
 # Runs sh -n on every .sh script deployed into /opt/ so that:
 #   (a) any syntax error in a changed script is caught here, and

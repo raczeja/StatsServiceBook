@@ -1166,7 +1166,7 @@ window.archiveStock = function(id){
   part.archivedDate=document.getElementById("archive-stock-date").value||todayStr();
   part.archivedMileage=+document.getElementById("archive-stock-mileage").value||0;
   part.archiveNote=document.getElementById("archive-stock-note").value;
-  delete part.currentBikeInstalledDate;delete part.currentBikeInstalledMileage;
+  part.currentBikeInstalledDate=part.archivedDate;part.currentBikeInstalledMileage=part.archivedMileage;
   if(!Array.isArray(part.archiveHistory))part.archiveHistory=[];
   part.archiveHistory.push({bikeId:bike.id,bikeName:bike.name,date:part.archivedDate,mileage:part.archivedMileage,note:part.archiveNote||""});
   bike.parts.push(part);

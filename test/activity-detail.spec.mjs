@@ -177,10 +177,10 @@ test.describe("activity-detail", () => {
   });
 
   test("svg-elev-axis-starts-at-0m", async () => {
-    const text = await page.$eval("#svg-elev", (el) => el.textContent);
+    const text = await page.$eval("#svg-elev-yaxis", (el) => el.textContent);
     expect(
-      /0m/.test(text),
-      `expected #svg-elev x-axis to include a 0m label, got: ${text.slice(0, 200)}`,
+      /0 m/.test(text),
+      `expected #svg-elev-yaxis to include a "0 m" label, got: ${text.slice(0, 200)}`,
     ).toBeTruthy();
   });
 
