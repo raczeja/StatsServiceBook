@@ -731,7 +731,7 @@ function loadAll(){
       }
       progressDone();
       render();
-      if (seeded) persist();   // store the freshly seeded bikes
+      if (seeded) persist();   // store seeded bikes and updated dictionaries
     })
     .catch(function(e){
       progressDone();
@@ -1166,8 +1166,9 @@ window.archiveStock = function(id){
   part.archivedDate=document.getElementById("archive-stock-date").value||todayStr();
   part.archivedMileage=+document.getElementById("archive-stock-mileage").value||0;
   part.archiveNote=document.getElementById("archive-stock-note").value;
-  part.currentBikeInstalledDate=part.archivedDate;
-  part.currentBikeInstalledMileage=part.archivedMileage;
+  delete part.currentBikeInstalledDate;delete part.currentBikeInstalledMileage;
+  if(!Array.isArray(part.archiveHistory))part.archiveHistory=[];
+  part.archiveHistory.push({bikeId:bike.id,bikeName:bike.name,date:part.archivedDate,mileage:part.archivedMileage,note:part.archiveNote||""});
   bike.parts.push(part);
   item.quantity--;
   MODEL.inventory=MODEL.inventory.filter(function(x){return +x.quantity>0;});
@@ -1183,7 +1184,7 @@ window.moveArchivedToInventory = function(id){
   var fromDate=partCurrentUsageFrom(part);
   var fromMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
   if(!Array.isArray(part.usageHistory))part.usageHistory=[];
-  if(fromDate<=date){
+  if(fromDate && fromDate < date){
     part.usageHistory.push({bikeId:bike.id,bikeName:bike.name,gearId:bike.gearId||"",isDefault:!!bike.isDefault,
       fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:mileage,
       distance:Math.max(0,mileage-fromMileage),time:rideTimeBetween(bike,fromDate,date)});
@@ -1211,7 +1212,7 @@ window.saveMoveToInventory = function(id){
   var fromMileage=part.currentBikeInstalledMileage!=null?+part.currentBikeInstalledMileage:+part.installedMileage||0;
   var toMileage=bikeMileage(bike,date);
   if(!part.usageHistory)part.usageHistory=[];
-  if(fromDate<=date)part.usageHistory.push({bikeId:bike.id,bikeName:bike.name,gearId:bike.gearId||"",isDefault:!!bike.isDefault,
+  if(fromDate && fromDate < date)part.usageHistory.push({bikeId:bike.id,bikeName:bike.name,gearId:bike.gearId||"",isDefault:!!bike.isDefault,
     fromDate:fromDate,toDate:date,fromMileage:fromMileage,toMileage:toMileage,
     distance:Math.max(0,toMileage-fromMileage),time:rideTimeBetween(bike,fromDate,date)});
   part.quantity=1;
