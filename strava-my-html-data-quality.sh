@@ -192,6 +192,7 @@ var SYNC_LIVE_LOG_URLS={strava:'strava-sync-live.log',healthsync:'healthsync-syn
 var SYNC_RUNNING_URLS={strava:'strava-sync-running',healthsync:'healthsync-sync-running',leaderboard:'../leaderboard-sync-running'};
 var SRC_NAMES={strava:'Strava',healthsync:'HealthSync',leaderboard:'Club leaderboard'};
 var _knownAttempt={strava:0,healthsync:0,leaderboard:0};
+var _knownRunId={strava:'',healthsync:'',leaderboard:''};
 function _renderLogEl(el,lines,label){
   var previous=el.querySelector('pre.run-log');
   var shouldFollow=!previous||previous.scrollHeight-previous.clientHeight-previous.scrollTop<=24;
@@ -221,18 +222,33 @@ function updateLogSectionRaw(srcKey,text){
   if(!lines.length)return;
   _renderLogEl(el,lines,'Live log');
 }
-function startLivePolling(src,btn,prevAttempt){
-  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],deadline=Date.now()+300000;
+function startLivePolling(src,btn,prevRunId,prevAttempt){
+  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],runningUrl=SYNC_RUNNING_URLS[src],deadline=Date.now()+300000;
+  var seenRunning=false;
   var logEl=document.getElementById('log-section-'+src);
   if(logEl){var det=logEl.querySelector('details');if(det)det.open=true;}
   var timer=setInterval(function(){
-    if(Date.now()>deadline){clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;return;}
+    if(Date.now()>deadline){
+      clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;
+      fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+      .then(function(st){if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=st.runId?String(st.runId):'';refreshSourceCard(src,SRC_NAMES[src],st);}});
+      return;
+    }
     if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
-    if(url){fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-    .then(function(st){
-      if(!st||!(Number(st.lastAttempt)>prevAttempt))return;
+    if(url){Promise.all([
+      fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+      runningUrl?fetch(runningUrl,{cache:'no-store'}).then(function(r){return {active:r.ok,missing:r.status===404};}).catch(function(){return null;}):Promise.resolve(null)
+    ]).then(function(values){
+      var st=values[0],run=values[1];
+      if(run&&run.active)seenRunning=true;
+      var runId=st&&st.runId?String(st.runId):'';
+      var runIdChanged=runId&&runId!==prevRunId;
+      var attemptChanged=st&&Number(st.lastAttempt)>prevAttempt;
+      var completed=runIdChanged||attemptChanged||(seenRunning&&run&&run.missing);
+      if(!completed)return;
+      if(run&&run.active)return;
       clearInterval(timer);
-      _knownAttempt[src]=Number(st.lastAttempt);
+      if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=runId;}
       btn.textContent='✓ Done';
       setTimeout(function(){
         fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
@@ -244,17 +260,19 @@ function startLivePolling(src,btn,prevAttempt){
 function triggerSync(src,btn){
   btn.disabled=true;btn.textContent='↻ Running…';
   var url=SYNC_STATUS_URLS[src];
+  var prevRunId='';
   var prevAttempt=0;
   return (url?fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}):Promise.resolve(null))
   .then(function(st){
     prevAttempt=st?Number(st.lastAttempt)||0:0;
+    prevRunId=st&&st.runId?String(st.runId):'';
     return fetch('/cgi-bin/trigger-sync',{method:'POST',body:'source='+src,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
   })
   .then(function(r){return r.json();})
   .then(function(j){
     if(!j.ok){btn.textContent='Error: '+(j.error||'?');btn.disabled=false;return false;}
     if(!url){btn.textContent='✓ Triggered';return true;}
-    startLivePolling(src,btn,prevAttempt);
+    startLivePolling(src,btn,prevRunId,prevAttempt);
     return true;
   })
   .catch(function(){btn.textContent='Failed';btn.disabled=false;return false;});
@@ -465,7 +483,10 @@ function render(data,statuses,lbData){
   });
   // Seed known lastAttempt for auto-detect polling
   ['strava','healthsync','leaderboard'].forEach(function(src){
-    if(statuses[src])_knownAttempt[src]=Number(statuses[src].lastAttempt)||0;
+    if(statuses[src]){
+      _knownAttempt[src]=Number(statuses[src].lastAttempt)||0;
+      _knownRunId[src]=statuses[src].runId?String(statuses[src].runId):'';
+    }
   });
 }
 Promise.all([
@@ -485,11 +506,22 @@ setInterval(function(){
     var btn=document.querySelector('.sync-btn[data-src="'+src+'"]');
     if(!btn||btn.disabled)return;
     fetch(SYNC_RUNNING_URLS[src],{cache:'no-store'})
-    .then(function(r){return r.ok?r.text():null;})
-    .then(function(t){
-      if(!t)return;
-      btn.textContent='↻ Running…';btn.disabled=true;
-      startLivePolling(src,btn,_knownAttempt[src]||0);
+    .then(function(r){
+      if(r.ok){
+        btn.textContent='↻ Running…';btn.disabled=true;
+        startLivePolling(src,btn,_knownRunId[src]||'',_knownAttempt[src]||0);
+        return null;
+      }
+      return fetch(SYNC_STATUS_URLS[src],{cache:'no-store'}).then(function(statusResponse){return statusResponse.ok?statusResponse.json():null;});
+    }).then(function(status){
+      if(!status||btn.disabled)return;
+      var attempt=Number(status.lastAttempt)||0;
+      var runId=status.runId?String(status.runId):'';
+      if((runId&&runId!==(_knownRunId[src]||''))||attempt>(_knownAttempt[src]||0)){
+        _knownAttempt[src]=attempt;
+        _knownRunId[src]=runId;
+        refreshSourceCard(src,SRC_NAMES[src],status);
+      }
     }).catch(function(){});
   });
 },5000);

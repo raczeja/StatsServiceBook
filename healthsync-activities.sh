@@ -74,6 +74,7 @@ printf '%s\n' "$$" > "$LOCKFILE/pid"
 > "$_LIVE_LOG" 2>/dev/null || true
 _LIVE_LOG_ACTIVE=1
 _RUNNING_FLAG="$WEB_DIR/healthsync-sync-running"
+_SYNC_RUN_ID="$(date +%s)-$$"
 printf '1' > "$_RUNNING_FLAG" 2>/dev/null || true
 _hs_sync_error=""
 write_sync_status() {
@@ -91,11 +92,11 @@ write_sync_status() {
         [ -n "$_hs_sync_error" ] || _hs_sync_error="Sync exited with status $_rc"
     fi
     _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
-    jq -n --arg mode "$_mode" --argjson now "$_now" \
+    jq -n --arg mode "$_mode" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
         --argjson ok "$_ok" --argjson lastSuccess "$_last_success" --arg error "$_hs_sync_error" \
         --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
         --argjson logs "$_log_json" \
-        '{source:"HealthSync",mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),log:$logs}' > "$_status_tmp"
+        '{source:"HealthSync",runId:$runId,mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),log:$logs}' > "$_status_tmp"
     mv "$_status_tmp" "$WEB_DIR/healthsync-sync-status.json"
     printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
     rm -rf "$TMP" "$LOCKFILE"

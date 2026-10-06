@@ -402,6 +402,51 @@ test.describe("data-quality", () => {
     await expect(strava.locator(".badge")).toContainText("OK");
   });
 
+  test("sync-all-refreshes-cards-when-attempt-timestamps-do-not-change", async ({
+    page,
+  }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const sources = ["strava", "healthsync", "leaderboard"];
+    const triggered = Object.fromEntries(sources.map((src) => [src, false]));
+    for (const src of sources) {
+      await page.route(`**/${src}-sync-status.json`, (route) => {
+        const isComplete = triggered[src];
+        return route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            ok: true,
+            runId: isComplete ? `${src}-run-2` : `${src}-run-1`,
+            lastAttempt: now,
+            lastSuccess: now,
+            log: [isComplete ? `${src} final status log` : "previous status log"],
+          }),
+        });
+      });
+      await page.route(`**/${src}-sync-running`, (route) =>
+        route.fulfill({ status: 404, body: "" }),
+      );
+    }
+    await page.route("**/cgi-bin/trigger-sync", async (route) => {
+      const src = new URLSearchParams(route.request().postData()).get("source");
+      triggered[src] = true;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    await page.locator("#sync-all-btn").click();
+    await expect.poll(() => Object.values(triggered).every(Boolean)).toBeTruthy();
+    for (const src of sources) {
+      const card = page.locator(`#sources .source:has([data-src="${src}"])`);
+      await expect(card.locator("pre.run-log")).toContainText(
+        `${src} final status log`,
+        { timeout: 12000 },
+      );
+    }
+  });
+
   test("sync-trigger-reports-server-error-and-recovers-button", async ({
     page,
   }) => {
