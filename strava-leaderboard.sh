@@ -85,6 +85,7 @@ printf '%s\n' "$$" > "$LOCKFILE/pid"
 > "$_LIVE_LOG" 2>/dev/null || true
 _LIVE_LOG_ACTIVE=1
 _RUNNING_FLAG="$WEB_DIR/leaderboard-sync-running"
+_SYNC_RUN_ID="$(date +%s)-$$"
 printf '1' > "$_RUNNING_FLAG" 2>/dev/null || true
 write_sync_status() {
   _rc=$?
@@ -92,16 +93,16 @@ write_sync_status() {
   _status_tmp="$WEB_DIR/.leaderboard-sync-status.$$"
   _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
   if [ "$_rc" -eq 0 ]; then
-    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+    jq -n --arg source "$STRAVA_SOURCE" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
       --argjson logs "$_log_json" \
-      '{source:$source,ok:true,lastAttempt:$now,lastSuccess:$now,log:$logs}' > "$_status_tmp"
+      '{source:$source,runId:$runId,ok:true,lastAttempt:$now,lastSuccess:$now,log:$logs}' > "$_status_tmp"
   else
     _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/leaderboard-sync-status.json" 2>/dev/null || true)"
     case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
-    jq -n --arg source "$STRAVA_SOURCE" --argjson now "$_now" \
+    jq -n --arg source "$STRAVA_SOURCE" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
       --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
       --argjson logs "$_log_json" \
-      '{source:$source,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
+      '{source:$source,runId:$runId,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/leaderboard-sync-status.json"
   printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
