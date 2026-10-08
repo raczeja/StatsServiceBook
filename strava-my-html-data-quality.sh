@@ -223,39 +223,41 @@ function updateLogSectionRaw(srcKey,text){
   _renderLogEl(el,lines,'Live log');
 }
 function startLivePolling(src,btn,prevRunId,prevAttempt){
-  var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],runningUrl=SYNC_RUNNING_URLS[src],deadline=Date.now()+300000;
-  var seenRunning=false;
-  var logEl=document.getElementById('log-section-'+src);
-  if(logEl){var det=logEl.querySelector('details');if(det)det.open=true;}
-  var timer=setInterval(function(){
-    if(Date.now()>deadline){
-      clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;
-      fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-      .then(function(st){if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=st.runId?String(st.runId):'';refreshSourceCard(src,SRC_NAMES[src],st);}});
-      return;
-    }
-    if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
-    if(url){Promise.all([
-      fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-      runningUrl?fetch(runningUrl,{cache:'no-store'}).then(function(r){return {active:r.ok,missing:r.status===404};}).catch(function(){return null;}):Promise.resolve(null)
-    ]).then(function(values){
-      var st=values[0],run=values[1];
-      if(run&&run.active)seenRunning=true;
-      var runId=st&&st.runId?String(st.runId):'';
-      var runIdChanged=runId&&runId!==prevRunId;
-      var attemptChanged=st&&Number(st.lastAttempt)>prevAttempt;
-      var completed=runIdChanged||attemptChanged||(seenRunning&&run&&run.missing);
-      if(!completed)return;
-      if(run&&run.active)return;
-      clearInterval(timer);
-      if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=runId;}
-      btn.textContent='✓ Done';
-      setTimeout(function(){
+  return new Promise(function(resolve){
+    var url=SYNC_STATUS_URLS[src],liveUrl=SYNC_LIVE_LOG_URLS[src],runningUrl=SYNC_RUNNING_URLS[src],deadline=Date.now()+300000;
+    var seenRunning=false;
+    var logEl=document.getElementById('log-section-'+src);
+    if(logEl){var det=logEl.querySelector('details');if(det)det.open=true;logEl.scrollIntoView({behavior:'smooth',block:'nearest'});}
+    var timer=setInterval(function(){
+      if(Date.now()>deadline){
+        clearInterval(timer);btn.textContent='↻ Sync now';btn.disabled=false;
         fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-        .then(function(freshSt){refreshSourceCard(src,SRC_NAMES[src],freshSt||st);});
-      },3000);
-    });}
-  },2000);
+        .then(function(st){if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=st.runId?String(st.runId):'';refreshSourceCard(src,SRC_NAMES[src],st);}resolve(false);});
+        return;
+      }
+      if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
+      if(url){Promise.all([
+        fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+        runningUrl?fetch(runningUrl,{cache:'no-store'}).then(function(r){return {active:r.ok,missing:r.status===404};}).catch(function(){return null;}):Promise.resolve(null)
+      ]).then(function(values){
+        var st=values[0],run=values[1];
+        if(run&&run.active)seenRunning=true;
+        var runId=st&&st.runId?String(st.runId):'';
+        var runIdChanged=runId&&runId!==prevRunId;
+        var attemptChanged=st&&Number(st.lastAttempt)>prevAttempt;
+        var completed=runIdChanged||attemptChanged||(seenRunning&&run&&run.missing);
+        if(!completed)return;
+        if(run&&run.active)return;
+        clearInterval(timer);
+        if(st){_knownAttempt[src]=Number(st.lastAttempt)||0;_knownRunId[src]=runId;}
+        btn.textContent='✓ Done';btn.disabled=false;
+        setTimeout(function(){
+          fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+          .then(function(freshSt){refreshSourceCard(src,SRC_NAMES[src],freshSt||st);resolve(true);});
+        },3000);
+      });}
+    },2000);
+  });
 }
 function triggerSync(src,btn){
   btn.disabled=true;btn.textContent='↻ Running…';
@@ -272,19 +274,19 @@ function triggerSync(src,btn){
   .then(function(j){
     if(!j.ok){btn.textContent='Error: '+(j.error||'?');btn.disabled=false;return false;}
     if(!url){btn.textContent='✓ Triggered';return true;}
-    startLivePolling(src,btn,prevRunId,prevAttempt);
-    return true;
+    return startLivePolling(src,btn,prevRunId,prevAttempt);
   })
   .catch(function(){btn.textContent='Failed';btn.disabled=false;return false;});
 }
 async function syncAll(){
   var allBtn=document.getElementById('sync-all-btn');
-  if(allBtn)allBtn.disabled=true;
+  if(allBtn){allBtn.disabled=true;allBtn.textContent='↻ Running…';}
   var buttons=Array.from(document.querySelectorAll('.sync-btn[data-src]')).filter(function(b){return !b.disabled;});
-  for(var i=0;i<buttons.length;i++){
-    await triggerSync(buttons[i].dataset.src,buttons[i]);
-  }
-  if(allBtn)allBtn.disabled=false;
+  var sec=document.getElementById('sources');
+  if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+  await Promise.all(buttons.map(function(b){return triggerSync(b.dataset.src,b);}));
+  if(allBtn){allBtn.textContent='✓ All done';allBtn.disabled=false;}
+  setTimeout(function(){if(allBtn&&allBtn.textContent==='✓ All done')allBtn.textContent='↻ Sync all';},3000);
 }
 function cookieDaysLeft(meta){if(!meta||!meta.cookieRefreshNeededBy)return null;return Math.ceil((new Date(meta.cookieRefreshNeededBy)-new Date())/86400000);}
 function cookieStatusCard(title,meta){

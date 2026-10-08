@@ -61,6 +61,8 @@ mkdir -p "$WEB_DIR" "$SNAPSHOT_DIR"
 if [ "$WEB_DIR" != "/www/strava" ]; then
   mkdir -p /www/strava
   ln -sfn "$WEB_DIR/leaderboard-sync-status.json" /www/strava/leaderboard-sync-status.json
+  ln -sfn "$WEB_DIR/leaderboard-sync-live.log"    /www/strava/leaderboard-sync-live.log
+  ln -sfn "$WEB_DIR/leaderboard-sync-running"     /www/strava/leaderboard-sync-running
 fi
 
 TOKEN_STATE="$STATE_DIR/token.json"

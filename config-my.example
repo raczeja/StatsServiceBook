@@ -92,6 +92,12 @@ STRAVA_MY_STATE_DIR="/mnt/sda5/strava-my-activities"
 STRAVA_MY_BIKE_DATA="/mnt/sda5/strava-my-activities/bike-service.json"
 STRAVA_MY_CGI_DIR="/www/cgi-bin"
 
+# Annual ride-goal (km target per year). If you run BOTH strava-my-activities
+# and healthsync-activities, set RIDE_GOALS_DATA in BOTH configs to the same
+# path — the CGI is regenerated on every script run and the last writer wins,
+# so both scripts must agree on where the data lives.
+#RIDE_GOALS_DATA="/mnt/sda5/strava-my-activities/ride-goals.json"
+
 # Currency code shown next to costs in the bike-service tracker (default: PLN).
 #STRAVA_MY_CURRENCY="PLN"
 
