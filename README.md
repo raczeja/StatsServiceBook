@@ -80,17 +80,15 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 
 **Bike service tracker**
 
-- Parts with multiple named service types, each with independent km / riding-hours / calendar-time thresholds
-- Part names and vendors have built-in suggestions plus persistent custom dictionaries; entries remain free-form, and each part can record its vendor and model
-- **Service work queue** — one urgency-sorted list across all bikes; shows overdue services and items at ≥ 80% of their configured interval, and appears only while at least one service is overdue
-- Mileage auto-computed from `activities.json` rides; gear mapping per bike; calendar picker for any date
-- Replace flow: old part moves to Archived with final mileage + calendar duration; successor fitted on same day
-- Move active parts between bikes while preserving service history, service types, costs, and accumulated distance/riding time; hidden when only one bike exists
-- Shared parts inventory across all bikes: track spare-part quantities, add new or already-used parts with prior distance, service records, and configurable service alerts, move active or archived parts into stock and stock back to a bike's archive without losing their history or alert settings, and install any stock on any bike; inventory-to-archive moves one item at a time, alert thresholds start from the installation date/mileage on the destination bike, and replacement from stock automatically decrements quantity
-- **Bike comparison** — when 2+ bikes exist, a "Bike Statistics" section compares all bikes side by side (distance, ride time, elevation, avg ride, services, current parts)
-- **Cost tracking** — optional purchase price per part and cost per service; total and per-year summary shown in the bike header; currency set via `STRAVA_MY_CURRENCY` in the config (default `PLN`)
-- **Email alerts** — per-part checkbox in the Add/Edit part and Add stock modals; set `STRAVA_MY_BIKE_EMAIL` in the config to activate sending; warning at ≥ 90%, alert at ≥ 100% of any threshold; each tier fires once, alert re-sends weekly while overdue
-- Saves via a small CGI — daily cron never touches your data
+- **Bike setup and mileage** — add any number of bikes, assign each to a Strava/HealthSync gear, and optionally enter an odometer starting value. Mileage, riding time, and elevation are calculated from matching rides in `activities.json`; select a date to review historical mileage. Parts can be dragged into a custom order.
+- **Part records** — track free-form part names, vendor, model, notes, purchase cost, install date, and install mileage. Name and vendor suggestions are available, and custom entries are remembered.
+- **Service schedules and history** — give each part multiple named service types, each with its own kilometre, riding-hour, and/or calendar-time interval. Log dated service work with mileage, notes, and cost. The page shows usage since installation and since the last service, progress toward each interval, and expandable ride/service history.
+- **Service work queue** — one urgency-sorted list across bikes; items appear at ≥ 80% of a service interval. The queue is shown when at least one item is overdue (≥ 100%) and includes upcoming work on other parts.
+- **Part lifecycle** — log a service, replace a part (the old part is archived with its final mileage and lifespan while its successor is fitted), or move an active part to another bike. Moving preserves accumulated usage, service types, records, and costs.
+- **Shared parts inventory** — keep quantities of new or previously used spares available to all bikes. Used stock can retain prior distance, service records, and alert settings. Move active or archived parts into stock, install stock on any bike, or move a used spare to a bike's archive; quantities decrease when a spare is installed or used as a replacement. A part's next interval starts from its installation on the destination bike.
+- **Bike comparison** — with two or more bikes, the Bike Statistics table compares distance, ride time, elevation, average ride distance, service count, and current part count.
+- **Costs and email alerts** — part purchase prices and individual service costs feed the bike's total and per-year cost summary. Set `STRAVA_MY_CURRENCY` to choose the currency (default `PLN`). Enable `STRAVA_MY_BIKE_EMAIL` and opt parts into alerts to receive a warning at ≥ 90% and an alert at ≥ 100% of any configured interval; each tier sends once, with weekly reminders for parts that remain overdue.
+- **Persistent, LAN-only writes** — changes are saved through `/cgi-bin/bike-service`, which validates the JSON and atomically replaces the persistent store. This endpoint has no authentication and is intended for a trusted private LAN; the daily cron run does not overwrite bike-service data.
 
 **Data management**
 
@@ -133,6 +131,16 @@ Feature guides: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Feat
 | :---: | :---: |
 | ![Bike service queue](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service-queue.png) | ![Bike service queue dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-service-queue-dark.png) |
 
+| Shared parts inventory | Archived parts and service history |
+| :---: | :---: |
+| ![Shared parts inventory](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-shared-inventory.png) | ![Archived parts and service history](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-archived-history.png) |
+
+| Bike comparison | Add a part with service intervals |
+| :---: | :---: |
+| ![Bike comparison statistics](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-stats-multi.png) | ![Add part form](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/bike-modal-add-part.png) |
+
+The bike tracker also has forms for logging service, replacing or moving a part, and adding stock. See the [bike-service feature guide](https://github.com/raczeja/StatsServiceBook/wiki/Features-Bike-Service) for details.
+
 |                                             Activity heatmap                                             |
 | :------------------------------------------------------------------------------------------------------: |
 | ![Heatmap](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/heatmap.png) |
@@ -151,7 +159,7 @@ Feature guides: [Features](https://github.com/raczeja/StatsServiceBook/wiki/Feat
 | :--------------------------------------------------------------------------------------------------------------------------------: |
 | ![Club leaderboard dark](https://raw.githubusercontent.com/raczeja/StatsServiceBook/main/test/screenshots/club-dashboard-dark.png) |
 
-> Screenshots generated from sample data via `node test/take-screenshots.mjs` (or `powershell -File test/make-screenshots.ps1` on Windows).
+> Screenshots are generated from sample data with `powershell -File test/make-screenshots.ps1` (Podman required). To capture them manually, run `node test/screenshot.mjs <output-dir>` against a running test container.
 
 ## Quick start
 
