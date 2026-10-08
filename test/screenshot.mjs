@@ -230,6 +230,78 @@ try {
   await page.evaluate(() => closeModal());
   await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
+  // ── Bike inventory and archived service-history showcases ───────────────────
+  console.log("→ bike inventory and archive screenshots");
+  await page.evaluate(() => {
+    const bike = MODEL.bikes.find((item) => item.name === "Road Bike");
+    if (!bike) throw new Error("Road Bike sample is required for bike screenshots");
+    bike.baseMileage = 4620;
+    MODEL.inventory = MODEL.inventory.filter((item) => item.id !== "screenshot-stock-chain");
+    MODEL.inventory.push({
+      id: "screenshot-stock-chain",
+      name: "Chain",
+      vendor: "Shimano",
+      model: "CN-HG601",
+      quantity: 2,
+      cost: 89.99,
+      note: "11-speed spare, ready to fit",
+      usageHistory: [{
+        bikeId: bike.id,
+        bikeName: bike.name,
+        gearId: bike.gearId,
+        fromDate: "2026-04-01",
+        toDate: "2026-05-12",
+        fromMileage: 0,
+        toMileage: 850,
+        distance: 850,
+        time: 72000,
+      }],
+      serviceTypes: [{
+        id: "screenshot-stock-chain-clean",
+        name: "Clean & lube",
+        alertKm: 500,
+        alertH: null,
+        services: [{ id: "screenshot-stock-service", date: "2026-05-12", mileage: 850, note: "Cleaned and waxed" }],
+      }],
+      archiveHistory: [{ bikeId: bike.id, bikeName: bike.name, date: "2026-05-12", mileage: 850 }],
+    });
+
+    bike.parts = bike.parts.filter((part) => part.status !== "archived" && part.id !== "screenshot-archived-chain");
+    bike.parts.push({
+      id: "screenshot-archived-chain",
+      name: "Previous chain",
+      vendor: "Shimano",
+      model: "CN-HG601",
+      note: "11-speed chain",
+      installedDate: "2025-01-15",
+      installedMileage: 1200,
+      archivedDate: "2026-05-12",
+      archivedMileage: 4620,
+      archiveNote: "Replaced at wear limit",
+      status: "archived",
+      cost: 49.9,
+      serviceTypes: [{
+        id: "screenshot-archived-chain-clean",
+        name: "Clean & lube",
+        alertKm: 500,
+        alertH: null,
+        services: [
+          { id: "screenshot-archived-service-1", date: "2025-04-10", mileage: 1850, note: "Cleaned and waxed", cost: 5.5 },
+          { id: "screenshot-archived-service-2", date: "2025-08-21", mileage: 3100, note: "Checked wear, re-waxed", cost: 5.5 },
+        ],
+      }],
+    });
+    render();
+  });
+  const inventory = page.locator('.sec[data-sid="inventory"]');
+  await inventory.waitFor({ state: "visible", timeout: 5000 });
+  await inventory.getByText("11-speed spare, ready to fit").waitFor({ state: "visible", timeout: 3000 });
+  await inventory.screenshot({ path: path.join(outDir, "bike-shared-inventory.png") });
+  const archived = page.locator('.sec[data-sid="archived"]');
+  await archived.waitFor({ state: "visible", timeout: 5000 });
+  await archived.getByText("Replaced at wear limit").waitFor({ state: "visible", timeout: 3000 });
+  await archived.screenshot({ path: path.join(outDir, "bike-archived-history.png") });
+
   // ── Multi-bike overview screenshots ──────────────────────────────────────────
   async function shotMultiBike(darkMode, shotName) {
     await page.evaluate((isDark) => {
