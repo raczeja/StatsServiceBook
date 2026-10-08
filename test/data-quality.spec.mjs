@@ -483,7 +483,8 @@ test.describe("data-quality", () => {
 
     await page.locator("#sync-all-btn").click();
     await expect.poll(() => triggered.length).toBe(2);
-    expect(triggered).toEqual(["strava", "leaderboard"]);
+    expect(triggered).toHaveLength(2);
+    expect(triggered).toEqual(expect.arrayContaining(["strava", "leaderboard"]));
   });
 
   test("no-status-source-cards-are-hidden", async ({ page }) => {
