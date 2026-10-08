@@ -68,6 +68,10 @@ DRIVE_FOLDER_ID="YOUR_DRIVE_FOLDER_ID"
 #HEALTHSYNC_BIKE_DATA="/usr/lib/healthsync/bike-service.json"
 #HEALTHSYNC_BIKE_ASSIGN="/usr/lib/healthsync/bike-assignments.json"
 #HEALTHSYNC_CGI_DIR="/www/cgi-bin"
+# Annual ride-goal data file. If you also run strava-my-activities, set
+# RIDE_GOALS_DATA in BOTH configs to the same path so neither script clobbers
+# the other's CGI pointer. Example (pick any persistent path):
+#RIDE_GOALS_DATA="/mnt/sda5/healthsync/ride-goals.json"
 
 # --- Default bike name -------------------------------------------------------
 # Ride-type activities are attributed to this bike until manually reassigned
