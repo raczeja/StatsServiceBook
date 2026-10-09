@@ -198,7 +198,7 @@ function normalizeSearch(text){
   return String(text == null ? "" : text).trim().toLowerCase();
 }
 
-function fmtKm(m){ var s=(m/1000).toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g," "); }
+function fmtKm(m){ var k=Math.round((m||0)/100)/10; var s=k>=1000?Math.round(k).toString():k.toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g," "); }
 function fmtTime(s){
   var d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
   if (d > 0) return d + "d " + h + "h " + m + "m";

@@ -235,14 +235,17 @@ function esc(s){
 }
 function p2(n){ return n<10?"0"+n:""+n; }
 
-// meters → km string with 1 decimal + space thousands separator
+// meters → km; no decimal for ≥ 1000 km, 1 decimal otherwise
 function fmtKm(m){
   var k = Math.round((m||0)/100)/10;
-  return k.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g," ");
+  var s = k>=1000 ? Math.round(k).toString() : k.toFixed(1);
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g," ");
 }
-// km (already float) → same string format
+// km (already float) → same format
 function fmtKmD(km){
-  return (Math.round((km||0)*10)/10).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g," ");
+  var k = Math.round((km||0)*10)/10;
+  var s = k>=1000 ? Math.round(k).toString() : k.toFixed(1);
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g," ");
 }
 function fmtInt(n){ return Math.round(n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g," "); }
 function fmtH(s){
@@ -566,9 +569,10 @@ window._gf=function(y,m,s){
 // ---- SVG bar chart ----------------------------------------------------------
 // bars: [{label, val (km), tip (plain text), hi (bool)}]
 // viewW/viewH must match the svg's viewBox
-function drawBars(svgId, bars, viewW, viewH){
+function drawBars(svgId, bars, viewW, viewH, barFmt){
   var svg = document.getElementById(svgId);
   if(!svg) return;
+  var _barFmt = barFmt || fmtKmD;
   var n=bars.length, PAD=26, GAP=3;
   var bw = Math.floor((viewW-PAD*2-(n-1)*GAP)/n);
   var max=0; bars.forEach(function(b){if((b.val||0)>max) max=b.val;}); if(!max) max=1;
@@ -585,7 +589,7 @@ function drawBars(svgId, bars, viewW, viewH){
            ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+esc(JSON.stringify(tipTxt))+')"'+
            ' ontouchend="setTimeout(hideTip,3000)" style="cursor:default"/>'+
       (bh>14?'<text x="'+(x+bw/2)+'" y="'+(y-2)+'"'+
-             ' text-anchor="middle" font-size="8.5" fill="var(--text-6)">'+fmtKmD(b.val||0)+'</text>':'')+
+             ' text-anchor="middle" font-size="8.5" fill="var(--text-6)">'+_barFmt(b.val||0)+'</text>':'')+
       '<text x="'+(x+bw/2)+'" y="'+(viewH-3)+'"'+
             ' text-anchor="middle" font-size="9" fill="var(--text-4)">'+esc(b.label)+'</text>';
   });
