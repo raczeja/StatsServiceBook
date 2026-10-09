@@ -940,8 +940,8 @@ test.describe("data-consistency", () => {
     const formatted = await page.evaluate(() => fmtKm(1234567));
     expect(
       formatted,
-      "fmtKm(1234567) should use space as thousand separator",
-    ).toBe("1 234.6");
+      "fmtKm(1234567) ≥ 1000 km should round to integer with space separator",
+    ).toBe("1 235");
   });
 });
 
