@@ -250,9 +250,10 @@ function partMetaLine(part){
   if(part.model) details.push(part.model);
   return details.length ? '<div class="muted">'+esc(details.join(" · "))+'</div>' : "";
 }
-// km with a space as thousands separator and one decimal: 1234.5 -> "1 234.5".
+// km with a space as thousands separator; no decimal for ≥ 1000 km.
 function fmtKm(km){
-  var s = (Math.round((km||0)*10)/10).toFixed(1);
+  var k = Math.round((km||0)*10)/10;
+  var s = k>=1000 ? Math.round(k).toString() : k.toFixed(1);
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 function fmtTime(s){

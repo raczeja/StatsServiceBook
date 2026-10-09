@@ -113,7 +113,7 @@ var board = document.getElementById("board");
 var footerLinks = document.getElementById("footer-links");
 var DATA = null;
 
-function fmtKm(m){ var s=(m/1000).toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+function fmtKm(m){ var k=Math.round((m||0)/100)/10; var s=k>=1000?Math.round(k).toString():k.toFixed(1); return s.replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
 function fmtNum(n){ return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
 function fmtTime(s){ return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m"; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){

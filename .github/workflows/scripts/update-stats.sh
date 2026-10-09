@@ -37,7 +37,7 @@ run_url         = "{}/{}/actions/runs/{}".format(
 cutoff = datetime.now(timezone.utc) - timedelta(days=30)
 
 
-def walk_suites(suite, parents, failed_tests, flaky_tests):
+def walk_suites(suite, parents, failed_tests, flaky_tests, slow_tests):
     suite_title = suite.get("title", "")
     cur = parents + ([suite_title] if suite_title else [])
     for spec in suite.get("specs", []):
@@ -46,6 +46,9 @@ def walk_suites(suite, parents, failed_tests, flaky_tests):
         file_path  = spec.get("file", "")
         for test in spec.get("tests", []):
             status = test.get("status", "")
+            best_dur = max((r.get("duration", 0) for r in test.get("results", [])), default=0)
+            if best_dur > 0:
+                slow_tests.append({"title": full_title, "duration_ms": best_dur})
             if status == "unexpected":
                 errors = []
                 for result in test.get("results", []):
@@ -65,15 +68,16 @@ def walk_suites(suite, parents, failed_tests, flaky_tests):
                     "attempts": len(test.get("results", [])),
                 })
     for sub in suite.get("suites", []):
-        walk_suites(sub, cur, failed_tests, flaky_tests)
+        walk_suites(sub, cur, failed_tests, flaky_tests, slow_tests)
 
 
 all_json_files = sorted(glob.glob(os.path.join(results_dir, "*.json")))
 print(f"[stats] Found {len(all_json_files)} result file(s) in {results_dir!r}")
 
-agg = {"expected": 0, "unexpected": 0, "flaky": 0, "skipped": 0}
+agg = {"expected": 0, "unexpected": 0, "flaky": 0, "skipped": 0, "duration_ms": 0}
 failed_tests = []
 flaky_tests  = []
+slow_tests   = []
 
 for json_file in all_json_files:
     try:
@@ -83,10 +87,11 @@ for json_file in all_json_files:
         print(f"[stats] Skipping {json_file}: {e}", file=sys.stderr)
         continue
     raw = data.get("stats", {})
-    for k in agg:
+    for k in ("expected", "unexpected", "flaky", "skipped"):
         agg[k] += raw.get(k, 0)
+    agg["duration_ms"] += raw.get("duration", 0)
     for suite in data.get("suites", []):
-        walk_suites(suite, [], failed_tests, flaky_tests)
+        walk_suites(suite, [], failed_tests, flaky_tests, slow_tests)
 
 # ── Shell tests (JUnit XML) ─────────────────────────────────────────────────
 
@@ -134,6 +139,8 @@ run_entry = {
     "failed":              agg["unexpected"],
     "skipped":             agg["skipped"],
     "flaky_count":         agg["flaky"],
+    "duration_ms":         agg["duration_ms"],
+    "slowest_tests":       sorted(slow_tests, key=lambda x: -x["duration_ms"])[:10],
     "failed_tests":        failed_tests,
     "flaky_tests":         flaky_tests,
     "shell_passed":        shell_passed,
@@ -250,6 +257,24 @@ avg_passed     = int(round(total_passed / max(1, len(eligible))))
 avg_total      = int(round(total_executed / max(1, len(eligible))))
 pass_rate      = round(100 * (1 - total_failed / max(1, sum(r.get("total", 0) for r in eligible))), 1)
 
+durations      = [r.get("duration_ms", 0) for r in eligible if r.get("duration_ms", 0) > 0]
+avg_dur_ms     = int(round(sum(durations) / max(1, len(durations)))) if durations else 0
+max_dur_ms     = max(durations) if durations else 0
+min_dur_ms     = min(durations) if durations else 0
+
+def fmt_dur(ms):
+    if not ms: return "—"
+    s = ms / 1000
+    if s < 60: return f"{s:.0f}s"
+    return f"{int(s // 60)}m {int(s % 60)}s"
+
+slow_by_test = {}
+for _r in eligible:
+    for _t in _r.get("slowest_tests", []):
+        k = _t["title"]
+        slow_by_test[k] = max(slow_by_test.get(k, 0), _t["duration_ms"])
+top_slow = sorted(slow_by_test.items(), key=lambda x: -x[1])[:10]
+
 shell_total_passed  = sum(r.get("shell_passed", 0) for r in eligible)
 shell_total_failed  = sum(r.get("shell_failed", 0) for r in eligible)
 shell_total_skipped = sum(r.get("shell_skipped", 0) for r in eligible)
@@ -353,6 +378,13 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         fh.write(f'<div class="stat-box stat-fail"><div class="stat-val">{total_failed}</div><div class="stat-lbl">Total failures</div></div>\n')
         fh.write(f'<div class="stat-box stat-flaky"><div class="stat-val">{total_flaky}</div><div class="stat-lbl">Total flaky</div></div>\n')
         fh.write('</div>\n')
+        if any(durations):
+            fh.write('<div class="section-lbl">Execution time</div>\n')
+            fh.write('<div class="stats-row" style="grid-template-columns:repeat(3,1fr)">\n')
+            fh.write(f'<div class="stat-box"><div class="stat-val">{fmt_dur(avg_dur_ms)}</div><div class="stat-lbl">Avg run time</div></div>\n')
+            fh.write(f'<div class="stat-box"><div class="stat-val">{fmt_dur(min_dur_ms)}</div><div class="stat-lbl">Fastest run</div></div>\n')
+            fh.write(f'<div class="stat-box"><div class="stat-val">{fmt_dur(max_dur_ms)}</div><div class="stat-lbl">Slowest run</div></div>\n')
+            fh.write('</div>\n')
 
         max_total = max((r.get("total", 0) + r.get("shell_passed", 0) + r.get("shell_failed", 0) for r in runs), default=1) or 1
         fh.write('<div class="spark-label">Tests per run (Playwright + shell) — color shows pass/fail</div>\n')
@@ -376,8 +408,9 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
                 color = "#ef4444"
             else:
                 color = "#eab308"
+            dur_label = f" — ⏱ {fmt_dur(run.get('duration_ms', 0))}" if run.get("duration_ms", 0) > 0 else ""
             label = (
-                f"Run #{run['run_id']} — "
+                f"Run #{run['run_id']}{dur_label} — "
                 f"Playwright: {run.get('passed', 0)} passed / {pw_failed} failed / {pw_flaky} flaky / {run.get('skipped', 0)} skipped — "
                 f"Shell: {run.get('shell_passed', 0)} passed / {sh_failed} failed"
             )
@@ -406,6 +439,16 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
             if len(flaky) > 7:
                 fh.write(f'<li>&hellip;and {len(flaky)-7} more</li>\n')
             fh.write('</ul>\n')
+
+        if top_slow:
+            fh.write('<div class="section-lbl">Slowest Playwright tests (max observed duration)</div>\n')
+            fh.write('<table><tr><th>Test</th><th style="width:5rem;color:#6b7280">Max time</th></tr>\n')
+            for title, dur_ms in top_slow:
+                s = short_name(title)
+                short = s[-70:] if len(s) > 70 else s
+                fh.write(f'<tr><td title="{esc(title)}">{esc(short)}</td>'
+                         f'<td style="color:#6b7280">{esc(fmt_dur(dur_ms))}</td></tr>\n')
+            fh.write('</table>\n')
 
         # Shell tests section
         fh.write('<div class="section-lbl">Shell unit tests (POSIX sh)</div>\n')

@@ -36,7 +36,7 @@ if ($LASTEXITCODE -ne 0) { throw "podman build (test) failed" }
 # ---- 2. Start container -----------------------------------------------------
 Write-Host "==> Starting container on :$HostPort ..."
 & podman rm -f $Container 2>$null
-& podman run -d --name $Container -p "${HostPort}:$ContainerPort" stravame-test
+& podman run --cgroups=disabled -d --name $Container -p "${HostPort}:$ContainerPort" stravame-test
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
 # ---- 3. Resolve host IP (Podman runs inside a WSL VM on Windows) ------------
