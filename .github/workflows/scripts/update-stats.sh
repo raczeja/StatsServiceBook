@@ -468,6 +468,89 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
         else:
             fh.write('<p style="font-size:.8rem;color:#94a3b8;margin:.25rem 0">No shell test failures recorded.</p>\n')
 
+        # Per-run drill-down picker
+        fh.write('<div class="section-lbl" style="margin-top:1.25rem">Inspect a specific run</div>\n')
+        fh.write('<select id="run-picker" style="font-size:.8rem;padding:.35rem .6rem;border:1px solid #e2e8f0;border-radius:.4rem;background:#fff;color:#374151;width:100%;max-width:42rem;cursor:pointer">\n')
+        fh.write('<option value="">&#8212; select a run to inspect &#8212;</option>\n')
+        for _i, _run in enumerate(reversed(runs)):
+            _orig_idx = len(runs) - 1 - _i
+            _ts = _run["timestamp"][:16].replace("T", " ")
+            _fail = _run.get("failed", 0) + _run.get("shell_failed", 0)
+            _status = "✓" if _fail == 0 else "✗"
+            _label = (
+                f"{_status} Run #{_run['run_id']} — {_ts}Z"
+                f" — {_run.get('passed', 0)}p / {_run.get('failed', 0)}f"
+                f" / {_run.get('flaky_count', 0)} flaky"
+                f" / shell {_run.get('shell_passed', 0)}p {_run.get('shell_failed', 0)}f"
+            )
+            fh.write(f'<option value="{_orig_idx}">{esc(_label)}</option>\n')
+        fh.write('</select>\n')
+        fh.write('<div id="run-detail" style="display:none;margin-top:.875rem"></div>\n')
+        _runs_json = json.dumps(runs).replace('</', '<\\/')
+        fh.write(f'<script>var RUNS={_runs_json};</script>\n')
+        fh.write('''\
+<script>
+(function(){
+  var picker=document.getElementById('run-picker');
+  var detail=document.getElementById('run-detail');
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fmtDur(ms){if(!ms)return '&mdash;';var s=ms/1000;if(s<60)return s.toFixed(0)+'s';return Math.floor(s/60)+'m '+Math.floor(s%60)+'s';}
+  function shortName(t){var p=t.split('>').map(function(x){return x.trim();}).filter(Boolean);return p.length>=2?p.slice(-2).join(' › '):(p[p.length-1]||t);}
+  function clip(s,n){return s.length>n?s.slice(-n):s;}
+  function renderRun(run){
+    if(!run){detail.style.display='none';return;}
+    detail.style.display='';
+    var ts=(run.timestamp||'').replace('T',' ').slice(0,16)+' UTC';
+    var html='<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.5rem 0 .75rem;border-top:1px solid #e2e8f0">'
+      +'<strong style="font-size:.875rem">Run #'+esc(run.run_id)+'</strong>'
+      +'<span style="font-size:.78rem;color:#64748b">'+esc(ts)+'</span>'
+      +'<a href="'+esc(run.run_url)+'" target="_blank" style="font-size:.78rem">View on GitHub ↗</a>'
+      +'</div>';
+    // Failed Playwright tests
+    var failed=run.failed_tests||[];
+    html+='<div class="section-lbl">Failed Playwright tests ('+failed.length+')</div>';
+    if(!failed.length){
+      html+='<p style="font-size:.8rem;color:#15803d;margin:.2rem 0">No failures ✓</p>';
+    }else{
+      html+='<table><tr><th>Test</th><th>Error (truncated)</th></tr>';
+      for(var i=0;i<failed.length;i++){var t=failed[i],s=clip(shortName(t.title),65),e=(t.error||'').slice(0,140);
+        html+='<tr><td title="'+esc(t.title)+'">'+esc(s)+'</td><td style="font-family:monospace;font-size:.7rem;color:#6b7280;text-align:left;max-width:22rem">'+esc(e)+'</td></tr>';}
+      html+='</table>';
+    }
+    // Failed shell tests
+    var sf=run.shell_failed_tests||[];
+    if(run.shell_failed>0||sf.length){
+      html+='<div class="section-lbl">Failed shell tests ('+sf.length+')</div>';
+      if(!sf.length){html+='<p style="font-size:.8rem;color:#15803d;margin:.2rem 0">No failures ✓</p>';}
+      else{html+='<table><tr><th>Test</th><th>Error</th></tr>';
+        for(var i=0;i<sf.length;i++){var t=sf[i],s=clip(shortName(t.title),65),e=(t.error||'').slice(0,140);
+          html+='<tr><td title="'+esc(t.title)+'">'+esc(s)+'</td><td style="font-family:monospace;font-size:.7rem;color:#6b7280;text-align:left;max-width:22rem">'+esc(e)+'</td></tr>';}
+        html+='</table>';}
+    }
+    // Flaky tests
+    var flaky=run.flaky_tests||[];
+    html+='<div class="section-lbl">Flaky tests ('+flaky.length+')</div>';
+    if(!flaky.length){html+='<p style="font-size:.8rem;color:#15803d;margin:.2rem 0">None ✓</p>';}
+    else{html+='<ul class="flaky-list">';
+      for(var i=0;i<flaky.length;i++){var t=flaky[i],s=clip(shortName(t.title),70);
+        html+='<li title="'+esc(t.title)+'">'+esc(s)+' <strong>('+t.attempts+' attempts)</strong></li>';}
+      html+='</ul>';}
+    // Slowest tests
+    var slow=run.slowest_tests||[];
+    if(slow.length){
+      html+='<div class="section-lbl">Slowest tests (this run)</div>';
+      html+='<table><tr><th>Test</th><th style="width:5rem;color:#6b7280">Time</th></tr>';
+      for(var i=0;i<slow.length;i++){var t=slow[i],s=clip(shortName(t.title),60);
+        html+='<tr><td title="'+esc(t.title)+'">'+esc(s)+'</td><td style="color:#6b7280">'+fmtDur(t.duration_ms)+'</td></tr>';}
+      html+='</table>';
+    }
+    detail.innerHTML=html;
+  }
+  picker.addEventListener('change',function(){renderRun(this.value!==''?RUNS[parseInt(this.value,10)]:null);});
+})();
+</script>
+''')
+
         fh.write('</div>\n')
 
     fh.write('</div></body></html>\n')
