@@ -278,6 +278,13 @@ for _r in eligible:
         slow_by_test[k] = max(slow_by_test.get(k, 0), _t["duration_ms"])
 top_slow = sorted(slow_by_test.items(), key=lambda x: -x[1])[:10]
 
+retry_by_test = {}
+for _r in eligible:
+    for _t in _r.get("flaky_tests", []):
+        k = _t["title"]
+        retry_by_test[k] = max(retry_by_test.get(k, 0), _t.get("attempts", 1))
+most_retried = sorted(retry_by_test.items(), key=lambda x: -x[1])[:10]
+
 shell_total_passed  = sum(r.get("shell_passed", 0) for r in eligible)
 shell_total_failed  = sum(r.get("shell_failed", 0) for r in eligible)
 shell_total_skipped = sum(r.get("shell_skipped", 0) for r in eligible)
@@ -506,35 +513,68 @@ a{{color:#2563eb;text-decoration:none}}a:hover{{text-decoration:underline}}
 </script>
 ''')
 
-        if top:
-            fh.write('<div class="section-lbl">Top failing Playwright tests</div>\n')
-            fh.write('<table><tr><th>Test</th><th style="width:4rem">Fails</th></tr>\n')
-            for title, count in top:
-                s = short_name(title)
-                short = s[-70:] if len(s) > 70 else s
-                fh.write(f'<tr><td title="{esc(title)}">{esc(short)}</td><td>{count}</td></tr>\n')
-            fh.write('</table>\n')
-
-        if flaky:
-            fh.write('<div class="section-lbl">Flaky tests</div>\n')
-            fh.write('<ul class="flaky-list">\n')
-            for t, count in flaky[:7]:
-                s = short_name(t)
-                short = s[-70:] if len(s) > 70 else s
-                fh.write(f'<li title="{esc(t)}">{esc(short)} <strong>({count})</strong></li>\n')
-            if len(flaky) > 7:
-                fh.write(f'<li>&hellip;and {len(flaky)-7} more</li>\n')
-            fh.write('</ul>\n')
-
-        if top_slow:
-            fh.write('<div class="section-lbl">Slowest Playwright tests (max observed duration)</div>\n')
-            fh.write('<table><tr><th>Test</th><th style="width:5rem;color:#6b7280">Max time</th></tr>\n')
-            for title, dur_ms in top_slow:
-                s = short_name(title)
-                short = s[-70:] if len(s) > 70 else s
-                fh.write(f'<tr><td title="{esc(title)}">{esc(short)}</td>'
-                         f'<td style="color:#6b7280">{esc(fmt_dur(dur_ms))}</td></tr>\n')
-            fh.write('</table>\n')
+        # Aggregate test trends picker
+        _agg_top     = [[t, c] for t, c in top]
+        _agg_flaky   = [[t, c] for t, c in flaky[:10]]
+        _agg_slow    = [[t, d] for t, d in top_slow]
+        _agg_retried = [[t, c] for t, c in most_retried]
+        _agg_json    = json.dumps({"top": _agg_top, "flaky": _agg_flaky, "slow": _agg_slow, "retried": _agg_retried}).replace('</', '<\\/')
+        fh.write('<div class="section-lbl">Test trends (last 30 days)</div>\n')
+        fh.write('<select id="agg-picker" style="font-size:.8rem;padding:.35rem .6rem;border:1px solid #e2e8f0;border-radius:.4rem;background:#fff;color:#374151;width:100%;max-width:42rem;cursor:pointer">\n')
+        fh.write('<option value="top">Top failing tests</option>\n')
+        fh.write('<option value="flaky">Flaky tests</option>\n')
+        fh.write('<option value="longest">Longest tests</option>\n')
+        fh.write('<option value="retried">Most retried</option>\n')
+        fh.write('</select>\n')
+        fh.write('<div id="agg-detail" style="margin-top:.5rem"></div>\n')
+        fh.write(f'<script>var AGG={_agg_json};</script>\n')
+        fh.write('''\
+<script>
+(function(){
+  var sel=document.getElementById('agg-picker');
+  var box=document.getElementById('agg-detail');
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fmtDur(ms){if(!ms)return '&mdash;';var s=ms/1000;if(s<60)return s.toFixed(0)+'s';return Math.floor(s/60)+'m '+Math.floor(s%60)+'s';}
+  function shortName(t){var p=t.split('>').map(function(x){return x.trim();}).filter(Boolean);return p.length>=2?p.slice(-2).join(' › '):(p[p.length-1]||t);}
+  function clip(s,n){return s.length>n?s.slice(-n):s;}
+  function render(v){
+    var html='',d;
+    if(v==='top'){
+      d=AGG.top;
+      if(!d.length){html='<p style="font-size:.8rem;color:#94a3b8;margin:.25rem 0">No failures recorded.</p>';}
+      else{html='<table><tr><th>Test</th><th style="width:4rem">Fails</th></tr>';
+        for(var i=0;i<d.length;i++){var t=d[i],s=clip(shortName(t[0]),70);
+          html+='<tr><td title="'+esc(t[0])+'">'+esc(s)+'</td><td>'+t[1]+'</td></tr>';}
+        html+='</table>';}
+    }else if(v==='flaky'){
+      d=AGG.flaky;
+      if(!d.length){html='<p style="font-size:.8rem;color:#15803d;margin:.25rem 0">No flaky tests ✓</p>';}
+      else{html='<ul class="flaky-list">';
+        for(var i=0;i<d.length;i++){var t=d[i],s=clip(shortName(t[0]),70);
+          html+='<li title="'+esc(t[0])+'">'+esc(s)+' <strong>('+t[1]+')</strong></li>';}
+        html+='</ul>';}
+    }else if(v==='longest'){
+      d=AGG.slow;
+      if(!d.length){html='<p style="font-size:.8rem;color:#94a3b8;margin:.25rem 0">No duration data.</p>';}
+      else{html='<table><tr><th>Test</th><th style="width:5rem;color:#6b7280">Max time</th></tr>';
+        for(var i=0;i<d.length;i++){var t=d[i],s=clip(shortName(t[0]),65);
+          html+='<tr><td title="'+esc(t[0])+'">'+esc(s)+'</td><td style="color:#6b7280">'+fmtDur(t[1])+'</td></tr>';}
+        html+='</table>';}
+    }else if(v==='retried'){
+      d=AGG.retried;
+      if(!d.length){html='<p style="font-size:.8rem;color:#15803d;margin:.25rem 0">No retries recorded ✓</p>';}
+      else{html='<table><tr><th>Test</th><th style="width:5.5rem">Max retries</th></tr>';
+        for(var i=0;i<d.length;i++){var t=d[i],s=clip(shortName(t[0]),65);
+          html+='<tr><td title="'+esc(t[0])+'">'+esc(s)+'</td><td style="color:#d97706">'+t[1]+'</td></tr>';}
+        html+='</table>';}
+    }
+    box.innerHTML=html;
+  }
+  sel.addEventListener('change',function(){render(this.value);});
+  render('top');
+})();
+</script>
+''')
 
         # Shell tests section
         fh.write('<div class="section-lbl">Shell unit tests (POSIX sh)</div>\n')
