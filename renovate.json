@@ -20,7 +20,7 @@
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
       "automerge": true,
-      "automergeType": "branch"
+      "automergeType": "pr"
     },
     {
       "matchManagers": ["dockerfile"],
