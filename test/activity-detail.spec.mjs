@@ -761,6 +761,35 @@ test.describe("activity-detail-healthsync-run", () => {
       `#splits-box should be visible for GPX activity (GPS splits computed)`,
     ).toBeTruthy();
   });
+
+  test("gpx-splits-share-chart-scroll-and-retain-reorder-handle", async () => {
+    await page.setViewportSize({ width: 640, height: 800 });
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#splits-title .sec-handle") &&
+        document.getElementById("svg-splits").style.width,
+      { timeout: 10000 },
+    );
+    const result = await page.evaluate(() => {
+      var cadence = document.querySelector("#cad-box .chart-scroll");
+      var splits = document.querySelector("#splits-box .chart-scroll");
+      var cadenceMax = cadence.scrollWidth - cadence.clientWidth;
+      var splitsMax = splits.scrollWidth - splits.clientWidth;
+      cadence.scrollLeft = Math.round(cadenceMax / 2);
+      cadence.dispatchEvent(new Event("scroll"));
+      return {
+        cadenceMax: cadenceMax,
+        splitsMax: splitsMax,
+        cadenceRatio: cadence.scrollLeft / cadenceMax,
+        splitsRatio: splits.scrollLeft / splitsMax,
+        hasHandle: !!document.querySelector("#splits-title .sec-handle"),
+      };
+    });
+    expect(result.cadenceMax).toBeGreaterThan(0);
+    expect(result.splitsMax).toBeGreaterThan(0);
+    expect(Math.abs(result.cadenceRatio - result.splitsRatio)).toBeLessThan(0.02);
+    expect(result.hasHandle).toBeTruthy();
+  });
 });
 
 // ── Activity Detail (HealthSync Cycling) ──────────────────────────────────────
