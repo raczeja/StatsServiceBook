@@ -768,7 +768,7 @@ test.describe("data-quality", () => {
 
     const cards = page.locator("#email-cards .email-status-card");
     await expect(cards).toHaveCount(3);
-    await expect(cards).toHaveAttribute("data-sid", "weekly");
+    await expect(cards.first()).toHaveAttribute("data-sid", "weekly");
     const monthly = cards.filter({ hasText: "Monthly email" });
     await expect(monthly.locator(".badge")).toHaveText("Failed");
     await expect(monthly).toContainText("<Monthly report>");
