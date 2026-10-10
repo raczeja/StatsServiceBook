@@ -155,7 +155,7 @@ svg.bar{width:100%;display:block}
 </div>
 
 <div class="sec" data-sid="last-year">
-<h2>Last calendar year <span id="lastYearSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; 2025</span></h2>
+<h2>Last 12 months <span id="lastYearSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; all sports</span></h2>
 <div class="kpis" id="lastYearKpis"></div>
 </div>
 
@@ -868,9 +868,15 @@ function render(){
   var f = filtered();
   var fyAll  = isAll ? f : filterYear(f, selYear);  // records, DOW, year table
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
-  var lastCalendarYear = String(new Date().getFullYear() - 1);
-  var fyLastCalendarYear = filterYear(f, lastCalendarYear);
-  document.getElementById("lastYearSubtitle").innerHTML = "— " + lastCalendarYear + " · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
+  var last12Start = new Date();
+  last12Start.setMonth(last12Start.getMonth() - 11);
+  last12Start.setDate(1);
+  var last12StartStr = last12Start.getFullYear()+"-"+p2(last12Start.getMonth()+1)+"-01";
+  var last12EndStr = todayStr();
+  var fyLast12Months = f.filter(function(a){
+    return a.date && a.date >= last12StartStr && a.date <= last12EndStr;
+  });
+  document.getElementById("lastYearSubtitle").innerHTML = "— last 12 months · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
   // Month-filtered source for KPI cards (applied for any specific year selection)
   var isCurrentYear = (!isAll && yrStr === curY);
   var fyMo = !isAll
@@ -932,9 +938,9 @@ function render(){
            '</div>';
   }).join("");
 
-  var lastYearAgg = agg(fyLastCalendarYear);
+  var lastYearAgg = agg(fyLast12Months);
   var lastYearSteps = 0;
-  fyLastCalendarYear.forEach(function(a){
+  fyLast12Months.forEach(function(a){
     if(_walkSports[a.sport_type] && a.average_cadence && a.moving_time)
       lastYearSteps += Math.round(a.average_cadence * 2 * a.moving_time / 60);
   });
