@@ -158,6 +158,13 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-pwr" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
+  <div class="sec box" data-sid="spd" id="spd-box" style="display:none">
+    <h3>Speed</h3>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-spd-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-spd" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
+  </div>
   <div class="sec box" data-sid="hrzone" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
     <div id="hr-zone-content"></div>
@@ -913,6 +920,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
       var allE = [], allEDist = [];
       var allH = [], allHDist = [];
       var allC = [], allCDist = [];
+      var spDist = [], spTime = [], spKm = [];   // cumulative m, epoch s, km — for speed (needs time)
       var cumDist = 0, prevLat = null, prevLon = null;
       for (i = 0; i < trkpts.length; i++) {
         var pt = trkpts[i];
@@ -932,6 +940,9 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         if (!cadEls.length) cadEls = pt.getElementsByTagNameNS("*", "cadence");
         var rpm = cadEls.length ? (parseFloat(cadEls[0].textContent) || 0) : 0;
         if (rpm > 0) { allC.push(rpm); allCDist.push(km); }
+        var tEl = pt.getElementsByTagNameNS("*", "time")[0];
+        var tS = tEl ? new Date(tEl.textContent).getTime() / 1000 : null;
+        if (tS !== null && isFinite(tS)) { spDist.push(cumDist); spTime.push(tS); spKm.push(km); }
       }
 
       var gpxClimb = findLongestClimb(climbTrackPts, sport);
@@ -966,6 +977,27 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         var dsC = dsWithKmLabels(allC, allCDist);
         document.getElementById("cad-box").style.display = "";
         drawLineSvg("svg-cad", dsC.vals, "#8e24aa", "rpm", dsC.labels, true);
+      }
+
+      // Speed (km/h): instantaneous speed from consecutive points is too noisy to plot,
+      // so smooth over a ~6 s centered window (distance ÷ time across the window).
+      if (spTime.length > 1) {
+        var allS = [], allSDist = [], SMOOTH_SEC = 6, m = spTime.length;
+        for (i = 0; i < m; i++) {
+          var a = i, b = i;
+          while ((spTime[b] - spTime[a]) < SMOOTH_SEC && (a > 0 || b < m - 1)) {
+            if (a > 0) a--;
+            if (b < m - 1) b++;
+          }
+          var dt = spTime[b] - spTime[a], dd = spDist[b] - spDist[a];
+          var mps = dt > 0 ? dd / dt : 0;
+          if (!(mps > 0)) mps = 0;
+          allS.push(mps * 3.6);
+          allSDist.push(spKm[i]);
+        }
+        var dsS = dsWithKmLabels(allS, allSDist);
+        document.getElementById("spd-box").style.display = "";
+        drawLineSvg("svg-spd", dsS.vals, "#0288d1", "km/h", dsS.labels, true);
       }
 
       // Per-km splits computed from trkpts (lat/lon + time + ele + HR + cad)
@@ -1064,7 +1096,7 @@ function renderMap(d){
 }
 
 function detailLineChartWidth() {
-  var ids = ["svg-elev", "svg-hr", "svg-cad", "svg-pwr"];
+  var ids = ["svg-elev", "svg-hr", "svg-cad", "svg-pwr", "svg-spd"];
   var width = 0;
   for (var i = 0; i < ids.length; i++) {
     var svg = document.getElementById(ids[i]);
@@ -1257,7 +1289,7 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 
 (function(){
   var DETAIL_SEC_KEY='ssb-detail-sec';
-  var DETAIL_SEC_DEFAULT=['cards','map','elev','cad','pwr','splits','hr','hrzone'];
+  var DETAIL_SEC_DEFAULT=['cards','map','elev','cad','pwr','spd','splits','hr','hrzone'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;
