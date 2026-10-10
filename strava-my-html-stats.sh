@@ -267,7 +267,7 @@ function todayStr(){
 }
 function shortDateLabel(dateStr){
   var d = new Date(dateStr+"T12:00:00");
-  return d.toLocaleString("en-US", { month: "short", year: "numeric" });
+  return MONTHS_S[d.getMonth()] + " " + d.getFullYear();
 }
 // day-of-week index: 0=Mon … 6=Sun
 function dowOf(dateStr){
