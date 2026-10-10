@@ -110,6 +110,12 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 @media(max-width:650px){body{margin:.8rem auto}.summary{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:1.35rem}}
 .run-log{font-size:.75rem;white-space:pre-wrap;word-break:break-all;margin:.5rem 0 0;padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:3px;max-height:200px;overflow-y:auto;line-height:1.4}
 .sync-btn{margin-top:.7rem;padding:.35rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:.3rem;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-block}.sync-btn:hover{opacity:.85}.sync-btn:disabled{opacity:.5;cursor:not-allowed}
+.sec-handle{display:inline-block;cursor:grab;padding:.1rem .25rem;color:var(--muted);font-size:.9rem;vertical-align:middle;user-select:none;margin-right:.25rem;opacity:.6;border-radius:.2rem}
+.sec-handle:hover{opacity:1;color:var(--accent)}.sec-handle:active{cursor:grabbing}
+.email-sec.sec-dragging{opacity:.4}.email-sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
+.sec-order-reset{font-size:.72rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
+.sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
+@media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
 .ck-ok{background:var(--good-bg);color:var(--good);border:1px solid var(--good)}.ck-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);font-weight:600}.ck-expired{background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad);font-weight:600}
 #cookie-update-card textarea{width:100%;box-sizing:border-box;font-family:monospace;font-size:.8rem;padding:.4rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:.3rem;resize:vertical}
 #cookie-save-status.ok{color:var(--good)}#cookie-save-status.err{color:var(--bad)}
@@ -134,8 +140,8 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 <section class="sources" id="sources"><div class="source">Loading source status...</div></section>
 <section id="email-status" style="display:none">
 <h2>Email</h2>
-<div id="email-cards" class="sources"></div>
-<article class="source" id="send-email-card">
+<div id="email-cards" class="sources">
+<article class="source email-sec" id="send-email-card" data-sid="send">
 <h2>Send email now</h2>
 <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem;margin:.4rem 0">
   <div><label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:.2rem">Type</label><select id="email-type-sel" onchange="updatePeriodInput()"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option></select></div>
@@ -145,6 +151,7 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 </div>
 <div id="send-email-status" style="font-size:.88rem"></div>
 </article>
+</div>
 </section>
 <section id="cookie-status" style="display:none">
 <h2>Session cookie</h2>
@@ -339,7 +346,73 @@ function emailCard(name,status){
   if(status.subject)detail+='<p>Last subject: <em>'+esc(status.subject)+'</em></p>';
   if(status.recipientCount!=null)detail+='<p>Recipients: '+esc(status.recipientCount)+(status.sentCount!=null&&status.sentCount!==status.recipientCount?' ('+esc(status.sentCount)+' sent OK)':'')+'</p>';
   var logsHtml=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
-  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful send: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
+  return '<article class="source email-sec email-status-card" data-sid="'+esc(status.mode)+'"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful send: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+'</article>';
+}
+var EMAIL_SEC_KEY='ssb-email-sec';
+var EMAIL_SEC_DEFAULT=['send','weekly','monthly','yearly'];
+function emailSections(){
+  var wrap=document.getElementById('email-cards');
+  return Array.prototype.filter.call(wrap.children,function(el){return el.classList.contains('email-sec');});
+}
+function emailOrder(){
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem(EMAIL_SEC_KEY));}catch(e){}
+  var order=[];
+  if(Array.isArray(saved))saved.forEach(function(sid){if(EMAIL_SEC_DEFAULT.indexOf(sid)>=0&&order.indexOf(sid)<0)order.push(sid);});
+  EMAIL_SEC_DEFAULT.forEach(function(sid){if(order.indexOf(sid)<0)order.push(sid);});
+  return order;
+}
+function applyEmailOrder(order){
+  var wrap=document.getElementById('email-cards'),byId={};
+  emailSections().forEach(function(s){byId[s.getAttribute('data-sid')]=s;});
+  order.forEach(function(sid){if(byId[sid])wrap.appendChild(byId[sid]);});
+}
+function saveEmailOrder(){
+  var visible=emailSections().map(function(s){return s.getAttribute('data-sid');});
+  var order=visible.concat(EMAIL_SEC_DEFAULT.filter(function(sid){return visible.indexOf(sid)<0;}));
+  try{localStorage.setItem(EMAIL_SEC_KEY,JSON.stringify(order));}catch(e){}
+}
+var _emailDragSrc=null;
+function injectEmailHandles(){
+  var wrap=document.getElementById('email-cards');
+  var reset=wrap.parentNode.querySelector('.sec-order-reset');
+  if(!reset){
+    reset=document.createElement('button');reset.className='sec-order-reset';reset.textContent='↺ Reset order';
+    reset.onclick=function(){
+      try{localStorage.removeItem(EMAIL_SEC_KEY);}catch(e){}
+      applyEmailOrder(EMAIL_SEC_DEFAULT);injectEmailHandles();
+    };
+    wrap.parentNode.insertBefore(reset,wrap);
+  }
+  emailSections().forEach(function(s){
+    var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
+    var sid=s.getAttribute('data-sid');
+    var handle=document.createElement('span');handle.className='sec-handle';handle.title='Drag to reorder';handle.textContent='⠿';
+    handle.setAttribute('draggable','true');
+    handle.addEventListener('dragstart',function(e){
+      _emailDragSrc=sid;s.classList.add('sec-dragging');
+      if(e.dataTransfer){e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setDragImage(s,0,0);}catch(_){}}
+      e.stopPropagation();
+    });
+    handle.addEventListener('dragend',function(){
+      s.classList.remove('sec-dragging');_emailDragSrc=null;
+      emailSections().forEach(function(x){x.classList.remove('sec-drag-over');});
+    });
+    s.ondragover=function(e){if(_emailDragSrc&&_emailDragSrc!==sid){e.preventDefault();s.classList.add('sec-drag-over');}};
+    s.ondragleave=function(e){if(!s.contains(e.relatedTarget))s.classList.remove('sec-drag-over');};
+    s.ondrop=function(e){
+      e.preventDefault();
+      if(!_emailDragSrc||_emailDragSrc===sid)return;
+      var sections=emailSections(),src=null,tgt=null;
+      sections.forEach(function(x){if(x.getAttribute('data-sid')===_emailDragSrc)src=x;if(x.getAttribute('data-sid')===sid)tgt=x;});
+      if(!src||!tgt)return;
+      var rect=tgt.getBoundingClientRect();
+      wrap.insertBefore(src,(e.clientY||0)<rect.top+rect.height/2?tgt:tgt.nextSibling);
+      emailSections().forEach(function(x){x.classList.remove('sec-drag-over');});
+      saveEmailOrder();
+    };
+    var h=s.querySelector('h2');if(h)h.insertBefore(handle,h.firstChild);
+  });
 }
 var EMAIL_STATUS_URLS={monthly:'../email-monthly-status.json',weekly:'../email-weekly-status.json',yearly:'../email-yearly-status.json'};
 function _refreshEmailCards(){
@@ -443,10 +516,14 @@ function sendEmail(){
   });
 }
 function renderEmailSection(monthly,weekly,yearly){
-  var cards=emailCard('Monthly email',monthly)+emailCard('Weekly email',weekly)+emailCard('Yearly email',yearly);
+  var cards=document.getElementById('email-cards');
+  cards.querySelectorAll('.email-status-card').forEach(function(card){card.parentNode.removeChild(card);});
+  cards.insertAdjacentHTML('beforeend',
+    emailCard('Monthly email',monthly)+emailCard('Weekly email',weekly)+emailCard('Yearly email',yearly));
   var sec=document.getElementById('email-status');
   sec.style.display='';
-  document.getElementById('email-cards').innerHTML=cards;
+  applyEmailOrder(emailOrder());
+  injectEmailHandles();
 }
 function sourceCard(name,status,srcKey){
   if(!status||(!status.lastAttempt&&status.importEnabled===false))return '';

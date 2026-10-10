@@ -43,7 +43,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - The issue list can be filtered by GPS, heart rate, and details; heart-rate-only issues are hidden by default and can be enabled.
 - Shows the latest Strava, HealthSync, and club leaderboard run. Failed, disabled, unreported, or more-than-48-hour-old imports are flagged; HealthSync keepalive checks do not count as activity imports.
 - **Sync now** — each source card has a "↻ Sync now" button that triggers the corresponding script via `/cgi-bin/trigger-sync`; a "↻ Sync all" button triggers all sources at once. The button polls the status file and shows a live log while the run is in progress. Run IDs let the page detect completed runs even when the attempt timestamp does not change. The log follows new output unless you scroll up, in which case your reading position is preserved.
-- **Email status & send** — an "Email" section is always visible. When status files (`email-monthly-status.json` / `email-weekly-status.json` / `email-yearly-status.json`) are present in the web root, cards show the last subject, recipient count, and run log. A **"Send email now"** card lets you trigger any email type on demand: pick Monthly / Weekly / Yearly from the dropdown, optionally enter an override recipient address (leave blank to use the configured default recipients), and click Send — the request POSTs to `/cgi-bin/send-email`.
+- **Email status & send** — an "Email" section is always visible. The **"Send email now"** form appears first, followed by Weekly, Monthly, and Yearly status cards when their status files are present. On desktop, drag the heading handles to reorder these cards; the order is saved in browser `localStorage`, and **Reset order** restores the default. The form lets you trigger any email type on demand: pick Monthly / Weekly / Yearly from the dropdown, optionally enter an override recipient address (leave blank to use the configured default recipients), and click Send — the request POSTs to `/cgi-bin/send-email`.
 - **Cookie management** — when scrape mode is active, a "Session cookie" section shows the current `_strava4_session` validity (green / amber / red). An inline form lets you paste a fresh cookie value; saving calls `/cgi-bin/update-cookie` which writes it to both My Activities and leaderboard configs and clears the session cache. Previously the banner appeared on the dashboard and leaderboard pages; it now lives only on this page.
 - Activity import status is recorded in `strava-sync-status.json` and `healthsync-sync-status.json`; leaderboard status is in `/strava/leaderboard-sync-status.json`; email status in `email-{monthly,weekly,yearly}-status.json`.
 
@@ -99,7 +99,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 
 **Section reordering** _(desktop only)_
 
-- Drag any section heading (⠿ handle) to a new position on the Personal stats, Activity detail, Bike service, and Club leaderboard pages
+- Drag any section heading (⠿ handle) to a new position on the Personal stats, Activity detail, Bike service, Club leaderboard, and Data completeness pages
 - ↺ Reset order button restores the default section layout
 - Order is saved per page in `localStorage` and restored on the next visit
 - Not available on touch/mobile devices (handle and reset button are hidden)
