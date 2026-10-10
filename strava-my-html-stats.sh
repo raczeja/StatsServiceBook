@@ -265,6 +265,10 @@ function todayStr(){
   var d = new Date();
   return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
 }
+function shortDateLabel(dateStr){
+  var d = new Date(dateStr+"T12:00:00");
+  return d.toLocaleString("en-US", { month: "short", year: "numeric" });
+}
 // day-of-week index: 0=Mon … 6=Sun
 function dowOf(dateStr){
   var d = new Date(dateStr+"T12:00:00");
@@ -876,7 +880,8 @@ function render(){
   var fyLast12Months = f.filter(function(a){
     return a.date && a.date >= last12StartStr && a.date <= last12EndStr;
   });
-  document.getElementById("lastYearSubtitle").innerHTML = "— last 12 months · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
+  var last12Range = shortDateLabel(last12StartStr) + " → " + shortDateLabel(last12EndStr);
+  document.getElementById("lastYearSubtitle").innerHTML = "— " + last12Range + " · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
   // Month-filtered source for KPI cards (applied for any specific year selection)
   var isCurrentYear = (!isAll && yrStr === curY);
   var fyMo = !isAll

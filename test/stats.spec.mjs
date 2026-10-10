@@ -190,8 +190,8 @@ test.describe("stats", () => {
     expect(section, "expected a 'Last 12 months' section").toBeTruthy();
     const text = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
     expect(
-      text.includes("last 12 months"),
-      `expected last-12-months subtitle to mention the rolling window, got: "${text}"`,
+      /→/.test(text) || /\d{4}/.test(text),
+      `expected the rolling-window subtitle to show a date range, got: "${text}"`,
     ).toBeTruthy();
     const cards = await page.$$eval("#lastYearKpis .kpi", (els) => els.length);
     expect(cards >= 4, `expected last-12-months summary cards, got ${cards}`).toBeTruthy();
@@ -204,8 +204,8 @@ test.describe("stats", () => {
 
     const subtitleAfterYearChange = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
     expect(
-      subtitleAfterYearChange.includes("last 12 months"),
-      `last-12-months section should stay on the rolling 12-month window even when year filter changes, got: "${subtitleAfterYearChange}"`,
+      /→/.test(subtitleAfterYearChange),
+      `last-12-months section should stay on the rolling date window even when year filter changes, got: "${subtitleAfterYearChange}"`,
     ).toBeTruthy();
 
     await page.selectOption("#sportSel", "Run");
@@ -221,8 +221,8 @@ test.describe("stats", () => {
     await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
     const finalSubtitle = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
     expect(
-      finalSubtitle.includes("last 12 months") && !finalSubtitle.includes("all years"),
-      `last-12-months section should remain on the rolling window after resetting year, got: "${finalSubtitle}"`,
+      /→/.test(finalSubtitle) && !finalSubtitle.includes("all years"),
+      `last-12-months section should remain on the rolling date window after resetting year, got: "${finalSubtitle}"`,
     ).toBeTruthy();
   });
 
