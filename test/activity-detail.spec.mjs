@@ -306,6 +306,16 @@ test.describe("activity-detail", () => {
     ).toBeTruthy();
   });
 
+  test("spd-box-hidden-for-strava-splits", async () => {
+    // Strava-API activities only carry per-km splits (no per-point time/position),
+    // so the high-resolution speed line chart must stay hidden.
+    const display = await page.$eval("#spd-box", (el) => el.style.display);
+    expect(
+      display,
+      `#spd-box should be hidden for Strava splits-only activity, got "${display}"`,
+    ).toBe("none");
+  });
+
   test("weather-temp-source-badge-shown", async () => {
     const badge = await page.$(".cards .wx-src");
     expect(
@@ -426,6 +436,7 @@ test.describe("detail-section-order", () => {
       "elev",
       "cad",
       "pwr",
+      "spd",
       "splits",
       "hr",
       "hrzone",
@@ -438,7 +449,7 @@ test.describe("detail-section-order", () => {
       "#sec-wrap .sec .sec-handle",
       (els) => els.length,
     );
-    expect(n, `expected 8 .sec-handle elements, got ${n}`).toBe(8);
+    expect(n, `expected 9 .sec-handle elements, got ${n}`).toBe(9);
   });
 
   test("reset-button-present", async () => {
@@ -491,8 +502,8 @@ test.describe("detail-section-order", () => {
       }
     });
     expect(
-      Array.isArray(saved) && saved.length === 8,
-      "saved order should be 8-element array",
+      Array.isArray(saved) && saved.length === 9,
+      "saved order should be 9-element array",
     ).toBeTruthy();
     expect(
       saved[saved.length - 2],
@@ -515,6 +526,7 @@ test.describe("detail-section-order", () => {
       "elev",
       "cad",
       "pwr",
+      "spd",
       "splits",
       "hr",
       "hrzone",
@@ -889,6 +901,30 @@ test.describe("activity-detail-healthsync-cycling", () => {
     expect(
       display !== "none",
       `#splits-box should be visible for GPX activity (GPS splits computed)`,
+    ).toBeTruthy();
+  });
+
+  test("spd-box-visible", async () => {
+    const display = await page.$eval("#spd-box", (el) => el.style.display);
+    expect(
+      display !== "none",
+      `#spd-box has display:none — speed chart not rendered from GPX`,
+    ).toBeTruthy();
+  });
+
+  test("svg-spd-rendered", async () => {
+    const n = await page.$$eval("#svg-spd path", (els) => els.length);
+    expect(
+      n >= 2,
+      `expected >= 2 path elements in #svg-spd (fill + line), got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("spd-chart-has-kmh-axis", async () => {
+    const text = await page.$eval("#svg-spd-yaxis", (el) => el.textContent);
+    expect(
+      /km\/h/.test(text),
+      `expected #svg-spd-yaxis to include a "km/h" label, got: ${text.slice(0, 200)}`,
     ).toBeTruthy();
   });
 
