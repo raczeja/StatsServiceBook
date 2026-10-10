@@ -1013,7 +1013,9 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
           splitsBox.style.display = "";
           var splitsNote = document.getElementById("gpx-splits-note");
           if (splitsNote) splitsNote.remove();
-          renderSplitsFromArray(gpxSplits, sport || "");
+          renderSplitsFromArray(gpxSplits, sport || "", detailLineChartWidth());
+          if (typeof window._detailSecAfterRender === "function")
+            window._detailSecAfterRender();
         } else {
           var splitsNote2 = document.getElementById("gpx-splits-note");
           if (splitsNote2) splitsNote2.textContent = "No GPS track points available for splits.";
@@ -1061,7 +1063,17 @@ function renderMap(d){
   }
 }
 
-function renderSplitsFromArray(splits, sport) {
+function detailLineChartWidth() {
+  var ids = ["svg-elev", "svg-hr", "svg-cad", "svg-pwr"];
+  var width = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var svg = document.getElementById(ids[i]);
+    if (svg) width = Math.max(width, parseFloat(svg.style.width) || 0);
+  }
+  return width;
+}
+
+function renderSplitsFromArray(splits, sport, chartWidth) {
   if (!splits.length) return;
   var foot = isFoot(sport);
   document.getElementById("splits-title").innerHTML = foot ? "Per-km pace" : "Per-km speed";
@@ -1071,8 +1083,10 @@ function renderSplitsFromArray(splits, sport) {
   });
   var max = Math.max.apply(null, speeds) || 1;
 
-  var n = splits.length, barW = 30, pad = 16, labelH = 16;
-  var W = pad*2 + n*barW, H = 200, chartH = H - labelH;
+  var n = splits.length, pad = 16, labelH = 16;
+  var W = Math.max(pad*2 + n*30, chartWidth || 0);
+  var barW = (W - pad*2) / n;
+  var H = 200, chartH = H - labelH;
   var svg = document.getElementById("svg-splits");
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
   svg.style.width = W + "px";
@@ -1122,8 +1136,6 @@ function renderSplits(d){
   var splits = d.splits_metric || [];
   if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
 
-  renderSplitsFromArray(splits, sport);
-
   // Elevation, heart rate, cadence, and power charts from splits data (when available).
   renderElevFromSplits(splits);
   renderHrFromSplits(splits);
@@ -1137,6 +1149,7 @@ function renderSplits(d){
   }
   renderHrEffort(hrZonePts, d.max_heartrate || 0, d, "per-km average HR");
   renderHrZones(hrZonePts, d.max_heartrate || 0);
+  renderSplitsFromArray(splits, sport, detailLineChartWidth());
 }
 
 // --- Bike assignment picker (cycling activities only) -------------------------
