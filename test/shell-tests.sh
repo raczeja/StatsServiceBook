@@ -4287,6 +4287,32 @@ assert_eq "$S" "no-override-unchanged" \
     "$(printf '%s\n' "$_ov_result" | jq -r 'select(.firstname=="Marc") | .lastname')" \
     "Bellamy"
 
+# ── leaderboard-backfill-count-guard ────────────────────────────────────────
+# Regression: `grep -c PATTERN FILE` prints "0" AND exits 1 when there are no
+# matches. The old guard `grep -c ... || printf '0'` therefore captured a
+# two-line value ("0\n0"), and `[ "0\n0" -gt 0 ]` made BusyBox ash abort with
+# "bad number". The fix pipes through `tr -d ' \n'` so a fully-healed store
+# (no `"lastname":""` entries) yields a clean single-line "0".
+S="leaderboard-backfill-count-guard"
+_bf_store="$TMP/bf_store.ndjson"
+
+# Store where every entry is already healed (no empty lastname) → count must be
+# a clean "0" that passes a numeric test without error.
+printf '%s\n' '{"firstname":"Ann","lastname":"Lee"}' > "$_bf_store"
+_bf_any="$(grep -c '"lastname":""' "$_bf_store" 2>/dev/null | tr -d ' \n')"
+assert_eq "$S" "healed-store-clean-zero" "$_bf_any" "0"
+if [ "${_bf_any:-0}" -gt 0 ] 2>/dev/null; then
+    err "$S" "healed-store-guard-no-bad-number" "guard wrongly entered backfill"
+else
+    # A clean "0" takes the else branch without ash emitting "bad number".
+    ok "$S" "healed-store-guard-no-bad-number"
+fi
+
+# Store with an unhealed entry → count is the real number of blanks.
+printf '%s\n' '{"firstname":"Ann","lastname":""}' >> "$_bf_store"
+_bf_any="$(grep -c '"lastname":""' "$_bf_store" 2>/dev/null | tr -d ' \n')"
+assert_eq "$S" "unhealed-store-counts-blanks" "$_bf_any" "1"
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
