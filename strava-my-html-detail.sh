@@ -1244,7 +1244,7 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 
 (function(){
   var DETAIL_SEC_KEY='ssb-detail-sec';
-  var DETAIL_SEC_DEFAULT=['cards','map','elev','hr','cad','pwr','hrzone','splits'];
+  var DETAIL_SEC_DEFAULT=['cards','map','elev','cad','pwr','splits','hr','hrzone'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;

@@ -424,11 +424,11 @@ test.describe("detail-section-order", () => {
       "cards",
       "map",
       "elev",
-      "hr",
       "cad",
       "pwr",
-      "hrzone",
       "splits",
+      "hr",
+      "hrzone",
     ];
     expect(sids, `sections: ${JSON.stringify(sids)}`).toEqual(expected);
   });
@@ -509,10 +509,16 @@ test.describe("detail-section-order", () => {
     const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
       els.map((el) => el.getAttribute("data-sid")),
     );
-    expect(
-      sids[sids.length - 1],
-      `after reset, expected "splits" last, got "${sids[sids.length - 1]}"`,
-    ).toBe("splits");
+    expect(sids, `after reset: ${JSON.stringify(sids)}`).toEqual([
+      "cards",
+      "map",
+      "elev",
+      "cad",
+      "pwr",
+      "splits",
+      "hr",
+      "hrzone",
+    ]);
   });
 });
 
