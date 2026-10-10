@@ -881,7 +881,7 @@ function render(){
     return a.date && a.date >= last12StartStr && a.date <= last12EndStr;
   });
   var last12Range = shortDateLabel(last12StartStr) + " → " + shortDateLabel(last12EndStr);
-  document.getElementById("lastYearSubtitle").innerHTML = "— " + last12Range + " · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
+  document.getElementById("lastYearSubtitle").innerHTML = "— " + last12Range;
   // Month-filtered source for KPI cards (applied for any specific year selection)
   var isCurrentYear = (!isAll && yrStr === curY);
   var fyMo = !isAll
@@ -1302,7 +1302,7 @@ document.getElementById("yearSel").addEventListener("change",function(){
 load();
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';
-  var STATS_SEC_DEFAULT=['kpis','goals','weekly-goals','records','top10','year','monthly-chart','monthly-table','comparison','sport','dow'];
+  var STATS_SEC_DEFAULT=['kpis','last-year','goals','weekly-goals','records','top10','year','monthly-chart','monthly-table','comparison','sport','dow'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;
