@@ -504,7 +504,7 @@ fetch("activities.json",{cache:"no-store"})
 })();
 (function(){
   var LB_SEC_KEY='ssb-lb-sec';
-  var LB_SEC_DEFAULT=['table','top5','period','achievements','thisyear','alltime'];
+  var LB_SEC_DEFAULT=['table','period','achievements','top5','thisyear','alltime'];
   var board=document.getElementById('board');
   if(!board)return;
   var dragSrc=null;
