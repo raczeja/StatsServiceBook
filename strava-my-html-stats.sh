@@ -154,6 +154,11 @@ svg.bar{width:100%;display:block}
 <div id="top10Table"></div>
 </div>
 
+<div class="sec" data-sid="last-year">
+<h2>Last calendar year <span id="lastYearSubtitle" class="muted" style="font-size:.78rem;font-weight:400;text-transform:none">&mdash; 2025</span></h2>
+<div class="kpis" id="lastYearKpis"></div>
+</div>
+
 <div class="sec" data-sid="year">
 <h2>Year overview</h2>
 <div id="yearTable"></div>
@@ -863,6 +868,9 @@ function render(){
   var f = filtered();
   var fyAll  = isAll ? f : filterYear(f, selYear);  // records, DOW, year table
   var fyYear = filterYear(f, yrStr);                // monthly breakdown
+  var lastCalendarYear = String(new Date().getFullYear() - 1);
+  var fyLastCalendarYear = filterYear(f, lastCalendarYear);
+  document.getElementById("lastYearSubtitle").innerHTML = "— " + lastCalendarYear + " · " + (selSport && selSport!=="All" ? esc(selSport) : "all sports");
   // Month-filtered source for KPI cards (applied for any specific year selection)
   var isCurrentYear = (!isAll && yrStr === curY);
   var fyMo = !isAll
@@ -922,6 +930,26 @@ function render(){
            '<div class="v">'+kp.v+'</div>'+
            (kp.s?'<div class="s">'+esc(kp.s)+'</div>':'')+
            '</div>';
+  }).join("");
+
+  var lastYearAgg = agg(fyLastCalendarYear);
+  var lastYearSteps = 0;
+  fyLastCalendarYear.forEach(function(a){
+    if(_walkSports[a.sport_type] && a.average_cadence && a.moving_time)
+      lastYearSteps += Math.round(a.average_cadence * 2 * a.moving_time / 60);
+  });
+  var lastYearKpis = [
+    {k:"Distance",        v:fmtKm(lastYearAgg.distM)+" km"},
+    {k:"Moving time",     v:fmtH(lastYearAgg.secs)},
+    {k:"Elevation",       v:fmtInt(Math.round(lastYearAgg.elev))+" m"},
+    {k:"Activities",      v:fmtInt(lastYearAgg.n)},
+    {k:"Avg km / activity",v:lastYearAgg.n?fmtKmD(lastYearAgg.distM/1000/lastYearAgg.n)+" km":"—"},
+    {k:"Avg speed",       v:fmtSpd(lastYearAgg.distM,lastYearAgg.secs)}
+  ];
+  if((!selSport || selSport==="All" || _walkSports[selSport]) && lastYearSteps>0)
+    lastYearKpis.push({k:"Steps (walk)", v:fmtInt(lastYearSteps)});
+  document.getElementById("lastYearKpis").innerHTML = lastYearKpis.map(function(kp){
+    return '<div class="kpi"><div class="k">'+esc(kp.k)+'</div><div class="v">'+kp.v+'</div></div>';
   }).join("");
 
   // --- Year overview table ---
