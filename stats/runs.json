@@ -1,0 +1,3735 @@
+{
+  "runs": [
+    {
+      "run_id": "139",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35277264667",
+      "timestamp": "2026-09-17T21:34:53Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 334,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "140",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35278016246",
+      "timestamp": "2026-09-17T21:43:03Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 334,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "141",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35278226415",
+      "timestamp": "2026-09-17T21:45:28Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 334,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "142",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35279128639",
+      "timestamp": "2026-09-17T21:55:16Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 334,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "143",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35309598466",
+      "timestamp": "2026-09-18T05:10:04Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 334,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "144",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35311856124",
+      "timestamp": "2026-09-18T05:44:42Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "145",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35312777690",
+      "timestamp": "2026-09-18T05:58:44Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "146",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35315212939",
+      "timestamp": "2026-09-18T06:33:28Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "147",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35333256013",
+      "timestamp": "2026-09-18T10:11:41Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "148",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35333260121",
+      "timestamp": "2026-09-18T10:11:58Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "149",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35390479999",
+      "timestamp": "2026-09-18T20:18:06Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "151",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35435797297",
+      "timestamp": "2026-09-19T09:52:42Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "150",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35435794727",
+      "timestamp": "2026-09-19T09:52:59Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "152",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35459997239",
+      "timestamp": "2026-09-19T18:06:00Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "153",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35460019051",
+      "timestamp": "2026-09-19T18:06:29Z",
+      "total": 333,
+      "passed": 333,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 347,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "154",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35531587143",
+      "timestamp": "2026-09-20T19:15:39Z",
+      "total": 348,
+      "passed": 348,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 354,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "155",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35532086532",
+      "timestamp": "2026-09-20T19:24:34Z",
+      "total": 348,
+      "passed": 348,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 354,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "156",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35545970229",
+      "timestamp": "2026-09-20T23:55:57Z",
+      "total": 348,
+      "passed": 348,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 354,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "157",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35572607919",
+      "timestamp": "2026-09-21T07:24:37Z",
+      "total": 349,
+      "passed": 349,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 369,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "158",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35573893690",
+      "timestamp": "2026-09-21T07:40:23Z",
+      "total": 349,
+      "passed": 349,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 369,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "159",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35574650949",
+      "timestamp": "2026-09-21T07:50:12Z",
+      "total": 349,
+      "passed": 349,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 369,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "160",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35578605523",
+      "timestamp": "2026-09-21T08:36:39Z",
+      "total": 351,
+      "passed": 351,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 379,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "161",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35580667964",
+      "timestamp": "2026-09-21T09:00:38Z",
+      "total": 351,
+      "passed": 351,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 379,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "162",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35582152162",
+      "timestamp": "2026-09-21T09:17:43Z",
+      "total": 351,
+      "passed": 351,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 379,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "163",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35588198303",
+      "timestamp": "2026-09-21T10:23:20Z",
+      "total": 351,
+      "passed": 351,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "164",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35697626535",
+      "timestamp": "2026-09-22T07:05:14Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "165",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35704422733",
+      "timestamp": "2026-09-22T08:24:35Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "166",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35726622764",
+      "timestamp": "2026-09-22T12:23:05Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "167",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35731570118",
+      "timestamp": "2026-09-22T13:11:40Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "168",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35732358887",
+      "timestamp": "2026-09-22T13:18:34Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 391,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "169",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35827693470",
+      "timestamp": "2026-09-23T06:40:34Z",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "170",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35838799562",
+      "timestamp": "2026-09-23T08:46:24Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "171",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35854808433",
+      "timestamp": "2026-09-23T11:31:32Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "172",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35857568457",
+      "timestamp": "2026-09-23T12:00:14Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "173",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35863484168",
+      "timestamp": "2026-09-23T12:56:51Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "174",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35967595105",
+      "timestamp": "2026-09-24T07:05:47Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "175",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/35967603344",
+      "timestamp": "2026-09-24T07:06:16Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 405,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "176",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36007891134",
+      "timestamp": "2026-09-24T13:48:45Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 412,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "177",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36010849195",
+      "timestamp": "2026-09-24T14:12:59Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 412,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "178",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36011638149",
+      "timestamp": "2026-09-24T14:19:24Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 412,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "179",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36107173000",
+      "timestamp": "2026-09-25T07:23:31Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 412,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "180",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36232035823",
+      "timestamp": "2026-09-26T09:14:06Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 412,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "181",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36232560051",
+      "timestamp": "2026-09-26T09:24:39Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 437,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "182",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36238998519",
+      "timestamp": "2026-09-26T11:32:11Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 437,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "184",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36240049654",
+      "timestamp": "2026-09-26T11:52:41Z",
+      "total": 365,
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 437,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "185",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36240080655",
+      "timestamp": "2026-09-26T11:53:07Z",
+      "total": 370,
+      "passed": 370,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "186",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36240743008",
+      "timestamp": "2026-09-26T12:06:01Z",
+      "total": 370,
+      "passed": 370,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "187",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36311688025",
+      "timestamp": "2026-09-27T10:12:52Z",
+      "total": 370,
+      "passed": 370,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "188",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36313404204",
+      "timestamp": "2026-09-27T10:45:00Z",
+      "total": 371,
+      "passed": 371,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "189",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36314744858",
+      "timestamp": "2026-09-27T11:10:21Z",
+      "total": 375,
+      "passed": 374,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 9 stat sections on mobile, got 10\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m9\u001b[39m\nReceived: \u001b[31m10\u001b[39m\n\n  56 |   test(\"all-sections-still-render\", async () => {\n  57 |     const n = await page.$$e"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "190",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36314947322",
+      "timestamp": "2026-09-27T11:14:11Z",
+      "total": 375,
+      "passed": 375,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "191",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36315492842",
+      "timestamp": "2026-09-27T11:25:02Z",
+      "total": 375,
+      "passed": 375,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 449,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "192",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36316823229",
+      "timestamp": "2026-09-27T11:49:12Z",
+      "total": 378,
+      "passed": 378,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 450,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "193",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36317836903",
+      "timestamp": "2026-09-27T12:08:26Z",
+      "total": 378,
+      "passed": 378,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 454,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "194",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36318167060",
+      "timestamp": "2026-09-27T12:13:57Z",
+      "total": 378,
+      "passed": 378,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 455,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "195",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36319081346",
+      "timestamp": "2026-09-27T12:30:52Z",
+      "total": 378,
+      "passed": 378,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "196",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36320058856",
+      "timestamp": "2026-09-27T12:47:54Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "197",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36320472440",
+      "timestamp": "2026-09-27T12:55:36Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "198",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36320940723",
+      "timestamp": "2026-09-27T13:03:32Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "199",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36321342539",
+      "timestamp": "2026-09-27T13:10:59Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "200",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36321877906",
+      "timestamp": "2026-09-27T13:19:54Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "201",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36321981538",
+      "timestamp": "2026-09-27T13:21:30Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "202",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36322227036",
+      "timestamp": "2026-09-27T13:26:10Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 457,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "203",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36322848531",
+      "timestamp": "2026-09-27T13:36:32Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "204",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36323697926",
+      "timestamp": "2026-09-27T13:55:39Z",
+      "total": 381,
+      "passed": 290,
+      "failed": 9,
+      "skipped": 82,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n   8 |   const jsErrors = [];\n   9 |\n> 10 |   test.beforeAll(async ({ browser }) => {\n     |        ^\n  11 |     page = await browser.newPage();\n  12 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  13 |     jsErrors.length = 0;\n    at /"
+        },
+        {
+          "title": "activity-detail.spec.mjs > detail-section-order > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  296 |   const jsErrors = [];\n  297 |\n> 298 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  299 |     page = await browser.newPage();\n  300 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  301 |     await page.evaluate(()"
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-run > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  440 |   const jsErrors = [];\n  441 |\n> 442 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  443 |     page = await browser.newPage();\n  444 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  445 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-cycling > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  662 |   const jsErrors = [];\n  663 |\n> 664 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  665 |     page = await browser.newPage();\n  666 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  667 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-magene > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  763 |   const jsErrors = [];\n  764 |\n> 765 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  766 |     page = await browser.newPage();\n  767 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  768 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-walk > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  891 |   const jsErrors = [];\n  892 |\n> 893 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  894 |     page = await browser.newPage();\n  895 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  896 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > strava-link > strava-activity-has-open-link",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  955 |   const jsErrors = [];\n  956 |\n> 957 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  958 |     page = await browser.newPage();\n  959 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  960 |     await page.evaluate(()"
+        },
+        {
+          "title": "bike-service.spec.mjs > mobile-layout > activity-mobile-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: JS errors on activity at 375px: __CLIMB_CONFIG__ is not defined\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  1106 |       expect(hdr, `#hdr element not found on ${pg.name} page`)."
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "205",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36324360575",
+      "timestamp": "2026-09-27T14:08:01Z",
+      "total": 381,
+      "passed": 290,
+      "failed": 9,
+      "skipped": 82,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n   8 |   const jsErrors = [];\n   9 |\n> 10 |   test.beforeAll(async ({ browser }) => {\n     |        ^\n  11 |     page = await browser.newPage();\n  12 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  13 |     jsErrors.length = 0;\n    at /"
+        },
+        {
+          "title": "activity-detail.spec.mjs > detail-section-order > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  296 |   const jsErrors = [];\n  297 |\n> 298 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  299 |     page = await browser.newPage();\n  300 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  301 |     await page.evaluate(()"
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-run > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  440 |   const jsErrors = [];\n  441 |\n> 442 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  443 |     page = await browser.newPage();\n  444 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  445 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-cycling > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  662 |   const jsErrors = [];\n  663 |\n> 664 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  665 |     page = await browser.newPage();\n  666 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  667 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-magene > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  763 |   const jsErrors = [];\n  764 |\n> 765 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  766 |     page = await browser.newPage();\n  767 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  768 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-walk > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  891 |   const jsErrors = [];\n  892 |\n> 893 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  894 |     page = await browser.newPage();\n  895 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  896 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > strava-link > strava-activity-has-open-link",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  955 |   const jsErrors = [];\n  956 |\n> 957 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  958 |     page = await browser.newPage();\n  959 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  960 |     await page.evaluate(()"
+        },
+        {
+          "title": "bike-service.spec.mjs > mobile-layout > activity-mobile-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: JS errors on activity at 375px: __CLIMB_CONFIG__ is not defined\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  1106 |       expect(hdr, `#hdr element not found on ${pg.name} page`)."
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "206",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36324833906",
+      "timestamp": "2026-09-27T14:15:13Z",
+      "total": 381,
+      "passed": 290,
+      "failed": 9,
+      "skipped": 82,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n   8 |   const jsErrors = [];\n   9 |\n> 10 |   test.beforeAll(async ({ browser }) => {\n     |        ^\n  11 |     page = await browser.newPage();\n  12 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  13 |     jsErrors.length = 0;\n    at /"
+        },
+        {
+          "title": "activity-detail.spec.mjs > detail-section-order > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  296 |   const jsErrors = [];\n  297 |\n> 298 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  299 |     page = await browser.newPage();\n  300 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  301 |     await page.evaluate(()"
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-run > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  440 |   const jsErrors = [];\n  441 |\n> 442 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  443 |     page = await browser.newPage();\n  444 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  445 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-cycling > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  662 |   const jsErrors = [];\n  663 |\n> 664 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  665 |     page = await browser.newPage();\n  666 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  667 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-magene > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  763 |   const jsErrors = [];\n  764 |\n> 765 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  766 |     page = await browser.newPage();\n  767 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  768 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-walk > no-js-errors",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  891 |   const jsErrors = [];\n  892 |\n> 893 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  894 |     page = await browser.newPage();\n  895 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  896 |     jsErrors.length = 0;\n "
+        },
+        {
+          "title": "activity-detail.spec.mjs > strava-link > strava-activity-has-open-link",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31m\"beforeAll\" hook timeout of 30000ms exceeded.\u001b[39m\n\n  955 |   const jsErrors = [];\n  956 |\n> 957 |   test.beforeAll(async ({ browser }) => {\n      |        ^\n  958 |     page = await browser.newPage();\n  959 |     page.on(\"pageerror\", (e) => jsErrors.push(e));\n  960 |     await page.evaluate(()"
+        },
+        {
+          "title": "bike-service.spec.mjs > mobile-layout > activity-mobile-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: JS errors on activity at 375px: __CLIMB_CONFIG__ is not defined\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  1106 |       expect(hdr, `#hdr element not found on ${pg.name} page`)."
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "207",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36325275964",
+      "timestamp": "2026-09-27T14:18:49Z",
+      "total": 381,
+      "passed": 380,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail-healthsync-run > longest-climb-marked-on-map",
+          "file": "activity-detail.spec.mjs",
+          "error": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "208",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36337007610",
+      "timestamp": "2026-09-27T17:29:54Z",
+      "total": 381,
+      "passed": 380,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "stats.spec.mjs > stats-records > all-expected-labels-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"Longest climb\" in #recs record labels, got: [\"Longest distance\",\"Longest ride\",\"Most elevation\",\"Fastest avg speed\",\"Max speed\",\"Best VAM\",\"Best week (km)\",\"Best month (km)\",\"Most activities\",\"Longest streak\"]\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nRece"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "209",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36350238565",
+      "timestamp": "2026-09-27T21:05:29Z",
+      "total": 381,
+      "passed": 381,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 458,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "210",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36401415592",
+      "timestamp": "2026-09-28T09:09:32Z",
+      "total": 404,
+      "passed": 401,
+      "failed": 3,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > mobile-layout > stats-mobile-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: stats page has horizontal overflow at 375px \u2014 table needs overflow-x:auto wrapper\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1101 |       );\n  1102 |       expect(!overflow,\n> 1103 |         `${pg.name} page has horizontal overflow at 375"
+        },
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 10 stat sections on mobile, got 11\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m10\u001b[39m\nReceived: \u001b[31m11\u001b[39m\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$"
+        },
+        {
+          "title": "stats.spec.mjs > stats-month-nav > arrows-wrap-around-month-boundaries",
+          "file": "stats.spec.mjs",
+          "error": "Error: going back from January should reach December, got: \"August 2025\" (was: \"September 2025\")\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1403 |       decLabel.includes(\"December\"),\n  1404 |       `going back from January should reach December"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 463,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "211",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36420856691",
+      "timestamp": "2026-09-28T12:19:55Z",
+      "total": 404,
+      "passed": 401,
+      "failed": 3,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > mobile-layout > stats-mobile-checks",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: stats page has horizontal overflow at 375px \u2014 table needs overflow-x:auto wrapper\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1101 |       );\n  1102 |       expect(!overflow,\n> 1103 |         `${pg.name} page has horizontal overflow at 375"
+        },
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 10 stat sections on mobile, got 11\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m10\u001b[39m\nReceived: \u001b[31m11\u001b[39m\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$"
+        },
+        {
+          "title": "stats.spec.mjs > stats-month-nav > arrows-wrap-around-month-boundaries",
+          "file": "stats.spec.mjs",
+          "error": "Error: going back from January should reach December, got: \"August 2025\" (was: \"September 2025\")\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1403 |       decLabel.includes(\"December\"),\n  1404 |       `going back from January should reach December"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 463,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "212",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36430799748",
+      "timestamp": "2026-09-28T13:47:24Z",
+      "total": 405,
+      "passed": 405,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 463,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "213",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36435002626",
+      "timestamp": "2026-09-28T14:21:01Z",
+      "total": 405,
+      "passed": 405,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 463,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "214",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36481747827",
+      "timestamp": "2026-09-28T20:50:38Z",
+      "total": 405,
+      "passed": 404,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > flags failed and stale imports",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#sources .source').filter({ hasText: 'Strava' }).locator('.badge')\nExpected: \u001b[32m\"Failed\"\u001b[39m\nError: strict mode violation: locator('#sources .source').filter({ hasText: 'S"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 463,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "215",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36555501239",
+      "timestamp": "2026-09-29T10:28:22Z",
+      "total": 412,
+      "passed": 410,
+      "failed": 2,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > heatmap > all-time-shows-4-activities",
+          "file": "activity-detail.spec.mjs",
+          "error": "Error: expected count to start with \"4 \" for All time + All sports, got: \"8 activities \u00b7 218 pts\"\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1172 |       count.startsWith(\"4 \"),\n  1173 |       `expected count to start with \"4 \" for All time + Al"
+        },
+        {
+          "title": "activity-detail.spec.mjs > heatmap > sport-filter-run-all-time-shows-1",
+          "file": "activity-detail.spec.mjs",
+          "error": "Error: expected count to start with \"1 \" for All time + Run sport filter, got: \"2 activities \u00b7 26 pts\"\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  1209 |       count.startsWith(\"1 \"),\n  1210 |       `expected count to start with \"1 \" for All time"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 471,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "216",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36684221491",
+      "timestamp": "2026-09-30T07:32:26Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 0,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "217",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36685510351",
+      "timestamp": "2026-09-30T07:47:43Z",
+      "total": 412,
+      "passed": 412,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 498,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "218",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36822474088",
+      "timestamp": "2026-10-01T06:02:17Z",
+      "total": 412,
+      "passed": 412,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "219",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/36996041384",
+      "timestamp": "2026-10-02T10:35:23Z",
+      "total": 413,
+      "passed": 413,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "220",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37046669469",
+      "timestamp": "2026-10-02T18:22:23Z",
+      "total": 414,
+      "passed": 414,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "221",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37049408839",
+      "timestamp": "2026-10-02T18:46:23Z",
+      "total": 416,
+      "passed": 416,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "222",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37052167208",
+      "timestamp": "2026-10-02T19:11:01Z",
+      "total": 417,
+      "passed": 416,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > bike-service > moving-part-preserves-history-costs-and-usage",
+          "file": "bike-service.spec.mjs",
+          "error": "TypeError: Cannot read properties of undefined (reading 'usageHistory')\n\n  433 |         return saved.bikes.find((b) => b.id === targetId)?.parts?.find((p) => p.id === \"p-chain\");\n  434 |       }, { targetId: before.targetId });\n> 435 |       expect(moved.usageHistory[0].bikeId).toBe(before.sourceId"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "223",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37052882972",
+      "timestamp": "2026-10-02T19:18:11Z",
+      "total": 417,
+      "passed": 417,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "224",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37053755871",
+      "timestamp": "2026-10-02T19:25:57Z",
+      "total": 418,
+      "passed": 418,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "226",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37054068209",
+      "timestamp": "2026-10-02T19:28:50Z",
+      "total": 418,
+      "passed": 418,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "225",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37054062555",
+      "timestamp": "2026-10-02T19:29:08Z",
+      "total": 417,
+      "passed": 417,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "227",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37054860192",
+      "timestamp": "2026-10-02T19:36:09Z",
+      "total": 417,
+      "passed": 417,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "228",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37054865131",
+      "timestamp": "2026-10-02T19:36:26Z",
+      "total": 418,
+      "passed": 418,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "229",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37055577321",
+      "timestamp": "2026-10-02T19:42:56Z",
+      "total": 418,
+      "passed": 418,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "230",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37060766407",
+      "timestamp": "2026-10-02T20:31:02Z",
+      "total": 422,
+      "passed": 422,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "231",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37061776009",
+      "timestamp": "2026-10-02T20:40:29Z",
+      "total": 425,
+      "passed": 425,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "232",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37064020173",
+      "timestamp": "2026-10-02T21:01:54Z",
+      "total": 427,
+      "passed": 427,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "233",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37064968611",
+      "timestamp": "2026-10-02T21:10:59Z",
+      "total": 428,
+      "passed": 428,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "234",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37066046291",
+      "timestamp": "2026-10-02T21:21:27Z",
+      "total": 429,
+      "passed": 429,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 500,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "235",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37068777752",
+      "timestamp": "2026-10-02T21:49:06Z",
+      "total": 431,
+      "passed": 431,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 504,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "236",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37070416931",
+      "timestamp": "2026-10-02T22:06:49Z",
+      "total": 431,
+      "passed": 431,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "237",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37070877841",
+      "timestamp": "2026-10-02T22:11:47Z",
+      "total": 431,
+      "passed": 431,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "238",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37150986976",
+      "timestamp": "2026-10-03T20:19:44Z",
+      "total": 431,
+      "passed": 431,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "239",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37151693505",
+      "timestamp": "2026-10-03T20:33:10Z",
+      "total": 446,
+      "passed": 446,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "240",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37180511252",
+      "timestamp": "2026-10-04T05:42:52Z",
+      "total": 447,
+      "passed": 447,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "241",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37186861050",
+      "timestamp": "2026-10-04T07:50:58Z",
+      "total": 447,
+      "passed": 446,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-triggers-only-enabled-source-buttons",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Array [\u001b[22m\n\u001b[32m-   \"strava\",\u001b[39m\n\u001b[2m    \"leaderboard\",\u001b[22m\n\u001b[31m+   \"strava\",\u001b[39m\n\u001b[2m  ]\u001b[22m\n\n  414 |     await page"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "242",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37187374646",
+      "timestamp": "2026-10-04T08:01:25Z",
+      "total": 447,
+      "passed": 447,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "243",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37187832721",
+      "timestamp": "2026-10-04T08:09:39Z",
+      "total": 447,
+      "passed": 447,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "244",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37205411000",
+      "timestamp": "2026-10-04T13:26:33Z",
+      "total": 448,
+      "passed": 448,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "245",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37206047683",
+      "timestamp": "2026-10-04T13:37:07Z",
+      "total": 449,
+      "passed": 449,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "246",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37208028701",
+      "timestamp": "2026-10-04T14:09:50Z",
+      "total": 449,
+      "passed": 449,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "247",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37209113989",
+      "timestamp": "2026-10-04T14:27:31Z",
+      "total": 450,
+      "passed": 450,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "248",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37257984105",
+      "timestamp": "2026-10-05T03:09:05Z",
+      "total": 451,
+      "passed": 451,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "249",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37299810379",
+      "timestamp": "2026-10-05T11:00:43Z",
+      "total": 451,
+      "passed": 451,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "250",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37300697614",
+      "timestamp": "2026-10-05T11:06:06Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 141,
+      "shell_failed": 1,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "251",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37303031116",
+      "timestamp": "2026-10-05T11:31:04Z",
+      "total": 451,
+      "passed": 446,
+      "failed": 5,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail > svg-elev-axis-starts-at-0m",
+          "file": "activity-detail.spec.mjs",
+          "error": "Error: expected #svg-elev x-axis to include a 0m label, got: 0 km12345678\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  182 |       /0m/.test(text),\n  183 |       `expected #svg-elev x-axis to include a 0m label, got: ${text.slice(0, 200)}`,\n> 184 "
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > moving-between-archive-and-inventory-preserves-part-data",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m9876\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m\n\n  254 |         .find((part) => part.name === partName);\n  255 |       expect(store.inventory.find((item) => item.name === par"
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\nCall Log:\n- Timeout 8000ms exceeded while waiting on the predicate\n\n  360 |         timeout: 8000,\n  361 |       })\n> 362 |       .toBeTruthy();\n      |        ^\n  363 |   });\n  364 |\n  365 |   test"
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-a-rejected-request",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 0\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[2m    \"email_to\": \"rider@example.com\",\u001b[22m\n\u001b[31m+   \"period\": \"2025\",\u001b[39m\n\u001b[2m    \"type\": \"yearly\",\u001b[22m\n\u001b["
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 0\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[31m+   \"period\": \"2026-10\",\u001b[39m\n\u001b[2m    \"type\": \"weekly\",\u001b[22m\n\u001b[2m  }\u001b[22m\n\n  931 |     );\n  932 |     awai"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 528,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "252",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37305141843",
+      "timestamp": "2026-10-05T11:50:28Z",
+      "total": 451,
+      "passed": 446,
+      "failed": 5,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "activity-detail.spec.mjs > activity-detail > svg-elev-axis-starts-at-0m",
+          "file": "activity-detail.spec.mjs",
+          "error": "Error: expected #svg-elev x-axis to include a 0m label, got: 0 km12345678\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  182 |       /0m/.test(text),\n  183 |       `expected #svg-elev x-axis to include a 0m label, got: ${text.slice(0, 200)}`,\n> 184 "
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > moving-between-archive-and-inventory-preserves-part-data",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m9876\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m\n\n  254 |         .find((part) => part.name === partName);\n  255 |       expect(store.inventory.find((item) => item.name === par"
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\nCall Log:\n- Timeout 8000ms exceeded while waiting on the predicate\n\n  360 |         timeout: 8000,\n  361 |       })\n> 362 |       .toBeTruthy();\n      |        ^\n  363 |   });\n  364 |\n  365 |   test"
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-a-rejected-request",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 0\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[2m    \"email_to\": \"rider@example.com\",\u001b[22m\n\u001b[31m+   \"period\": \"2025\",\u001b[39m\n\u001b[2m    \"type\": \"yearly\",\u001b[22m\n\u001b["
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 0\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Object {\u001b[22m\n\u001b[31m+   \"period\": \"2026-10\",\u001b[39m\n\u001b[2m    \"type\": \"weekly\",\u001b[22m\n\u001b[2m  }\u001b[22m\n\n  931 |     );\n  932 |     awai"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 528,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "253",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37310196845",
+      "timestamp": "2026-10-05T12:35:59Z",
+      "total": 451,
+      "passed": 451,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "254",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37500650237",
+      "timestamp": "2026-10-06T17:07:47Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "255",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37504561524",
+      "timestamp": "2026-10-06T17:38:10Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 507,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "256",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37507008891",
+      "timestamp": "2026-10-06T17:57:06Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "257",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37746059683",
+      "timestamp": "2026-10-08T07:57:29Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "258",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37747014936",
+      "timestamp": "2026-10-08T08:04:20Z",
+      "total": 452,
+      "passed": 449,
+      "failed": 3,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  149 |         part.usageHistory?.[0]?.distance === 120 &&\n  150 |         part.serviceTypes?.[0]?.services?.[0]?.note === \"recorded before storage\"\n> 151 |       )).toBeTruthy();\n      |          "
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > moving-part-preserves-history-costs-and-usage",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: moved chain was not found on Gravel Bike\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mundefined\u001b[39m\n\n  690 |         return saved.bikes.find((b) => b.id === targetId)?.parts?.find((p) => p.id === \"p-chain\");\n  691 |       }, { targetId: before.targetId "
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-triggers-only-enabled-source-buttons",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 1\u001b[39m\n\n\u001b[2m  Array [\u001b[22m\n\u001b[32m-   \"strava\",\u001b[39m\n\u001b[2m    \"leaderboard\",\u001b[22m\n\u001b[31m+   \"strava\",\u001b[39m\n\u001b[2m  ]\u001b[22m\n\n  484 |     await page"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "259",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37751916426",
+      "timestamp": "2026-10-08T08:48:24Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "260",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37752916978",
+      "timestamp": "2026-10-08T08:57:28Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "261",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37815960247",
+      "timestamp": "2026-10-08T17:25:32Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "262",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37890257187",
+      "timestamp": "2026-10-09T05:51:36Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "263",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37890357520",
+      "timestamp": "2026-10-09T05:52:14Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "264",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37890435501",
+      "timestamp": "2026-10-09T05:53:19Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "265",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37897784475",
+      "timestamp": "2026-10-09T07:16:57Z",
+      "total": 452,
+      "passed": 450,
+      "failed": 2,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 154954.133,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6303
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6014
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5693
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4155
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4152
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2016
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1964
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1830
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1786
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1713
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "club-dashboard.spec.mjs > club-dashboard > fmtKm-thousand-separator",
+          "file": "club-dashboard.spec.mjs",
+          "error": "Error: fmtKm(1234567) should insert a thousands separator\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"1 23\u001b[7m4.6\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"1 23\u001b[7m5\u001b[27m\"\u001b[39m\n\n  282 |     const formatted = await page.evaluate(() "
+        },
+        {
+          "title": "my-activities.spec.mjs > data-consistency > fmtKm-thousand-separator",
+          "file": "my-activities.spec.mjs",
+          "error": "Error: fmtKm(1234567) should use space as thousand separator\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"1 23\u001b[7m4.6\u001b[27m\"\u001b[39m\nReceived: \u001b[31m\"1 23\u001b[7m5\u001b[27m\"\u001b[39m\n\n  942 |       formatted,\n  943 |       \"fmtKm(1234"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "266",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37897816323",
+      "timestamp": "2026-10-09T07:17:17Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 148505.967,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6296
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6034
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5684
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4145
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4141
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1914
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1840
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1756
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1737
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1647
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "267",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37899493897",
+      "timestamp": "2026-10-09T07:37:11Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 153598.655,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6301
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5993
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5687
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4146
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4143
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2136
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 2021
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1940
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1764
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1723
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "268",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37903687014",
+      "timestamp": "2026-10-09T08:17:38Z",
+      "total": 452,
+      "passed": 450,
+      "failed": 2,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 156313.422,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6320
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6033
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5700
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4175
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4153
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2317
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 2077
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1942
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1781
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1707
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "file": "bike-service.spec.mjs",
+          "error": "Error: expect(received).toBeTruthy()\n\nReceived: false\n\n  149 |         part.usageHistory?.[0]?.distance === 120 &&\n  150 |         part.serviceTypes?.[0]?.services?.[0]?.note === \"recorded before storage\"\n> 151 |       )).toBeTruthy();\n      |          ^\n  152 |     } finally {\n  153 |       await p"
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "file": "bike-service.spec.mjs",
+          "error": "TypeError: Cannot read properties of undefined (reading 'emailAlert')\n\n  339 |       const installed = saved.bikes.find((bike) => bike.name === \"Road Bike\").parts\n  340 |         .find((part) => part.name === partName);\n> 341 |       expect(installed.emailAlert).toBe(true);\n      |                  "
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "269",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/37907004111",
+      "timestamp": "2026-10-09T08:49:57Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 153274.46699999998,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6308
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5973
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5697
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4148
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4126
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1971
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1867
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1750
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1739
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1699
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "270",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38026901191",
+      "timestamp": "2026-10-10T05:19:22Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 152348.343,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6302
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6010
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5699
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4144
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4138
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2071
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1991
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1817
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1763
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1757
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "271",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38027064571",
+      "timestamp": "2026-10-10T05:22:05Z",
+      "total": 452,
+      "passed": 452,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 152698.42500000002,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6309
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5996
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5689
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4163
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4157
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2273
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 2090
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1922
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1778
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1717
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "272",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38027455588",
+      "timestamp": "2026-10-10T05:29:03Z",
+      "total": 453,
+      "passed": 452,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 153698.50699999998,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6305
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5963
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5678
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4171
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4161
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 2032
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1988
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1869
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1743
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1681
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > email-cards-show-failed-stale-and-partial-send-statuses",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator: locator('#email-cards .email-status-card')\nExpected: \"weekly\"\nError: strict mode violation: locator('#email-cards .email-status-card') resolved to 3 elements:\n    1) <article data-sid=\"weekly\" class=\"source email-sec email-status-card"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "273",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38029069968",
+      "timestamp": "2026-10-10T05:57:48Z",
+      "total": 454,
+      "passed": 453,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 152878,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6293
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5999
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5694
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4184
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4178
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1946
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1937
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1723
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1717
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1712
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > email-cards-show-failed-stale-and-partial-send-statuses",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator: locator('#email-cards .email-status-card')\nExpected: \"weekly\"\nError: strict mode violation: locator('#email-cards .email-status-card') resolved to 3 elements:\n    1) <article data-sid=\"weekly\" class=\"source email-sec email-status-card"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 549,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "274",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38029177269",
+      "timestamp": "2026-10-10T05:59:18Z",
+      "total": 454,
+      "passed": 453,
+      "failed": 1,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 142126.674,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6250
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5906
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5633
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4091
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4090
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1693
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1683
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1646
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1586
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1553
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > email-cards-show-failed-stale-and-partial-send-statuses",
+          "file": "data-quality.spec.mjs",
+          "error": "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator: locator('#email-cards .email-status-card')\nExpected: \"weekly\"\nError: strict mode violation: locator('#email-cards .email-status-card') resolved to 3 elements:\n    1) <article data-sid=\"weekly\" class=\"source email-sec email-status-card"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "275",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38030353034",
+      "timestamp": "2026-10-10T06:19:53Z",
+      "total": 454,
+      "passed": 454,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 151787.271,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6296
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6000
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5696
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4150
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4146
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1981
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1861
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1779
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1768
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1740
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "276",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38030409616",
+      "timestamp": "2026-10-10T06:21:17Z",
+      "total": 454,
+      "passed": 454,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 156120.261,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6322
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6009
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5694
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4201
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4165
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2108
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1951
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1814
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1788
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1727
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "277",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38030589867",
+      "timestamp": "2026-10-10T06:24:02Z",
+      "total": 458,
+      "passed": 458,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 153841.79100000003,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6319
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6015
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5697
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4161
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4151
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2108
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1829
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1805
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1799
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1730
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "278",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38042607615",
+      "timestamp": "2026-10-10T09:50:46Z",
+      "total": 459,
+      "passed": 459,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 159488.651,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7061
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6313
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5985
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5685
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4137
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4133
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2236
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 2073
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1840
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1752
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "279",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38066485736",
+      "timestamp": "2026-10-10T16:12:52Z",
+      "total": 459,
+      "passed": 446,
+      "failed": 13,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 160037.013,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6839
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6217
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5875
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5601
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4034
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4026
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1753
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1708
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1590
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1574
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "file": "bike-service.spec.mjs",
+          "error": "TypeError: Cannot read properties of undefined (reading 'emailAlert')\n\n  309 |       let saved = await (await fetch(BIKE_CGI, { cache: \"no-store\" })).json();\n  310 |       const stock = saved.inventory.find((item) => item.name === partName);\n> 311 |       expect(stock.emailAlert).toBe(true);\n      |"
+        },
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 11 stat sections on mobile, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$$eval(\".sec[data-sid]\", (els) => els.length);\n> 71 |     expect(n, `expected"
+        },
+        {
+          "title": "stats.spec.mjs > stats > kpi-activities-year-total",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities KPI >= 10 for full year (sample has 18), got \"7\"\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  92 |       val && n >= 10,\n  93 |       `expected Activities KPI >= 10 for full year (sample has 18), got \"${val}\"`,\n> 94 |     ).toBeTruthy();\n     |       ^\n  95 |   });\n "
+        },
+        {
+          "title": "stats.spec.mjs > stats > kpi-distance-year-total",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Distance KPI >= 500 km (full year ~941 km), got \"359.9 km\" \u2014 single-month filtering bug?\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  108 |       val && km >= 500,\n  109 |       `expected Distance KPI >= 500 km (full year ~941 km), got \"${val}\" \u2014 single-month filtering bug?`,\n>"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-days-subtitle",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities subtitle to match \"N / D days\", got \"null\"\n\nexpect(received).toBeTruthy()\n\nReceived: null\n\n  316 |       val && /^\\d+ \\/ \\d+ days$/.test(val),\n  317 |       `expected Activities subtitle to match \"N / D days\", got \"${val}\"`,\n> 318 |     ).toBeTruthy();\n      |       ^\n  31"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-tooltip",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected tooltip to mention \"active days\", got \"\"\n\nexpect(received).toBeTruthy()\n\nReceived: \"\"\n\n  340 |       tipText && tipText.includes(\"active days\"),\n  341 |       `expected tooltip to mention \"active days\", got \"${tipText}\"`,\n> 342 |     ).toBeTruthy();\n      |       ^\n  343 |     await "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > all-sections-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: sections: [\"last-year\",\"kpis\",\"goals\",\"weekly-goals\",\"records\",\"top10\",\"year\",\"monthly-chart\",\"monthly-table\",\"comparison\",\"sport\",\"dow\"]\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 0\n+ Received  + 1\n\n@@ -1,6 +1,7 @@\n  Array [\n+   \"last-year\",\n    \"kpis\",\n    \"goals\",\n"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-handles-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected 11 .sec-handle elements, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  1110 |       (els) => els.length,\n  1111 |     );\n> 1112 |     expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);\n       |                              "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-to-reorder-works",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"records\" first after drag, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1147 |       sids[0],\n  1148 |       `expected \"records\" first after drag, got \"${sids[0]}\"`,\n> 1149 |     ).toBe(\"records\");\n       |     "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-persisted-in-localstorage",
+          "file": "stats.spec.mjs",
+          "error": "Error: saved order should be 11-element array\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  1164 |       Array.isArray(saved) && saved.length === 11,\n  1165 |       \"saved order should be 11-element array\",\n> 1166 |     ).toBeTruthy();\n       |       ^\n  1167 |     expect(\n  1168 |       saved["
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-restored-after-reload",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reload, expected \"records\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1182 |       sids[0],\n  1183 |       `after reload, expected \"records\" first, got \"${sids[0]}\"`,\n> 1184 |     ).toBe(\"records\");\n       "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > reset-button-restores-default-order",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reset, expected \"kpis\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"kpis\"\nReceived: \"last-year\"\n\n  1197 |       sids[0],\n  1198 |       `after reset, expected \"kpis\" first, got \"${sids[0]}\"`,\n> 1199 |     ).toBe(\"kpis\");\n       |       ^\n  12"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > weekly-goals-section-can-be-reordered",
+          "file": "stats.spec.mjs",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"weekly-goals\"\nReceived: \"last-year\"\n\n  1240 |       section.getAttribute(\"data-sid\"),\n  1241 |     );\n> 1242 |     expect(first).toBe(\"weekly-goals\");\n       |                   ^\n  1243 |   });\n  1244 | });\n  1245 |\n    at /tm"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "280",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38066589400",
+      "timestamp": "2026-10-10T16:14:45Z",
+      "total": 461,
+      "passed": 449,
+      "failed": 12,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 158234.91199999998,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6825
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6180
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5856
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5603
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4038
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4038
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1804
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1559
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1540
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1515
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 11 stat sections on mobile, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$$eval(\".sec[data-sid]\", (els) => els.length);\n> 71 |     expect(n, `expected"
+        },
+        {
+          "title": "stats.spec.mjs > stats > kpi-activities-year-total",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities KPI >= 10 for full year (sample has 18), got \"7\"\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  92 |       val && n >= 10,\n  93 |       `expected Activities KPI >= 10 for full year (sample has 18), got \"${val}\"`,\n> 94 |     ).toBeTruthy();\n     |       ^\n  95 |   });\n "
+        },
+        {
+          "title": "stats.spec.mjs > stats > kpi-distance-year-total",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Distance KPI >= 500 km (full year ~941 km), got \"359.9 km\" \u2014 single-month filtering bug?\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  108 |       val && km >= 500,\n  109 |       `expected Distance KPI >= 500 km (full year ~941 km), got \"${val}\" \u2014 single-month filtering bug?`,\n>"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-days-subtitle",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities subtitle to match \"N / D days\", got \"null\"\n\nexpect(received).toBeTruthy()\n\nReceived: null\n\n  359 |       val && /^\\d+ \\/ \\d+ days$/.test(val),\n  360 |       `expected Activities subtitle to match \"N / D days\", got \"${val}\"`,\n> 361 |     ).toBeTruthy();\n      |       ^\n  36"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-tooltip",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected tooltip to mention \"active days\", got \"\"\n\nexpect(received).toBeTruthy()\n\nReceived: \"\"\n\n  383 |       tipText && tipText.includes(\"active days\"),\n  384 |       `expected tooltip to mention \"active days\", got \"${tipText}\"`,\n> 385 |     ).toBeTruthy();\n      |       ^\n  386 |     await "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > all-sections-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: sections: [\"last-year\",\"kpis\",\"goals\",\"weekly-goals\",\"records\",\"top10\",\"year\",\"monthly-chart\",\"monthly-table\",\"comparison\",\"sport\",\"dow\"]\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 0\n+ Received  + 1\n\n@@ -1,6 +1,7 @@\n  Array [\n+   \"last-year\",\n    \"kpis\",\n    \"goals\",\n"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-handles-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected 11 .sec-handle elements, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  1153 |       (els) => els.length,\n  1154 |     );\n> 1155 |     expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);\n       |                              "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-to-reorder-works",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"records\" first after drag, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1190 |       sids[0],\n  1191 |       `expected \"records\" first after drag, got \"${sids[0]}\"`,\n> 1192 |     ).toBe(\"records\");\n       |     "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-persisted-in-localstorage",
+          "file": "stats.spec.mjs",
+          "error": "Error: saved order should be 11-element array\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  1207 |       Array.isArray(saved) && saved.length === 11,\n  1208 |       \"saved order should be 11-element array\",\n> 1209 |     ).toBeTruthy();\n       |       ^\n  1210 |     expect(\n  1211 |       saved["
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-restored-after-reload",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reload, expected \"records\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1225 |       sids[0],\n  1226 |       `after reload, expected \"records\" first, got \"${sids[0]}\"`,\n> 1227 |     ).toBe(\"records\");\n       "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > reset-button-restores-default-order",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reset, expected \"kpis\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"kpis\"\nReceived: \"last-year\"\n\n  1240 |       sids[0],\n  1241 |       `after reset, expected \"kpis\" first, got \"${sids[0]}\"`,\n> 1242 |     ).toBe(\"kpis\");\n       |       ^\n  12"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > weekly-goals-section-can-be-reordered",
+          "file": "stats.spec.mjs",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"weekly-goals\"\nReceived: \"last-year\"\n\n  1283 |       section.getAttribute(\"data-sid\"),\n  1284 |     );\n> 1285 |     expect(first).toBe(\"weekly-goals\");\n       |                   ^\n  1286 |   });\n  1287 | });\n  1288 |\n    at /tm"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "281",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38066996710",
+      "timestamp": "2026-10-10T16:20:28Z",
+      "total": 461,
+      "passed": 451,
+      "failed": 10,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 165936.836,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6890
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6245
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5905
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5633
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4083
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4075
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1773
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1764
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1648
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1608
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 11 stat sections on mobile, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$$eval(\".sec[data-sid]\", (els) => els.length);\n> 71 |     expect(n, `expected"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-days-subtitle",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities subtitle to match \"N / D days\", got \"null\"\n\nexpect(received).toBeTruthy()\n\nReceived: null\n\n  357 |       val && /^\\d+ \\/ \\d+ days$/.test(val),\n  358 |       `expected Activities subtitle to match \"N / D days\", got \"${val}\"`,\n> 359 |     ).toBeTruthy();\n      |       ^\n  36"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-tooltip",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected tooltip to mention \"active days\", got \"\"\n\nexpect(received).toBeTruthy()\n\nReceived: \"\"\n\n  381 |       tipText && tipText.includes(\"active days\"),\n  382 |       `expected tooltip to mention \"active days\", got \"${tipText}\"`,\n> 383 |     ).toBeTruthy();\n      |       ^\n  384 |     await "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > all-sections-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: sections: [\"last-year\",\"kpis\",\"goals\",\"weekly-goals\",\"records\",\"top10\",\"year\",\"monthly-chart\",\"monthly-table\",\"comparison\",\"sport\",\"dow\"]\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 0\n+ Received  + 1\n\n@@ -1,6 +1,7 @@\n  Array [\n+   \"last-year\",\n    \"kpis\",\n    \"goals\",\n"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-handles-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected 11 .sec-handle elements, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  1151 |       (els) => els.length,\n  1152 |     );\n> 1153 |     expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);\n       |                              "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-to-reorder-works",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"records\" first after drag, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1188 |       sids[0],\n  1189 |       `expected \"records\" first after drag, got \"${sids[0]}\"`,\n> 1190 |     ).toBe(\"records\");\n       |     "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-persisted-in-localstorage",
+          "file": "stats.spec.mjs",
+          "error": "Error: saved order should be 11-element array\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  1205 |       Array.isArray(saved) && saved.length === 11,\n  1206 |       \"saved order should be 11-element array\",\n> 1207 |     ).toBeTruthy();\n       |       ^\n  1208 |     expect(\n  1209 |       saved["
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-restored-after-reload",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reload, expected \"records\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1223 |       sids[0],\n  1224 |       `after reload, expected \"records\" first, got \"${sids[0]}\"`,\n> 1225 |     ).toBe(\"records\");\n       "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > reset-button-restores-default-order",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reset, expected \"kpis\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"kpis\"\nReceived: \"last-year\"\n\n  1238 |       sids[0],\n  1239 |       `after reset, expected \"kpis\" first, got \"${sids[0]}\"`,\n> 1240 |     ).toBe(\"kpis\");\n       |       ^\n  12"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > weekly-goals-section-can-be-reordered",
+          "file": "stats.spec.mjs",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"weekly-goals\"\nReceived: \"last-year\"\n\n  1281 |       section.getAttribute(\"data-sid\"),\n  1282 |     );\n> 1283 |     expect(first).toBe(\"weekly-goals\");\n       |                   ^\n  1284 |   });\n  1285 | });\n  1286 |\n    at /tm"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "282",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38067609805",
+      "timestamp": "2026-10-10T16:29:10Z",
+      "total": 461,
+      "passed": 450,
+      "failed": 11,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 153257.067,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6814
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6162
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5839
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5577
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4034
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4009
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1759
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1569
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > stats-dark-mode-checks",
+          "duration_ms": 1542
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 1528
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "file": "bike-service.spec.mjs",
+          "error": "TypeError: Cannot read properties of undefined (reading 'emailAlert')\n\n  309 |       let saved = await (await fetch(BIKE_CGI, { cache: \"no-store\" })).json();\n  310 |       const stock = saved.inventory.find((item) => item.name === partName);\n> 311 |       expect(stock.emailAlert).toBe(true);\n      |"
+        },
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 11 stat sections on mobile, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$$eval(\".sec[data-sid]\", (els) => els.length);\n> 71 |     expect(n, `expected"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-days-subtitle",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities subtitle to match \"N / D days\", got \"null\"\n\nexpect(received).toBeTruthy()\n\nReceived: null\n\n  357 |       val && /^\\d+ \\/ \\d+ days$/.test(val),\n  358 |       `expected Activities subtitle to match \"N / D days\", got \"${val}\"`,\n> 359 |     ).toBeTruthy();\n      |       ^\n  36"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-tooltip",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected tooltip to mention \"active days\", got \"\"\n\nexpect(received).toBeTruthy()\n\nReceived: \"\"\n\n  381 |       tipText && tipText.includes(\"active days\"),\n  382 |       `expected tooltip to mention \"active days\", got \"${tipText}\"`,\n> 383 |     ).toBeTruthy();\n      |       ^\n  384 |     await "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > all-sections-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: sections: [\"last-year\",\"kpis\",\"goals\",\"weekly-goals\",\"records\",\"top10\",\"year\",\"monthly-chart\",\"monthly-table\",\"comparison\",\"sport\",\"dow\"]\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 0\n+ Received  + 1\n\n@@ -1,6 +1,7 @@\n  Array [\n+   \"last-year\",\n    \"kpis\",\n    \"goals\",\n"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-handles-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected 11 .sec-handle elements, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  1151 |       (els) => els.length,\n  1152 |     );\n> 1153 |     expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);\n       |                              "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-to-reorder-works",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"records\" first after drag, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1188 |       sids[0],\n  1189 |       `expected \"records\" first after drag, got \"${sids[0]}\"`,\n> 1190 |     ).toBe(\"records\");\n       |     "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-persisted-in-localstorage",
+          "file": "stats.spec.mjs",
+          "error": "Error: saved order should be 11-element array\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  1205 |       Array.isArray(saved) && saved.length === 11,\n  1206 |       \"saved order should be 11-element array\",\n> 1207 |     ).toBeTruthy();\n       |       ^\n  1208 |     expect(\n  1209 |       saved["
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-restored-after-reload",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reload, expected \"records\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1223 |       sids[0],\n  1224 |       `after reload, expected \"records\" first, got \"${sids[0]}\"`,\n> 1225 |     ).toBe(\"records\");\n       "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > reset-button-restores-default-order",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reset, expected \"kpis\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"kpis\"\nReceived: \"last-year\"\n\n  1238 |       sids[0],\n  1239 |       `after reset, expected \"kpis\" first, got \"${sids[0]}\"`,\n> 1240 |     ).toBe(\"kpis\");\n       |       ^\n  12"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > weekly-goals-section-can-be-reordered",
+          "file": "stats.spec.mjs",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"weekly-goals\"\nReceived: \"last-year\"\n\n  1281 |       section.getAttribute(\"data-sid\"),\n  1282 |     );\n> 1283 |     expect(first).toBe(\"weekly-goals\");\n       |                   ^\n  1284 |   });\n  1285 | });\n  1286 |\n    at /tm"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "283",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/38067796701",
+      "timestamp": "2026-10-10T16:32:25Z",
+      "total": 461,
+      "passed": 451,
+      "failed": 10,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 178163.59900000002,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6980
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6296
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6025
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5685
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-reports-an-asynchronous-send-failure",
+          "duration_ms": 4142
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > send-email-polls-until-the-send-completes",
+          "duration_ms": 4139
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > shared-inventory-moves-preserve-history-and-consume-stock",
+          "duration_ms": 2040
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > activity-dark-mode-checks",
+          "duration_ms": 1988
+        },
+        {
+          "title": "bike-service.spec.mjs > bike-service > inventory-alerts-are-configurable-and-start-working-after-install",
+          "duration_ms": 1779
+        },
+        {
+          "title": "bike-service.spec.mjs > dark-mode > bike-dark-mode-checks",
+          "duration_ms": 1756
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "mobile.spec.mjs > mobile-stats-touch-controls > all-sections-still-render",
+          "file": "mobile.spec.mjs",
+          "error": "Error: expected 11 stat sections on mobile, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  69 |   test(\"all-sections-still-render\", async () => {\n  70 |     const n = await page.$$eval(\".sec[data-sid]\", (els) => els.length);\n> 71 |     expect(n, `expected"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-days-subtitle",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected Activities subtitle to match \"N / D days\", got \"null\"\n\nexpect(received).toBeTruthy()\n\nReceived: null\n\n  357 |       val && /^\\d+ \\/ \\d+ days$/.test(val),\n  358 |       `expected Activities subtitle to match \"N / D days\", got \"${val}\"`,\n> 359 |     ).toBeTruthy();\n      |       ^\n  36"
+        },
+        {
+          "title": "stats.spec.mjs > stats-sport-filter > kpi-activities-tooltip",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected tooltip to mention \"active days\", got \"\"\n\nexpect(received).toBeTruthy()\n\nReceived: \"\"\n\n  381 |       tipText && tipText.includes(\"active days\"),\n  382 |       `expected tooltip to mention \"active days\", got \"${tipText}\"`,\n> 383 |     ).toBeTruthy();\n      |       ^\n  384 |     await "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > all-sections-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: sections: [\"last-year\",\"kpis\",\"goals\",\"weekly-goals\",\"records\",\"top10\",\"year\",\"monthly-chart\",\"monthly-table\",\"comparison\",\"sport\",\"dow\"]\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 0\n+ Received  + 1\n\n@@ -1,6 +1,7 @@\n  Array [\n+   \"last-year\",\n    \"kpis\",\n    \"goals\",\n"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-handles-present",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected 11 .sec-handle elements, got 12\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 11\nReceived: 12\n\n  1151 |       (els) => els.length,\n  1152 |     );\n> 1153 |     expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);\n       |                              "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > drag-to-reorder-works",
+          "file": "stats.spec.mjs",
+          "error": "Error: expected \"records\" first after drag, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1188 |       sids[0],\n  1189 |       `expected \"records\" first after drag, got \"${sids[0]}\"`,\n> 1190 |     ).toBe(\"records\");\n       |     "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-persisted-in-localstorage",
+          "file": "stats.spec.mjs",
+          "error": "Error: saved order should be 11-element array\n\nexpect(received).toBeTruthy()\n\nReceived: false\n\n  1205 |       Array.isArray(saved) && saved.length === 11,\n  1206 |       \"saved order should be 11-element array\",\n> 1207 |     ).toBeTruthy();\n       |       ^\n  1208 |     expect(\n  1209 |       saved["
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > order-restored-after-reload",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reload, expected \"records\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"records\"\nReceived: \"last-year\"\n\n  1223 |       sids[0],\n  1224 |       `after reload, expected \"records\" first, got \"${sids[0]}\"`,\n> 1225 |     ).toBe(\"records\");\n       "
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > reset-button-restores-default-order",
+          "file": "stats.spec.mjs",
+          "error": "Error: after reset, expected \"kpis\" first, got \"last-year\"\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"kpis\"\nReceived: \"last-year\"\n\n  1238 |       sids[0],\n  1239 |       `after reset, expected \"kpis\" first, got \"${sids[0]}\"`,\n> 1240 |     ).toBe(\"kpis\");\n       |       ^\n  12"
+        },
+        {
+          "title": "stats.spec.mjs > stats-section-order > weekly-goals-section-can-be-reordered",
+          "file": "stats.spec.mjs",
+          "error": "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"weekly-goals\"\nReceived: \"last-year\"\n\n  1281 |       section.getAttribute(\"data-sid\"),\n  1282 |     );\n> 1283 |     expect(first).toBe(\"weekly-goals\");\n       |                   ^\n  1284 |   });\n  1285 | });\n  1286 |\n    at /tm"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 552,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    }
+  ]
+}

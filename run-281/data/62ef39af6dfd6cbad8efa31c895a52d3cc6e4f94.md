@@ -1,0 +1,741 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: mobile.spec.mjs >> mobile-stats-touch-controls >> all-sections-still-render
+- Location: mobile.spec.mjs:69:3
+
+# Error details
+
+```
+Error: expected 11 stat sections on mobile, got 12
+
+expect(received).toBe(expected) // Object.is equality
+
+Expected: 11
+Received: 12
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "My Stats" [level=1] [ref=e14]
+    - button "🌙" [ref=e15] [cursor=pointer]
+  - generic [ref=e16]:
+    - link "← My Activities" [ref=e17] [cursor=pointer]:
+      - /url: index.html
+    - link "🔧 Bike service" [ref=e18] [cursor=pointer]:
+      - /url: bike.html
+    - link "🗺 Heatmap" [ref=e19] [cursor=pointer]:
+      - /url: heatmap.html
+    - link "📋 Data completeness" [ref=e20] [cursor=pointer]:
+      - /url: data-quality.html
+    - link "🏆 Club leaderboard" [ref=e21] [cursor=pointer]:
+      - /url: ../
+  - generic [ref=e22]: 30 activities · updated 2026-07-14
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - text: Sport
+      - combobox "Sport" [ref=e25] [cursor=pointer]:
+        - option "All sports"
+        - option "Ride" [selected]
+        - option "VirtualRide"
+        - option "Run"
+        - option "Hike"
+        - option "Walk"
+    - generic [ref=e26]:
+      - text: Year
+      - combobox "Year" [ref=e27] [cursor=pointer]:
+        - option "All years"
+        - option "2026" [selected]
+        - option "2025"
+  - generic [ref=e28]:
+    - generic [ref=e29]:
+      - heading "Last 12 months — last 12 months · Ride" [level=2] [ref=e30]
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: Distance
+          - generic [ref=e34]: 1 035 km
+        - generic [ref=e35]:
+          - generic [ref=e36]: Moving time
+          - generic [ref=e37]: 55h 25m
+        - generic [ref=e38]:
+          - generic [ref=e39]: Elevation
+          - generic [ref=e40]: 8 247 m
+        - generic [ref=e41]:
+          - generic [ref=e42]: Activities
+          - generic [ref=e43]: "20"
+        - generic [ref=e44]:
+          - generic [ref=e45]: Avg km / activity
+          - generic [ref=e46]: 51.8 km
+        - generic [ref=e47]:
+          - generic [ref=e48]: Avg speed
+          - generic [ref=e49]: 18.7 km/h
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - generic [ref=e53]: Distance
+        - generic [ref=e54]: 941.3 km
+      - generic [ref=e55]:
+        - generic [ref=e56]: Moving time
+        - generic [ref=e57]: 50h 10m
+        - generic [ref=e58]: 2.1 days
+      - generic [ref=e59]:
+        - generic [ref=e60]: Elevation
+        - generic [ref=e61]: 7 287 m
+      - generic [ref=e62]:
+        - generic [ref=e63]: Activities
+        - generic [ref=e64]: "18"
+        - generic [ref=e65]: 18 / 283 days
+      - generic [ref=e66]:
+        - generic [ref=e67]: Avg km / week
+        - generic [ref=e68]: 23.0 km
+      - generic [ref=e69]:
+        - generic [ref=e70]: Avg km / activity
+        - generic [ref=e71]: 52.3 km
+      - generic [ref=e72]:
+        - generic [ref=e73]: Avg speed
+        - generic [ref=e74]: 18.8 km/h
+    - generic [ref=e76]:
+      - heading "Annual Goals & Progress — 2026 · Ride" [level=2] [ref=e77]:
+        - text: Annual Goals & Progress
+        - generic [ref=e78]: — 2026 · Ride
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - text: Yearly target
+            - spinbutton "Yearly target km" [ref=e82]: "7174"
+            - text: km
+          - button "Save" [ref=e83] [cursor=pointer]
+        - generic [ref=e84]:
+          - text: 941.3 km of 7 174 km —
+          - strong [ref=e85]: 13%
+          - text: · projected
+          - strong [ref=e86]: 1 214 km
+          - text: (17%)
+        - generic [ref=e89]: 6 233 km remaining · need 76.0 km/day to finish
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - generic [ref=e92]: Jan
+            - generic [ref=e95]: 60.5 / 597.8
+          - generic [ref=e96]:
+            - generic [ref=e97]: Feb
+            - generic [ref=e100]: 113.5 / 597.8
+          - generic [ref=e101]:
+            - generic [ref=e102]: Mar
+            - generic [ref=e105]: 19.8 / 597.8
+          - generic [ref=e106]:
+            - generic [ref=e107]: Apr
+            - generic [ref=e110]: 194.2 / 597.8
+          - generic [ref=e111]:
+            - generic [ref=e112]: May
+            - generic [ref=e115]: 164.9 / 597.8
+          - generic [ref=e116]:
+            - generic [ref=e117]: Jun
+            - generic [ref=e120]: 303.8 / 597.8
+          - generic [ref=e121]:
+            - generic [ref=e122]: Jul
+            - generic [ref=e125]: 84.6 / 597.8
+          - generic [ref=e126]:
+            - generic [ref=e127]: Aug
+            - generic [ref=e129]: 0.0 / 232.6
+          - generic [ref=e130]:
+            - generic [ref=e131]: Sep
+            - generic [ref=e133]: 0.0 / 997.5
+          - generic [ref=e134]:
+            - generic [ref=e135]: OctNOW
+            - generic [ref=e137]: 0.0 / 977.6
+          - generic [ref=e138]:
+            - generic [ref=e139]: Nov
+            - generic [ref=e141]: 0.0 / 458.5
+          - generic [ref=e142]:
+            - generic [ref=e143]: Dec
+            - generic [ref=e145]: 0.0 / 323.1
+    - generic [ref=e147]:
+      - heading "Weekly progress — July 2026 · Ride km ‹ ›" [level=2] [ref=e148]:
+        - text: Weekly progress
+        - generic [ref=e149]: — July 2026 · Ride km
+        - button "‹" [ref=e150] [cursor=pointer]
+        - button "›" [ref=e151] [cursor=pointer]
+      - generic [ref=e153]:
+        - generic "Week 27 · 2026-06-29 · 0.0 / 135.4 km" [ref=e154]:
+          - generic [ref=e155]: W27 · 29/06
+          - generic [ref=e157]: 0.0 / 135.4
+        - generic "Week 28 · 2026-07-06 · 84.6 / 135.4 km" [ref=e158]:
+          - generic [ref=e159]: W28 · 06/07
+          - generic [ref=e162]: 84.6 / 135.4
+        - generic "Week 29 · 2026-07-13 · 0.0 / 135.4 km" [ref=e163]:
+          - generic [ref=e164]: W29 · 13/07
+          - generic [ref=e166]: 0.0 / 135.4
+        - generic "Week 30 · 2026-07-20 · 0.0 / 135.4 km" [ref=e167]:
+          - generic [ref=e168]: W30 · 20/07
+          - generic [ref=e170]: 0.0 / 135.4
+        - generic "Week 31 · 2026-07-27 · 0.0 / 135.4 km" [ref=e171]:
+          - generic [ref=e172]: W31 · 27/07
+          - generic [ref=e174]: 0.0 / 135.4
+    - generic [ref=e175]:
+      - heading "Personal records — all time · Ride" [level=2] [ref=e176]
+      - generic [ref=e177]:
+        - generic [ref=e178]:
+          - generic [ref=e179]: Longest distance
+          - generic [ref=e180]: 102.4 km
+          - generic [ref=e181]: 2026-04-26 4h 23m Spring Century
+          - link "View activity →" [ref=e183] [cursor=pointer]:
+            - /url: activity.html?id=10
+        - generic [ref=e184]:
+          - generic [ref=e185]: Longest ride
+          - generic [ref=e186]: 5h 07m
+          - generic [ref=e187]: 2026-07-12 84.6 km Magene C606
+          - link "View activity →" [ref=e189] [cursor=pointer]:
+            - /url: activity.html?id=magene-2026-07-12-50671559
+        - generic [ref=e190]:
+          - generic [ref=e191]: Most elevation
+          - generic [ref=e192]: 1 320 m
+          - generic [ref=e193]: 2026-04-26 102.4 km Spring Century
+          - link "View activity →" [ref=e195] [cursor=pointer]:
+            - /url: activity.html?id=10
+        - generic [ref=e196]:
+          - generic [ref=e197]: Longest climb
+          - generic [ref=e198]: 45 m
+          - generic [ref=e199]: 2026-07-12 84.6 km Magene C606
+          - link "View activity →" [ref=e201] [cursor=pointer]:
+            - /url: activity.html?id=magene-2026-07-12-50671559
+        - generic [ref=e202]:
+          - generic [ref=e203]: Fastest avg speed
+          - generic [ref=e204]: 25.0 km/h
+          - generic [ref=e205]: 2026-04-15 50.0 km Spring Spin
+          - link "View activity →" [ref=e207] [cursor=pointer]:
+            - /url: activity.html?id=11
+        - generic [ref=e208]:
+          - generic [ref=e209]: Max speed
+          - generic [ref=e210]: 70.0 km/h
+          - generic [ref=e211]: 2026-04-26 102.4 km Spring Century
+          - link "View activity →" [ref=e213] [cursor=pointer]:
+            - /url: activity.html?id=10
+        - generic [ref=e214]:
+          - generic [ref=e215]: Best VAM
+          - generic [ref=e216]: 315 m/h
+          - generic [ref=e217]: 2026-05-24 980 m elev Weekend Climb
+          - link "View activity →" [ref=e219] [cursor=pointer]:
+            - /url: activity.html?id=6
+        - generic [ref=e220]:
+          - generic [ref=e221]: Highest estimated HR effort
+          - generic [ref=e222]: 70 (est.)
+          - generic [ref=e223]: Estimated from average HR · 2026-06-04 64.3 km West Wroclaw Sample Ride
+          - link "View activity →" [ref=e225] [cursor=pointer]:
+            - /url: activity.html?id=18784255013
+        - generic [ref=e226]:
+          - generic [ref=e227]: Best week (km)
+          - generic [ref=e228]: 140.3 km
+          - generic [ref=e229]: week of 2026-06-01
+          - link "View activities →" [ref=e231] [cursor=pointer]:
+            - /url: index.html
+        - generic [ref=e232]:
+          - generic [ref=e233]: Best month (km)
+          - generic [ref=e234]: 303.8 km
+          - generic [ref=e235]: June 2026
+          - link "View activities →" [ref=e237] [cursor=pointer]:
+            - /url: index.html
+        - generic [ref=e238]:
+          - generic [ref=e239]: Most activities
+          - generic [ref=e240]: 6 activities
+          - generic [ref=e241]: June 2026
+          - link "View activities →" [ref=e243] [cursor=pointer]:
+            - /url: index.html
+        - generic [ref=e244]:
+          - generic [ref=e245]: Longest streak
+          - generic [ref=e246]: 2 days
+          - generic [ref=e247]: 2026-06-03 → 2026-06-04
+          - link "View activities →" [ref=e249] [cursor=pointer]:
+            - /url: index.html
+    - generic [ref=e250]:
+      - heading "Top 2 — Longest climb Longest climb (≥ 25 m gain · ≥ 3% grade · 100 m min)" [level=2] [ref=e251]:
+        - text: Top 2 — Longest climb
+        - combobox [ref=e252] [cursor=pointer]:
+          - option "Distance"
+          - option "Moving time"
+          - option "Elevation"
+          - option "Avg speed"
+          - option "Max speed"
+          - option "Power (W)"
+          - option "Work (kJ)"
+          - option "VAM"
+          - option "Longest climb" [selected]
+          - option "Steps (walk)"
+          - option "Strava Relative Effort"
+          - option "Estimated HR effort"
+        - text: (≥ 25 m gain · ≥ 3% grade · 100 m min)
+      - table [ref=e255]:
+        - rowgroup [ref=e256]:
+          - row [ref=e257]:
+            - columnheader "#" [ref=e258]
+            - columnheader "Date" [ref=e259]
+            - columnheader "Activity" [ref=e260]
+            - columnheader "Longest climb" [ref=e261]
+            - columnheader "Distance" [ref=e262]
+            - columnheader "Time" [ref=e263]
+            - columnheader [ref=e264]
+        - rowgroup [ref=e265]:
+          - row [ref=e266]:
+            - cell "1" [ref=e267]
+            - cell "2026-07-12" [ref=e268]
+            - cell "Magene C606" [ref=e269]
+            - cell "45 m" [ref=e270]
+            - cell "84.6 km" [ref=e271]
+            - cell "5h 07m" [ref=e272]
+            - cell [ref=e273]:
+              - link "View →" [ref=e274] [cursor=pointer]:
+                - /url: activity.html?id=magene-2026-07-12-50671559
+          - row [ref=e275]:
+            - cell "2" [ref=e276]
+            - cell "2026-06-22" [ref=e277]
+            - cell "CYCLING" [ref=e278]
+            - cell "38 m" [ref=e279]
+            - cell "25.1 km" [ref=e280]
+            - cell "1h 33m" [ref=e281]
+            - cell [ref=e282]:
+              - link "View →" [ref=e283] [cursor=pointer]:
+                - /url: activity.html?id=2026-06-22-10-30-cycling
+    - generic [ref=e284]:
+      - heading "Year overview" [level=2] [ref=e285]
+      - table [ref=e287]:
+        - rowgroup [ref=e288]:
+          - row [ref=e289]:
+            - columnheader "Year" [ref=e290]
+            - columnheader "Activities" [ref=e291]
+            - columnheader "Distance" [ref=e292]
+            - columnheader "Time" [ref=e293]
+            - columnheader "Elevation" [ref=e294]
+            - columnheader "Avg dist" [ref=e295]
+            - columnheader "Avg speed" [ref=e296]
+        - rowgroup [ref=e297]:
+          - row [ref=e298]:
+            - cell "2026 NOW" [ref=e299]:
+              - text: "2026"
+              - generic [ref=e300]: NOW
+            - cell "18" [ref=e301]
+            - cell "941.3 km" [ref=e302]
+            - cell "50h 10m" [ref=e303]
+            - cell "7 287 m" [ref=e304]
+            - cell "52.3 km" [ref=e305]
+            - cell "18.8 km/h" [ref=e306]
+          - row [ref=e307]:
+            - cell "2025" [ref=e308]
+            - cell "7" [ref=e309]
+            - cell "359.9 km" [ref=e310]
+            - cell "20h 26m" [ref=e311]
+            - cell "4 290 m" [ref=e312]
+            - cell "51.4 km" [ref=e313]
+            - cell "17.6 km/h" [ref=e314]
+    - generic [ref=e315]:
+      - heading "Monthly breakdown — 2026" [level=2] [ref=e316]
+      - generic [ref=e317]:
+        - heading "Distance per month (km) — 2026" [level=3] [ref=e318]
+        - img [ref=e319]:
+          - generic [ref=e321]: "60.5"
+          - generic [ref=e322]: Jan
+          - generic [ref=e324]: "113.5"
+          - generic [ref=e325]: Feb
+          - generic [ref=e327]: Mar
+          - generic [ref=e329]: "194.2"
+          - generic [ref=e330]: Apr
+          - generic [ref=e332]: "164.9"
+          - generic [ref=e333]: May
+          - generic [ref=e335]: "303.8"
+          - generic [ref=e336]: Jun
+          - generic [ref=e338]: "84.6"
+          - generic [ref=e339]: Jul
+          - generic [ref=e340]: Aug
+          - generic [ref=e341]: Sep
+          - generic [ref=e342]: Oct
+          - generic [ref=e343]: Nov
+          - generic [ref=e344]: Dec
+    - table [ref=e347]:
+      - rowgroup [ref=e348]:
+        - row [ref=e349]:
+          - columnheader "Month" [ref=e350]
+          - columnheader "Activities" [ref=e351]
+          - columnheader "Distance" [ref=e352]
+          - columnheader "Time" [ref=e353]
+          - columnheader "Elevation" [ref=e354]
+          - columnheader "Avg dist" [ref=e355]
+      - rowgroup [ref=e356]:
+        - row [ref=e357]:
+          - cell "January" [ref=e358]
+          - cell "1" [ref=e359]
+          - cell "60.5 km" [ref=e360]
+          - cell "2h 53m" [ref=e361]
+          - cell "420 m" [ref=e362]
+          - cell "60.5 km" [ref=e363]
+        - row [ref=e364]:
+          - cell "February" [ref=e365]
+          - cell "2" [ref=e366]
+          - cell "113.5 km" [ref=e367]
+          - cell "6h 46m" [ref=e368]
+          - cell "1 120 m" [ref=e369]
+          - cell "56.8 km" [ref=e370]
+        - row [ref=e371]:
+          - cell "March" [ref=e372]
+          - cell "1" [ref=e373]
+          - cell "19.8 km" [ref=e374]
+          - cell "0h 52m" [ref=e375]
+          - cell "48 m" [ref=e376]
+          - cell "19.8 km" [ref=e377]
+        - row [ref=e378]:
+          - cell "April" [ref=e379]
+          - cell "3" [ref=e380]
+          - cell "194.2 km" [ref=e381]
+          - cell "9h 11m" [ref=e382]
+          - cell "2 130 m" [ref=e383]
+          - cell "64.7 km" [ref=e384]
+        - row [ref=e385]:
+          - cell "May" [ref=e386]
+          - cell "4" [ref=e387]
+          - cell "164.9 km" [ref=e388]
+          - cell "8h 38m" [ref=e389]
+          - cell "1 770 m" [ref=e390]
+          - cell "41.2 km" [ref=e391]
+        - row [ref=e392]:
+          - cell "June" [ref=e393]
+          - cell "6" [ref=e394]
+          - cell "303.8 km" [ref=e395]
+          - cell "16h 41m" [ref=e396]
+          - cell "1 496 m" [ref=e397]
+          - cell "50.6 km" [ref=e398]
+        - row [ref=e399]:
+          - cell "July" [ref=e400]
+          - cell "1" [ref=e401]
+          - cell "84.6 km" [ref=e402]
+          - cell "5h 07m" [ref=e403]
+          - cell "303 m" [ref=e404]
+          - cell "84.6 km" [ref=e405]
+    - generic [ref=e406]:
+      - heading "Year comparison — km per month" [level=2] [ref=e407]
+      - table [ref=e409]:
+        - rowgroup [ref=e410]:
+          - row [ref=e411]:
+            - columnheader "Month" [ref=e412]
+            - columnheader "YoY" [ref=e413]
+            - columnheader "2026" [ref=e414]
+            - columnheader "2025" [ref=e415]
+        - rowgroup [ref=e416]:
+          - row [ref=e417]:
+            - cell "Jan" [ref=e418]
+            - cell "+60.5 km +0.0%" [ref=e419]: +60.5 km+0.0%
+            - cell "60.5" [ref=e420]
+            - cell "—" [ref=e421]
+          - row [ref=e422]:
+            - cell "Feb" [ref=e423]
+            - cell "+113.5 km +0.0%" [ref=e424]: +113.5 km+0.0%
+            - cell "113.5" [ref=e425]
+            - cell "—" [ref=e426]
+          - row [ref=e427]:
+            - cell "Mar" [ref=e428]
+            - cell "+19.8 km +0.0%" [ref=e429]: +19.8 km+0.0%
+            - cell "19.8" [ref=e430]
+            - cell "—" [ref=e431]
+          - row [ref=e432]:
+            - cell "Apr" [ref=e433]
+            - cell "+194.2 km +0.0%" [ref=e434]: +194.2 km+0.0%
+            - cell "194.2" [ref=e435]
+            - cell "—" [ref=e436]
+          - row [ref=e437]:
+            - cell "May" [ref=e438]
+            - cell "+164.9 km +0.0%" [ref=e439]: +164.9 km+0.0%
+            - cell "164.9" [ref=e440]
+            - cell "—" [ref=e441]
+          - row [ref=e442]:
+            - cell "Jun" [ref=e443]
+            - cell "+303.8 km +0.0%" [ref=e444]: +303.8 km+0.0%
+            - cell "303.8" [ref=e445]
+            - cell "—" [ref=e446]
+          - row [ref=e447]:
+            - cell "Jul" [ref=e448]
+            - cell "+84.6 km +0.0%" [ref=e449]: +84.6 km+0.0%
+            - cell "84.6" [ref=e450]
+            - cell "—" [ref=e451]
+          - row [ref=e452]:
+            - cell "Aug" [ref=e453]
+            - cell "-28.0 km -100.0%" [ref=e454]: "-28.0 km-100.0%"
+            - cell "—" [ref=e455]
+            - cell "28.0" [ref=e456]
+          - row [ref=e457]:
+            - cell "Sep" [ref=e458]
+            - cell "-120.1 km -100.0%" [ref=e459]: "-120.1 km-100.0%"
+            - cell "—" [ref=e460]
+            - cell "120.1" [ref=e461]
+          - row [ref=e462]:
+            - cell "Oct NOW" [ref=e463]:
+              - text: Oct
+              - generic [ref=e464]: NOW
+            - cell "-117.7 km -100.0%" [ref=e465]: "-117.7 km-100.0%"
+            - cell "—" [ref=e466]
+            - cell "117.7" [ref=e467]
+          - row [ref=e468]:
+            - cell "Nov" [ref=e469]
+            - cell "—" [ref=e470]
+            - cell "—" [ref=e471]
+            - cell "55.2" [ref=e472]
+          - row [ref=e473]:
+            - cell "Dec" [ref=e474]
+            - cell "—" [ref=e475]
+            - cell "—" [ref=e476]
+            - cell "38.9" [ref=e477]
+          - row [ref=e478]:
+            - cell [ref=e479]:
+              - strong [ref=e480]: Total
+            - cell [ref=e481]:
+              - strong [ref=e482]: +581.4 km
+              - text: +161.5%
+            - cell [ref=e483]:
+              - strong [ref=e484]: "941.3"
+            - cell [ref=e485]:
+              - strong [ref=e486]: "359.9"
+    - generic [ref=e487]:
+      - heading "By sport — 2026" [level=2] [ref=e488]
+      - table [ref=e490]:
+        - rowgroup [ref=e491]:
+          - row [ref=e492]:
+            - columnheader "Sport" [ref=e493]
+            - columnheader "Activities" [ref=e494]
+            - columnheader "Distance" [ref=e495]
+            - columnheader "Time" [ref=e496]
+            - columnheader "Elevation" [ref=e497]
+            - columnheader "% of km" [ref=e498]
+        - rowgroup [ref=e499]:
+          - row [ref=e500]:
+            - cell "Ride" [ref=e501]
+            - cell "18" [ref=e502]
+            - cell "941.3 km" [ref=e503]
+            - cell "50h 10m" [ref=e504]
+            - cell "7 287 m" [ref=e505]
+            - cell "95%" [ref=e506]
+          - row [ref=e507]:
+            - cell "VirtualRide" [ref=e508]
+            - cell "1" [ref=e509]
+            - cell "30.0 km" [ref=e510]
+            - cell "1h 00m" [ref=e511]
+            - cell "0 m" [ref=e512]
+            - cell "3%" [ref=e513]
+          - row [ref=e514]:
+            - cell "Run" [ref=e515]
+            - cell "2" [ref=e516]
+            - cell "11.4 km" [ref=e517]
+            - cell "1h 04m" [ref=e518]
+            - cell "63 m" [ref=e519]
+            - cell "1%" [ref=e520]
+          - row [ref=e521]:
+            - cell "Walk" [ref=e522]
+            - cell "1" [ref=e523]
+            - cell "5.4 km" [ref=e524]
+            - cell "1h 26m" [ref=e525]
+            - cell "16 m" [ref=e526]
+            - cell "1%" [ref=e527]
+    - generic [ref=e528]:
+      - heading "Average per day of week — selected sport · 2026" [level=2] [ref=e529]
+      - generic [ref=e530]:
+        - heading "Avg distance per weekday (km)" [level=3] [ref=e531]
+        - img [ref=e532]:
+          - generic [ref=e534]: "55.9"
+          - generic [ref=e535]: Mon
+          - generic [ref=e537]: "40.2"
+          - generic [ref=e538]: Tue
+          - generic [ref=e540]: "52.7"
+          - generic [ref=e541]: Wed
+          - generic [ref=e543]: "40.2"
+          - generic [ref=e544]: Thu
+          - generic [ref=e546]: "20.0"
+          - generic [ref=e547]: Fri
+          - generic [ref=e549]: "56.8"
+          - generic [ref=e550]: Sat
+          - generic [ref=e552]: "64.3"
+          - generic [ref=e553]: Sun
+  - generic [ref=e554]:
+    - text: StravaStats for OpenWrt ·
+    - link "activities.json" [ref=e555] [cursor=pointer]:
+      - /url: activities.json
+  - link "StatsServiceBook on GitHub" [ref=e557] [cursor=pointer]:
+    - /url: https://github.com/raczeja/StatsServiceBook
+```
+
+# Test source
+
+```ts
+  1   | import { test, expect } from "./coverage-fixture.mjs";
+  2   | import { URLS } from "./test-urls.mjs";
+  3   | 
+  4   | // All tests in this file run at a narrow touch viewport so @media(pointer:coarse)
+  5   | // and @media(max-width:640px) rules apply — exercising mobile-specific layout
+  6   | // that the desktop chromium project does not cover.
+  7   | test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
+  8   | 
+  9   | // ── Stats – touch hides drag controls ─────────────────────────────────────────
+  10  | //
+  11  | // @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
+  12  | // The elements are injected by JS after load; CSS then hides them on touch.
+  13  | // The desktop tests (stats-section-order) confirm they ARE visible — these
+  14  | // confirm they are NOT visible on touch, so both sides of the rule are covered.
+  15  | 
+  16  | test.describe("mobile-stats-touch-controls", () => {
+  17  |   let page;
+  18  |   const jsErrors = [];
+  19  | 
+  20  |   test.beforeAll(async ({ browser }) => {
+  21  |     page = await browser.newPage();
+  22  |     page.on("pageerror", (e) => jsErrors.push(e));
+  23  |     await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+  24  |     try {
+  25  |       await page.waitForSelector(".sec[data-sid]", { timeout: 10000 });
+  26  |     } catch (_) {}
+  27  |   });
+  28  | 
+  29  |   test.afterAll(async () => {
+  30  |     await page.close();
+  31  |   });
+  32  | 
+  33  |   test("no-js-errors", async () => {
+  34  |     expect(
+  35  |       jsErrors.map((e) => e.message).join("; "),
+  36  |       "JS errors on mobile stats",
+  37  |     ).toBe("");
+  38  |   });
+  39  | 
+  40  |   test("sec-handle-hidden-on-touch", async () => {
+  41  |     // Elements exist in the DOM (JS injects them) but must be CSS-invisible.
+  42  |     const hidden = await page.evaluate(() => {
+  43  |       const handles = document.querySelectorAll(".sec-handle");
+  44  |       if (handles.length === 0) return true; // not yet injected → no drag UI, also fine
+  45  |       return Array.from(handles).every(
+  46  |         (el) => window.getComputedStyle(el).display === "none",
+  47  |       );
+  48  |     });
+  49  |     expect(
+  50  |       hidden,
+  51  |       "expected all .sec-handle elements hidden on touch (pointer:coarse)",
+  52  |     ).toBe(true);
+  53  |   });
+  54  | 
+  55  |   test("sec-order-reset-hidden-on-touch", async () => {
+  56  |     const hidden = await page.evaluate(() => {
+  57  |       const btns = document.querySelectorAll(".sec-order-reset");
+  58  |       if (btns.length === 0) return true;
+  59  |       return Array.from(btns).every(
+  60  |         (el) => window.getComputedStyle(el).display === "none",
+  61  |       );
+  62  |     });
+  63  |     expect(
+  64  |       hidden,
+  65  |       "expected .sec-order-reset button hidden on touch (pointer:coarse)",
+  66  |     ).toBe(true);
+  67  |   });
+  68  | 
+  69  |   test("all-sections-still-render", async () => {
+  70  |     const n = await page.$$eval(".sec[data-sid]", (els) => els.length);
+> 71  |     expect(n, `expected 11 stat sections on mobile, got ${n}`).toBe(11);
+      |                                                                ^ Error: expected 11 stat sections on mobile, got 12
+  72  |   });
+  73  | });
+  74  | 
+  75  | // ── Stats – narrow layout ──────────────────────────────────────────────────────
+  76  | 
+  77  | test.describe("mobile-stats-layout", () => {
+  78  |   let page;
+  79  |   const jsErrors = [];
+  80  | 
+  81  |   test.beforeAll(async ({ browser }) => {
+  82  |     page = await browser.newPage();
+  83  |     page.on("pageerror", (e) => jsErrors.push(e));
+  84  |     await page.goto(URLS.stats, { waitUntil: "networkidle", timeout: 20000 });
+  85  |     try {
+  86  |       await page.waitForSelector(".kpis .kpi", { timeout: 10000 });
+  87  |     } catch (_) {}
+  88  |   });
+  89  | 
+  90  |   test.afterAll(async () => {
+  91  |     await page.close();
+  92  |   });
+  93  | 
+  94  |   test("kpi-cards-fit-within-viewport", async () => {
+  95  |     // At 375px, @media(max-width:640px) applies: kpi minmax drops to 120px.
+  96  |     // Verify no kpi card overflows the viewport width.
+  97  |     const overflow = await page.evaluate(() => {
+  98  |       const vpw = window.innerWidth;
+  99  |       return Array.from(document.querySelectorAll(".kpis .kpi")).some(
+  100 |         (el) => el.getBoundingClientRect().right > vpw + 1,
+  101 |       );
+  102 |     });
+  103 |     expect(overflow, "a .kpi card overflows the mobile viewport").toBe(false);
+  104 |   });
+  105 | 
+  106 |   test("h1-does-not-overflow-viewport", async () => {
+  107 |     const overflow = await page.evaluate(() => {
+  108 |       const h1 = document.querySelector("h1");
+  109 |       if (!h1) return false;
+  110 |       return h1.getBoundingClientRect().right > window.innerWidth + 1;
+  111 |     });
+  112 |     expect(overflow, "h1 overflows mobile viewport on stats page").toBe(false);
+  113 |   });
+  114 | });
+  115 | 
+  116 | // ── Dashboard – chart tooltip on touch ────────────────────────────────────────
+  117 | //
+  118 | // Bar rects are wired with ontouchstart="showTip(...)" + ontouchend="setTimeout(hideTip,3000)".
+  119 | // Verify the tooltip appears on a touch event — behaviour not covered by desktop tests.
+  120 | 
+  121 | test.describe("mobile-dashboard-chart-tooltip", () => {
+  122 |   let page;
+  123 |   const jsErrors = [];
+  124 | 
+  125 |   test.beforeAll(async ({ browser }) => {
+  126 |     page = await browser.newPage();
+  127 |     page.on("pageerror", (e) => jsErrors.push(e));
+  128 |     await page.goto(URLS.dash, { waitUntil: "networkidle", timeout: 20000 });
+  129 |     try {
+  130 |       await page.waitForSelector("svg rect[ontouchstart]", { timeout: 10000 });
+  131 |     } catch (_) {}
+  132 |   });
+  133 | 
+  134 |   test.afterAll(async () => {
+  135 |     await page.close();
+  136 |   });
+  137 | 
+  138 |   test("no-js-errors", async () => {
+  139 |     expect(
+  140 |       jsErrors.map((e) => e.message).join("; "),
+  141 |       "JS errors on mobile dashboard chart",
+  142 |     ).toBe("");
+  143 |   });
+  144 | 
+  145 |   test("chart-tip-shown-on-touchstart", async () => {
+  146 |     // Fire the ontouchstart handler on the first bar rect that has one.
+  147 |     const shown = await page.evaluate(() => {
+  148 |       const rect = document.querySelector("svg rect[ontouchstart]");
+  149 |       if (!rect) return null;
+  150 |       const bounds = rect.getBoundingClientRect();
+  151 |       const cx = bounds.left + bounds.width / 2;
+  152 |       const cy = bounds.top + bounds.height / 2;
+  153 |       // Simulate a touch at the bar's centre — ontouchstart reads touches[0].clientX/Y.
+  154 |       const touch = new Touch({
+  155 |         identifier: 1,
+  156 |         target: rect,
+  157 |         clientX: cx,
+  158 |         clientY: cy,
+  159 |       });
+  160 |       rect.dispatchEvent(
+  161 |         new TouchEvent("touchstart", { bubbles: true, touches: [touch] }),
+  162 |       );
+  163 |       const tip = document.getElementById("chart-tip");
+  164 |       return tip ? tip.style.display : null;
+  165 |     });
+  166 |     expect(shown, `#chart-tip display after touchstart, got "${shown}"`).toBe(
+  167 |       "block",
+  168 |     );
+  169 |   });
+  170 | 
+  171 |   test("chart-tip-has-content-after-touchstart", async () => {
+```
