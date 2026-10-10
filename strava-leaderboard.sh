@@ -432,7 +432,7 @@ while IFS= read -r club_id; do
   # older entries no longer in the feed remain unchanged.
   case "$STRAVA_SOURCE" in
     scrape)
-      _bf_any="$(grep -c '"lastname":""' "$CLUB_STORE" 2>/dev/null || printf '0')"
+      _bf_any="$(grep -c '"lastname":""' "$CLUB_STORE" 2>/dev/null | tr -d ' \n')"
       if [ "${_bf_any:-0}" -gt 0 ]; then
         jq -c '
           def strip_html:
