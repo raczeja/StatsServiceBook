@@ -362,6 +362,30 @@ test.describe("data-quality", () => {
       .toBeTruthy();
   });
 
+  test("idle-sync-running-flag-does-not-show-running", async ({ page }) => {
+    // The *-sync-running flag file always exists on disk: scripts write '1' while
+    // running and '0' when done. A completed sync leaves content '0', which must
+    // NOT keep the Sync button stuck in the disabled "Running…" state.
+    const now = Math.floor(Date.now() / 1000);
+    await page.route("**/strava-sync-status.json", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, lastAttempt: now, lastSuccess: now }),
+      }),
+    );
+    await page.route("**/strava-sync-running", (route) =>
+      route.fulfill({ status: 200, body: "0" }),
+    );
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+
+    const button = page.locator('#sources .sync-btn[data-src="strava"]');
+    await expect(button).toBeVisible();
+    // Give the 5s continuous poll a chance to (incorrectly) flip the button.
+    await page.waitForTimeout(6000);
+    await expect(button).toBeEnabled();
+    await expect(button).toHaveText("↻ Sync now");
+  });
+
   test("sync-completion-renders-live-log-and-refreshes-source-card", async ({
     page,
   }) => {

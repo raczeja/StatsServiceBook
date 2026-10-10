@@ -200,6 +200,9 @@ var SYNC_RUNNING_URLS={strava:'strava-sync-running',healthsync:'healthsync-sync-
 var SRC_NAMES={strava:'Strava',healthsync:'HealthSync',leaderboard:'Club leaderboard'};
 var _knownAttempt={strava:0,healthsync:0,leaderboard:0};
 var _knownRunId={strava:'',healthsync:'',leaderboard:''};
+// The *-sync-running flag file always exists (scripts write '1' while running, '0' when done),
+// so presence (HTTP 200) alone does not mean a sync is active — inspect the content.
+function _flagRunning(text){var t=(text||'').trim();return t!==''&&t!=='0';}
 function _renderLogEl(el,lines,label){
   var previous=el.querySelector('pre.run-log');
   var shouldFollow=!previous||previous.scrollHeight-previous.clientHeight-previous.scrollTop<=24;
@@ -245,14 +248,14 @@ function startLivePolling(src,btn,prevRunId,prevAttempt){
       if(liveUrl){fetch(liveUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text():null;}).then(function(t){if(t&&t.trim())updateLogSectionRaw(src,t);}).catch(function(){});}
       if(url){Promise.all([
         fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-        runningUrl?fetch(runningUrl,{cache:'no-store'}).then(function(r){return {active:r.ok,missing:r.status===404};}).catch(function(){return null;}):Promise.resolve(null)
+        runningUrl?fetch(runningUrl,{cache:'no-store'}).then(function(r){return r.ok?r.text().then(function(t){return {active:_flagRunning(t),missing:false};}):{active:false,missing:r.status===404};}).catch(function(){return null;}):Promise.resolve(null)
       ]).then(function(values){
         var st=values[0],run=values[1];
         if(run&&run.active)seenRunning=true;
         var runId=st&&st.runId?String(st.runId):'';
         var runIdChanged=runId&&runId!==prevRunId;
         var attemptChanged=st&&Number(st.lastAttempt)>prevAttempt;
-        var completed=runIdChanged||attemptChanged||(seenRunning&&run&&run.missing);
+        var completed=runIdChanged||attemptChanged||(seenRunning&&run&&(run.missing||!run.active));
         if(!completed)return;
         if(run&&run.active)return;
         clearInterval(timer);
@@ -586,11 +589,14 @@ setInterval(function(){
     if(!btn||btn.disabled)return;
     fetch(SYNC_RUNNING_URLS[src],{cache:'no-store'})
     .then(function(r){
-      if(r.ok){
-        btn.textContent='↻ Running…';btn.disabled=true;
-        startLivePolling(src,btn,_knownRunId[src]||'',_knownAttempt[src]||0);
-        return null;
-      }
+      if(r.ok)return r.text().then(function(t){
+        if(_flagRunning(t)){
+          btn.textContent='↻ Running…';btn.disabled=true;
+          startLivePolling(src,btn,_knownRunId[src]||'',_knownAttempt[src]||0);
+          return null;
+        }
+        return fetch(SYNC_STATUS_URLS[src],{cache:'no-store'}).then(function(statusResponse){return statusResponse.ok?statusResponse.json():null;});
+      });
       return fetch(SYNC_STATUS_URLS[src],{cache:'no-store'}).then(function(statusResponse){return statusResponse.ok?statusResponse.json():null;});
     }).then(function(status){
       if(!status||btn.disabled)return;
