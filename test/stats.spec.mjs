@@ -208,12 +208,20 @@ test.describe("stats", () => {
       `last-12-months section should stay on the rolling date window even when year filter changes, got: "${subtitleAfterYearChange}"`,
     ).toBeTruthy();
 
+    // The subtitle only shows the rolling date window (no sport label), but the
+    // section's KPI values must still follow the sport filter.
+    const kpisForRide = await page.$eval("#lastYearKpis", (el) => el.textContent);
     await page.selectOption("#sportSel", "Run");
     await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
     const subtitleAfterSportChange = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
+    const kpisForRun = await page.$eval("#lastYearKpis", (el) => el.textContent);
     expect(
-      subtitleAfterSportChange.includes("Run"),
-      `last-12-months section should update when sport changes, got: "${subtitleAfterSportChange}"`,
+      /→/.test(subtitleAfterSportChange),
+      `last-12-months subtitle should stay on the rolling date window, got: "${subtitleAfterSportChange}"`,
+    ).toBeTruthy();
+    expect(
+      kpisForRun !== kpisForRide,
+      `last-12-months KPIs should update when sport changes from Ride to Run`,
     ).toBeTruthy();
 
     await page.selectOption("#sportSel", "Ride");
@@ -1131,6 +1139,7 @@ test.describe("stats-section-order", () => {
     );
     const expected = [
       "kpis",
+      "last-year",
       "goals",
       "weekly-goals",
       "records",
@@ -1150,7 +1159,7 @@ test.describe("stats-section-order", () => {
       "#sec-wrap .sec .sec-handle",
       (els) => els.length,
     );
-    expect(n, `expected 11 .sec-handle elements, got ${n}`).toBe(11);
+    expect(n, `expected 12 .sec-handle elements, got ${n}`).toBe(12);
   });
 
   test("reset-button-present", async () => {
@@ -1202,8 +1211,8 @@ test.describe("stats-section-order", () => {
       }
     });
     expect(
-      Array.isArray(saved) && saved.length === 11,
-      "saved order should be 11-element array",
+      Array.isArray(saved) && saved.length === 12,
+      "saved order should be 12-element array",
     ).toBeTruthy();
     expect(
       saved[0],

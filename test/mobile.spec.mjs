@@ -68,7 +68,7 @@ test.describe("mobile-stats-touch-controls", () => {
 
   test("all-sections-still-render", async () => {
     const n = await page.$$eval(".sec[data-sid]", (els) => els.length);
-    expect(n, `expected 11 stat sections on mobile, got ${n}`).toBe(11);
+    expect(n, `expected 12 stat sections on mobile, got ${n}`).toBe(12);
   });
 });
 
