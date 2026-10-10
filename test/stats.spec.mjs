@@ -185,29 +185,27 @@ test.describe("stats", () => {
     expect(score).toBe(42);
   });
 
-  test("last-calendar-year-section-renders", async () => {
+  test("last-12-months-section-renders", async () => {
     const section = await page.$("[data-sid='last-year']");
-    expect(section, "expected a 'Last calendar year' section").toBeTruthy();
+    expect(section, "expected a 'Last 12 months' section").toBeTruthy();
     const text = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
-    const prevYear = String(new Date().getFullYear() - 1);
     expect(
-      text.includes(prevYear),
-      `expected last-year subtitle to include ${prevYear}, got: "${text}"`,
+      text.includes("last 12 months"),
+      `expected last-12-months subtitle to mention the rolling window, got: "${text}"`,
     ).toBeTruthy();
     const cards = await page.$$eval("#lastYearKpis .kpi", (els) => els.length);
-    expect(cards >= 4, `expected last-year summary cards, got ${cards}`).toBeTruthy();
+    expect(cards >= 4, `expected last-12-months summary cards, got ${cards}`).toBeTruthy();
   });
 
-  test("last-calendar-year-follows-sport-only-not-year-selection", async () => {
+  test("last-12-months-follows-sport-only-not-year-selection", async () => {
     await page.selectOption("#sportSel", "Ride");
     await page.selectOption("#yearSel", "2025");
     await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
 
     const subtitleAfterYearChange = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
-    const prevYear = String(new Date().getFullYear() - 1);
     expect(
-      subtitleAfterYearChange.includes(prevYear),
-      `last-year section should stay on ${prevYear} even when year filter changes, got: "${subtitleAfterYearChange}"`,
+      subtitleAfterYearChange.includes("last 12 months"),
+      `last-12-months section should stay on the rolling 12-month window even when year filter changes, got: "${subtitleAfterYearChange}"`,
     ).toBeTruthy();
 
     await page.selectOption("#sportSel", "Run");
@@ -215,7 +213,7 @@ test.describe("stats", () => {
     const subtitleAfterSportChange = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
     expect(
       subtitleAfterSportChange.includes("Run"),
-      `last-year section should update when sport changes, got: "${subtitleAfterSportChange}"`,
+      `last-12-months section should update when sport changes, got: "${subtitleAfterSportChange}"`,
     ).toBeTruthy();
 
     await page.selectOption("#sportSel", "Ride");
@@ -223,8 +221,8 @@ test.describe("stats", () => {
     await page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
     const finalSubtitle = await page.$eval("#lastYearSubtitle", (el) => el.textContent);
     expect(
-      finalSubtitle.includes(prevYear) && !finalSubtitle.includes("all"),
-      `last-year section should remain anchored to ${prevYear} after resetting year, got: "${finalSubtitle}"`,
+      finalSubtitle.includes("last 12 months") && !finalSubtitle.includes("all years"),
+      `last-12-months section should remain on the rolling window after resetting year, got: "${finalSubtitle}"`,
     ).toBeTruthy();
   });
 
