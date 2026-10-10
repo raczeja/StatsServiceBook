@@ -766,8 +766,9 @@ test.describe("data-quality", () => {
     }
     await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
 
-    const cards = page.locator("#email-cards .source");
+    const cards = page.locator("#email-cards .email-status-card");
     await expect(cards).toHaveCount(3);
+    await expect(cards).toHaveAttribute("data-sid", "weekly");
     const monthly = cards.filter({ hasText: "Monthly email" });
     await expect(monthly.locator(".badge")).toHaveText("Failed");
     await expect(monthly).toContainText("<Monthly report>");
@@ -779,6 +780,11 @@ test.describe("data-quality", () => {
       .toHaveText("Stale");
     await expect(cards.filter({ hasText: "Yearly email" }).locator(".badge"))
       .toHaveText("Stale");
+    expect(
+      await page.$$eval("#email-cards .email-sec", (els) =>
+        els.map((el) => el.getAttribute("data-sid")),
+      ),
+    ).toEqual(["send", "weekly", "monthly", "yearly"]);
   });
 
   test("email-section-visible-when-status-files-present", async ({ page }) => {
@@ -805,6 +811,50 @@ test.describe("data-quality", () => {
     await expect(card).toContainText("Recipients: 3");
   });
 
+  test("email-cards-can-be-reordered-and-reset", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    for (const type of ["monthly", "weekly", "yearly"]) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            mode: type, ok: true, lastAttempt: now, lastSuccess: now,
+          }),
+        }),
+      );
+    }
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    const ids = () =>
+      page.$$eval("#email-cards .email-sec", (els) =>
+        els.map((el) => el.getAttribute("data-sid")),
+      );
+    expect(await ids()).toEqual(["send", "weekly", "monthly", "yearly"]);
+
+    await page.evaluate(() => {
+      const wrap = document.getElementById("email-cards");
+      const source = wrap.querySelector('.email-sec[data-sid="monthly"]');
+      const target = wrap.querySelector('.email-sec[data-sid="send"]');
+      const handle = source.querySelector(".sec-handle");
+      handle.dispatchEvent(new Event("dragstart", { bubbles: true }));
+      const rect = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new MouseEvent("drop", {
+          bubbles: true, cancelable: true, clientY: rect.top + 1,
+        }),
+      );
+      handle.dispatchEvent(new Event("dragend", { bubbles: true }));
+    });
+    expect(await ids()).toEqual(["monthly", "send", "weekly", "yearly"]);
+    expect(
+      await page.evaluate(() => JSON.parse(localStorage.getItem("ssb-email-sec"))),
+    ).toEqual(["monthly", "send", "weekly", "yearly"]);
+
+    await page.reload({ waitUntil: "networkidle" });
+    expect(await ids()).toEqual(["monthly", "send", "weekly", "yearly"]);
+    await page.locator("#email-status .sec-order-reset").click();
+    expect(await ids()).toEqual(["send", "weekly", "monthly", "yearly"]);
+  });
+
   test("email-section-visible-with-send-form-when-no-status-files", async ({ page }) => {
     await page.route("**/email-monthly-status.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
@@ -821,7 +871,7 @@ test.describe("data-quality", () => {
     await expect(sec.locator("#send-email-card"), "send form should be present").toBeVisible();
     await expect(sec.locator("#email-type-sel"), "type dropdown should be present").toBeVisible();
     await expect(sec.locator("#email-to-override"), "override field should be present").toBeVisible();
-    await expect(sec.locator("#email-cards .source"), "no status cards when no files").toHaveCount(0);
+    await expect(sec.locator("#email-cards .email-status-card"), "no status cards when no files").toHaveCount(0);
   });
 
   test("send-email-reports-a-rejected-request", async ({ page }) => {
