@@ -89,8 +89,9 @@ svg.bar{width:100%;display:block}
 @media(max-width:400px){.goal-months{grid-template-columns:repeat(3,1fr)}}
 .goal-mo{font-size:.72rem}
 .goal-mo-lbl{font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.03em}
-.goal-mo-bar{height:5px;background:var(--border);border-radius:3px;margin:.15rem 0;overflow:hidden}
+.goal-mo-bar{height:5px;background:var(--border);border-radius:3px;margin:.15rem 0;overflow:hidden;position:relative}
 .goal-mo-fill{height:100%;border-radius:3px}
+.goal-mo-pace{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#f8fafc;opacity:.85;border-radius:1px}
 .mo-hit  .goal-mo-fill{background:#22c55e}
 .mo-cur  .goal-mo-fill{background:#fb923c}
 .goal-mo.mo-cur{outline:1px solid var(--accent);outline-offset:2px;border-radius:2px}
@@ -793,7 +794,10 @@ function renderGoals(goalsData){
         moElapsed=now.getDate()/daysInMo;
         moPaceTgt=moTgt*moElapsed;
       }
-      var moPct=moPaceTgt>0?Math.min(100,Math.round(moDone/moPaceTgt*100)):0;
+      // Bar fills against the full-month target so the current month visibly
+      // stays partial until month-end; a pace marker (below) shows the elapsed
+      // position, and the colour reflects whether we're ahead of that pace.
+      var moPct=moTgt>0?Math.min(100,Math.round(moDone/moTgt*100)):0;
       var cls=moDone>=moPaceTgt&&moTgt>0?"mo-hit":(isCur?"mo-cur":(isPast?"mo-past":"mo-fut"));
       var tip=MONTHS_F[mi]+"\n"+
         yr+":    "+fmtKmD(moDone)+" km\n"+
@@ -807,7 +811,8 @@ function renderGoals(goalsData){
              ' ontouchend="setTimeout(hideTip,3000)"';
       h+='<div class="goal-mo '+cls+'" style="cursor:default"'+ta+'>';
       h+='<div class="goal-mo-lbl">'+moName+(isCur?'<span class="goal-week-current">NOW</span>':'')+'</div>';
-      h+='<div class="goal-mo-bar"><div class="goal-mo-fill" style="width:'+moPct+'%"></div></div>';
+      var paceMark=isCur?'<div class="goal-mo-pace" style="left:'+(Math.round(moElapsed*1000)/10)+'%" title="'+Math.round(moElapsed*100)+'% of month elapsed"></div>':'';
+      h+='<div class="goal-mo-bar"><div class="goal-mo-fill" style="width:'+moPct+'%"></div>'+paceMark+'</div>';
       h+='<div class="goal-mo-num">'+fmtKmD(moDone)+'&thinsp;/&thinsp;'+fmtKmD(moTgt)+'</div>';
       h+='</div>';
     });
