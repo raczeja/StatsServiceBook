@@ -421,13 +421,20 @@ while IFS= read -r club_id; do
         #                          yoga, weights) — they have no place on a
         #                          distance board and are the usual mis-parse source.
         #  - .distance <= 2000000: drop impossible > 2000 km single activities.
+        #  - .moving_time > 0     : a distance-bearing activity with zero moving
+        #                          time is a mis-parse — an indoor ride whose Time
+        #                          stat ("1h 40m") got read as distance (140 km)
+        #                          while its own time stat parsed to 0. Real rides
+        #                          always carry a moving time, so require one here
+        #                          (also makes the speed check below computable).
         #  - avg speed <= 80 km/h: drop physically-impossible speeds, which flag a
         #                          unit/stat mis-parse (e.g. 146 km in 85 min).
         | map(select(($seen[.s] | not)
                      and ($cutoff == "" or .firstSeen >= $cutoff)
                      and (.distance > 0)
                      and (.distance <= 2000000)
-                     and ((.moving_time <= 0) or ((.distance / .moving_time * 3.6) <= 80))))
+                     and (.moving_time > 0)
+                     and ((.distance / .moving_time * 3.6) <= 80)))
         | .[]
         | {
             signature:    .s,
@@ -683,6 +690,34 @@ while IFS= read -r club_id; do
       fi
       ;;
   esac
+
+  # Retroactive sanity-purge of the persistent store. The merge guards above only
+  # vet *newly added* entries; store rows written by an older parser are never
+  # re-parsed (dedup is by id/signature), so a pre-fix mis-parse lingers forever.
+  # This pass re-applies the same implausibility checks to every stored row and
+  # drops the junk — e.g. an indoor ride recorded as 140 km / 0 s because its
+  # "1h 40m" Time stat was read as distance before the subtitle-aware fix.
+  # A distance-less row (indoor/yoga; distance 0) is kept — it contributes nothing
+  # to the distance board and is not a mis-parse.
+  if [ -s "$TMP/store_${club_id}.json" ] || [ -s "$CLUB_STORE" ]; then
+    grep '^{.*}$' "$CLUB_STORE" > "$TMP/store_pre_purge_${club_id}.ndjson" 2>/dev/null \
+      || : > "$TMP/store_pre_purge_${club_id}.ndjson"
+    if [ -s "$TMP/store_pre_purge_${club_id}.ndjson" ]; then
+      jq -c '
+        select((.distance // 0) <= 0
+               or ( (.distance // 0) <= 2000000
+                    and (.moving_time // 0) > 0
+                    and (((.distance // 0) / .moving_time * 3.6) <= 80) ))
+      ' "$TMP/store_pre_purge_${club_id}.ndjson" > "$TMP/store_purged_${club_id}.ndjson" 2>/dev/null \
+        || cp "$TMP/store_pre_purge_${club_id}.ndjson" "$TMP/store_purged_${club_id}.ndjson"
+      _pre_n="$(wc -l < "$TMP/store_pre_purge_${club_id}.ndjson" | tr -d ' ')"
+      _post_n="$(wc -l < "$TMP/store_purged_${club_id}.ndjson" | tr -d ' ')"
+      if [ "${_post_n:-0}" -lt "${_pre_n:-0}" ]; then
+        mv "$TMP/store_purged_${club_id}.ndjson" "$CLUB_STORE"
+        log "club $club_id: purged $((_pre_n - _post_n)) implausible stored entries (zero-time/over-speed/over-distance)"
+      fi
+    fi
+  fi
 
   # Rebuild the grep-filtered view of the store after merge (new entries are valid
   # jq output so they pass the filter; the check prevents any pre-existing bad
