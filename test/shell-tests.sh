@@ -1416,12 +1416,17 @@ S="scrape-stat-subtitles"
 # run-1    : Distance/Pace/Time → distance kept, elev 0 (Pace is not Elev Gain).
 # fast-1   : subtitled Distance but impossible avg speed (100 km in 1 min) → dropped.
 # legacy-1 : no subtitles → positional fallback (stat_one=distance) still works.
+# zerotime-1 : no subtitles, indoor ride — stat_one is a Time ("1h 40m"), stat_two
+#              a Relative Effort, stat_three Power, elapsedTime 0. Positional
+#              fallback reads "1h 40m" as 140 km with moving_time 0. The new
+#              moving_time>0 guard drops it (real bug: "Spinning @SkyTower").
 _ss_input='{"known":[],"fetched":[
   {"entity":"Activity","activity":{"id":"indoor-1","activityName":"Indoor Cycling","elapsedTime":846,"type":"Ride","startDate":"2026-10-11T15:00:00Z","athlete":{"firstName":"Piotr","lastName":null,"avatarUrl":""},"stats":[{"key":"stat_one","value":"14<abbr>m</abbr> 6<abbr>s</abbr>"},{"key":"stat_one_subtitle","value":"Time"},{"key":"stat_two","value":"43<abbr> Cal</abbr>"},{"key":"stat_two_subtitle","value":"Cal"},{"key":"stat_three","value":"85<abbr> bpm</abbr>"},{"key":"stat_three_subtitle","value":"Avg HR"}]}},
   {"entity":"Activity","activity":{"id":"normal-1","activityName":"Morning Ride","elapsedTime":3000,"type":"Ride","startDate":"2026-10-11T08:00:00Z","athlete":{"firstName":"Ada","lastName":"Nowak","avatarUrl":""},"stats":[{"key":"stat_one","value":"16.03<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"31<abbr> m</abbr>"},{"key":"stat_two_subtitle","value":"Elev Gain"},{"key":"stat_three","value":"49<abbr>m</abbr> 34<abbr>s</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
   {"entity":"Activity","activity":{"id":"run-1","activityName":"Evening Run","elapsedTime":1800,"type":"Run","startDate":"2026-10-11T18:00:00Z","athlete":{"firstName":"Jan","lastName":"Kowal","avatarUrl":""},"stats":[{"key":"stat_one","value":"5.00<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"5:00<abbr> /km</abbr>"},{"key":"stat_two_subtitle","value":"Pace"},{"key":"stat_three","value":"25<abbr>m</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
   {"entity":"Activity","activity":{"id":"fast-1","activityName":"Glitch Ride","elapsedTime":60,"type":"Ride","startDate":"2026-10-11T09:00:00Z","athlete":{"firstName":"Max","lastName":"Speed","avatarUrl":""},"stats":[{"key":"stat_one","value":"100.00<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"0<abbr> m</abbr>"},{"key":"stat_two_subtitle","value":"Elev Gain"},{"key":"stat_three","value":"1<abbr>m</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
-  {"entity":"Activity","activity":{"id":"legacy-1","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-10-11T07:00:00Z","athlete":{"firstName":"Old","lastName":"Timer","avatarUrl":""},"stats":[{"key":"stat_one","value":"20.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}}
+  {"entity":"Activity","activity":{"id":"legacy-1","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-10-11T07:00:00Z","athlete":{"firstName":"Old","lastName":"Timer","avatarUrl":""},"stats":[{"key":"stat_one","value":"20.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}},
+  {"entity":"Activity","activity":{"id":"zerotime-1","activityName":"Spinning","elapsedTime":0,"type":"Ride","startDate":"2026-10-07T15:00:00Z","athlete":{"firstName":"Jacek","lastName":"Kolonko","avatarUrl":""},"stats":[{"key":"stat_one","value":"1<abbr>h</abbr> 40<abbr>m</abbr>"},{"key":"stat_two","value":"133"},{"key":"stat_three","value":"170<abbr> W</abbr>"}]}}
 ]}'
 
 _ss_new="$(printf '%s' "$_ss_input" | jq -c --arg cutoff "" '
@@ -1464,7 +1469,8 @@ _ss_new="$(printf '%s' "$_ss_input" | jq -c --arg cutoff "" '
                and ($cutoff == "" or .firstSeen >= $cutoff)
                and (.distance > 0)
                and (.distance <= 2000000)
-               and ((.moving_time <= 0) or ((.distance / .moving_time * 3.6) <= 80))))
+               and (.moving_time > 0)
+               and ((.distance / .moving_time * 3.6) <= 80)))
   | .[]
 ' 2>/dev/null)"
 
@@ -1502,6 +1508,60 @@ assert_eq "$S" "impossible-speed-dropped" \
 assert_eq "$S" "legacy-positional-distance" \
   "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="legacy-1") | .distance | tostring')" \
   "20000"
+
+# zero-time indoor ride (positional "1h 40m" read as 140 km, moving_time 0) → dropped
+assert_eq "$S" "zerotime-distance-dropped" \
+  "$(printf '%s\n' "$_ss_new" | grep -c '"s":"zerotime-1"' || true)" \
+  "0"
+
+# ── scrape-store-sanity-purge ───────────────────────────────────────────────────
+# Mirrors the retroactive store sanity-purge in strava-leaderboard.sh: the merge
+# guards only vet newly added rows, so a mis-parse written by an older parser
+# lingers in the store forever (dedup is by id). This pass re-applies the same
+# checks to every stored row and drops the junk, while keeping legit rows and
+# distance-less indoor rows. Real bug: "Spinning @SkyTower" stored as 140 km / 0 s.
+S="scrape-store-sanity-purge"
+
+_sp_store='
+{"signature":"keep-ride","distance":40300,"moving_time":6960,"total_elevation_gain":495}
+{"signature":"keep-ride2","distance":100200,"moving_time":16740,"total_elevation_gain":834}
+{"signature":"keep-indoor","distance":0,"moving_time":6023,"total_elevation_gain":0}
+{"signature":"drop-zerotime","distance":140000,"moving_time":0,"total_elevation_gain":133}
+{"signature":"drop-overspeed","distance":146000,"moving_time":5100,"total_elevation_gain":0}
+{"signature":"drop-overdist","distance":2500000,"moving_time":400000,"total_elevation_gain":0}
+'
+
+_sp_purged="$(printf '%s\n' "$_sp_store" | grep '^{.*}$' | jq -c '
+  select((.distance // 0) <= 0
+         or ( (.distance // 0) <= 2000000
+              and (.moving_time // 0) > 0
+              and (((.distance // 0) / .moving_time * 3.6) <= 80) ))
+')"
+
+# legit rides with plausible speed are kept
+assert_eq "$S" "keep-normal-ride" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c '"signature":"keep-ride"' || true)" \
+  "1"
+# distance-less indoor row is kept (contributes 0 to distance board, not a mis-parse)
+assert_eq "$S" "keep-distanceless-indoor" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c '"signature":"keep-indoor"' || true)" \
+  "1"
+# zero-moving-time distance row (the real "Spinning" mis-parse) is purged
+assert_eq "$S" "purge-zerotime" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c '"signature":"drop-zerotime"' || true)" \
+  "0"
+# impossible average speed (146 km in 85 min) is purged
+assert_eq "$S" "purge-overspeed" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c '"signature":"drop-overspeed"' || true)" \
+  "0"
+# >2000 km single activity is purged
+assert_eq "$S" "purge-overdistance" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c '"signature":"drop-overdist"' || true)" \
+  "0"
+# exactly the three legit rows survive
+assert_eq "$S" "surviving-row-count" \
+  "$(printf '%s\n' "$_sp_purged" | grep -c . || true)" \
+  "3"
 
 # ── scrape-cursor ─────────────────────────────────────────────────────────────
 # Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
