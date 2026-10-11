@@ -781,14 +781,25 @@ function renderGoals(goalsData){
       var moDone=0;
       yrRides.forEach(function(a){if(+a.date.slice(5,7)-1===mi)moDone+=(a.distance||0)/1000;});
       var moTgt=moTgts[mi];
-      var moPct=moTgt>0?Math.min(100,Math.round(moDone/moTgt*100)):0;
       var isPast=isCurrentYear?mi<curMoIdx:mi<=11;
       var isCur=isCurrentYear&&mi===curMoIdx;
-      var cls=moDone>=moTgt&&moTgt>0?"mo-hit":(isCur?"mo-cur":(isPast?"mo-past":"mo-fut"));
+      // For the in-progress month, pace the target to the elapsed fraction of the
+      // month so "on track so far" shows green instead of trailing the full-month
+      // target (which can only be met on the last day). Past/future months keep
+      // the full-month target (moPaceTgt===moTgt), so their colour/bar is unchanged.
+      var moPaceTgt=moTgt, moElapsed=1;
+      if(isCur){
+        var daysInMo=new Date(+yr,mi+1,0).getDate();
+        moElapsed=now.getDate()/daysInMo;
+        moPaceTgt=moTgt*moElapsed;
+      }
+      var moPct=moPaceTgt>0?Math.min(100,Math.round(moDone/moPaceTgt*100)):0;
+      var cls=moDone>=moPaceTgt&&moTgt>0?"mo-hit":(isCur?"mo-cur":(isPast?"mo-past":"mo-fut"));
       var tip=MONTHS_F[mi]+"\n"+
         yr+":    "+fmtKmD(moDone)+" km\n"+
         prevY+": "+fmtKmD(prevByMo[mi])+" km\n"+
-        "Target:  "+fmtKmD(moTgt)+" km";
+        "Target:  "+fmtKmD(moTgt)+" km"+
+        (isCur?"\nOn track: "+fmtKmD(moPaceTgt)+" km ("+Math.round(moElapsed*100)+"% of month)":"");
       var tipJ=esc(JSON.stringify(tip));
       var ta=' onmouseenter="showTip(event,'+tipJ+')"'+
              ' onmousemove="moveTip(event)" onmouseleave="hideTip()"'+

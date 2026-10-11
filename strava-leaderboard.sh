@@ -340,7 +340,7 @@ while IFS= read -r club_id; do
           [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
         def digits:
           [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
-        def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+        def parse_km:   strip_html | digits | (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
         def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
         def parse_time:
           strip_html | . as $t |
@@ -372,9 +372,21 @@ while IFS= read -r club_id; do
                            elapsedTime: (.elapsed_time // 0)}
                end)
             | select(. != null and (.id // "") != "")
-            | ((.stats // []) | map(select(.key == "stat_one"))   | .[0].value // "") as $s1
-            | ((.stats // []) | map(select(.key == "stat_two"))   | .[0].value // "") as $s2
-            | ((.stats // []) | map(select(.key == "stat_three")) | .[0].value // "") as $s3
+            # Strava reorders the three feed stats by activity type and labels each
+            # with a *_subtitle. Indoor rides have NO distance stat (they report
+            # Time/Cal/Avg HR), so the old positional assumption (stat_one=distance,
+            # stat_two=elev, stat_three=time) mis-read "14m 6s" as 146 km. When
+            # subtitles are present, drive distance/elev/time off them; otherwise
+            # fall back to the positional stats (keeps older/subtitle-less feeds and
+            # the existing test fixtures working).
+            | ((.stats // []) | map({(.key): .value}) | add // {}) as $st
+            | ([ {v: ($st.stat_one   // ""), s: ($st.stat_one_subtitle   // "")},
+                 {v: ($st.stat_two   // ""), s: ($st.stat_two_subtitle   // "")},
+                 {v: ($st.stat_three // ""), s: ($st.stat_three_subtitle // "")} ]) as $stat_list
+            | (($stat_list | map(select(.s != "")) | length) > 0) as $has_subs
+            | (if $has_subs then ($stat_list | map(select(.s == "Distance"))  | .[0].v // "") else ($st.stat_one   // "") end) as $s1
+            | (if $has_subs then ($stat_list | map(select(.s == "Elev Gain")) | .[0].v // "") else ($st.stat_two   // "") end) as $s2
+            | (if $has_subs then ($stat_list | map(select(.s == "Time"))      | .[0].v // "") else ($st.stat_three // "") end) as $s3
             | ($s3 | parse_time) as $pt3
             | ($s2 | parse_time) as $pt2
             | (.athlete.firstName // "") as $fn
@@ -386,19 +398,36 @@ while IFS= read -r club_id; do
                 profile_medium: (.athlete.avatarUrl // ""),
                 name:      (.activityName // ""),
                 distance:  ($s1 | parse_km),
-                moving_time: (if $pt3 > 0 then $pt3
-                              elif $pt2 > 0 then $pt2
-                              else (.elapsedTime // 0) end),
+                moving_time: (if $has_subs
+                              then (if $pt3 > 0 then $pt3 else (.elapsedTime // 0) end)
+                              else (if $pt3 > 0 then $pt3
+                                    elif $pt2 > 0 then $pt2
+                                    else (.elapsedTime // 0) end)
+                              end),
                 elapsed_time: (.elapsedTime // 0),
-                total_elevation_gain: (if (($pt3 == 0) and ($pt2 > 0)) or ($s2 | strip_html | contains("/")) then 0
-                                       else ($s2 | parse_elev) end),
+                total_elevation_gain: (if $has_subs
+                                       then ($s2 | parse_elev)
+                                       else (if (($pt3 == 0) and ($pt2 > 0)) or ($s2 | strip_html | contains("/")) then 0
+                                             else ($s2 | parse_elev) end)
+                                       end),
                 type:      (.type // ""),
                 sport_type: (.type // ""),
                 firstSeen: (.startDate // "" | split("T")[0])
               }
           ]
         | unique_by(.s)
-        | map(select(($seen[.s] | not) and ($cutoff == "" or .firstSeen >= $cutoff) and (.distance <= 2000000)))
+        # Guards against garbage reaching the distance leaderboard:
+        #  - .distance > 0       : drop distance-less activities (indoor rides,
+        #                          yoga, weights) — they have no place on a
+        #                          distance board and are the usual mis-parse source.
+        #  - .distance <= 2000000: drop impossible > 2000 km single activities.
+        #  - avg speed <= 80 km/h: drop physically-impossible speeds, which flag a
+        #                          unit/stat mis-parse (e.g. 146 km in 85 min).
+        | map(select(($seen[.s] | not)
+                     and ($cutoff == "" or .firstSeen >= $cutoff)
+                     and (.distance > 0)
+                     and (.distance <= 2000000)
+                     and ((.moving_time <= 0) or ((.distance / .moving_time * 3.6) <= 80))))
         | .[]
         | {
             signature:    .s,
@@ -505,6 +534,11 @@ while IFS= read -r club_id; do
       # lastname across all stored entries, backfill any blank-lastname entries for
       # that firstname. Fixes the case where recent Strava feed privacy changes
       # cause new activities to arrive with only a first name.
+      #
+      # Conservative guard: only fill a blank lastname, or EXTEND a single-initial
+      # one (e.g. "K." -> "Król") when the first letter matches. Never replace a
+      # non-blank surname with a different one — otherwise two athletes who share a
+      # first name (e.g. Piotr Król vs Piotr Zając) get merged under one surname.
       _sh_any="$(jq -sc '[.[] | select((.lastname // "" | length) <= 1)] | length' "$CLUB_STORE" 2>/dev/null || printf '0')"
       if [ "${_sh_any:-0}" -gt 0 ]; then
         jq -sc '
@@ -515,8 +549,12 @@ while IFS= read -r club_id; do
               })
             | map(select(.fn != "" and (.lns | length) == 1))
             | map({(.fn): .lns[0]}) | add // {}) as $km |
-          [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
-                 then . + {lastname: $km[.firstname]}
+          [.[] | ($km[.firstname] // "") as $c
+               | if ($c | length) > ((.lastname // "") | length)
+                     and ( ((.lastname // "") | length) == 0
+                           or ( ((.lastname // "") | length) <= 2
+                                and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
+                 then . + {lastname: $c}
                  else . end] | .[]
         ' "$CLUB_STORE" > "$TMP/store_selfheal_${club_id}.ndjson" \
           && mv "$TMP/store_selfheal_${club_id}.ndjson" "$CLUB_STORE" \
@@ -554,8 +592,19 @@ while IFS= read -r club_id; do
                         | map({(.[0][0]): .[0][1]}) | add // {}' \
               > "$TMP/lb_nm_${club_id}.json"
             jq -sc --argjson lm "$(cat "$TMP/lb_nm_${club_id}.json")" '
-              [.[] | if (.lastname // "" | length) < ($lm[.firstname] // "" | length)
-                     then . + {lastname: $lm[.firstname]}
+              # Ambiguity guard: if the store already knows this firstname maps to
+              # two or more distinct full surnames (>2 chars), the firstname is
+              # shared by different people — never auto-fill it from the single-name
+              # leaderboard endpoint (which would merge them). Leave such entries be.
+              ( [ .[] | select((.lastname // "" | length) > 2) | {fn: .firstname, ln: .lastname} ]
+                | group_by(.fn) | map({(.[0].fn): ([.[].ln] | unique | length)}) | add // {} ) as $cnt |
+              [.[] | ($lm[.firstname] // "") as $c
+                   | if ($cnt[.firstname] // 0) >= 2 then .
+                     elif ($c | length) > ((.lastname // "") | length)
+                         and ( ((.lastname // "") | length) == 0
+                               or ( ((.lastname // "") | length) <= 2
+                                    and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
+                     then . + {lastname: $c}
                      else . end] | .[]
             ' "$CLUB_STORE" > "$TMP/store_lb_patched.ndjson" \
               && mv "$TMP/store_lb_patched.ndjson" "$CLUB_STORE" \

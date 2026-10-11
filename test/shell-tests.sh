@@ -854,7 +854,7 @@ _parse_km() {
         def strip_html: gsub("<[^>]*>"; "");
         def parse_km:
           strip_html | gsub("[^0-9.]"; "") |
-          if . == "" or . == "." then 0 else tonumber end * 1000;
+          (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
         $s | parse_km'
 }
 
@@ -925,7 +925,7 @@ _scrape_dedup() {
         def strip_html: gsub("<[^>]*>"; "");
         def parse_km:
           strip_html | gsub("[^0-9.]"; "") |
-          if . == "" or . == "." then 0 else tonumber end * 1000;
+          (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
         def parse_elev:
           strip_html | gsub("[^0-9.]"; "") |
           if . == "" or . == "." then 0 else tonumber end;
@@ -1045,7 +1045,7 @@ _norm_parse() {
       [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
     def digits:
       [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
-    def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+    def parse_km:   strip_html | digits | (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
     def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
     def parse_time:
       strip_html | . as $t |
@@ -1362,7 +1362,7 @@ _ds_new="$(printf '%s' "$_ds_input" | jq -c --arg cutoff "" '
   def _n: if (. == null or . == "") then 0 else tonumber end;
   def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
   def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
-  def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+  def parse_km:   strip_html | digits | (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
   def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
   def parse_time:
     strip_html | . as $t |
@@ -1402,6 +1402,106 @@ assert_eq "$S" "impossible-ride-rejected" \
 assert_eq "$S" "normal-ride-distance-metres" \
   "$(printf '%s' "$_ds_new" | jq -r 'select(.s=="good-1") | .distance | tostring')" \
   "50000"
+
+# ── scrape-stat-subtitles ──────────────────────────────────────────────────────
+# Strava reorders the three feed stats by activity type and labels each with a
+# *_subtitle. Indoor rides carry NO distance stat (Time/Cal/Avg HR), so the old
+# positional assumption (stat_one=distance) mis-read "14m 6s" as 146 km. This
+# suite mirrors the subtitle-aware parse + the two guards (zero-distance and
+# implausible average speed) now in strava-leaderboard.sh.
+S="scrape-stat-subtitles"
+
+# indoor-1 : real bug case — Time/Cal/Avg HR, no Distance → distance 0 → dropped.
+# normal-1 : Distance/Elev Gain/Time → 16.03 km, 31 m elev, 49m34s.
+# run-1    : Distance/Pace/Time → distance kept, elev 0 (Pace is not Elev Gain).
+# fast-1   : subtitled Distance but impossible avg speed (100 km in 1 min) → dropped.
+# legacy-1 : no subtitles → positional fallback (stat_one=distance) still works.
+_ss_input='{"known":[],"fetched":[
+  {"entity":"Activity","activity":{"id":"indoor-1","activityName":"Indoor Cycling","elapsedTime":846,"type":"Ride","startDate":"2026-10-11T15:00:00Z","athlete":{"firstName":"Piotr","lastName":null,"avatarUrl":""},"stats":[{"key":"stat_one","value":"14<abbr>m</abbr> 6<abbr>s</abbr>"},{"key":"stat_one_subtitle","value":"Time"},{"key":"stat_two","value":"43<abbr> Cal</abbr>"},{"key":"stat_two_subtitle","value":"Cal"},{"key":"stat_three","value":"85<abbr> bpm</abbr>"},{"key":"stat_three_subtitle","value":"Avg HR"}]}},
+  {"entity":"Activity","activity":{"id":"normal-1","activityName":"Morning Ride","elapsedTime":3000,"type":"Ride","startDate":"2026-10-11T08:00:00Z","athlete":{"firstName":"Ada","lastName":"Nowak","avatarUrl":""},"stats":[{"key":"stat_one","value":"16.03<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"31<abbr> m</abbr>"},{"key":"stat_two_subtitle","value":"Elev Gain"},{"key":"stat_three","value":"49<abbr>m</abbr> 34<abbr>s</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
+  {"entity":"Activity","activity":{"id":"run-1","activityName":"Evening Run","elapsedTime":1800,"type":"Run","startDate":"2026-10-11T18:00:00Z","athlete":{"firstName":"Jan","lastName":"Kowal","avatarUrl":""},"stats":[{"key":"stat_one","value":"5.00<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"5:00<abbr> /km</abbr>"},{"key":"stat_two_subtitle","value":"Pace"},{"key":"stat_three","value":"25<abbr>m</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
+  {"entity":"Activity","activity":{"id":"fast-1","activityName":"Glitch Ride","elapsedTime":60,"type":"Ride","startDate":"2026-10-11T09:00:00Z","athlete":{"firstName":"Max","lastName":"Speed","avatarUrl":""},"stats":[{"key":"stat_one","value":"100.00<abbr> km</abbr>"},{"key":"stat_one_subtitle","value":"Distance"},{"key":"stat_two","value":"0<abbr> m</abbr>"},{"key":"stat_two_subtitle","value":"Elev Gain"},{"key":"stat_three","value":"1<abbr>m</abbr>"},{"key":"stat_three_subtitle","value":"Time"}]}},
+  {"entity":"Activity","activity":{"id":"legacy-1","activityName":"Old Ride","elapsedTime":3600,"type":"Ride","startDate":"2026-10-11T07:00:00Z","athlete":{"firstName":"Old","lastName":"Timer","avatarUrl":""},"stats":[{"key":"stat_one","value":"20.00"},{"key":"stat_two","value":"100"},{"key":"stat_three","value":"1h"}]}}
+]}'
+
+_ss_new="$(printf '%s' "$_ss_input" | jq -c --arg cutoff "" '
+  def _n: if (. == null or . == "") then 0 else tonumber end;
+  def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
+  def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
+  def parse_km:   strip_html | digits | (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
+  def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
+  def parse_time:
+    strip_html | . as $t |
+    (if ($t|contains("h")) then ($t|split("h")[0]|digits|_n) else 0 end) * 3600 +
+    (if ($t|contains("m")) then ((if ($t|contains("h")) then $t|split("h")[1] else $t end)|split("m")[0]|digits|_n) else 0 end) * 60 +
+    (if ($t|contains("s")) then ((if ($t|contains("m")) then $t|split("m")[1] else if ($t|contains("h")) then $t|split("h")[1] else $t end end)|split("s")[0]|digits|_n) else 0 end);
+  ( (.known // []) | map({ (.): true }) | add // {} ) as $seen
+  | [ .fetched[]
+      | select(.entity == "Activity")
+      | .activity
+      | . + {athlete: ((.athlete // {}) + {athleteName: (((.athlete.firstName // "") + " " + (.athlete.lastName // "")) | ltrimstr(" ") | rtrimstr(" "))}), elapsedTime: (.elapsedTime // 0)}
+      | select(. != null and (.id // "") != "")
+      | ((.stats // []) | map({(.key): .value}) | add // {}) as $st
+      | ([ {v: ($st.stat_one   // ""), s: ($st.stat_one_subtitle   // "")},
+           {v: ($st.stat_two   // ""), s: ($st.stat_two_subtitle   // "")},
+           {v: ($st.stat_three // ""), s: ($st.stat_three_subtitle // "")} ]) as $stat_list
+      | (($stat_list | map(select(.s != "")) | length) > 0) as $has_subs
+      | (if $has_subs then ($stat_list | map(select(.s == "Distance"))  | .[0].v // "") else ($st.stat_one   // "") end) as $s1
+      | (if $has_subs then ($stat_list | map(select(.s == "Elev Gain")) | .[0].v // "") else ($st.stat_two   // "") end) as $s2
+      | (if $has_subs then ($stat_list | map(select(.s == "Time"))      | .[0].v // "") else ($st.stat_three // "") end) as $s3
+      | ($s3 | parse_time) as $pt3
+      | ($s2 | parse_time) as $pt2
+      | {s: .id,
+         distance: ($s1 | parse_km),
+         total_elevation_gain: (if $has_subs then ($s2 | parse_elev)
+                                else (if (($pt3 == 0) and ($pt2 > 0)) or ($s2 | strip_html | contains("/")) then 0 else ($s2 | parse_elev) end) end),
+         moving_time: (if $has_subs then (if $pt3 > 0 then $pt3 else (.elapsedTime // 0) end)
+                       else (if $pt3 > 0 then $pt3 elif $pt2 > 0 then $pt2 else (.elapsedTime // 0) end) end),
+         firstSeen: (.startDate // "" | split("T")[0])}
+    ]
+  | unique_by(.s)
+  | map(select(($seen[.s] | not)
+               and ($cutoff == "" or .firstSeen >= $cutoff)
+               and (.distance > 0)
+               and (.distance <= 2000000)
+               and ((.moving_time <= 0) or ((.distance / .moving_time * 3.6) <= 80))))
+  | .[]
+' 2>/dev/null)"
+
+# indoor ride → no Distance subtitle → distance 0 → dropped by zero-distance guard
+assert_eq "$S" "indoor-no-distance-dropped" \
+  "$(printf '%s\n' "$_ss_new" | grep -c '"s":"indoor-1"' || true)" \
+  "0"
+
+# normal ride → distance read from the "Distance"-subtitled stat (16.03 km)
+assert_eq "$S" "normal-ride-distance-metres" \
+  "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="normal-1") | .distance | tostring')" \
+  "16030"
+
+# normal ride → elevation from the "Elev Gain"-subtitled stat
+assert_eq "$S" "normal-ride-elev" \
+  "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="normal-1") | .total_elevation_gain | tostring')" \
+  "31"
+
+# normal ride → moving_time from the "Time"-subtitled stat (49m 34s = 2974 s)
+assert_eq "$S" "normal-ride-time-seconds" \
+  "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="normal-1") | .moving_time | tostring')" \
+  "2974"
+
+# run → kept, and Pace (stat_two) must NOT become elevation
+assert_eq "$S" "run-pace-not-elev" \
+  "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="run-1") | .total_elevation_gain | tostring')" \
+  "0"
+
+# impossible average speed (100 km in 1 min) → dropped by speed guard
+assert_eq "$S" "impossible-speed-dropped" \
+  "$(printf '%s\n' "$_ss_new" | grep -c '"s":"fast-1"' || true)" \
+  "0"
+
+# legacy entry with no subtitles → positional fallback keeps stat_one as distance
+assert_eq "$S" "legacy-positional-distance" \
+  "$(printf '%s' "$_ss_new" | jq -r 'select(.s=="legacy-1") | .distance | tostring')" \
+  "20000"
 
 # ── scrape-cursor ─────────────────────────────────────────────────────────────
 # Mirrors: _scrape_cursor=$(jq -r '(.entries[-1].cursorData.updated_at|floor|tostring)')
@@ -3551,7 +3651,7 @@ _stf_parse() {
       def _n: if (. == null or . == "") then 0 else tonumber end;
       def strip_html: [split("<")[0]] + [split("<")[1:][] | split(">")[1:] | join(">")] | join("");
       def digits: [explode[] | select(. == 46 or (. >= 48 and . <= 57))] | implode;
-      def parse_km:   strip_html | digits | if . == "" or . == "." then 0 else tonumber end * 1000;
+      def parse_km:   strip_html | digits | (if . == "" or . == "." then 0 else tonumber end * 1000 | round);
       def parse_elev: strip_html | digits | if . == "" or . == "." then 0 else tonumber end;
       def parse_time:
         strip_html | . as $t |
@@ -4042,12 +4142,14 @@ S="leaderboard-name-selfheal"
 
 _selfheal_store="$TMP/sh_store.ndjson"
 
-# Five athletes:
-# Alice   — old entry "Thornton", new entry "" → both should become "Thornton"
+# Athletes:
+# Gwen    — old entry "Thornton", new entry "" → both should become "Thornton"
 # Bob     — all entries "" (never seen full name) → unchanged
 # Chris   — entries "Mercer" and "Dayton" (ambiguous) → unchanged
 # dot     — old entry ".", new entry "." → only 1-char, not a valid reference → unchanged
 # Dana    — already "Prentiss" → must not be touched
+# Piotr   — "Zając" (full) + "K" (initial) → "K" must NOT become "Zając" (diff person)
+# Adam    — "Nowak" (full) + "N" (initial) → "N" extends to "Nowak" (same initial)
 cat > "$_selfheal_store" << 'STORE'
 {"firstname":"Gwen","lastname":"Thornton","firstSeen":"2026-09-01"}
 {"firstname":"Gwen","lastname":"","firstSeen":"2026-10-05"}
@@ -4057,6 +4159,10 @@ cat > "$_selfheal_store" << 'STORE'
 {"firstname":"dot","lastname":".","firstSeen":"2026-09-01"}
 {"firstname":"dot","lastname":".","firstSeen":"2026-10-05"}
 {"firstname":"Dana","lastname":"Prentiss","firstSeen":"2026-10-05"}
+{"firstname":"Piotr","lastname":"Zając","firstSeen":"2026-09-01"}
+{"firstname":"Piotr","lastname":"K","firstSeen":"2026-10-05"}
+{"firstname":"Adam","lastname":"Nowak","firstSeen":"2026-09-01"}
+{"firstname":"Adam","lastname":"N","firstSeen":"2026-10-05"}
 STORE
 
 _sh_healed="$(jq -sc '
@@ -4067,8 +4173,12 @@ _sh_healed="$(jq -sc '
       })
     | map(select(.fn != "" and (.lns | length) == 1))
     | map({(.fn): .lns[0]}) | add // {}) as $km |
-  [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
-         then . + {lastname: $km[.firstname]}
+  [.[] | ($km[.firstname] // "") as $c
+       | if ($c | length) > ((.lastname // "") | length)
+             and ( ((.lastname // "") | length) == 0
+                   or ( ((.lastname // "") | length) <= 2
+                        and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
+         then . + {lastname: $c}
          else . end] | .[]
 ' "$_selfheal_store")"
 
@@ -4112,9 +4222,25 @@ assert_eq "$S" "full-name-not-overwritten" \
         | jq -r 'select(.firstname=="Dana") | .lastname')" \
     "Prentiss"
 
+# Piotr "K" must NOT be rewritten to "Zając" — different athlete, different initial
+assert_eq "$S" "mismatched-initial-not-overwritten" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Piotr" and .firstSeen=="2026-10-05") | .lastname')" \
+    "K"
+# Piotr "Zając" full entry stays intact
+assert_eq "$S" "piotr-full-name-kept" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Piotr" and .firstSeen=="2026-09-01") | .lastname')" \
+    "Zając"
+# Adam "N" extends to "Nowak" — same initial, same person
+assert_eq "$S" "matching-initial-extended" \
+    "$(printf '%s\n' "$_sh_healed" \
+        | jq -r 'select(.firstname=="Adam" and .firstSeen=="2026-10-05") | .lastname')" \
+    "Nowak"
+
 # Total record count must be preserved (no duplicates, no drops)
 assert_eq "$S" "record-count-preserved" \
-    "$(printf '%s\n' "$_sh_healed" | jq -s 'length')" "8"
+    "$(printf '%s\n' "$_sh_healed" | jq -s 'length')" "12"
 
 # ── leaderboard-name-lb-patch ─────────────────────────────────────────────────
 # Mirrors the leaderboard endpoint name-patch step in strava-leaderboard.sh:
@@ -4128,6 +4254,11 @@ cat > "$_lb_store" << 'STORE'
 {"firstname":"Nico","lastname":"","firstSeen":"2026-10-01"}
 {"firstname":"Dana","lastname":"Prentiss","firstSeen":"2026-10-01"}
 {"firstname":"Eve","lastname":"M.","firstSeen":"2026-10-01"}
+{"firstname":"Piotr","lastname":"K.","firstSeen":"2026-10-01"}
+{"firstname":"Ola","lastname":"K","firstSeen":"2026-10-01"}
+{"firstname":"Marek","lastname":"Wolski","firstSeen":"2026-10-01"}
+{"firstname":"Marek","lastname":"Dąbek","firstSeen":"2026-10-01"}
+{"firstname":"Marek","lastname":"","firstSeen":"2026-10-02"}
 STORE
 
 # Leaderboard endpoint JSON — deliberately nested under "data" to test recursive descent
@@ -4137,7 +4268,10 @@ cat > "$_lb_api_json" << 'JSON'
   "data": {
     "current_week": [
       {"athlete_firstname":"Kai","athlete_lastname":"Novarro","distance":15000},
-      {"athlete_firstname":"Nico","athlete_lastname":"Fontaine","distance":7000}
+      {"athlete_firstname":"Nico","athlete_lastname":"Fontaine","distance":7000},
+      {"athlete_firstname":"Piotr","athlete_lastname":"Zając","distance":99000},
+      {"athlete_firstname":"Ola","athlete_lastname":"Kowalska","distance":42000},
+      {"athlete_firstname":"Marek","athlete_lastname":"Wolski","distance":55000}
     ],
     "last_week": [
       {"athlete_firstname":"pieczara","athlete_lastname":".","distance":74000}
@@ -4164,8 +4298,15 @@ printf '%s\n' "$_lb_names" \
   > "$_lb_nm_file"
 
 _lb_patched="$(jq -sc --argjson lm "$(cat "$_lb_nm_file")" '
-  [.[] | if (.lastname // "" | length) < ($lm[.firstname] // "" | length)
-         then . + {lastname: $lm[.firstname]}
+  ( [ .[] | select((.lastname // "" | length) > 2) | {fn: .firstname, ln: .lastname} ]
+    | group_by(.fn) | map({(.[0].fn): ([.[].ln] | unique | length)}) | add // {} ) as $cnt |
+  [.[] | ($lm[.firstname] // "") as $c
+       | if ($cnt[.firstname] // 0) >= 2 then .
+         elif ($c | length) > ((.lastname // "") | length)
+             and ( ((.lastname // "") | length) == 0
+                   or ( ((.lastname // "") | length) <= 2
+                        and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
+         then . + {lastname: $c}
          else . end] | .[]
 ' "$_lb_store")"
 
@@ -4193,6 +4334,22 @@ assert_eq "$S" "longer-stored-name-kept" \
 assert_eq "$S" "no-lb-entry-unchanged" \
     "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Eve") | .lastname')" \
     "M."
+
+# Piotr "K." must NOT be overwritten by leaderboard's "Zając" — different athlete
+assert_eq "$S" "lb-mismatched-initial-not-overwritten" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Piotr") | .lastname')" \
+    "K."
+
+# Ola "K" extends to leaderboard's "Kowalska" — same initial, same person
+assert_eq "$S" "lb-matching-initial-extended" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Ola") | .lastname')" \
+    "Kowalska"
+
+# Marek firstname is shared (Wolski + Dąbek in store) → blank entry must stay blank,
+# never auto-filled from the single-name leaderboard endpoint.
+assert_eq "$S" "lb-ambiguous-firstname-blank-kept" \
+    "$(printf '%s\n' "$_lb_patched" | jq -r 'select(.firstname=="Marek" and .lastname=="") | .firstname')" \
+    "Marek"
 
 # Recursive descent found Kai and Nico even though data is nested under "data.current_week"
 assert_eq "$S" "recursive-descent-found-kai" \
@@ -4224,8 +4381,12 @@ jq -sc '
       })
     | map(select(.fn != "" and (.lns | length) == 1))
     | map({(.fn): .lns[0]}) | add // {}) as $km |
-  [.[] | if (.lastname // "" | length) < ($km[.firstname] // "" | length)
-         then . + {lastname: $km[.firstname]}
+  [.[] | ($km[.firstname] // "") as $c
+       | if ($c | length) > ((.lastname // "") | length)
+             and ( ((.lastname // "") | length) == 0
+                   or ( ((.lastname // "") | length) <= 2
+                        and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
+         then . + {lastname: $c}
          else . end] | .[]
 ' "$_em_store" > "$_em_healed_store"
 

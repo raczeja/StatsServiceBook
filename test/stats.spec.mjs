@@ -1003,6 +1003,34 @@ test.describe("stats-goals", () => {
     ).toBeTruthy();
   });
 
+  test("current-month-tile-uses-paced-target", async () => {
+    // When the current year is selected, the in-progress month tile should pace
+    // its target to the elapsed fraction of the month: its tooltip carries an
+    // "On track:" line and its progress bar is measured against the paced target.
+    const curYear = String(new Date().getFullYear());
+    const yearSel = await page.evaluate(
+      () => document.getElementById("yearSel")?.value,
+    );
+    if (yearSel !== curYear) return; // only meaningful for the current year
+
+    const info = await page.evaluate(() => {
+      const tiles = Array.from(document.querySelectorAll(".goal-mo"));
+      const cur = tiles.find((t) =>
+        t.querySelector(".goal-mo-lbl .goal-week-current"),
+      );
+      if (!cur) return null;
+      return {
+        attr: cur.getAttribute("onmouseenter") || "",
+        fillWidth: cur.querySelector(".goal-mo-fill")?.style.width || "",
+      };
+    });
+    expect(info, "expected a current-month tile with a NOW marker").toBeTruthy();
+    expect(
+      info.attr.includes("On track"),
+      `current-month tooltip should include an "On track" paced line, got: ${info.attr}`,
+    ).toBeTruthy();
+  });
+
   test("monthly-tile-hover-shows-tip", async () => {
     const visible = await page.evaluate(() => {
       const tile = document.querySelector(".goal-mo");
