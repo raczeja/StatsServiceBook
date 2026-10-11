@@ -1022,12 +1022,19 @@ test.describe("stats-goals", () => {
       return {
         attr: cur.getAttribute("onmouseenter") || "",
         fillWidth: cur.querySelector(".goal-mo-fill")?.style.width || "",
+        paceLeft: cur.querySelector(".goal-mo-pace")?.style.left || "",
       };
     });
     expect(info, "expected a current-month tile with a NOW marker").toBeTruthy();
     expect(
       info.attr.includes("On track"),
       `current-month tooltip should include an "On track" paced line, got: ${info.attr}`,
+    ).toBeTruthy();
+    // A pace marker should mark the elapsed fraction of the month so the tile
+    // reads as "not full yet" even when ahead of pace.
+    expect(
+      /%$/.test(info.paceLeft),
+      `current-month tile should have a .goal-mo-pace marker positioned by percent, got: "${info.paceLeft}"`,
     ).toBeTruthy();
   });
 
