@@ -75,7 +75,13 @@ chmod 0755 /www/cgi-bin/drive-auth
 
 jq '(.activities[] |= (. + {has_gps:(if .gpx_file then true elif .id == 18784255013 then true elif .id == 1 then false else null end)}))' \
   /opt/activities.sample.json > "$WEB/activities.json"
-cp /opt/heatmap.sample.json    "$WEB/heatmap.json"
+# Heatmap sample: stamp the newest entry (the single recent Ride the heatmap
+# tests expect in the "last 3 months" window) with a date ~30 days ago, so it
+# stays inside the 90-day default window and outside the 7-day window no matter
+# when the tests run. Without this the hardcoded date drifts out of range.
+HM_RECENT="$(jq -rn '(now - 30*86400) | gmtime | strftime("%Y-%m-%d")')"
+jq --arg d "$HM_RECENT" 'map(if .d=="2026-07-12" then .d=$d else . end)' \
+  /opt/heatmap.sample.json > "$WEB/heatmap.json"
 cp /opt/cities.sample.json     "$WEB/cities.json"
 # Drive auth status: ok=true with token info so the dashboard can render the status line.
 printf '{"ok":true,"checked_at":%s,"file_count":42,"expires_at":%s}\n' \
