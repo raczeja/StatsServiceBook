@@ -486,9 +486,31 @@ function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
   var labelH = xLabels ? 20 : 0;
   var W = (xLabels && !compactLabels) ? (px + n * barW + 16) : Math.max(n * 3, 900);
   var H = 200, ch = H - 18 - labelH;
+  // X positioning. For GPX charts (compactLabels) xLabels hold cumulative km, so place
+  // points by distance to make the km axis linear and evenly spaced. Otherwise (per-split
+  // charts) space points evenly by index. Falls back to index if the distance span is
+  // zero/invalid.
+  var useDist = !!(compactLabels && xLabels), d0 = 0, dSpan = 1;
+  if (useDist) {
+    d0 = parseFloat(xLabels[0]);
+    var dEnd = parseFloat(xLabels[n - 1]);
+    if (!isFinite(d0)) d0 = 0;
+    dSpan = (isFinite(dEnd) ? dEnd : 0) - d0;
+    if (!(dSpan > 0)) useDist = false;
+  }
+  function xPos(i) {
+    var frac;
+    if (useDist) {
+      var dv = parseFloat(xLabels[i]);
+      frac = isFinite(dv) ? (dv - d0) / dSpan : 0;
+    } else {
+      frac = i / (n > 1 ? n - 1 : 1);
+    }
+    return px + frac * (W - px - 16);
+  }
   var path = "", x, y;
   for (i = 0; i < n; i++) {
-    x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+    x = xPos(i).toFixed(1);
     y = (ch - ((points[i] - base) / range) * (ch - 24)).toFixed(1);
     path += (i ? "L" : "M") + x + "," + y;
   }
@@ -526,18 +548,23 @@ function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
     '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>';
   if (xLabels) {
     if (compactLabels) {
-      var lastKm = -1;
+      // Points are positioned by distance (see xPos), so km boundaries are evenly spaced.
+      // Still enforce a minimum pixel gap so very long rides thin to every N km instead of
+      // overlapping.
+      var lastKm = -1, lastLabelX = -1e9, MIN_LABEL_GAP = 34;
       for (i = 0; i < n; i++) {
         var kmVal = Math.floor(parseFloat(xLabels[i]));
         if (isNaN(kmVal) || kmVal === lastKm) continue;
         lastKm = kmVal;
-        x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
-        html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + kmVal + ' km</text>';
+        var lx = xPos(i);
+        if (lx - lastLabelX < MIN_LABEL_GAP) continue;
+        lastLabelX = lx;
+        html += '<text x="' + lx.toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + kmVal + ' km</text>';
       }
     } else {
       var stride = n > 120 ? 5 : n > 60 ? 2 : 1;
       for (i = 0; i < n; i += stride) {
-        x = (px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1);
+        x = xPos(i).toFixed(1);
         var labelText = String(xLabels[i]);
         if (i === 0 && labelText === "0") labelText = "0 km";
         html += '<text x="' + x + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + labelText + '</text>';
@@ -547,7 +574,7 @@ function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
   // Build per-point tooltip data and add a transparent hit overlay.
   var tipEntries = [];
   for (i = 0; i < n; i++) {
-    var tx = parseFloat((px + i * (W - px - 16) / (n > 1 ? n - 1 : 1)).toFixed(1));
+    var tx = parseFloat(xPos(i).toFixed(1));
     var tipLabel = xLabels
       ? ('<strong>Km ' + esc(xLabels[i]) + '</strong>')
       : ('<strong>' + (unit === 'bpm' ? 'Heart rate' : 'Elevation') + '</strong>');
