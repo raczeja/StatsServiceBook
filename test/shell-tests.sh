@@ -2406,6 +2406,35 @@ _me_no_merge="$(jq -rn --arg month "2026-06" --arg merge "" \
      | group_by("\(.firstname)|\(.lastname)") | length' "$TMP/me_merge.ndjson")"
 assert_eq "$S" "empty-merge-three-groups"  "$_me_no_merge" "3"
 
+# ── monthly-email-zero-distance-filter ────────────────────────────────────────
+# Mirrors the `map(select(.dist > 0))` drop added to the email leaderboard tables
+# in strava-email-monthly.sh. An athlete whose whole month was distance-less
+# indoor rides (distance 0) must NOT appear as a 0.0 km row in the email, while an
+# athlete with a mix of indoor + real rides stays (indoor time still summed in).
+S="monthly-email-zero-distance-filter"
+
+printf '%s\n' \
+    '{"firstSeen":"2026-06-03","firstname":"Ada","lastname":"Nowak","distance":20000,"moving_time":2500,"total_elevation_gain":150}' \
+    '{"firstSeen":"2026-06-05","firstname":"Ada","lastname":"Nowak","distance":0,"moving_time":3600,"total_elevation_gain":0}' \
+    '{"firstSeen":"2026-06-07","firstname":"Jacek","lastname":"Spin","distance":0,"moving_time":6000,"total_elevation_gain":0}' \
+    > "$TMP/me_zero.ndjson"
+
+_me_zero="$(jq -rn --arg month "2026-06" --arg merge "" \
+    "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
+     | group_by("\(.firstname)|\(.lastname)")
+     | map({ name: "\(.[0].firstname) \(.[0].lastname)",
+             dist: (([.[].distance] | add) / 1000),
+             time_s: ([.[].moving_time] | add) })
+     | map(select(.dist > 0))
+     | sort_by(-.dist)' "$TMP/me_zero.ndjson")"
+
+# only the mixed athlete survives; the indoor-only athlete is dropped
+assert_eq "$S" "surviving-athlete-count" "$(printf '%s' "$_me_zero" | jq 'length')"              "1"
+assert_eq "$S" "kept-mixed-athlete"      "$(printf '%s' "$_me_zero" | jq -r '.[0].name')"        "Ada Nowak"
+assert_eq "$S" "indoor-only-dropped"     "$(printf '%s' "$_me_zero" | jq '[.[] | select(.name=="Jacek Spin")] | length')" "0"
+# the surviving athlete still carries their indoor moving time (2500 + 3600)
+assert_eq "$S" "mixed-athlete-time-summed" "$(printf '%s' "$_me_zero" | jq '.[0].time_s')"       "6100"
+
 # ── monthly-email-graceful-noop ───────────────────────────────────────────────
 # Mirrors the guard at the top of strava-email-monthly.sh that silently skips
 # when SMTP is not configured.

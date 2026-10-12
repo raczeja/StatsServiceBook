@@ -336,6 +336,7 @@ for club_id in $CLUB_IDS; do
                 elev: (([.[].total_elevation_gain // 0] | add) | round),
                 cnt: length
               })
+            | map(select(.dist > 0))
             | sort_by(-.dist)
             | .[0:5]
             | to_entries[]
@@ -534,6 +535,7 @@ for club_id in $CLUB_IDS; do
              | map(. as $a | . + {
                    week_dist: ([$wa[] | select("\(.firstname)|\(.lastname)" == $a.key) | .distance] | add // 0) / 1000
                  })
+             | map(select(.dist > 0))
              | sort_by(-.dist)
              | to_entries[]
              | [
@@ -562,6 +564,7 @@ for club_id in $CLUB_IDS; do
                  elev: (([.[].total_elevation_gain] | add) | round),
                  count: length
                })
+             | map(select(.dist > 0))
              | sort_by(-.dist)
              | to_entries[]
              | [
