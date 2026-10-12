@@ -1379,6 +1379,29 @@ test.describe("stats-top10", () => {
     expect(n > 0, `expected at least one activity link in top10 table, got ${n}`).toBeTruthy();
   });
 
+  test("top10-climb-lists-multiple-climbs-from-same-activity", async () => {
+    // The Magene sample carries climbs:[45,38,26] — each should take its own Top-10
+    // climb slot, so the same activity appears on more than one row, and the extra
+    // climbs are tagged "· climb N".
+    const rows = await page.$$eval("#top10Table tbody tr", (trs) =>
+      trs.map((tr) => ({
+        name: tr.children[2]?.textContent || "",
+        href: tr.querySelector("a")?.getAttribute("href") || "",
+      })),
+    );
+    const mageneRows = rows.filter((r) =>
+      r.href.includes("magene-2026-07-12-50671559"),
+    );
+    expect(
+      mageneRows.length >= 2,
+      `expected the same activity on >=2 climb rows, got ${mageneRows.length} (${JSON.stringify(rows)})`,
+    ).toBeTruthy();
+    expect(
+      rows.some((r) => /·\s*climb\s*\d+/i.test(r.name)),
+      `expected at least one row tagged "· climb N", got ${JSON.stringify(rows.map((r) => r.name))}`,
+    ).toBeTruthy();
+  });
+
   test("top10-switch-to-distance-renders-rows", async () => {
     await page.evaluate(() => {
       const sel = document.getElementById("top10Sel");

@@ -42,6 +42,7 @@
       "precipitation": 0.0,
       "gpx_file": "gpx/magene_2026-07-12_50671559.gpx",
       "max_single_climb": 45,
+      "climbs": [{"g":45,"d":320},{"g":38,"d":280},{"g":26,"d":160}],
       "detail": true,
       "max_speed": 6.186
     },

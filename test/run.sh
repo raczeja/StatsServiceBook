@@ -120,6 +120,11 @@ cp /opt/healthsync-bike.gpx "$WEB/gpx/2026.06.22_10.30-CYCLING.gpx"
 cp /opt/magene-sample.json "$WEB/details/magene-2026-07-12-50671559.json"
 cp /opt/magene-sample.gpx  "$WEB/gpx/magene_2026-07-12_50671559.gpx"
 
+# Multi-climb sample: detail JSON + GPX with two separate qualifying climbs
+# (for the "show all qualifying climbs" detail-page feature).
+cp /opt/multiclimb-sample.json "$WEB/details/multiclimb-2026-08-01.json"
+cp /opt/multiclimb-sample.gpx  "$WEB/gpx/multiclimb-sample.gpx"
+
 # Walk sample: detail JSON for testing Steps card (cadence-based step count).
 cp /opt/walk-sample.json "$WEB/details/3.json"
 

@@ -435,6 +435,28 @@ try {
   await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
   await shot(page, "activity-detail-climbing");
 
+  // ── Targeted: per-climb "Climbing analysis" gradient profile chart ─────────────
+  // Same Magene sample; the profile box renders once climbs are detected. Crop to
+  // just the chart section so the feature reads clearly in the docs.
+  console.log("→ activity-detail-climb-profile");
+  try {
+    await page.waitForFunction(
+      () => {
+        const box = document.getElementById("climb-profile-box");
+        return box && box.style.display !== "none" && box.querySelector("#svg-climbprof polygon");
+      },
+      { timeout: 15000 },
+    );
+    const box = page.locator("#climb-profile-box");
+    await box.scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+    const file = path.join(outDir, "activity-detail-climb-profile.png");
+    await box.screenshot({ path: file });
+    console.log(`  saved ${file}`);
+  } catch (_) {
+    console.warn("  climb-profile box did not render — skipping that screenshot");
+  }
+
 } finally {
   await browser.close();
 }

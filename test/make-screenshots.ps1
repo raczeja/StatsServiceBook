@@ -31,7 +31,7 @@ if ($LASTEXITCODE -ne 0) { throw "podman build (test) failed" }
 # ---- 2. Start the container --------------------------------------------------
 Write-Host "==> Starting container '$Container' on :$HostPort ..."
 & podman rm -f $Container 2>$null
-& podman run -d --name $Container -p "${HostPort}:$ContainerPort" $Image
+& podman run --cgroups=disabled -d --name $Container -p "${HostPort}:$ContainerPort" $Image
 if ($LASTEXITCODE -ne 0) { throw "podman run failed" }
 
 # ---- 3. Resolve the host to use for HTTP access --------------------------------

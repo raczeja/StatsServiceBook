@@ -560,8 +560,11 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   jq -r 'to_entries[] | select(.value.gpx_file != null) | [(.value.date // "0000-00-00"), .key, .value.gpx_file] | join(" ")' \
     "$TMP/enrich.json" 2>/dev/null | sort -ru | awk '{print $2, $3}' > "$TMP/gpx-paths.txt" || : > "$TMP/gpx-paths.txt"
   : > "$TMP/max-climbs-new.ndjson"
-  jq -c 'to_entries[] | {(.key): .value}' "$_climb_cache" >> "$TMP/max-climbs-new.ndjson" 2>/dev/null
-  jq -r 'keys | .[]' "$_climb_cache" > "$TMP/cached-climb-ids.txt" 2>/dev/null || : > "$TMP/cached-climb-ids.txt"
+  # The cache value is now an array of [gain,dist] per climb (track order). Legacy
+  # entries stored a bare max-gain number; drop those so they get recomputed into
+  # the richer array form (needed for the per-climb Top-10 on the stats page).
+  jq -c 'to_entries[] | select(.value | type == "array") | {(.key): .value}' "$_climb_cache" >> "$TMP/max-climbs-new.ndjson" 2>/dev/null
+  jq -r 'to_entries[] | select(.value | type == "array") | .key' "$_climb_cache" > "$TMP/cached-climb-ids.txt" 2>/dev/null || : > "$TMP/cached-climb-ids.txt"
   _climbs_total="$(wc -l < "$TMP/gpx-paths.txt" | tr -d ' ')"
   _climbs_cached="$(wc -l < "$TMP/cached-climb-ids.txt" | tr -d ' ')"
   _climbs_todo=$((_climbs_total - _climbs_cached))
@@ -584,25 +587,29 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     [ "$_climbs_computed" -ge "$_climb_batch" ] && break
     _cgpx_path="$WEB_DIR/$_cgpx"
     [ -f "$_cgpx_path" ] || continue
+    # Emit every qualifying climb as a JSON array of [gain,distance] in track order
+    # (mirrors findClimbs() in strava-my-html-detail.sh): a descent > dreset below
+    # the running peak flushes the current segment and starts a new one.
     _cval="$(awk -v ming="$_awk_min_gain" -v mind="$_awk_min_dist" -v minr="$_awk_min_grade" -v dreset="$_awk_descent_reset" '
-      BEGIN{pi=3.14159265358979;cv=0;cp=0;cd=0;best=0;tot=0;f=1;clat=0;clon=0;plat="";plon=""}
+      BEGIN{pi=3.14159265358979;cv=0;cp=0;cd=0;best=0;bestd=0;tot=0;f=1;n=0;clat=0;clon=0;plat="";plon=""}
       function hav(la1,lo1,la2,lo2,  R,dl,dn,a,c){
         R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
         a=sin(dl/2)*sin(dl/2)+cos(la1*pi/180)*cos(la2*pi/180)*sin(dn/2)*sin(dn/2)
         c=2*atan2(sqrt(a),sqrt(1-a));return R*c}
+      function flush(){if(best>0){G[n]=int(best+0.5);D[n]=int(bestd+0.5);n++}best=0;bestd=0}
       /lat=/{s=$0;gsub(/.*lat="/,"",s);gsub(/".*$/,"",s);clat=s+0
              s=$0;gsub(/.*lon="/,"",s);gsub(/".*$/,"",s);clon=s+0}
       /<ele>/{s=$0;gsub(/.*<ele>/,"",s);gsub(/<\/ele>.*/,"",s);e=s+0
               if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
               plat=clat;plon=clon
               if(f){cv=e;cp=e;cd=tot;f=0;next}
-              if(e<cp-dreset){cv=e;cp=e;cd=tot;next}
+              if(e<cp-dreset){flush();cv=e;cp=e;cd=tot;next}
               if(e>cp)cp=e
               if(e<cv){cv=e;cd=tot}
               g=e-cv;d=tot-cd
-              if(g>=ming&&d>=mind&&d>0&&g/d>=minr&&g>best)best=g}
-      END{printf"%d",int(best+0.5)}' "$_cgpx_path" 2>/dev/null)"
-    [ -n "$_cval" ] || _cval=0
+              if(g>=ming&&d>=mind&&d>0&&g/d>=minr&&g>best){best=g;bestd=d}}
+      END{flush();printf"[";for(i=0;i<n;i++){if(i)printf",";printf"[%d,%d]",G[i],D[i]}printf"]"}' "$_cgpx_path" 2>/dev/null)"
+    case "$_cval" in '['*']') ;; *) _cval='[]' ;; esac
     printf '{"%s":%s}\n' "$_cid" "$_cval" >> "$TMP/max-climbs-new.ndjson"
     printf '%s\n' "$_cid" >> "$TMP/cached-climb-ids.txt"
     _climbs_computed=$((_climbs_computed + 1))
@@ -748,6 +755,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
       | ($A[(.id | tostring)] // .gear_id // $e.gear_id) as $bike
       | ($W[(.id | tostring)]) as $wc
       | (($climbs[0] // {})[(.id | tostring)]) as $climbVal
+      | (if ($climbVal | type) == "array" then $climbVal else [] end) as $climbArr
       | (if ($wc | type) == "number" then $wc
          elif ($wc | type) == "object" then ($wc.t // null)
          else null end) as $wctemp
@@ -781,7 +789,8 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           suffer_score:           (.suffer_score // $e.suffer_score),
           calories:               (.calories // $e.calories),
           gpx_file:               ($e.gpx_file // null),
-          max_single_climb:       (if ($climbVal | type) == "number" and $climbVal > 0 then $climbVal else null end),
+          max_single_climb:       (if ($climbArr | length) > 0 then ([$climbArr[][0]] | max) else null end),
+          climbs:                 (if ($climbArr | length) > 0 then ($climbArr | map({g: .[0], d: .[1]})) else null end),
           has_gps:                (if ($have[(.id | tostring)] // false) then ($gps_by_id[(.id | tostring)] // false) else null end),
           detail:                 (($have[(.id | tostring)]) // false)
         }
