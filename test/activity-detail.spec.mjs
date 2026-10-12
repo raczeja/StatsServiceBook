@@ -204,7 +204,24 @@ test.describe("activity-detail", () => {
 
   test("hr-zone-table-rows", async () => {
     const n = await page.$$eval("#hr-zone-content tr", (els) => els.length);
-    expect(n, `expected 5 HR zone rows, got ${n}`).toBe(5);
+    expect(n, `expected 6 HR zone rows, got ${n}`).toBe(6);
+  });
+
+  test("hr-zone-descriptive-names", async () => {
+    const txt = await page.$eval("#hr-zone-content", (el) => el.textContent);
+    for (const name of [
+      "Relaxed",
+      "Healthy",
+      "Fat Burn",
+      "Aerobic",
+      "Strength Training",
+      "Red-line",
+    ]) {
+      expect(
+        txt.includes(name),
+        `expected zone name "${name}" in #hr-zone-content, got: ${txt.slice(0, 300)}`,
+      ).toBeTruthy();
+    }
   });
 
   test("hr-zone-title-age-based", async () => {
@@ -314,6 +331,48 @@ test.describe("activity-detail", () => {
       display,
       `#spd-box should be hidden for Strava splits-only activity, got "${display}"`,
     ).toBe("none");
+  });
+
+  test("hr-maxavg-renders-from-samples", async () => {
+    // Strava splits carry no per-sample HR series, so drive the max-average-HR
+    // curve directly with a synthetic descending series and assert it renders.
+    const result = await page.evaluate(() => {
+      const samples = [];
+      for (let i = 0; i < 600; i++) samples.push(170 - Math.floor(i / 10));
+      renderHrMaxAvg(samples, 3600);
+      return {
+        display: document.getElementById("hr-maxavg-box").style.display,
+        paths: document.querySelectorAll("#svg-hrmaxavg path").length,
+        tips:
+          (window.LINE_TIPS &&
+            window.LINE_TIPS["svg-hrmaxavg"] &&
+            window.LINE_TIPS["svg-hrmaxavg"].length) ||
+          0,
+        yaxis: document.getElementById("svg-hrmaxavg-yaxis").textContent,
+        bpmLabels: document.querySelectorAll("#svg-hrmaxavg-yaxis text")
+          .length,
+      };
+    });
+    expect(
+      result.display !== "none",
+      "#hr-maxavg-box should be visible after renderHrMaxAvg",
+    ).toBeTruthy();
+    expect(
+      result.paths >= 2,
+      `expected >= 2 paths in #svg-hrmaxavg (fill + line), got ${result.paths}`,
+    ).toBeTruthy();
+    expect(
+      result.tips > 0,
+      `expected LINE_TIPS['svg-hrmaxavg'] entries, got ${result.tips}`,
+    ).toBeTruthy();
+    expect(
+      /bpm/.test(result.yaxis),
+      `expected a "bpm" y-axis label, got: ${result.yaxis.slice(0, 120)}`,
+    ).toBeTruthy();
+    expect(
+      result.bpmLabels >= 4,
+      `expected >= 4 y-axis bpm labels, got ${result.bpmLabels}`,
+    ).toBeTruthy();
   });
 
   test("weather-temp-source-badge-shown", async () => {
@@ -433,13 +492,16 @@ test.describe("detail-section-order", () => {
     const expected = [
       "cards",
       "map",
+      "climbprof",
       "elev",
       "cad",
       "pwr",
       "spd",
+      "temp",
       "splits",
       "hr",
       "hrzone",
+      "hrmax",
     ];
     expect(sids, `sections: ${JSON.stringify(sids)}`).toEqual(expected);
   });
@@ -449,7 +511,7 @@ test.describe("detail-section-order", () => {
       "#sec-wrap .sec .sec-handle",
       (els) => els.length,
     );
-    expect(n, `expected 9 .sec-handle elements, got ${n}`).toBe(9);
+    expect(n, `expected 12 .sec-handle elements, got ${n}`).toBe(12);
   });
 
   test("reset-button-present", async () => {
@@ -483,13 +545,14 @@ test.describe("detail-section-order", () => {
     const sids = await page.$$eval("#sec-wrap .sec[data-sid]", (els) =>
       els.map((el) => el.getAttribute("data-sid")),
     );
+    const hz = sids.indexOf("hrzone");
     expect(
-      sids[sids.length - 2],
-      `expected "splits" second-to-last, got "${sids[sids.length - 2]}"`,
+      sids[hz - 1],
+      `expected "splits" immediately before "hrzone", got "${sids[hz - 1]}"`,
     ).toBe("splits");
     expect(
-      sids[sids.length - 1],
-      `expected "hrzone" last, got "${sids[sids.length - 1]}"`,
+      sids[hz],
+      `expected "hrzone" to follow "splits", got "${sids[hz]}"`,
     ).toBe("hrzone");
   });
 
@@ -502,12 +565,13 @@ test.describe("detail-section-order", () => {
       }
     });
     expect(
-      Array.isArray(saved) && saved.length === 9,
-      "saved order should be 9-element array",
+      Array.isArray(saved) && saved.length === 12,
+      "saved order should be 12-element array",
     ).toBeTruthy();
+    const hz = saved.indexOf("hrzone");
     expect(
-      saved[saved.length - 2],
-      `expected "splits" second-to-last in saved`,
+      saved[hz - 1],
+      `expected "splits" immediately before "hrzone" in saved`,
     ).toBe("splits");
   });
 
@@ -523,13 +587,16 @@ test.describe("detail-section-order", () => {
     expect(sids, `after reset: ${JSON.stringify(sids)}`).toEqual([
       "cards",
       "map",
+      "climbprof",
       "elev",
       "cad",
       "pwr",
       "spd",
+      "temp",
       "splits",
       "hr",
       "hrzone",
+      "hrmax",
     ]);
   });
 });
@@ -680,7 +747,24 @@ test.describe("activity-detail-healthsync-run", () => {
 
   test("hr-zone-table-rows", async () => {
     const n = await page.$$eval("#hr-zone-content tr", (els) => els.length);
-    expect(n, `expected 5 HR zone rows, got ${n}`).toBe(5);
+    expect(n, `expected 6 HR zone rows, got ${n}`).toBe(6);
+  });
+
+  test("hr-zone-descriptive-names", async () => {
+    const txt = await page.$eval("#hr-zone-content", (el) => el.textContent);
+    for (const name of [
+      "Relaxed",
+      "Healthy",
+      "Fat Burn",
+      "Aerobic",
+      "Strength Training",
+      "Red-line",
+    ]) {
+      expect(
+        txt.includes(name),
+        `expected zone name "${name}" in #hr-zone-content, got: ${txt.slice(0, 300)}`,
+      ).toBeTruthy();
+    }
   });
 
   test("hr-zone-title-age-based", async () => {
@@ -766,12 +850,120 @@ test.describe("activity-detail-healthsync-run", () => {
     ).toBeTruthy();
   });
 
+  test("temp-box-visible-from-gpx", async () => {
+    // The GPX carries <gpxtpx:atemp> per trackpoint, so the temperature chart renders.
+    const display = await page.$eval("#temp-box", (el) => el.style.display);
+    expect(
+      display !== "none",
+      `#temp-box has display:none — temperature chart not rendered from GPX`,
+    ).toBeTruthy();
+  });
+
+  test("svg-temp-rendered", async () => {
+    const n = await page.$$eval("#svg-temp path", (els) => els.length);
+    expect(
+      n >= 2,
+      `expected >= 2 path elements in #svg-temp (fill + line), got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("svg-temp-yaxis-uses-celsius-unit", async () => {
+    const txt = await page.$eval("#svg-temp-yaxis", (el) => el.textContent);
+    expect(
+      txt.includes("°C"),
+      `expected #svg-temp y-axis labels to carry the °C unit, got "${txt}"`,
+    ).toBeTruthy();
+  });
+
+  test("temp-summary-min-avg-max", async () => {
+    const txt = await page.$eval("#temp-summary", (el) => el.textContent);
+    expect(
+      /Min\s+13\s*°C/.test(txt) &&
+        /Avg\s+17\s*°C/.test(txt) &&
+        /Max\s+23\s*°C/.test(txt),
+      `expected "Min 13 · Avg 17 · Max 23 °C" summary, got "${txt}"`,
+    ).toBeTruthy();
+  });
+
+  test("temp-tooltip-entries-registered", async () => {
+    const n = await page.evaluate(
+      () =>
+        (window.LINE_TIPS &&
+          window.LINE_TIPS["svg-temp"] &&
+          window.LINE_TIPS["svg-temp"].length) ||
+        0,
+    );
+    expect(
+      n > 0,
+      `expected LINE_TIPS['svg-temp'] to have entries, got ${n}`,
+    ).toBeTruthy();
+  });
+
   test("splits-box-visible", async () => {
     const display = await page.$eval("#splits-box", (el) => el.style.display);
     expect(
       display !== "none",
       `#splits-box should be visible for GPX activity (GPS splits computed)`,
     ).toBeTruthy();
+  });
+
+  test("hr-maxavg-box-visible-from-gpx", async () => {
+    // GPX activities carry a per-sample HR series, so the max-average-HR curve
+    // renders as part of the GPX chart pass.
+    const display = await page.$eval(
+      "#hr-maxavg-box",
+      (el) => el.style.display,
+    );
+    expect(
+      display !== "none",
+      `#hr-maxavg-box should be visible for a GPX activity with HR samples`,
+    ).toBeTruthy();
+  });
+
+  test("svg-hrmaxavg-rendered-from-gpx", async () => {
+    const n = await page.$$eval("#svg-hrmaxavg path", (els) => els.length);
+    expect(
+      n >= 2,
+      `expected >= 2 path elements in #svg-hrmaxavg (fill + line), got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("hr-maxavg-scroll-not-synced-to-distance-charts", async () => {
+    // The max-average-HR chart uses a duration x-axis, so its horizontal scroll
+    // must NOT follow the distance-based charts' synchronized scrolling.
+    const result = await page.evaluate(() => {
+      var indep = document.querySelector("#hr-maxavg-box .chart-scroll");
+      var distance = document.querySelector("#splits-box .chart-scroll");
+      if (!indep || !distance) return { skip: true };
+      // Force both to be horizontally scrollable regardless of viewport.
+      indep.style.width = "200px";
+      indep.querySelector("svg").style.width = "2000px";
+      distance.style.width = "200px";
+      distance.querySelector("svg").style.width = "2000px";
+      indep.scrollLeft = 0;
+      // Scroll a distance chart to its end and fire the sync handler.
+      distance.scrollLeft = distance.scrollWidth - distance.clientWidth;
+      distance.dispatchEvent(new Event("scroll", { bubbles: false }));
+      return {
+        skip: false,
+        hasClass: indep.classList.contains("chart-scroll-indep"),
+        indepScroll: indep.scrollLeft,
+        distanceMoved: distance.scrollLeft > 0,
+      };
+    });
+    if (result.skip) return;
+    expect(
+      result.hasClass,
+      "#hr-maxavg-box .chart-scroll should carry the chart-scroll-indep marker",
+    ).toBeTruthy();
+    expect(
+      result.distanceMoved,
+      "distance chart should have scrolled (test precondition)",
+    ).toBeTruthy();
+    expect(
+      result.indepScroll,
+      `max-avg-HR chart should stay at scrollLeft 0, got ${result.indepScroll}`,
+    ).toBe(0);
   });
 
   test("gpx-splits-share-chart-scroll-and-retain-reorder-handle", async () => {
@@ -801,6 +993,124 @@ test.describe("activity-detail-healthsync-run", () => {
     expect(result.splitsMax).toBeGreaterThan(0);
     expect(Math.abs(result.cadenceRatio - result.splitsRatio)).toBeLessThan(0.02);
     expect(result.hasHandle).toBeTruthy();
+  });
+
+  // GPX-derived cards for records lacking the fields (HealthSync has no elev bounds,
+  // descent, or start clock time — all come from the track).
+  test("gpx-descent-card-visible-with-metres", async () => {
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#gpx-descent-card")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const text = await page.$eval("#gpx-descent-card", (el) => el.textContent);
+    expect(text).toMatch(/Descent\s*\d+\s*m/);
+    const metres = Number((text.match(/(\d+)\s*m/) || [])[1]);
+    expect(metres, `expected descent > 0, got "${text}"`).toBeGreaterThan(0);
+  });
+
+  test("gpx-altitude-card-from-track", async () => {
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#gpx-altitude-card")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const text = await page.$eval("#gpx-altitude-card", (el) => el.textContent);
+    expect(
+      text.includes("120") && text.includes("158"),
+      `expected altitude 120–158 m from GPX, got "${text}"`,
+    ).toBeTruthy();
+  });
+
+  test("gpx-start-time-card-hhmm", async () => {
+    await page.waitForFunction(
+      () => document.querySelector("#gpx-start-card")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const text = await page.$eval("#gpx-start-card .v", (el) =>
+      el.textContent.trim(),
+    );
+    expect(text, `expected HH:MM start time, got "${text}"`).toMatch(
+      /^\d{2}:\d{2}$/,
+    );
+  });
+
+  test("moving-time-card-shows-total-and-moving-pct", async () => {
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    expect(
+      text.includes("total") && text.includes("% moving"),
+      `expected moving-time sub-line (total + % moving): ${text.slice(0, 400)}`,
+    ).toBeTruthy();
+  });
+
+  test("moving-time-and-longest-climb-moved-after-standard-cards", async () => {
+    // Moving time + Longest climb are the two full-width cards; they are appended
+    // after the normal metric cards (a dynamic "HR effort (est.)" card may follow).
+    const labels = await page.$$eval(".cards .card", (els) =>
+      els.map((el) => el.querySelector(".k")?.textContent?.trim() || ""),
+    );
+    const idx = (needle) => labels.findIndex((l) => l.includes(needle));
+    const iMoving = idx("Moving time");
+    const iClimb = idx("Longest climb");
+    const iDistance = idx("Distance");
+    const iElevation = idx("Elevation");
+    expect(iMoving, `Moving time card missing (all: ${labels.join(", ")})`).toBeGreaterThan(-1);
+    expect(
+      iClimb === iMoving + 1,
+      `expected Longest climb right after Moving time, got Moving=${iMoving} Climb=${iClimb} (all: ${labels.join(", ")})`,
+    ).toBeTruthy();
+    expect(iMoving).toBeGreaterThan(iDistance);
+    expect(iMoving).toBeGreaterThan(iElevation);
+  });
+});
+
+// ── GPX fetched once (shared between map + charts) ────────────────────────────
+
+test.describe("activity-detail-gpx-single-fetch", () => {
+  let page;
+  const gpxRequests = [];
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    // Attach the listener before navigation so we capture every GPX request.
+    page.on("request", (req) => {
+      if (/\.gpx(\?|$)/i.test(req.url())) gpxRequests.push(req.url());
+    });
+    await page.evaluate(() => {
+      try {
+        sessionStorage.clear();
+      } catch (_) {}
+    });
+    gpxRequests.length = 0;
+    await page.goto(URLS.activityHealthsyncRun, {
+      waitUntil: "load",
+      timeout: 20000,
+    });
+    try {
+      await page.waitForFunction(
+        () => document.getElementById("content")?.style.display !== "none",
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+    // Both the map and the charts render asynchronously; give them time to fire
+    // any (de-duplicated) GPX request before counting.
+    await page.waitForFunction(
+      () => document.getElementById("svg-elev")?.querySelector("path"),
+      { timeout: 10000 },
+    );
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test("gpx-downloaded-exactly-once", () => {
+    // renderGpxMap and renderGpxCharts share one memoized fetch (fetchGpxText),
+    // so the multi-MB GPX must hit the network only once per page load.
+    expect(
+      gpxRequests.length,
+      `expected exactly 1 .gpx request, got ${gpxRequests.length}: ${JSON.stringify(gpxRequests)}`,
+    ).toBe(1);
   });
 });
 
@@ -926,6 +1236,43 @@ test.describe("activity-detail-healthsync-cycling", () => {
       /km\/h/.test(text),
       `expected #svg-spd-yaxis to include a "km/h" label, got: ${text.slice(0, 200)}`,
     ).toBeTruthy();
+  });
+
+  test("gpx-charts-share-one-distance-x-axis", async () => {
+    // Elevation, speed and the per-km bar chart must sit on a single linear km
+    // axis: each scrolls the same number of pixels (equal maxScroll) so the same
+    // km always lands at the same x across all three. Guards against the per-km
+    // chart drifting to a different scale (the "x axis not equal" regression).
+    await page.setViewportSize({ width: 640, height: 800 });
+    await page.waitForFunction(
+      () =>
+        document.getElementById("svg-elev")?.style.width &&
+        document.getElementById("svg-spd")?.style.width &&
+        document.getElementById("svg-splits")?.style.width,
+      { timeout: 10000 },
+    );
+    const r = await page.evaluate(() => {
+      const maxScroll = (sel) => {
+        const el = document.querySelector(sel);
+        return el ? el.scrollWidth - el.clientWidth : -1;
+      };
+      return {
+        elev: maxScroll("#elev-box .chart-scroll"),
+        spd: maxScroll("#spd-box .chart-scroll"),
+        splits: maxScroll("#splits-box .chart-scroll"),
+      };
+    });
+    expect(r.elev, `#elev-box must be scrollable, got ${r.elev}`).toBeGreaterThan(0);
+    expect(r.splits, `#splits-box must be scrollable, got ${r.splits}`).toBeGreaterThan(0);
+    // Same distance span → equal scroll range within one km-worth of pixels.
+    expect(
+      Math.abs(r.elev - r.splits),
+      `elev/splits maxScroll differ: ${r.elev} vs ${r.splits}`,
+    ).toBeLessThan(60);
+    expect(
+      Math.abs(r.spd - r.splits),
+      `spd/splits maxScroll differ: ${r.spd} vs ${r.splits}`,
+    ).toBeLessThan(60);
   });
 
   test("longest-climb-card-visible", async () => {
@@ -1071,6 +1418,371 @@ test.describe("activity-detail-magene", () => {
       display !== "none",
       `#splits-box should be visible for GPX activity (GPS splits computed)`,
     ).toBeTruthy();
+  });
+
+  test("temp-box-visible-from-gpx", async () => {
+    const display = await page.$eval("#temp-box", (el) => el.style.display);
+    expect(
+      display !== "none",
+      `#temp-box has display:none — temperature chart not rendered from GPX`,
+    ).toBeTruthy();
+  });
+
+  test("temp-summary-excludes-first-3km-garage-readings", async () => {
+    // The GPX carries 34–35 °C "garage" readings in the first 3 km (sensor at storage
+    // temperature) and 12–22 °C once riding. The first-3km skip must exclude the garage
+    // readings, so the summary is Min 12 · Avg 17 · Max 22 — not Max 35.
+    const txt = await page.$eval("#temp-summary", (el) => el.textContent);
+    expect(
+      /Min\s+12\s*°C/.test(txt) &&
+        /Avg\s+17\s*°C/.test(txt) &&
+        /Max\s+22\s*°C/.test(txt),
+      `expected "Min 12 · Avg 17 · Max 22 °C" (garage readings skipped), got "${txt}"`,
+    ).toBeTruthy();
+  });
+
+  test("svg-temp-rendered", async () => {
+    const n = await page.$$eval("#svg-temp path", (els) => els.length);
+    expect(
+      n >= 2,
+      `expected >= 2 path elements in #svg-temp (fill + line), got ${n}`,
+    ).toBeTruthy();
+  });
+});
+
+// ── Activity Detail (multiple qualifying climbs) ──────────────────────────────
+
+test.describe("activity-detail-multiclimb", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    jsErrors.length = 0;
+    await page.goto(URLS.activityMultiClimb, {
+      waitUntil: "load",
+      timeout: 20000,
+    });
+    try {
+      await page.waitForFunction(
+        () => document.getElementById("content")?.style.display !== "none",
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+    // Wait for the climb card to be populated from the GPX track.
+    try {
+      await page.waitForFunction(
+        () =>
+          document.querySelector("#longest-climb-card")?.style.display !==
+          "none",
+        { timeout: 10000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test("no-js-errors", () => {
+    const real = jsErrors.filter(
+      (e) =>
+        !e.message?.toLowerCase().includes("leaflet") &&
+        !e.message?.toLowerCase().includes("unpkg.com"),
+    );
+    expect(real.length, real.map((e) => e.message).join("; ")).toBe(0);
+  });
+
+  test("climb-card-has-switcher", async () => {
+    // The GPX has two distinct climbs separated by a >30 m descent, so the card
+    // shows ‹ › arrows and an "N/M" counter to flip between them. It opens on the
+    // biggest climb (flagged "longest").
+    const title = await page.$eval(
+      "#longest-climb-card .k",
+      (el) => el.textContent,
+    );
+    expect(
+      title.toLowerCase().includes("longest"),
+      `expected the default view to flag the biggest climb as "longest", got "${title}"`,
+    ).toBeTruthy();
+    const count = await page.$eval(
+      "#longest-climb-card .climb-count",
+      (el) => el.textContent.trim(),
+    );
+    expect(count, `expected an "N/M" counter, got "${count}"`).toBe("1/2");
+    const navBtns = await page.$$eval(
+      "#longest-climb-card .climb-nav button",
+      (els) => els.length,
+    );
+    expect(
+      navBtns,
+      `expected two switcher buttons (‹ ›), got ${navBtns}`,
+    ).toBe(2);
+  });
+
+  test("climb-switcher-flips-to-next-climb", async () => {
+    const before = await page.$eval(
+      "#longest-climb-card .v",
+      (el) => el.textContent,
+    );
+    await page.click("#longest-climb-card .climb-next");
+    const count = await page.$eval(
+      "#longest-climb-card .climb-count",
+      (el) => el.textContent.trim(),
+    );
+    expect(count, `expected counter to advance to 2/2, got "${count}"`).toBe(
+      "2/2",
+    );
+    const after = await page.$eval(
+      "#longest-climb-card .v",
+      (el) => el.textContent,
+    );
+    expect(
+      after !== before && /\d+\s*m/.test(after),
+      `expected the shown climb metrics to change on next, before="${before}" after="${after}"`,
+    ).toBeTruthy();
+    // Reset back to the first climb so later assertions start from a known state.
+    await page.click("#longest-climb-card .climb-prev");
+  });
+
+  test("activity-start-finish-labelled-on-map", async () => {
+    // The whole-activity endpoints carry always-on "Start"/"Finish" labels so they
+    // are distinguishable from the climb start/summit dots.
+    const labels = await page.$$eval(".route-endpoint-tip", (els) =>
+      els.map((e) => e.textContent.trim().toLowerCase()),
+    );
+    expect(
+      labels.includes("start") && labels.includes("finish"),
+      `expected permanent "Start" and "Finish" map labels, got ${JSON.stringify(labels)}`,
+    ).toBeTruthy();
+  });
+
+  test("both-climbs-drawn-on-map", async () => {
+    // Each climb is drawn as its own blue (#1565c0) polyline over the orange route.
+    const n = await page.$$eval(".leaflet-overlay-pane path", (els) =>
+      els.filter(
+        (p) =>
+          (p.getAttribute("stroke") || "").toLowerCase() === "#1565c0",
+      ).length,
+    );
+    expect(
+      n >= 2,
+      `expected >= 2 blue climb polylines on the map, got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("climb-profile-chart-visible", async () => {
+    // The Magene-style per-climb profile renders alongside the climb card.
+    await page.waitForFunction(
+      () =>
+        document.getElementById("climb-profile-box")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const display = await page.$eval(
+      "#climb-profile-box",
+      (el) => el.style.display,
+    );
+    expect(
+      display !== "none",
+      `#climb-profile-box should be visible when climbs exist`,
+    ).toBeTruthy();
+  });
+
+  test("climb-profile-has-gradient-coloured-segments", async () => {
+    // The climb is drawn as gradient-coloured filled segments (one <polygon> each),
+    // using the HC/Cat1–4 band colours.
+    const r = await page.evaluate(() => {
+      const bands = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#29b6f6"];
+      const polys = Array.from(
+        document.querySelectorAll("#svg-climbprof polygon"),
+      );
+      const colours = new Set(
+        polys.map((p) => (p.getAttribute("fill") || "").toLowerCase()),
+      );
+      return {
+        count: polys.length,
+        usesBandColour: polys.some((p) =>
+          bands.includes((p.getAttribute("fill") || "").toLowerCase()),
+        ),
+      };
+    });
+    expect(
+      r.count >= 3,
+      `expected several coloured climb segments, got ${r.count}`,
+    ).toBeTruthy();
+    expect(
+      r.usesBandColour,
+      `expected climb segments filled with gradient-band colours`,
+    ).toBeTruthy();
+  });
+
+  test("climb-profile-stat-tiles-and-legend", async () => {
+    const stats = await page.$$eval(
+      "#climb-prof-stats .cp-stat",
+      (els) => els.length,
+    );
+    expect(stats, `expected 5 climb stat tiles, got ${stats}`).toBe(5);
+    const legend = await page.$$eval(
+      "#climb-prof-legend span",
+      (els) => els.length,
+    );
+    expect(legend, `expected 5 legend entries, got ${legend}`).toBe(5);
+    const statsText = await page.$eval(
+      "#climb-prof-stats",
+      (el) => el.textContent,
+    );
+    expect(
+      /Avg gradient/i.test(statsText) && /Accumulated climb/i.test(statsText),
+      `expected gradient + accumulated-climb tiles, got: ${statsText.slice(0, 200)}`,
+    ).toBeTruthy();
+  });
+
+  test("climb-profile-x-axis-is-climb-distance", async () => {
+    // X-axis runs 0 → the climb's own distance (sub-km here), NOT the whole
+    // 1.07 km activity — the tooltip series' last point stays well under total.
+    const r = await page.evaluate(() => {
+      const tips =
+        (window.LINE_TIPS && window.LINE_TIPS["svg-climbprof"]) || [];
+      const last = tips[tips.length - 1];
+      const m = last ? /([\d.]+)\s*km/.exec(last.html) : null;
+      return {
+        n: tips.length,
+        startsAtZero: tips.length
+          ? /0\.00\s*km/.test(tips[0].html)
+          : false,
+        lastKm: m ? Number(m[1]) : null,
+      };
+    });
+    expect(r.n > 0, `expected climb-profile tooltip series`).toBeTruthy();
+    expect(
+      r.startsAtZero,
+      `expected the climb profile to start at 0.00 km`,
+    ).toBeTruthy();
+    expect(
+      r.lastKm != null && r.lastKm < 0.6,
+      `expected the climb to span < 0.6 km (its own length), got ${r.lastKm}`,
+    ).toBeTruthy();
+  });
+
+  test("climb-profile-switcher-flips-chart", async () => {
+    // Opens on the longest climb; the ‹ › header switcher redraws the chart for
+    // the next climb (different distance/tooltip series).
+    const before = await page.evaluate(() => {
+      const tips =
+        (window.LINE_TIPS && window.LINE_TIPS["svg-climbprof"]) || [];
+      const last = tips[tips.length - 1];
+      return last ? last.html : "";
+    });
+    const title = await page.$eval("#climb-prof-title", (el) => el.textContent);
+    expect(
+      title.toLowerCase().includes("longest"),
+      `expected the default profile to flag the longest climb, got "${title}"`,
+    ).toBeTruthy();
+    await page.click("#climb-prof-title .cp-next");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 100)));
+    const after = await page.evaluate(() => {
+      const tips =
+        (window.LINE_TIPS && window.LINE_TIPS["svg-climbprof"]) || [];
+      const last = tips[tips.length - 1];
+      return last ? last.html : "";
+    });
+    expect(
+      after !== before,
+      `expected the climb profile to change after switching climbs`,
+    ).toBeTruthy();
+    // Reset back to the first (longest) climb for later assertions.
+    await page.click("#climb-prof-title .cp-prev");
+  });
+
+  test("selected-climb-coloured-by-gradient-on-map", async () => {
+    // The currently-selected climb is overlaid on the map coloured by gradient band
+    // (same palette as the chart), over a dark casing for legibility. Other climbs
+    // stay plain blue.
+    await page.waitForFunction(() => window._climbGradLayer != null, {
+      timeout: 10000,
+    });
+    const r = await page.evaluate(() => {
+      const bands = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#29b6f6"];
+      const strokes = Array.from(
+        document.querySelectorAll(".leaflet-overlay-pane path"),
+      ).map((p) => (p.getAttribute("stroke") || "").toLowerCase());
+      const bandHits = new Set(strokes.filter((s) => bands.includes(s)));
+      return {
+        hasCasing: strokes.includes("#1a1a1a"),
+        bandColours: bandHits.size,
+      };
+    });
+    expect(
+      r.hasCasing,
+      "expected a dark casing (#1a1a1a) under the gradient climb overlay",
+    ).toBeTruthy();
+    // Coarse blocks mean a steady climb renders as one band; varied terrain shows more.
+    expect(
+      r.bandColours >= 1,
+      `expected >= 1 gradient-band colour on the selected climb, got ${r.bandColours}`,
+    ).toBeTruthy();
+  });
+
+  test("map-opens-zoomed-to-selected-climb", async () => {
+    // On load the map focuses the shown (longest/default) climb, not the whole route,
+    // so map + chart + card all open on the same climb.
+    await page.evaluate(() => {
+      if (typeof showClimb === "function") showClimb(0);
+    });
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 500)));
+    const r = await page.evaluate(() => {
+      const m = window._climbMap;
+      const sel =
+        window._climbs && window._climbLines
+          ? window._climbLines[window._climbs[window._climbIdx].idx]
+          : null;
+      const route = window.leafletLine;
+      if (!m || !sel || !route) return { skip: true };
+      const c = m.getCenter();
+      return {
+        skip: false,
+        mapLng: c.lng,
+        climbLng: sel.getBounds().getCenter().lng,
+        routeLng: route.getBounds().getCenter().lng,
+      };
+    });
+    if (r.skip) return;
+    const toClimb = Math.abs(r.mapLng - r.climbLng);
+    const toRoute = Math.abs(r.mapLng - r.routeLng);
+    expect(
+      toClimb < 0.0008,
+      `map centre should sit on the selected climb (Δ=${toClimb})`,
+    ).toBeTruthy();
+    expect(
+      toClimb < toRoute,
+      `map should be centred on the climb, not the whole route (climbΔ=${toClimb} routeΔ=${toRoute})`,
+    ).toBeTruthy();
+  });
+
+  test("gradient-overlay-rebuilds-on-switch", async () => {
+    // Switching climbs tears down the old overlay and builds one for the new climb —
+    // never leaving two overlays stacked.
+    const before = await page.evaluate(() =>
+      window._climbGradLayer ? window._climbGradLayer.getLayers().length : 0,
+    );
+    await page.click("#climb-prof-title .cp-next");
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 150)));
+    const after = await page.evaluate(() => ({
+      layers: window._climbGradLayer
+        ? window._climbGradLayer.getLayers().length
+        : 0,
+      onMap: window._climbMap && window._climbGradLayer
+        ? window._climbMap.hasLayer(window._climbGradLayer)
+        : false,
+    }));
+    expect(before, "expected an overlay before switching").toBeGreaterThan(0);
+    expect(after.layers, "expected a rebuilt overlay after switching").toBeGreaterThan(0);
+    expect(
+      after.onMap,
+      "expected exactly the current overlay attached to the map",
+    ).toBeTruthy();
+    await page.click("#climb-prof-title .cp-prev");
   });
 });
 

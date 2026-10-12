@@ -822,6 +822,35 @@ else
     err "$S" "script-present" "$_dq_html not found in container"
 fi
 
+# ── detail-map-coop-gestures ─────────────────────────────────────────────────
+# On touch devices a one-finger drag over the Leaflet map must NOT pan the map
+# (it should scroll the page); two fingers pan. Guard against the helper being
+# removed or either of the two map-init sites losing its enableCoopGestures call.
+S="detail-map-coop-gestures"
+_dmap="/usr/bin/strava-my-html-detail.sh"
+if [ -f "$_dmap" ]; then
+    if grep -q 'function enableCoopGestures' "$_dmap"; then
+        ok "$S" "helper-present"
+    else
+        err "$S" "helper-present" "enableCoopGestures() not found — one-finger drag will trap page scroll on mobile"
+    fi
+    if grep -q 'map\.dragging\.disable()' "$_dmap"; then
+        ok "$S" "dragging-disabled-by-default"
+    else
+        err "$S" "dragging-disabled-by-default" "coop gestures must disable one-finger dragging by default"
+    fi
+    # Match the call (trailing ';') so the 'function enableCoopGestures(map)'
+    # definition line is not counted — there must be exactly two call sites.
+    _coop_calls="$(grep -c 'enableCoopGestures(map);' "$_dmap")"
+    if [ "$_coop_calls" -eq 2 ]; then
+        ok "$S" "wired-at-both-map-sites"
+    else
+        err "$S" "wired-at-both-map-sites" "expected enableCoopGestures(map); at both map-init sites (GPX + polyline), found $_coop_calls"
+    fi
+else
+    err "$S" "script-present" "$_dmap not found in container"
+fi
+
 # ── keepalive-mode ────────────────────────────────────────────────────────────
 # Mirrors the HEALTHSYNC_MODE case check in healthsync-activities.sh that exits
 # after the Drive folder listing when mode is "keepalive".

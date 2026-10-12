@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="StatsServiceBook-test" xmlns="http://www.topografix.com/GPX/1/1">
+ <trk><name>Two climbs test</name><trkseg>
+  <trkpt lat="50.0000000" lon="19.0000000"><ele>80.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0005000"><ele>86.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0010000"><ele>92.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0015000"><ele>98.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0020000"><ele>104.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0025000"><ele>110.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0030000"><ele>116.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0035000"><ele>122.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0040000"><ele>128.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0045000"><ele>134.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0050000"><ele>140.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0055000"><ele>132.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0060000"><ele>120.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0065000"><ele>105.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0070000"><ele>95.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0075000"><ele>88.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0080000"><ele>82.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0085000"><ele>78.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0090000"><ele>84.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0095000"><ele>90.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0100000"><ele>96.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0105000"><ele>102.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0110000"><ele>108.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0115000"><ele>114.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0120000"><ele>120.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0125000"><ele>126.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0130000"><ele>132.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0135000"><ele>128.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0140000"><ele>118.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0145000"><ele>108.0</ele></trkpt>
+  <trkpt lat="50.0000000" lon="19.0150000"><ele>100.0</ele></trkpt>
+ </trkseg></trk>
+</gpx>

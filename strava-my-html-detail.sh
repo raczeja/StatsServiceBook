@@ -89,6 +89,22 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   #map-expand-btn{position:absolute;top:.4rem;right:.4rem;z-index:600;background:var(--btn-bg);border:1px solid var(--border-2);border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15)}
   #map-expand-btn:hover{background:var(--surface);border-color:var(--text-4)}
   .climb-swatch{display:inline-block;width:1.2rem;height:.22rem;background:#1565c0;vertical-align:middle;margin-right:.2rem}
+  .climb-nav{display:inline-flex;align-items:center;gap:.25rem;margin-left:.4rem;vertical-align:middle}
+  .climb-nav button{cursor:pointer;border:1px solid var(--border-2,#ccc);background:var(--surface);color:inherit;border-radius:.25rem;line-height:1;padding:.05rem .35rem;font-size:.9rem;font-weight:700}
+  .climb-nav button:hover{background:var(--border-2,#e5e5e5)}
+  .climb-nav .climb-count{font-size:.7rem;font-variant-numeric:tabular-nums;color:var(--text-4)}
+  #climb-prof-head{display:flex;align-items:center}
+  #climb-prof-title{display:inline-flex;align-items:center;gap:.4rem}
+  .climb-prof-stats{display:flex;flex-wrap:wrap;gap:.5rem .9rem;margin:.1rem 0 .55rem}
+  .climb-prof-stats .cp-stat{flex:1 1 auto;min-width:72px;text-align:center}
+  .climb-prof-stats .cp-v{font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
+  .climb-prof-stats .cp-k{color:var(--text-4);font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;margin-top:.1rem}
+  #svg-climbprof{display:block;width:100%;height:auto}
+  .climb-prof-legend{display:flex;flex-wrap:wrap;gap:.35rem .9rem;margin-top:.5rem;font-size:.72rem;color:var(--text-3)}
+  .climb-prof-legend span{display:inline-flex;align-items:center;gap:.3rem}
+  .climb-prof-legend i{width:.85rem;height:.85rem;border-radius:2px;display:inline-block;flex-shrink:0}
+  .route-endpoint-tip{background:rgba(255,255,255,.92);color:#111;border:1px solid rgba(0,0,0,.25);border-radius:.25rem;font-size:.65rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:.05rem .3rem;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .route-endpoint-tip.leaflet-tooltip-top:before{border-top-color:rgba(0,0,0,.25)}
   #map-box.fs-map{position:fixed;inset:0;z-index:9000;margin:0;padding:0;background:#000;border-radius:0}
   #map-box.fs-map #map{height:100%;border-radius:0;margin:0;box-shadow:none}
   #map-box.fs-map #map-expand-btn{top:.6rem;right:.6rem}
@@ -137,6 +153,12 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
+  <div class="sec box" data-sid="climbprof" id="climb-profile-box" style="display:none">
+    <h3 id="climb-prof-head"><span id="climb-prof-title">Climbing analysis</span></h3>
+    <div class="climb-prof-stats" id="climb-prof-stats"></div>
+    <svg id="svg-climbprof" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="climb-prof-legend" id="climb-prof-legend"></div>
+  </div>
   <div class="sec box" data-sid="hr" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
     <div style="display:flex;align-items:flex-start">
@@ -165,9 +187,25 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-spd" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
+  <div class="sec box" data-sid="temp" id="temp-box" style="display:none">
+    <h3>Temperature</h3>
+    <div class="note" id="temp-summary" style="margin-bottom:.4rem"></div>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-temp-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-temp" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
+  </div>
   <div class="sec box" data-sid="hrzone" id="hr-zone-box" style="display:none">
     <h3 id="hr-zone-title">Heart rate zones</h3>
     <div id="hr-zone-content"></div>
+  </div>
+  <div class="sec box" data-sid="hrmax" id="hr-maxavg-box" style="display:none">
+    <h3>Maximum average heart rate</h3>
+    <div style="display:flex;align-items:flex-start">
+      <svg id="svg-hrmaxavg-yaxis" style="flex-shrink:0"></svg>
+      <div class="chart-scroll chart-scroll-indep" style="flex:1;min-width:0"><svg id="svg-hrmaxavg" preserveAspectRatio="xMidYMid meet"></svg></div>
+    </div>
+    <div class="note" style="margin-top:.4rem">Best average heart rate sustained over each window, across the whole activity.</div>
   </div>
   <div class="sec box" data-sid="splits" id="splits-box">
     <h3 id="splits-title">Splits</h3>
@@ -182,6 +220,54 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 var leafletMap=null,leafletLine=null;
+// Climb switcher state: _climbs is track-ordered; _climbIdx is the one shown in the
+// card; _climbMap/_climbLines (idx → polyline) let the ‹ › arrows focus the map.
+var _climbs=[],_climbIdx=0,_climbBiggestIdx=0,_climbMap=null,_climbLines=null;
+// Full track (one entry per GPX point) + cumulative metres, kept so the ‹ › switcher
+// can re-slice and re-draw the per-climb profile chart. climb.start/end index into these.
+var _climbTrackPts=[],_climbCumDist=[];
+// Leaflet layer holding the gradient-coloured overlay for the currently-selected
+// climb (rebuilt by the ‹ › switcher). Other climbs stay plain blue.
+var _climbGradLayer=null;
+// Gradient colour bands for the per-climb profile (steepest first). Each segment of the
+// climb is filled with the colour of its local gradient — HC steepest, Cat4 shallowest.
+var CLIMB_GRADE_BANDS=[
+  {min:12,color:"#e53935",label:"HC (>12%)"},
+  {min:9, color:"#fb8c00",label:"Cat1 (9–12%)"},
+  {min:6, color:"#fdd835",label:"Cat2 (6–9%)"},
+  {min:3, color:"#43a047",label:"Cat3 (3–6%)"},
+  {min:-1e9,color:"#29b6f6",label:"Cat4 (0–3%)"}
+];
+function climbGradeColor(pct){
+  for(var i=0;i<CLIMB_GRADE_BANDS.length;i++) if(pct>=CLIMB_GRADE_BANDS[i].min) return CLIMB_GRADE_BANDS[i].color;
+  return CLIMB_GRADE_BANDS[CLIMB_GRADE_BANDS.length-1].color;
+}
+// Per-segment gradient (%) using coarse fixed-distance blocks (~CLIMB_GRAD_BLOCK_M
+// metres each), so the colour bands come out as a few solid contiguous blocks like a
+// bike-computer climb view — not a thin per-point barcode. distKm/ele are the climb's
+// own arrays; returns an array of length ele.length-1 (one gradient per segment).
+var CLIMB_GRAD_BLOCK_M=200;
+function climbBandGrads(distKm, ele){
+  var out=[], n=ele.length, i;
+  if(n<2) return out;
+  var d0=distKm[0]*1000, totalM=distKm[n-1]*1000-d0;
+  var blockM=Math.max(120, totalM/12);
+  if(CLIMB_GRAD_BLOCK_M>0 && totalM/CLIMB_GRAD_BLOCK_M>=2) blockM=CLIMB_GRAD_BLOCK_M;
+  var first={}, last={}, blk=[];
+  for(i=0;i<n;i++){
+    var b=Math.floor((distKm[i]*1000-d0)/blockM);
+    blk.push(b);
+    if(first[b]===undefined) first[b]=i;
+    last[b]=i;
+  }
+  var g={};
+  for(var k in first){ if(!first.hasOwnProperty(k)) continue;
+    var a=first[k], z=last[k], sp=distKm[z]*1000-distKm[a]*1000;
+    g[k]= sp>0 ? (ele[z]-ele[a])/sp*100 : 0;
+  }
+  for(i=0;i<n-1;i++) out.push(g[blk[i]]);
+  return out;
+}
 var CLIMB_THRESHOLDS = {"gain":{"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10},"minDistance":100};
 var CLIMB_MIN_GRADE = {"gRide":3,"gRun":2,"gHike":2,"gWalk":1,"gOther":2};
 var CLIMB_DESCENT_RESET = 30;
@@ -289,11 +375,15 @@ function hideTip(){
 
 // --- Synchronized scrolling across all .chart-scroll containers ------------
 // Scroll events do not bubble, so use capture phase to intercept them all.
+// Containers also marked .chart-scroll-indep (e.g. the max-average-HR curve,
+// which uses a duration x-axis) are excluded — they share no common scale with
+// the distance-based charts, so syncing them would be meaningless.
 var _scrollSyncing = false;
 document.addEventListener("scroll", function(e) {
   if (_scrollSyncing) return;
   var src = e.target;
   if (!src || !src.classList || !src.classList.contains("chart-scroll")) return;
+  if (src.classList.contains("chart-scroll-indep")) return;
   var all = document.querySelectorAll(".chart-scroll");
   var maxScroll = src.scrollWidth - src.clientWidth;
   if (maxScroll <= 0) return;
@@ -301,6 +391,7 @@ document.addEventListener("scroll", function(e) {
   _scrollSyncing = true;
   for (var _i = 0; _i < all.length; _i++) {
     if (all[_i] === src) continue;
+    if (all[_i].classList.contains("chart-scroll-indep")) continue;
     var t = all[_i], tm = t.scrollWidth - t.clientWidth;
     if (tm > 0) t.scrollLeft = Math.round(ratio * tm);
   }
@@ -346,34 +437,321 @@ function card(k, v){ return '<div class="card"><div class="k">'+esc(k)+'</div><d
 // Same card, with a hover explanation (native tooltip) for cryptic metrics.
 function cardTip(k, v, tip){ return '<div class="card" title="'+esc(tip)+'"><div class="k">'+esc(k)+'</div><div class="v">'+v+'</div></div>'; }
 
-function updateLongestClimbCard(climb){
+// gain · avg-grade · distance for one climb.
+function fmtClimbText(c){
+  var t = c.gain + " m";
+  if (c.distance != null && c.distance > 0) {
+    var distance = c.distance < 1000
+      ? Math.round(c.distance) + " m"
+      : (c.distance / 1000).toFixed(2) + " km";
+    t += " · " + (c.gain / c.distance * 100).toFixed(1) + "% avg · " + distance;
+  }
+  return t;
+}
+
+// Draw the climb card for the currently-selected climb (_climbs[_climbIdx]). With
+// more than one climb the title carries ‹ N/M › arrows to flip through them; a
+// single climb keeps the plain "Longest climb" title (and no arrows).
+function renderClimbCardFace(){
+  var cardEl = document.getElementById("longest-climb-card");
+  if (!cardEl || !_climbs.length) return;
+  var kEl = cardEl.querySelector(".k");
+  var vEl = cardEl.querySelector(".v");
+  var c = _climbs[_climbIdx];
+  var multi = _climbs.length > 1;
+  if (kEl) {
+    var isLongest = multi && c.idx === _climbBiggestIdx;
+    var title = multi ? ("Climb " + c.idx + (isLongest ? " · longest" : "")) : "Longest climb";
+    var k = '<span class="climb-swatch" aria-hidden="true"></span>' + title;
+    if (multi) {
+      k += '<span class="climb-nav">'
+        + '<button type="button" class="climb-prev" aria-label="Previous climb" title="Previous climb">‹</button>'
+        + '<span class="climb-count">' + (_climbIdx + 1) + '/' + _climbs.length + '</span>'
+        + '<button type="button" class="climb-next" aria-label="Next climb" title="Next climb">›</button>'
+        + '</span>';
+    }
+    kEl.innerHTML = k;
+    if (multi) {
+      kEl.querySelector(".climb-prev").onclick = function(){ showClimb(_climbIdx - 1); };
+      kEl.querySelector(".climb-next").onclick = function(){ showClimb(_climbIdx + 1); };
+    }
+  }
+  if (vEl) vEl.textContent = fmtClimbText(c);
+  cardEl.style.display = "";
+}
+
+// Switch the card to climb index i (wraps around) and, when the map is present,
+// zoom to that climb and thicken its line so card and map stay in sync.
+function showClimb(i){
+  if (!_climbs.length) return;
+  var n = _climbs.length;
+  _climbIdx = ((i % n) + n) % n;
+  renderClimbCardFace();
+  renderClimbProfile(_climbs[_climbIdx]);
+  renderClimbGradientOnMap(_climbs[_climbIdx]);
+  if (_climbMap && _climbLines) {
+    var sel = _climbLines[_climbs[_climbIdx].idx];
+    for (var key in _climbLines) {
+      if (_climbLines.hasOwnProperty(key))
+        _climbLines[key].setStyle({ weight: _climbLines[key] === sel ? 8 : 5 });
+    }
+    if (sel) { try { _climbMap.fitBounds(sel.getBounds(), { padding: [40, 40] }); } catch(_){} }
+  }
+}
+
+// Entry point from the GPX consumers. `climbs` is findClimbs() output (sorted by
+// gain desc) or a single-element max_single_climb fallback. `trackPts` (optional)
+// is the full {lat,lon,ele} track that climb.start/end index into — stored so the
+// per-climb profile chart can re-slice it. Stores climbs in track order for the
+// switcher, defaulting the view to the biggest ("longest") climb.
+function updateLongestClimbCard(climbs, trackPts){
   var cardEl = document.getElementById("longest-climb-card");
   if (!cardEl) return;
-  if (!climb) { cardEl.style.display = "none"; return; }
-  var txt = climb.gain + " m";
-  if (climb.distance != null && climb.distance > 0) {
-    var distance = climb.distance < 1000
-      ? Math.round(climb.distance) + " m"
-      : (climb.distance / 1000).toFixed(2) + " km";
-    txt += " · " + (climb.gain / climb.distance * 100).toFixed(1) + "% avg · " + distance;
+  // Stash the track + cumulative-distance array for the climb-profile chart.
+  _climbTrackPts = (trackPts && trackPts.length) ? trackPts : [];
+  _climbCumDist = [];
+  if (_climbTrackPts.length) {
+    _climbCumDist.push(0);
+    for (var q = 1; q < _climbTrackPts.length; q++)
+      _climbCumDist.push(_climbCumDist[q - 1] + haversineM(
+        _climbTrackPts[q - 1].lat, _climbTrackPts[q - 1].lon,
+        _climbTrackPts[q].lat, _climbTrackPts[q].lon));
   }
-  cardEl.querySelector(".v").textContent = txt;
-  cardEl.style.display = "";
+  if (!climbs || !climbs.length) {
+    _climbs = [];
+    cardEl.style.display = "none";
+    renderClimbProfile(null);
+    return;
+  }
+  var biggest = climbs[0];
+  for (var b = 1; b < climbs.length; b++) if (climbs[b].gain > biggest.gain) biggest = climbs[b];
+  _climbBiggestIdx = biggest.idx;
+  _climbs = climbs.slice().sort(function(a, bb){ return (a.idx || 0) - (bb.idx || 0); });
+  _climbIdx = 0;
+  for (var p = 0; p < _climbs.length; p++) if (_climbs[p] === biggest) { _climbIdx = p; break; }
+  renderClimbCardFace();
+  renderClimbProfile(_climbs[_climbIdx]);
+}
+
+// Per-climb elevation profile, coloured by gradient (the Magene-style "Climbing
+// analysis" chart). X-axis runs 0 → the climb's own distance in km; the fill of
+// each segment is its local gradient band. Driven by the same ‹ › switcher as the
+// climb card, so flipping climbs redraws this chart too. Hidden when the selected
+// climb has no track indices (e.g. the max_single_climb fallback with no GPX).
+function renderClimbProfile(climb){
+  var box = document.getElementById("climb-profile-box");
+  if (!box) return;
+  if (!climb || climb.start == null || climb.end == null || climb.end <= climb.start
+      || !_climbTrackPts.length || _climbCumDist.length !== _climbTrackPts.length) {
+    box.style.display = "none";
+    return;
+  }
+  // Slice the climb; carry elevation forward across the occasional null sample.
+  var i, j, s = climb.start, e = climb.end, startCum = _climbCumDist[s];
+  var dist = [], ele = [], lastE = null;
+  for (i = s; i <= e; i++) {
+    var ev = _climbTrackPts[i].ele;
+    if (ev == null || !isFinite(ev)) ev = lastE; else lastE = ev;
+    if (ev == null) continue;                 // skip leading nulls
+    dist.push((_climbCumDist[i] - startCum) / 1000);   // km from climb start
+    ele.push(ev);
+  }
+  if (ele.length < 2) { box.style.display = "none"; return; }
+  // Smooth elevation (±2 points) to tame GPS jitter before computing gradients.
+  var sm = [], WIN = 2, a2, b2, sum, cnt;
+  for (i = 0; i < ele.length; i++) {
+    a2 = Math.max(0, i - WIN); b2 = Math.min(ele.length - 1, i + WIN); sum = 0; cnt = 0;
+    for (j = a2; j <= b2; j++) { sum += ele[j]; cnt++; }
+    sm.push(sum / cnt);
+  }
+  ele = sm;
+
+  var totalKm = dist[dist.length - 1] || 0, totalM = totalKm * 1000;
+  var gain = climb.gain || Math.max(0, ele[ele.length - 1] - ele[0]);
+  var avgGrade = totalM > 0 ? (gain / totalM * 100) : 0;
+  // Coarse per-block gradients drive both the band colours and the Max-gradient stat,
+  // so the number matches the steepest band actually shown (not a jittery point spike).
+  var grads = climbBandGrads(dist, ele);
+  function segGrad(k) { return grads[k < grads.length ? k : grads.length - 1] || 0; }
+  var maxGrade = 0;
+  for (i = 0; i < grads.length; i++) if (grads[i] > maxGrade) maxGrade = grads[i];
+
+  // --- stat tiles -----------------------------------------------------------
+  var startKm = startCum / 1000;
+  function stat(v, k) { return '<div class="cp-stat"><div class="cp-v">' + v + '</div><div class="cp-k">' + esc(k) + '</div></div>'; }
+  var distTxt = totalKm < 1 ? Math.round(totalM) + " m" : totalKm.toFixed(2) + " km";
+  var statsHtml = stat(avgGrade.toFixed(1) + "%", "Avg gradient")
+    + stat(maxGrade.toFixed(1) + "%", "Max gradient")
+    + stat(distTxt, "Climb distance")
+    + stat(Math.round(gain) + " m", "Accumulated climb")
+    + stat(startKm.toFixed(2) + " km", "Route position");
+  document.getElementById("climb-prof-stats").innerHTML = statsHtml;
+
+  // --- SVG geometry ---------------------------------------------------------
+  var H = 220, YAX_W = 48, padR = 12, padT = 14, labelH = 20;
+  var cw = box.clientWidth || 900;
+  var W = Math.max(320, Math.round(cw) - 24);
+  var plotL = YAX_W, plotR = W - padR, plotW = plotR - plotL;
+  var chTop = padT, chBot = H - labelH, chH = chBot - chTop;
+  var minE = ele[0], maxE = ele[0];
+  for (i = 0; i < ele.length; i++) { if (ele[i] < minE) minE = ele[i]; if (ele[i] > maxE) maxE = ele[i]; }
+  var eRange = (maxE - minE) || 1;
+  var yBase = minE, ySpan = eRange * 1.08;      // 8% headroom above the summit
+  function xOf(km) { return plotL + (totalKm > 0 ? km / totalKm : 0) * plotW; }
+  function yOf(m)  { return chBot - ((m - yBase) / ySpan) * chH; }
+
+  // Gradient-coloured area: one filled quad per segment.
+  var segs = "", chBotF = chBot.toFixed(1);
+  for (i = 0; i < ele.length - 1; i++) {
+    var x1 = xOf(dist[i]).toFixed(1), x2 = xOf(dist[i + 1]).toFixed(1);
+    var y1 = yOf(ele[i]).toFixed(1),  y2 = yOf(ele[i + 1]).toFixed(1);
+    var col = climbGradeColor(segGrad(i));
+    segs += '<polygon points="' + x1 + ',' + chBotF + ' ' + x1 + ',' + y1 + ' '
+      + x2 + ',' + y2 + ' ' + x2 + ',' + chBotF + '" fill="' + col + '" stroke="' + col + '" stroke-width="0.6"/>';
+  }
+  // Crisp top line over the coloured area.
+  var line = "";
+  for (i = 0; i < ele.length; i++) line += (i ? "L" : "M") + xOf(dist[i]).toFixed(1) + "," + yOf(ele[i]).toFixed(1);
+  var top = '<path d="' + line + '" fill="none" stroke="var(--text-2)" stroke-width="1.3" stroke-linejoin="round" opacity="0.7"/>';
+
+  // Y grid + altitude labels (min / mid / max).
+  var grid = "", yax = "", ticks = [minE, (minE + maxE) / 2, maxE];
+  for (i = 0; i < ticks.length; i++) {
+    var gy = yOf(ticks[i]).toFixed(1);
+    grid += '<line x1="' + plotL + '" y1="' + gy + '" x2="' + plotR + '" y2="' + gy + '" stroke="var(--chart-grid)" stroke-width="1"/>';
+    yax += '<text x="' + (YAX_W - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="var(--text-3)">' + Math.round(ticks[i]) + ' m</text>';
+  }
+  // X ticks: 0 … climb distance (km).
+  var xt = "", NT = totalKm < 0.6 ? 2 : (totalKm < 2 ? 4 : 5), dec = totalKm < 2 ? 2 : 1;
+  for (i = 0; i <= NT; i++) {
+    var km = totalKm * i / NT, lx = xOf(km).toFixed(1);
+    xt += '<text x="' + lx + '" y="' + (H - 4) + '" text-anchor="' + (i === 0 ? "start" : i === NT ? "end" : "middle") + '" font-size="11" fill="var(--text-3)">' + km.toFixed(dec) + ' km</text>';
+  }
+
+  // Hover tooltips (reuse the shared line-chart hover machinery).
+  var tips = [];
+  for (i = 0; i < ele.length; i++) {
+    tips.push({ x: parseFloat(xOf(dist[i]).toFixed(1)),
+      html: '<strong>' + dist[i].toFixed(2) + ' km</strong>' + Math.round(ele[i]) + ' m · ' + segGrad(i).toFixed(1) + '%' });
+  }
+  LINE_TIPS["svg-climbprof"] = tips;
+  var overlay = '<rect x="' + plotL + '" y="0" width="' + plotW + '" height="' + H + '"'
+    + ' fill="transparent" style="cursor:crosshair"'
+    + ' onmousemove="lineChartHover(event,\'svg-climbprof\')"'
+    + ' onmouseout="hideTip()"'
+    + ' ontouchmove="lineChartHover({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},\'svg-climbprof\')"'
+    + ' ontouchend="hideTip()"/>';
+
+  var svg = document.getElementById("svg-climbprof");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.innerHTML = grid + segs + top + yax + xt + overlay;
+
+  // Legend (only the bands that appear would be nice, but showing all keeps it stable).
+  var leg = "";
+  for (i = 0; i < CLIMB_GRADE_BANDS.length; i++)
+    leg += '<span><i style="background:' + CLIMB_GRADE_BANDS[i].color + '"></i>' + esc(CLIMB_GRADE_BANDS[i].label) + '</span>';
+  document.getElementById("climb-prof-legend").innerHTML = leg;
+
+  // Header title + ‹ N/M › switcher (mirrors the climb card).
+  var titleEl = document.getElementById("climb-prof-title");
+  if (titleEl) {
+    var multi = _climbs.length > 1;
+    var isLongest = multi && climb.idx === _climbBiggestIdx;
+    var t = multi ? ("Climbing analysis · climb " + climb.idx + (isLongest ? " (longest)" : "")) : "Climbing analysis";
+    var html = '<span>' + esc(t) + '</span>';
+    if (multi) {
+      html += '<span class="climb-nav">'
+        + '<button type="button" class="cp-prev" aria-label="Previous climb" title="Previous climb">‹</button>'
+        + '<span class="climb-count">' + (_climbIdx + 1) + '/' + _climbs.length + '</span>'
+        + '<button type="button" class="cp-next" aria-label="Next climb" title="Next climb">›</button>'
+        + '</span>';
+    }
+    titleEl.innerHTML = html;
+    if (multi) {
+      titleEl.querySelector(".cp-prev").onclick = function(){ showClimb(_climbIdx - 1); };
+      titleEl.querySelector(".cp-next").onclick = function(){ showClimb(_climbIdx + 1); };
+    }
+  }
+  box.style.display = "";
+}
+
+// Overlay the currently-selected climb on the map, coloured by gradient band (same
+// palette as the Climbing-analysis chart). A continuous dark casing underneath keeps
+// the thin colour bands legible over map tiles. Other climbs stay plain blue, so the
+// resting "blue = climb" convention holds and only the active climb lights up.
+// Rebuilt by showClimb() so the ‹ › switcher drives it in step with the chart.
+function renderClimbGradientOnMap(climb){
+  if (!_climbMap || typeof L === "undefined") return;
+  if (_climbGradLayer) { try { _climbMap.removeLayer(_climbGradLayer); } catch(_){} _climbGradLayer = null; }
+  if (!climb || climb.start == null || climb.end == null || climb.end <= climb.start) return;
+  if (!_climbTrackPts.length || _climbCumDist.length !== _climbTrackPts.length) return;
+  // Build the climb slice: lat/lon + cumulative metres + elevation (carried across nulls).
+  var i, j, s = climb.start, e = climb.end;
+  var lat = [], lon = [], cum = [], ele = [], lastE = null;
+  for (i = s; i <= e; i++) {
+    var p = _climbTrackPts[i];
+    if (p.lat == null || !isFinite(p.lat)) continue;
+    var ev = p.ele;
+    if (ev == null || !isFinite(ev)) ev = lastE; else lastE = ev;
+    if (ev == null) continue;
+    lat.push(p.lat); lon.push(p.lon); cum.push(_climbCumDist[i]); ele.push(ev);
+  }
+  if (lat.length < 2) return;
+  // Smooth elevation (±2) so the gradient bands match the chart and resist jitter.
+  var sm = [], WIN = 2, a2, b2, sum, cnt;
+  for (i = 0; i < ele.length; i++) {
+    a2 = Math.max(0, i - WIN); b2 = Math.min(ele.length - 1, i + WIN); sum = 0; cnt = 0;
+    for (j = a2; j <= b2; j++) { sum += ele[j]; cnt++; }
+    sm.push(sum / cnt);
+  }
+  ele = sm;
+  // Same coarse block gradients as the chart, so map and chart colours agree.
+  var distKm = [];
+  for (i = 0; i < cum.length; i++) distKm.push(cum[i] / 1000);
+  var grads = climbBandGrads(distKm, ele);
+  var segCols = [];
+  for (i = 0; i < lat.length - 1; i++)
+    segCols.push(climbGradeColor(grads[i < grads.length ? i : grads.length - 1] || 0));
+
+  var layers = [], all = [];
+  for (i = 0; i < lat.length; i++) all.push([lat[i], lon[i]]);
+  // One continuous dark casing for the whole climb, then one coloured polyline per
+  // contiguous same-colour run (keeps the layer count low and the bands solid).
+  layers.push(L.polyline(all, { color: "#1a1a1a", weight: 9, opacity: 0.9, lineJoin: "round", lineCap: "round" }));
+  var r = 0;
+  while (r < segCols.length) {
+    var rc = segCols[r], rEnd = r;
+    while (rEnd + 1 < segCols.length && segCols[rEnd + 1] === rc) rEnd++;
+    var runPts = [];
+    for (j = r; j <= rEnd + 1; j++) runPts.push([lat[j], lon[j]]);
+    layers.push(L.polyline(runPts, { color: rc, weight: 5, opacity: 1, lineJoin: "round", lineCap: "round" }));
+    r = rEnd + 1;
+  }
+  _climbGradLayer = L.layerGroup(layers).addTo(_climbMap);
 }
 
 function renderCards(d){
   var sport = d.sport_type || d.type || "";
   var html = "";
   html += card("Distance", fmtKm(d.distance || 0) + " km");
-  html += card("Moving time", fmtTime(d.moving_time || 0));
-  if (d.elapsed_time && d.elapsed_time !== d.moving_time)
-    html += card("Elapsed", fmtTime(d.elapsed_time));
-  // Stopped time (café / traffic stops) — elapsed minus moving, when meaningful.
-  var stopped = (d.elapsed_time || 0) - (d.moving_time || 0);
-  if (stopped >= 60) {
+  // Moving time as the headline, with total (elapsed) time, stopped time and the
+  // moving-% folded into a small sub-line underneath. This card plus "Longest climb"
+  // are the two full-width cards, so both are appended at the very end of the grid.
+  var _mtMain = fmtTime(d.moving_time || 0);
+  var movingCard;
+  if (d.elapsed_time && d.elapsed_time !== d.moving_time) {
     var movePct = d.elapsed_time > 0 ? Math.round(100 * d.moving_time / d.elapsed_time) : null;
-    html += card("Stopped", fmtTime(stopped) +
-      (movePct != null ? ' <span style="color:var(--text-4);font-size:.8rem">' + movePct + '% moving</span>' : ''));
+    var stopped = (d.elapsed_time || 0) - (d.moving_time || 0);
+    var _mtSub = fmtTime(d.elapsed_time) + ' total'
+      + (stopped >= 60 ? ' · ' + fmtTime(stopped) + ' stopped' : '')
+      + (movePct != null ? ' · ' + movePct + '% moving' : '');
+    movingCard = card("Moving time", _mtMain +
+      '<div style="color:var(--text-4);font-size:.8rem;font-weight:400;margin-top:3px">' + _mtSub + '</div>');
+  } else {
+    // No elapsed time in the record (e.g. HealthSync) — the GPX fill below derives
+    // total/stopped/% from the track's first→last timestamps and shows it here.
+    movingCard = '<div class="card"><div class="k">Moving time</div><div class="v">' + _mtMain
+      + '<div id="gpx-elapsed-sub" style="display:none;color:var(--text-4);font-size:.8rem;font-weight:400;margin-top:3px"></div></div></div>';
   }
   if (d.average_speed) {
     html += isFoot(sport)
@@ -384,9 +762,25 @@ function renderCards(d){
     html += isFoot(sport)
       ? card("Best pace", fmtPace(d.max_speed))
       : card("Max speed", (d.max_speed*3.6).toFixed(1) + " km/h");
+  } else {
+    // No max speed in the record (e.g. HealthSync) — derive it from the GPX track below.
+    html += '<div class="card" id="gpx-maxspeed-card" style="display:none"><div class="k">'
+      + (isFoot(sport) ? 'Best pace' : 'Max speed') + '</div><div class="v"></div></div>';
   }
   if (d.total_elevation_gain) html += card("Elevation", Math.round(d.total_elevation_gain) + " m");
-  html += '<div class="card" id="longest-climb-card" style="display:none" title="Blue line on the map marks this climb">'
+  // Total descent — downhill metres lost. Not carried in the record, so always
+  // derived from the GPX track (filled by renderGpxCharts below).
+  html += '<div class="card" id="gpx-descent-card" style="display:none" title="Total elevation lost, from the GPX track."><div class="k">Descent</div><div class="v"></div></div>';
+  // Altitude range (lowest → highest point) when both bounds are known.
+  if (d.elev_high != null && d.elev_low != null && d.elev_high > d.elev_low)
+    html += cardTip("Altitude", Math.round(d.elev_low) + '–' + Math.round(d.elev_high) + ' m',
+      "Lowest and highest point of the activity (span: " + Math.round(d.elev_high - d.elev_low) + " m).");
+  else
+    // No elevation bounds in the record (e.g. HealthSync) — derive from the GPX track below.
+    html += '<div class="card" id="gpx-altitude-card" style="display:none"><div class="k">Altitude</div><div class="v"></div></div>';
+  // Start clock time — derived from the first GPX timestamp (filled below).
+  html += '<div class="card" id="gpx-start-card" style="display:none" title="Clock time the activity started, from the GPX track."><div class="k">Started</div><div class="v"></div></div>';
+  var climbCard = '<div class="card" id="longest-climb-card" style="display:none" title="Blue lines on the map mark the climbs; use the ‹ › arrows to switch between them">'
     + '<div class="k"><span class="climb-swatch" aria-hidden="true"></span>Longest climb</div><div class="v"></div></div>';
   // VAM (vertical ascent m/h) and climb intensity (m/km) — key cycling climb metrics.
   if (d.total_elevation_gain > 0 && d.moving_time > 0)
@@ -459,6 +853,9 @@ function renderCards(d){
   }
   if (d.gear && d.gear.name) html += card("Gear", esc(d.gear.name));
   if (d.device_name)       html += card("Device", esc(d.device_name));
+  // Append the two full-width cards (Moving time, Longest climb) last so they sit
+  // at the end of the grid instead of breaking the row flow earlier.
+  html += movingCard + climbCard;
   document.getElementById("cards").innerHTML = html;
   if (d.average_heartrate > 0)
     renderHrEffort([{bpm:d.average_heartrate, secs:d.moving_time || 0}], d.max_heartrate || 0, d, "activity average HR only");
@@ -470,7 +867,10 @@ function renderCards(d){
 // renders x-axis ticks. compactLabels=true keeps compact chart width and shows only
 // whole-km boundary labels (for GPX charts with hundreds of points).
 // Without xLabels the chart stays compact.
-function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
+// xDomStart/xDomEnd (compactLabels only): force the km x-domain instead of deriving it
+// from the first/last label. Lets a series that starts partway (e.g. temperature with the
+// first 3 km dropped) stay pixel-aligned with the full-distance elev/hr/cad/spd charts.
+function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels, xDomStart, xDomEnd) {
   var n = points.length;
   if (!n) return;
   var minV = points[0], maxV = points[0], i;
@@ -480,11 +880,29 @@ function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
   }
   var base = (unit === "bpm") ? Math.max(40, minV - Math.max(10, Math.round((maxV - minV) * 0.15))) : minV;
   var range = (maxV - base) || 1;
-  var YAX_W = 52, barW = 30;
+  var YAX_W = 52, barW = 30, PX_PER_KM = 30;
   var yaxisSvg = document.getElementById(svgId + "-yaxis");
   var px = yaxisSvg ? 0 : YAX_W;  // no left margin when y-axis lives in a separate fixed SVG
   var labelH = xLabels ? 20 : 0;
-  var W = (xLabels && !compactLabels) ? (px + n * barW + 16) : Math.max(n * 3, 900);
+  var W;
+  // Effective km domain: honour explicit xDomStart/xDomEnd when given, else derive from labels.
+  var _domStart = (compactLabels && isFinite(xDomStart)) ? xDomStart
+                : (xLabels ? parseFloat(xLabels[0]) : 0);
+  var _domEnd   = (compactLabels && isFinite(xDomEnd)) ? xDomEnd
+                : (xLabels ? parseFloat(xLabels[n - 1]) : 0);
+  if (xLabels && compactLabels) {
+    // GPX distance chart: width scales linearly with total distance at a fixed
+    // PX_PER_KM, so km N always lands at the same x. This keeps the elevation,
+    // speed, HR, cadence and per-km charts on one shared x-axis (the per-km bar
+    // chart in renderSplitsFromArray uses the same PX_PER_KM and left gutter).
+    var _tk = _domEnd - _domStart;
+    if (!(_tk > 0)) _tk = 0;
+    W = Math.max(px + 16 + Math.round(_tk * PX_PER_KM), 900);
+  } else if (xLabels) {
+    W = px + n * barW + 16;
+  } else {
+    W = Math.max(n * 3, 900);
+  }
   var H = 200, ch = H - 18 - labelH;
   // X positioning. For GPX charts (compactLabels) xLabels hold cumulative km, so place
   // points by distance to make the km axis linear and evenly spaced. Otherwise (per-split
@@ -492,10 +910,9 @@ function drawLineSvg(svgId, points, color, unit, xLabels, compactLabels) {
   // zero/invalid.
   var useDist = !!(compactLabels && xLabels), d0 = 0, dSpan = 1;
   if (useDist) {
-    d0 = parseFloat(xLabels[0]);
-    var dEnd = parseFloat(xLabels[n - 1]);
+    d0 = _domStart;
     if (!isFinite(d0)) d0 = 0;
-    dSpan = (isFinite(dEnd) ? dEnd : 0) - d0;
+    dSpan = (isFinite(_domEnd) ? _domEnd : 0) - d0;
     if (!(dSpan > 0)) useDist = false;
   }
   function xPos(i) {
@@ -660,12 +1077,15 @@ function resolveHrMax(hrPoints, maxHR) {
   return hrMax;
 }
 
+// Six-zone model (% of HRmax): Relaxed <50, Healthy 50-60, Fat Burn 60-70,
+// Aerobic 70-80, Strength Training 80-90, Red-line ≥90.
 function hrZoneIndex(bpm, hrMax) {
-  if (bpm < Math.round(0.60 * hrMax)) return 0;
-  if (bpm < Math.round(0.70 * hrMax)) return 1;
-  if (bpm < Math.round(0.80 * hrMax)) return 2;
-  if (bpm < Math.round(0.90 * hrMax)) return 3;
-  return 4;
+  if (bpm < Math.round(0.50 * hrMax)) return 0;
+  if (bpm < Math.round(0.60 * hrMax)) return 1;
+  if (bpm < Math.round(0.70 * hrMax)) return 2;
+  if (bpm < Math.round(0.80 * hrMax)) return 3;
+  if (bpm < Math.round(0.90 * hrMax)) return 4;
+  return 5;
 }
 
 function renderHrEffort(hrPoints, maxHR, activity, source) {
@@ -699,7 +1119,7 @@ function renderHrEffort(hrPoints, maxHR, activity, source) {
 
 // hrPoints: [{bpm, secs}] — secs is actual time (splits) or equal weight (GPX).
 // maxHR: activity max_heartrate; if 0/null, derived from data.
-// Zones S1–S5: <60%, 60-70%, 70-80%, 80-90%, ≥90% of HRmax.
+// Six zones: <50%, 50-60%, 60-70%, 70-80%, 80-90%, ≥90% of HRmax.
 // HRmax preference: ATHLETE_AGE > 0 → 220 − age; else activity maxHR; else peak from data.
 function renderHrZones(hrPoints, maxHR) {
   if (!hrPoints.length) return;
@@ -711,7 +1131,7 @@ function renderHrZones(hrPoints, maxHR) {
     sourceLabel = hrMax ? "HRmax " + hrMax + " bpm (activity max)" : "";
   }
   if (!hrMax) return;
-  var pcts = [0.60, 0.70, 0.80, 0.90];
+  var pcts = [0.50, 0.60, 0.70, 0.80, 0.90];
   var t = [];
   for (i = 0; i < pcts.length; i++) t.push(Math.round(pcts[i] * hrMax));
   var labels = [
@@ -719,18 +1139,20 @@ function renderHrZones(hrPoints, maxHR) {
     t[0] + " – " + (t[1]-1) + " bpm",
     t[1] + " – " + (t[2]-1) + " bpm",
     t[2] + " – " + (t[3]-1) + " bpm",
-    "≥ " + t[3] + " bpm"
+    t[3] + " – " + (t[4]-1) + " bpm",
+    "≥ " + t[4] + " bpm"
   ];
-  var colors = ["#5c9bd4","#4caf50","#ffc107","#ff7043","#ef5350"];
-  var names  = ["Z1","Z2","Z3","Z4","Z5"];
+  var colors = ["#cfd8dc","#9e9e9e","#29b6f6","#8bc34a","#ffca28","#f4511e"];
+  var names  = ["Relaxed","Healthy","Fat Burn","Aerobic","Strength Training","Red-line"];
   var descs  = [
-    "Very light effort — warm-up and recovery (below 60% max HR)",
-    "Easy effort — aerobic base building (60–70% max HR)",
-    "Moderate effort — aerobic tempo (70–80% max HR)",
-    "Intense effort — anaerobic threshold (80–90% max HR)",
-    "Maximum effort — peak performance (above 90% max HR)"
+    "Recovery — very light effort (below 50% max HR)",
+    "Healthy — light activity, builds endurance base (50–60% max HR)",
+    "Fat Burn — comfortable aerobic effort (60–70% max HR)",
+    "Aerobic — moderate endurance effort (70–80% max HR)",
+    "Strength Training — hard effort near anaerobic threshold (80–90% max HR)",
+    "Red-line — maximum effort, peak performance (above 90% max HR)"
   ];
-  var zoneSecs = [0,0,0,0,0], totalSecs = 0, zone, secs;
+  var zoneSecs = [0,0,0,0,0,0], totalSecs = 0, zone, secs;
   for (i = 0; i < hrPoints.length; i++) {
     bpm = hrPoints[i].bpm; secs = hrPoints[i].secs;
     if (bpm <= 0) continue;
@@ -739,11 +1161,13 @@ function renderHrZones(hrPoints, maxHR) {
   }
   if (!totalSecs) return;
   var html = '<table class="hr-zone-table">';
-  for (i = 4; i >= 0; i--) {
+  for (i = 5; i >= 0; i--) {
     var pct = zoneSecs[i] / totalSecs * 100;
     var barW = Math.min(100, Math.round(pct));
     html += '<tr title="' + descs[i] + '">'
-      + '<td style="font-weight:600;color:' + colors[i] + ';white-space:nowrap;cursor:help">' + names[i] + '</td>'
+      + '<td style="font-weight:600;white-space:nowrap;cursor:help">'
+        + '<span style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:' + colors[i] + ';vertical-align:middle"></span>'
+        + names[i] + '</td>'
       + '<td style="color:var(--text-3);white-space:nowrap">' + labels[i] + '</td>'
       + '<td style="font-variant-numeric:tabular-nums;white-space:nowrap">' + fmtHMS(zoneSecs[i]) + '</td>'
       + '<td style="font-variant-numeric:tabular-nums;color:var(--text-4);white-space:nowrap">' + pct.toFixed(1) + '%</td>'
@@ -760,6 +1184,111 @@ function renderHrZones(hrPoints, maxHR) {
       + " Set BIRTH_YEAR in config for age-based zones.";
   titleEl.style.cursor = "help";
   document.getElementById("hr-zone-box").style.display = "";
+}
+
+// Duration label: "5 s", "30 s", "2 min", "180 min".
+function fmtDurShort(s) {
+  return s < 60 ? s + " s" : Math.round(s / 60) + " min";
+}
+
+// Maximum-average heart-rate curve: for each window length, the best average HR
+// sustained over any continuous window of that length during the activity.
+// hrSamples: ordered HR values; movingTime: seconds (samples assumed evenly spaced).
+// Rendered on its own log-scaled duration x-axis, independent of the other charts.
+function renderHrMaxAvg(hrSamples, movingTime) {
+  var n = hrSamples.length;
+  if (n < 2 || !(movingTime > 0)) return;
+  var secsPerPt = movingTime / n;
+  // Prefix sums for O(1) window averages.
+  var pre = new Array(n + 1); pre[0] = 0;
+  for (var i = 0; i < n; i++) pre[i + 1] = pre[i] + Number(hrSamples[i] || 0);
+  var DURS = [5, 10, 20, 30, 60, 120, 300, 720, 1200, 2400, 3600, 5400, 10800];
+  var pts = [];   // {d: seconds, v: bpm}
+  for (var di = 0; di < DURS.length; di++) {
+    var D = DURS[di];
+    var w = Math.round(D / secsPerPt);
+    if (w < 1) w = 1;
+    if (w > n) break;   // window longer than the activity
+    var best = 0;
+    for (var s = 0; s + w <= n; s++) {
+      var avg = (pre[s + w] - pre[s]) / w;
+      if (avg > best) best = avg;
+    }
+    if (best > 0) pts.push({ d: D, v: best });
+  }
+  if (pts.length < 2) return;
+  drawHrMaxAvgSvg(pts);
+  document.getElementById("hr-maxavg-box").style.display = "";
+  if (window._detailSecAfterRender) window._detailSecAfterRender();
+}
+
+function drawHrMaxAvgSvg(pts) {
+  var n = pts.length, i, color = "#e91e63";
+  var minV = pts[0].v, maxV = pts[0].v;
+  for (i = 1; i < n; i++) { if (pts[i].v < minV) minV = pts[i].v; if (pts[i].v > maxV) maxV = pts[i].v; }
+  var base = Math.max(40, Math.floor(minV - Math.max(10, (maxV - minV) * 0.15)));
+  var range = (maxV - base) || 1;
+  var YAX_W = 52, PLOT_W = Math.max(560, (n - 1) * 90), px = 0;
+  var labelH = 20, H = 200, ch = H - 18 - labelH, W = YAX_W + PLOT_W + 16;
+  px = YAX_W;
+  var lx0 = Math.log(pts[0].d), lxSpan = Math.log(pts[n - 1].d) - lx0;
+  if (!(lxSpan > 0)) lxSpan = 1;
+  function xPos(idx) { return px + ((Math.log(pts[idx].d) - lx0) / lxSpan) * (W - px - 16); }
+  function yPos(v) { return ch - ((v - base) / range) * (ch - 24); }
+  var path = "";
+  for (i = 0; i < n; i++) path += (i ? "L" : "M") + xPos(i).toFixed(1) + "," + yPos(pts[i].v).toFixed(1);
+  var fill = path + "L" + (W - 16) + "," + ch + "L" + px + "," + ch + "Z";
+
+  // Grid lines + y-axis labels (separate fixed y-axis SVG, like drawLineSvg).
+  // Aim for ~5 evenly spaced ticks at round bpm values (step of 5/10/20/25…).
+  var gridLines = "", yaxisHtml = "";
+  var top = base + range, raw = range / 5;
+  var step = raw <= 5 ? 5 : raw <= 10 ? 10 : raw <= 20 ? 20 : raw <= 25 ? 25 : Math.ceil(raw / 50) * 50;
+  var gridVals = [base];
+  for (var gv = Math.ceil((base + 1) / step) * step; gv < top - step * 0.3; gv += step) gridVals.push(gv);
+  gridVals.push(top);
+  for (i = 0; i < gridVals.length; i++) {
+    var gy = yPos(gridVals[i]).toFixed(1);
+    gridLines += '<line x1="' + px + '" y1="' + gy + '" x2="' + (W - 16) + '" y2="' + gy + '" stroke="var(--chart-grid)" stroke-width="1"/>';
+    yaxisHtml += '<text x="' + (YAX_W - 6) + '" y="' + (parseFloat(gy) + 4) + '" text-anchor="end" font-size="11" fill="var(--text-3)">' + Math.round(gridVals[i]) + ' bpm</text>'
+      + '<line x1="' + (YAX_W - 3) + '" y1="' + gy + '" x2="' + YAX_W + '" y2="' + gy + '" stroke="var(--border-2)" stroke-width="1"/>';
+  }
+  var yaxisSvg = document.getElementById("svg-hrmaxavg-yaxis");
+  if (yaxisSvg) {
+    yaxisSvg.setAttribute("viewBox", "0 0 " + YAX_W + " " + H);
+    yaxisSvg.setAttribute("width", YAX_W);
+    yaxisSvg.setAttribute("height", H);
+    yaxisSvg.innerHTML = yaxisHtml;
+  }
+
+  var html = gridLines
+    + '<path d="' + fill + '" fill="' + color + '" opacity=".18"/>'
+    + '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>';
+  var lastLabelX = -1e9, MIN_GAP = 40;
+  for (i = 0; i < n; i++) {
+    var lxp = xPos(i);
+    html += '<circle cx="' + lxp.toFixed(1) + '" cy="' + yPos(pts[i].v).toFixed(1) + '" r="3" fill="' + color + '"/>';
+    if (lxp - lastLabelX < MIN_GAP && i !== n - 1) continue;
+    lastLabelX = lxp;
+    html += '<text x="' + lxp.toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="11" fill="var(--text-3)">' + fmtDurShort(pts[i].d) + '</text>';
+  }
+  var tipEntries = [];
+  for (i = 0; i < n; i++) {
+    tipEntries.push({ x: parseFloat(xPos(i).toFixed(1)),
+      html: '<strong>' + fmtDurShort(pts[i].d) + '</strong>' + Math.round(pts[i].v) + ' bpm' });
+  }
+  LINE_TIPS["svg-hrmaxavg"] = tipEntries;
+  html += '<rect x="' + px + '" y="0" width="' + (W - px - 16) + '" height="' + H + '"'
+        + ' fill="transparent" style="cursor:crosshair"'
+        + ' onmousemove="lineChartHover(event,\'svg-hrmaxavg\')"'
+        + ' onmouseout="hideTip()"'
+        + ' ontouchmove="lineChartHover({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},\'svg-hrmaxavg\')"'
+        + ' ontouchend="hideTip()"/>';
+
+  var svg = document.getElementById("svg-hrmaxavg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.style.width = W + "px";
+  svg.innerHTML = html;
 }
 
 // --- GPX map (healthsync activities) ----------------------------------------
@@ -799,13 +1328,54 @@ function makeTileLayer(map) {
   return layer;
 }
 
-function findLongestClimb(trackPts, sport){
+// Cooperative touch gestures. On a touch device Leaflet's default one-finger
+// drag pans the map and swallows the page scroll, so a swipe that starts on the
+// map never reaches the sections below — especially painful in landscape where
+// the map fills the viewport. Require two fingers to pan: a one-finger swipe
+// then scrolls the page as normal, two fingers pan/zoom the map. A brief hint
+// overlay tells the user how to move the map when they try one finger.
+function enableCoopGestures(map) {
+  if (!L.Browser.touch && !("ontouchstart" in window)) return;
+  map.dragging.disable();
+  var c = map.getContainer();
+  var hint, hintTimer;
+  function showHint() {
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.textContent = "Use two fingers to move the map";
+      hint.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#fff;font-size:15px;font-weight:600;text-align:center;padding:0 20px;z-index:1200;pointer-events:none;opacity:0;transition:opacity .15s";
+      c.appendChild(hint);
+    }
+    hint.style.opacity = "1";
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function(){ if (hint) hint.style.opacity = "0"; }, 1400);
+  }
+  c.addEventListener("touchstart", function(e) {
+    if (e.touches.length >= 2) { map.dragging.enable(); }
+    else { map.dragging.disable(); }
+  }, { passive: true });
+  c.addEventListener("touchmove", function(e) {
+    if (e.touches.length < 2) showHint();
+  }, { passive: true });
+  c.addEventListener("touchend", function(e) {
+    if (e.touches.length < 2) map.dragging.disable();
+  }, { passive: true });
+}
+
+// Detect every qualifying climb in the track (not just the biggest). A major
+// descent (> CLIMB_DESCENT_RESET below the running peak) closes the current climb
+// segment and starts a new one, so each "run" between big descents contributes at
+// most one climb (its biggest valley→peak gain that clears the gain/distance/grade
+// thresholds). Returns an array sorted by gain descending; each entry carries
+// `idx`, a 1-based number in track order so the map and card can label climbs
+// consistently. Empty array when no segment qualifies.
+function findClimbs(trackPts, sport){
   var raw = [], i, j, from, to, sum, cnt;
   for (i = 0; i < trackPts.length; i++) {
     if (trackPts[i].ele != null && isFinite(trackPts[i].ele)) raw.push(trackPts[i].ele);
     else raw.push(null);
   }
-  if (raw.length < 2) return null;
+  if (raw.length < 2) return [];
   var smooth = [];
   for (i = 0; i < raw.length; i++) {
     if (raw[i] == null) { smooth.push(null); continue; }
@@ -820,13 +1390,20 @@ function findLongestClimb(trackPts, sport){
   var minGain = CLIMB_THRESHOLDS.gain[sportKey] || CLIMB_THRESHOLDS.gain.Other;
   var minGrade = (CLIMB_MIN_GRADE["g" + sportKey] || 2) / 100;
   var descentReset = CLIMB_DESCENT_RESET;
+  var climbs = [];
   var best = 0, bestStart = -1, bestEnd = -1;
   var segValIdx = -1, segValEle = 0, segPeakEle = 0;
+  function flush() {
+    if (bestStart >= 0 && bestEnd > bestStart)
+      climbs.push({start: bestStart, end: bestEnd, gain: Math.round(best), distance: cumDist[bestEnd] - cumDist[bestStart]});
+    best = 0; bestStart = -1; bestEnd = -1;
+  }
   for (i = 0; i < smooth.length; i++) {
     if (smooth[i] == null) continue;
     if (segValIdx < 0) { segValIdx = i; segValEle = smooth[i]; segPeakEle = smooth[i]; continue; }
     var e = smooth[i];
     if (e < segPeakEle - descentReset) {
+      flush();
       segValIdx = i; segValEle = e; segPeakEle = e; continue;
     }
     if (e > segPeakEle) segPeakEle = e;
@@ -837,8 +1414,26 @@ function findLongestClimb(trackPts, sport){
       best = gain; bestStart = segValIdx; bestEnd = i;
     }
   }
-  if (bestStart < 0 || bestEnd <= bestStart) return null;
-  return {start: bestStart, end: bestEnd, gain: Math.round(best), distance: cumDist[bestEnd] - cumDist[bestStart]};
+  flush();
+  // Number in track order (start index), then sort by gain so the biggest is first.
+  climbs.sort(function(a, b){ return a.start - b.start; });
+  for (i = 0; i < climbs.length; i++) climbs[i].idx = i + 1;
+  climbs.sort(function(a, b){ return b.gain - a.gain; });
+  return climbs;
+}
+
+// Fetch each GPX once and share the text between the map and the charts — both
+// consumers (renderGpxMap, renderGpxCharts) would otherwise re-download the same
+// multi-MB file. Memoize the fetch promise keyed by URL; reject with a .status on HTTP errors.
+var _gpxTextCache = {};
+function fetchGpxText(url){
+  if (!_gpxTextCache[url]) {
+    _gpxTextCache[url] = fetch(url).then(function(r){
+      if (!r.ok) { var err = new Error("HTTP " + r.status); err.status = r.status; throw err; }
+      return r.text();
+    });
+  }
+  return _gpxTextCache[url];
 }
 
 // Fetch + parse ourselves to avoid leaflet-gpx's responseXML=null crash when
@@ -850,13 +1445,8 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
     box.innerHTML = '<div class="note">Map library unavailable (needs internet).</div>';
     return;
   }
-  fetch(gpxUrl)
-    .then(function(r){
-      if (!r.ok) { hideMapSpin(); box.innerHTML = '<div class="note">GPX not found (' + r.status + '): ' + gpxUrl + '</div>'; throw null; }
-      return r.text();
-    })
+  fetchGpxText(gpxUrl)
     .then(function(txt){
-      if (txt === null) return;
       if (!txt.trim()) { hideMapSpin(); box.innerHTML = '<div class="note">GPX file is empty.</div>'; return; }
       var doc = (new DOMParser()).parseFromString(txt, "application/xml");
       var perr = doc.documentElement && doc.documentElement.nodeName === "parsererror";
@@ -876,27 +1466,51 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
         var map = L.map("map");
         leafletMap = map;
         var tileLayer = makeTileLayer(map);
+        enableCoopGestures(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         leafletLine = line;
-        var climb = findLongestClimb(trackPts, sport);
-        var climbLine = null;
-        if (climb) {
-          climbLine = L.polyline(pts.slice(climb.start, climb.end + 1), { color: "#1565c0", weight: 7, opacity: 0.9 }).addTo(map);
-          L.circleMarker(pts[climb.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
-            .bindTooltip("Climb start", {permanent:false}).addTo(map);
-          L.circleMarker(pts[climb.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
-            .bindTooltip("Climb summit", {permanent:false}).addTo(map);
-          updateLongestClimbCard(climb);
+        // Draw every qualifying climb (blue). The biggest gets a heavier line and
+        // drives the initial zoom; when more than one is found the climb markers are
+        // numbered ("Climb 2 …") to match the card's ‹ › switcher. Line layers are
+        // kept keyed by idx so the switcher can focus/highlight each one.
+        var climbs = findClimbs(trackPts, sport);
+        var climbLines = [];
+        _climbMap = map; _climbLines = {};
+        if (climbs.length) {
+          for (var ci = 0; ci < climbs.length; ci++) {
+            var c = climbs[ci];
+            var isBiggest = (ci === 0);
+            var label = climbs.length > 1 ? "Climb " + c.idx : "Climb";
+            var cl = L.polyline(pts.slice(c.start, c.end + 1), { color: "#1565c0", weight: isBiggest ? 7 : 5, opacity: 0.9 }).addTo(map);
+            climbLines.push(cl);
+            _climbLines[c.idx] = cl;
+            L.circleMarker(pts[c.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
+              .bindTooltip(label + " start", {permanent:false}).addTo(map);
+            L.circleMarker(pts[c.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
+              .bindTooltip(label + " summit", {permanent:false}).addTo(map);
+          }
+          updateLongestClimbCard(climbs, trackPts);
+          renderClimbGradientOnMap(_climbs[_climbIdx]);
         } else if (maxSingleClimb > 0) {
-          updateLongestClimbCard({gain: maxSingleClimb, distance: null});
+          updateLongestClimbCard([{gain: maxSingleClimb, distance: null}], trackPts);
         }
-        // Fit to climb segment when detected; user can zoom out via the expand button or scroll.
-        var fitTarget = (climbLine && climbLine.getBounds().isValid()) ? climbLine : line;
-        map.fitBounds(fitTarget.getBounds(), { padding: climbLine ? [40, 40] : [20, 20] });
-        L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
-        L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
-        // "Full route" button — only shown when map is zoomed to climb
-        if (climbLine) {
+        // Open zoomed to the shown (longest/default) climb so the map matches the
+        // card + chart; the "Full route" button zooms out to the whole ride.
+        var climbGroup = climbLines.length ? L.featureGroup(climbLines) : null;
+        var selClimbLine = (_climbs.length && _climbLines) ? _climbLines[_climbs[_climbIdx].idx] : null;
+        var fitTarget = selClimbLine ? selClimbLine
+                      : (climbGroup && climbGroup.getBounds().isValid()) ? climbGroup : line;
+        var fitPad = (selClimbLine || climbGroup) ? [40, 40] : [20, 20];
+        map.fitBounds(fitTarget.getBounds(), { padding: fitPad });
+        // Whole-activity start (green "Start") and finish (black "Finish") markers,
+        // with always-on labels and white rings so they read clearly apart from the
+        // green/red climb start/summit dots.
+        L.circleMarker(pts[0], { radius: 8, color: "#ffffff", weight: 2, fillColor: "#2e7d32", fillOpacity: 1 })
+          .bindTooltip("Start", { permanent: true, direction: "top", className: "route-endpoint-tip" }).addTo(map);
+        L.circleMarker(pts[pts.length-1], { radius: 8, color: "#ffffff", weight: 2, fillColor: "#111111", fillOpacity: 1 })
+          .bindTooltip("Finish", { permanent: true, direction: "top", className: "route-endpoint-tip" }).addTo(map);
+        // "Full route" button — only shown when map is zoomed to the climbs
+        if (climbGroup) {
           var fullBtn = L.control({ position: "bottomleft" });
           fullBtn.onAdd = function() {
             var d = L.DomUtil.create("button", "");
@@ -910,7 +1524,7 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
           };
           fullBtn.addTo(map);
         }
-        setTimeout(function(){ map.invalidateSize(); map.fitBounds(fitTarget.getBounds(), { padding: climbLine ? [40, 40] : [20, 20] }); }, 0);
+        setTimeout(function(){ map.invalidateSize(); map.fitBounds(fitTarget.getBounds(), { padding: fitPad }); }, 0);
         tileLayer.once("load", hideMapSpin);
         setTimeout(hideMapSpin, 10000);
       } catch(e) {
@@ -919,8 +1533,8 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
       }
     })
     .catch(function(e){
-      if (e === null) return;
       hideMapSpin();
+      if (e && e.status) { box.innerHTML = '<div class="note">GPX not found (' + e.status + '): ' + gpxUrl + '</div>'; return; }
       box.innerHTML = '<div class="note">GPX fetch error: ' + (e && e.message || String(e)) + '</div>';
     });
 }
@@ -934,8 +1548,7 @@ function haversineM(lat1, lon1, lat2, lon2) {
 // --- GPX elevation + heart rate + cadence charts (healthsync / scrape activities) -----
 // Fetches the GPX once, populates elev-box, hr-box, hr-zone-box, cad-box, and splits-box.
 function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detail) {
-  fetch(gpxUrl)
-    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+  fetchGpxText(gpxUrl)
     .then(function(txt){
       var doc = (new DOMParser()).parseFromString(txt, "application/xml");
       var i, step;
@@ -947,6 +1560,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
       var allE = [], allEDist = [];
       var allH = [], allHDist = [];
       var allC = [], allCDist = [];
+      var allT = [], allTDist = [];               // device/air temperature (°C) + cumulative km
       var spDist = [], spTime = [], spKm = [];   // cumulative m, epoch s, km — for speed (needs time)
       var cumDist = 0, prevLat = null, prevLon = null;
       for (i = 0; i < trkpts.length; i++) {
@@ -967,13 +1581,73 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         if (!cadEls.length) cadEls = pt.getElementsByTagNameNS("*", "cadence");
         var rpm = cadEls.length ? (parseFloat(cadEls[0].textContent) || 0) : 0;
         if (rpm > 0) { allC.push(rpm); allCDist.push(km); }
+        // Air/device temperature: Garmin exports <gpxtpx:atemp>; some tools use <temp>.
+        var tmpEls = pt.getElementsByTagNameNS("*", "atemp");
+        if (!tmpEls.length) tmpEls = pt.getElementsByTagNameNS("*", "temp");
+        if (tmpEls.length) {
+          var degC = parseFloat(tmpEls[0].textContent);
+          if (isFinite(degC)) { allT.push(degC); allTDist.push(km); }
+        }
         var tEl = pt.getElementsByTagNameNS("*", "time")[0];
         var tS = tEl ? new Date(tEl.textContent).getTime() / 1000 : null;
         if (tS !== null && isFinite(tS)) { spDist.push(cumDist); spTime.push(tS); spKm.push(km); }
       }
 
-      var gpxClimb = findLongestClimb(climbTrackPts, sport);
-      updateLongestClimbCard(gpxClimb || (maxSingleClimb > 0 ? {gain: maxSingleClimb, distance: null} : null));
+      var gpxClimbs = findClimbs(climbTrackPts, sport);
+      updateLongestClimbCard(gpxClimbs.length ? gpxClimbs : (maxSingleClimb > 0 ? [{gain: maxSingleClimb, distance: null}] : null), climbTrackPts);
+
+      // GPX-derived cards for records that lack them (e.g. HealthSync): altitude
+      // range (min/max elevation) and total/stopped/% from the first→last timestamps.
+      var altCard = document.getElementById("gpx-altitude-card");
+      if (altCard && allE.length) {
+        var loE = allE[0], hiE = allE[0];
+        for (i = 1; i < allE.length; i++) { if (allE[i] < loE) loE = allE[i]; if (allE[i] > hiE) hiE = allE[i]; }
+        if (hiE > loE) {
+          altCard.querySelector(".v").textContent = Math.round(loE) + "–" + Math.round(hiE) + " m";
+          altCard.title = "Lowest and highest point, from the GPX track (span: " + Math.round(hiE - loE) + " m).";
+          altCard.style.display = "";
+        }
+      }
+      var subEl = document.getElementById("gpx-elapsed-sub");
+      if (subEl && spTime.length > 1) {
+        var gElapsed = spTime[spTime.length - 1] - spTime[0];
+        if (gElapsed > (movingTime || 0)) {
+          var gStopped = gElapsed - (movingTime || 0);
+          var gPct = gElapsed > 0 ? Math.round(100 * (movingTime || 0) / gElapsed) : null;
+          subEl.textContent = fmtTime(gElapsed) + " total"
+            + (gStopped >= 60 ? " · " + fmtTime(gStopped) + " stopped" : "")
+            + (gPct != null ? " · " + gPct + "% moving" : "");
+          subEl.title = "Total time and stops derived from the GPX track timestamps.";
+          subEl.style.display = "";
+        }
+      }
+      // Total descent: sum of downhill deltas over lightly smoothed elevation
+      // (a ±2-point moving average) to suppress GPS jitter.
+      var descCard = document.getElementById("gpx-descent-card");
+      if (descCard && allE.length > 2) {
+        var sm = [], W = 2, a2, b2, s2, n2, j2;
+        for (i = 0; i < allE.length; i++) {
+          a2 = Math.max(0, i - W); b2 = Math.min(allE.length - 1, i + W); s2 = 0; n2 = 0;
+          for (j2 = a2; j2 <= b2; j2++) { s2 += allE[j2]; n2++; }
+          sm.push(s2 / n2);
+        }
+        var desc = 0;
+        for (i = 1; i < sm.length; i++) { var dd2 = sm[i] - sm[i - 1]; if (dd2 < 0) desc += -dd2; }
+        if (desc >= 1) {
+          descCard.querySelector(".v").textContent = Math.round(desc) + " m";
+          descCard.style.display = "";
+        }
+      }
+      // Start clock time from the first GPX timestamp.
+      var startCard = document.getElementById("gpx-start-card");
+      if (startCard && spTime.length) {
+        var sd = new Date(spTime[0] * 1000);
+        if (isFinite(sd.getTime())) {
+          var hh = sd.getHours(), mm = sd.getMinutes();
+          startCard.querySelector(".v").textContent = (hh < 10 ? "0" + hh : hh) + ":" + (mm < 10 ? "0" + mm : mm);
+          startCard.style.display = "";
+        }
+      }
 
       function dsWithKmLabels(arr, distArr) {
         var s = Math.max(1, Math.floor(arr.length / 600));
@@ -998,12 +1672,35 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         for (i = 0; i < allH.length; i++) gpxZonePts.push({bpm: allH[i], secs: secsPerPt});
         renderHrEffort(gpxZonePts, maxHR, detail, "recorded HR samples");
         renderHrZones(gpxZonePts, maxHR);
+        // Maximum-average HR curve needs the per-sample series (splits are too coarse).
+        renderHrMaxAvg(allH, movingTime || allH.length);
       }
 
       if (allC.length) {
         var dsC = dsWithKmLabels(allC, allCDist);
         document.getElementById("cad-box").style.display = "";
         drawLineSvg("svg-cad", dsC.vals, "#8e24aa", "rpm", dsC.labels, true);
+      }
+
+      if (allT.length) {
+        // Drop the first few km: device temperature sensors start at the storage/garage
+        // temperature and only settle to ambient once riding — those early readings skew
+        // the range. Keep everything on short rides that never pass the skip distance.
+        var TEMP_SKIP_KM = 3;
+        var tVals = [], tLabels = [];
+        for (i = 0; i < allT.length; i++) {
+          if (allTDist[i] >= TEMP_SKIP_KM) { tVals.push(allT[i]); tLabels.push(allTDist[i]); }
+        }
+        if (!tVals.length) { tVals = allT.slice(); tLabels = allTDist.slice(); }
+        var loT = tVals[0], hiT = tVals[0], sumT = 0;
+        for (i = 0; i < tVals.length; i++) { if (tVals[i] < loT) loT = tVals[i]; if (tVals[i] > hiT) hiT = tVals[i]; sumT += tVals[i]; }
+        var dsT = dsWithKmLabels(tVals, tLabels);
+        document.getElementById("temp-box").style.display = "";
+        document.getElementById("temp-summary").textContent =
+          "Min " + Math.round(loT) + " °C · Avg " + Math.round(sumT / tVals.length) + " °C · Max " + Math.round(hiT) + " °C";
+        // Span the whole ride (0 … total km) so the temperature chart lines up with the others
+        // even though its data starts after the skipped section.
+        drawLineSvg("svg-temp", dsT.vals, "#f4511e", "°C", dsT.labels, true, 0, cumDist / 1000);
       }
 
       // Speed (km/h): instantaneous speed from consecutive points is too noisy to plot,
@@ -1025,6 +1722,17 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
         var dsS = dsWithKmLabels(allS, allSDist);
         document.getElementById("spd-box").style.display = "";
         drawLineSvg("svg-spd", dsS.vals, "#0288d1", "km/h", dsS.labels, true);
+        // Fill the GPX-derived max-speed card (when the record carried no max_speed).
+        var spCard = document.getElementById("gpx-maxspeed-card");
+        if (spCard) {
+          var maxS = 0;
+          for (i = 0; i < allS.length; i++) { if (allS[i] > maxS) maxS = allS[i]; }
+          if (maxS > 0) {
+            spCard.querySelector(".v").textContent = isFoot(sport) ? fmtPace(maxS / 3.6) : maxS.toFixed(1) + " km/h";
+            spCard.title = "Fastest speed from the GPX track (smoothed over 6 s).";
+            spCard.style.display = "";
+          }
+        }
       }
 
       // Per-km splits computed from trkpts (lat/lon + time + ele + HR + cad)
@@ -1072,7 +1780,7 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
           splitsBox.style.display = "";
           var splitsNote = document.getElementById("gpx-splits-note");
           if (splitsNote) splitsNote.remove();
-          renderSplitsFromArray(gpxSplits, sport || "", detailLineChartWidth());
+          renderSplitsFromArray(gpxSplits, sport || "", detailLineChartWidth(), true);
           if (typeof window._detailSecAfterRender === "function")
             window._detailSecAfterRender();
         } else {
@@ -1107,6 +1815,7 @@ function renderMap(d){
     var map = L.map("map");
     leafletMap = map;
     var tileLayer = makeTileLayer(map);
+    enableCoopGestures(map);
     var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: .9 }).addTo(map);
     leafletLine = line;
     map.fitBounds(line.getBounds(), { padding: [20, 20] });
@@ -1123,7 +1832,7 @@ function renderMap(d){
 }
 
 function detailLineChartWidth() {
-  var ids = ["svg-elev", "svg-hr", "svg-cad", "svg-pwr", "svg-spd"];
+  var ids = ["svg-elev", "svg-hr", "svg-cad", "svg-pwr", "svg-spd", "svg-temp"];
   var width = 0;
   for (var i = 0; i < ids.length; i++) {
     var svg = document.getElementById(ids[i]);
@@ -1132,7 +1841,10 @@ function detailLineChartWidth() {
   return width;
 }
 
-function renderSplitsFromArray(splits, sport, chartWidth) {
+// distMode (GPX): position bars by cumulative distance on the same linear km axis
+// as the elevation/speed line charts (shared PX_PER_KM + left gutter) so every
+// chart's x-axis lines up. Otherwise bars are spaced evenly by split index.
+function renderSplitsFromArray(splits, sport, chartWidth, distMode) {
   if (!splits.length) return;
   var foot = isFoot(sport);
   document.getElementById("splits-title").innerHTML = foot ? "Per-km pace" : "Per-km speed";
@@ -1142,9 +1854,21 @@ function renderSplitsFromArray(splits, sport, chartWidth) {
   });
   var max = Math.max.apply(null, speeds) || 1;
 
-  var n = splits.length, pad = 16, labelH = 16;
-  var W = Math.max(pad*2 + n*30, chartWidth || 0);
-  var barW = (W - pad*2) / n;
+  var n = splits.length, pad = 16, labelH = 16, PX_PER_KM = 30, YAX_W = 52;
+  // Cumulative km at each split boundary (used by the distance axis).
+  var cumKm = [0], di;
+  for (di = 0; di < n; di++) cumKm.push(cumKm[di] + (splits[di].distance || 0) / 1000);
+  var totalKm = cumKm[n] || 1;
+  var xStart = distMode ? YAX_W : pad;  // match the line charts' y-axis gutter in distMode
+  var W, evenBarW;
+  if (distMode) {
+    W = Math.max(xStart + Math.round(totalKm * PX_PER_KM) + pad, chartWidth || 0);
+  } else {
+    W = Math.max(pad*2 + n*30, chartWidth || 0);
+    evenBarW = (W - pad*2) / n;
+  }
+  function barLeft(i){ return distMode ? (xStart + cumKm[i] * PX_PER_KM) : (xStart + i*evenBarW); }
+  function barRight(i){ return distMode ? (xStart + cumKm[i+1] * PX_PER_KM) : (xStart + (i+1)*evenBarW); }
   var H = 200, chartH = H - labelH;
   var svg = document.getElementById("svg-splits");
   svg.setAttribute("viewBox", "0 0 " + W + " " + H);
@@ -1156,7 +1880,7 @@ function renderSplitsFromArray(splits, sport, chartWidth) {
     var s = splits[i], spd = speeds[i];
     var barH = Math.round((spd / max) * (chartH - 20));
     if (barH < 1) barH = 1;
-    var x = pad + i*barW;
+    var xL = barLeft(i), xR = barRight(i), bw = xR - xL, xc = (xL + xR) / 2;
     var label = foot ? fmtPace(spd) : (spd*3.6).toFixed(1);
     var km = (s.distance/1000);
 
@@ -1170,12 +1894,12 @@ function renderSplitsFromArray(splits, sport, chartWidth) {
     if (s.average_watts) tip += '<br>Power: ' + Math.round(s.average_watts) + ' W';
     TIP_DATA.push(tip);
 
-    html += '<rect x="'+(x+1)+'" y="'+(chartH-barH)+'" width="'+(barW-2)+'" height="'+barH+'" fill="var(--accent)" rx="2"'
+    html += '<rect x="'+(xL+1)+'" y="'+(chartH-barH)+'" width="'+Math.max(1,(bw-2))+'" height="'+barH+'" fill="var(--accent)" rx="2"'
       + ' onmouseover="showTip(event,'+i+')" onmousemove="moveTip(event)" onmouseout="hideTip()"'
       + ' ontouchstart="showTip({clientX:event.touches[0].clientX,clientY:event.touches[0].clientY},'+i+')" ontouchend="setTimeout(hideTip,1500)"'
       + ' style="cursor:pointer"/>';
-    html += '<text x="'+(x+barW/2)+'" y="'+(chartH-barH-4)+'" text-anchor="middle" font-size="8.5" fill="var(--text-2)">'+label+'</text>';
-    html += '<text x="'+(x+barW/2)+'" y="'+(H-3)+'" text-anchor="middle" font-size="9" fill="var(--text-4)">'+(i+1)+'</text>';
+    html += '<text x="'+xc+'" y="'+(chartH-barH-4)+'" text-anchor="middle" font-size="8.5" fill="var(--text-2)">'+label+'</text>';
+    html += '<text x="'+xc+'" y="'+(H-3)+'" text-anchor="middle" font-size="9" fill="var(--text-4)">'+(i+1)+'</text>';
   }
   svg.innerHTML = html;
 }
@@ -1316,7 +2040,7 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
 
 (function(){
   var DETAIL_SEC_KEY='ssb-detail-sec';
-  var DETAIL_SEC_DEFAULT=['cards','map','elev','cad','pwr','spd','splits','hr','hrzone'];
+  var DETAIL_SEC_DEFAULT=['cards','map','climbprof','elev','cad','pwr','spd','temp','splits','hr','hrzone','hrmax'];
   var wrap=document.getElementById('sec-wrap');
   if(!wrap)return;
   var dragSrc=null;

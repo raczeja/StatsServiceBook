@@ -28,6 +28,8 @@ COPY test/healthsync-bike.json        /opt/healthsync-bike.json
 COPY test/healthsync-bike.gpx         /opt/healthsync-bike.gpx
 COPY test/magene-sample.json          /opt/magene-sample.json
 COPY test/magene-sample.gpx           /opt/magene-sample.gpx
+COPY test/multiclimb-sample.json      /opt/multiclimb-sample.json
+COPY test/multiclimb-sample.gpx       /opt/multiclimb-sample.gpx
 COPY test/walk-sample.json            /opt/walk-sample.json
 COPY test/heatmap.sample.json         /opt/heatmap.sample.json
 COPY test/cities.sample.json          /opt/cities.sample.json

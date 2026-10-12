@@ -87,9 +87,7 @@ try {
     }
 
     Write-Host "==> Copying spec files ..."
-    Copy-Item (Join-Path $TestDir '*.spec.mjs')          $TmpDir -Force
-    Copy-Item (Join-Path $TestDir 'test-urls.mjs')       $TmpDir -Force
-    Copy-Item (Join-Path $TestDir 'playwright.config.mjs') $TmpDir -Force
+    Copy-Item (Join-Path $TestDir '*.mjs')               $TmpDir -Force
 
     # ---- 5a. Shell unit tests -----------------------------------------------
     Write-Host "==> Running shell unit tests ..."

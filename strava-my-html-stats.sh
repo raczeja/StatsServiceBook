@@ -495,10 +495,25 @@ function _drawTop10(){
   var tbl=document.getElementById('top10Table');
   if(!tbl) return;
   var scored=[];
-  _top10Acts.forEach(function(a){
-    var v=metric.fn(a);
-    if(v>0) scored.push({a:a,v:v});
-  });
+  if(metric.id==='climb'){
+    // Rank individual climbs, not activities: a ride with several big climbs can
+    // take more than one Top-10 slot (each row links back to the same activity).
+    // Falls back to max_single_climb for records that lack the per-climb breakdown.
+    _top10Acts.forEach(function(a){
+      if(a.climbs&&a.climbs.length){
+        a.climbs.forEach(function(c,idx){
+          if(c.g>0) scored.push({a:a,v:c.g,climb:{g:c.g,d:c.d,n:idx+1}});
+        });
+      } else if((a.max_single_climb||0)>0){
+        scored.push({a:a,v:a.max_single_climb,climb:null});
+      }
+    });
+  } else {
+    _top10Acts.forEach(function(a){
+      var v=metric.fn(a);
+      if(v>0) scored.push({a:a,v:v});
+    });
+  }
   scored.sort(function(x,y){return y.v-x.v;});
   var rows=scored.slice(0,10);
   var countEl=document.getElementById('top10Count');
@@ -526,11 +541,17 @@ function _drawTop10(){
   var head='<tr><th style="width:2rem">#</th><th>Date</th><th>Activity</th>'+
            '<th>'+esc(metric.label)+'</th><th>Distance</th><th>Time</th><th></th></tr>';
   var body=rows.map(function(r,i){
-    var a=r.a, distKm=(a.distance||0)/1000;
+    var a=r.a;
+    // For a climb row, show the climb's own distance and tag the activity name with
+    // its climb number when the ride has more than one qualifying climb.
+    var isClimb=metric.id==='climb'&&r.climb;
+    var distKm=(isClimb&&r.climb.d!=null)?r.climb.d/1000:(a.distance||0)/1000;
+    var nameTxt=a.name||'';
+    if(isClimb&&a.climbs&&a.climbs.length>1) nameTxt+=' · climb '+r.climb.n;
     return '<tr>'+
       '<td class="num top10-rank">'+(i+1)+'</td>'+
       '<td>'+esc(a.date||'')+'</td>'+
-      '<td>'+esc(a.name||'')+'</td>'+
+      '<td>'+esc(nameTxt)+'</td>'+
       '<td class="num"><span class="top10-val">'+esc(metric.fmt(r.v,a))+'</span></td>'+
       '<td class="num">'+fmtKmD(distKm)+' km</td>'+
       '<td class="num">'+fmtH(a.moving_time||0)+'</td>'+

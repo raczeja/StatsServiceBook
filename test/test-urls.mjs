@@ -13,6 +13,7 @@ export const URLS = {
   activityHealthsyncRun: `${BASE}/activity.html?id=2026-06-22-15-07-running`,
   activityHealthsyncCycling: `${BASE}/activity.html?id=2026-06-22-10-30-cycling`,
   activityMagene: `${BASE}/activity.html?id=magene-2026-07-12-50671559`,
+  activityMultiClimb: `${BASE}/activity.html?id=multiclimb-2026-08-01`,
   activityWalk: `${BASE}/activity.html?id=3`,
   bike: `${BASE}/bike.html`,
 };
