@@ -50,6 +50,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 **Activity detail**
 
 - Interactive route map (Leaflet + OpenStreetMap), per-km splits bar chart, elevation profile, HR chart, cadence chart
+- **Cooperative map gestures on touch devices** — a one-finger swipe scrolls the page as normal (instead of being swallowed by the map) and shows a brief "Use two fingers to move the map" hint; two fingers pan and zoom the map. This keeps the page scrollable past the full-viewport map in landscape.
 - **Temperature chart** (GPX activities with device temperature — `<gpxtpx:atemp>`/`<temp>`) — plotted on the same distance x-axis as the other charts, with a Min / Avg / Max summary. The first 3 km are dropped (the sensor reads the storage temperature until the ride warms it); rides shorter than 3 km keep all readings.
 - **Heart-rate zones** — six descriptive zones by % of HRmax: Relaxed (<50%), Healthy (50–60%), Fat Burn (60–70%), Aerobic (70–80%), Strength Training (80–90%), Red-line (≥90%), with time and share spent in each. HRmax is `220 − age` when `BIRTH_YEAR` is configured, else the activity's peak recorded HR.
 - **Maximum average heart rate** curve (GPX activities with recorded HR samples) — the best average HR sustained over each window length (5 s … 180 min), plotted on its own log-scaled duration axis
