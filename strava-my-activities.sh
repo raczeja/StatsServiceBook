@@ -524,34 +524,58 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   fi
   log "render: building scalar detail enrichment"
   : > "$TMP/enrich-parts.ndjson"
-  for _detail_file in "$DETAIL_DIR"/*.json; do
-    [ -f "$_detail_file" ] || continue
-    _detail_id="${_detail_file##*/}"
-    _detail_id="${_detail_id%.json}"
-    jq -c --arg fileid "$_detail_id" '
-      select(.id != null) as $d
-      | ($d | {
-          moving_time:           (.moving_time // null),
-          elapsed_time:           (.elapsed_time // null),
-          total_elevation_gain:   (.total_elevation_gain // null),
-          average_speed:          (.average_speed // null),
-          max_speed:              (.max_speed // null),
-          average_heartrate:      (.average_heartrate // null),
-          max_heartrate:          (.max_heartrate // null),
-          average_cadence:        (.average_cadence // null),
-          average_watts:          (.average_watts // null),
-          weighted_average_watts: (.weighted_average_watts // null),
-          max_watts:              (.max_watts // null),
-          kilojoules:             (.kilojoules // null),
-          average_temp:           (.average_temp // null),
-          suffer_score:           (.suffer_score // null),
-          calories:               (.calories // null),
-          gear_id:                (.gear.id // null),
-          gpx_file:               (.gpx_file // null)
-        }) as $v
-      | {($fileid): $v, ($d.id | tostring): $v}
-    ' "$_detail_file" >> "$TMP/enrich-parts.ndjson"
-  done
+  # The scalar projection, shared by the fast path and the per-file fallback below.
+  # `.__d` is the detail object; `$fileid` is the file-stem id (store records may be
+  # keyed by the stem even when the payload `.id` differs — e.g. scraped detail).
+  _enrich_filter='select(.id != null) as $d
+    | ($d | {
+        moving_time:           (.moving_time // null),
+        elapsed_time:           (.elapsed_time // null),
+        total_elevation_gain:   (.total_elevation_gain // null),
+        average_speed:          (.average_speed // null),
+        max_speed:              (.max_speed // null),
+        average_heartrate:      (.average_heartrate // null),
+        max_heartrate:          (.max_heartrate // null),
+        average_cadence:        (.average_cadence // null),
+        average_watts:          (.average_watts // null),
+        weighted_average_watts: (.weighted_average_watts // null),
+        max_watts:              (.max_watts // null),
+        kilojoules:             (.kilojoules // null),
+        average_temp:           (.average_temp // null),
+        suffer_score:           (.suffer_score // null),
+        calories:               (.calories // null),
+        gear_id:                (.gear.id // null),
+        gpx_file:               (.gpx_file // null)
+      }) as $v
+    | {($fileid): $v, ($d.id | tostring): $v}'
+  # Fast path: one awk pass wraps each detail file as {"__f":<stem>,"__d":<payload>},
+  # then a SINGLE jq projects the scalars — ~10x faster on the router than one jq per
+  # file (measured: 491 files, 39s -> 4s). We deliberately do NOT use jq's
+  # `input_filename` over the glob: that combination aborts (SIGABRT) on the router's
+  # jq (see the identical caveat on the GPS-flag loop below); pairing the file-stem
+  # with the payload in awk sidesteps it. awk's FNR==1 skips empty files. If the
+  # combined jq fails for any reason (e.g. a detail file left truncated mid-write),
+  # fall back to the per-file loop, which isolates the one bad file.
+  if awk '
+      FNR==1 { if (started) printf "}\n"; f=FILENAME; sub(/.*\//, "", f); sub(/\.json$/, "", f); printf "{\"__f\":\"%s\",\"__d\":", f; started=1 }
+      { print }
+      END { if (started) printf "}\n" }
+    ' "$DETAIL_DIR"/*.json > "$TMP/enrich-wrapped.ndjson" 2>/dev/null \
+    && jq -c ".__f as \$fileid | .__d | $_enrich_filter" \
+         "$TMP/enrich-wrapped.ndjson" > "$TMP/enrich-parts.ndjson" 2>/dev/null; then
+    :
+  else
+    log "warning: enrichment fast path failed; falling back to per-file scan"
+    : > "$TMP/enrich-parts.ndjson"
+    for _detail_file in "$DETAIL_DIR"/*.json; do
+      [ -f "$_detail_file" ] || continue
+      _detail_id="${_detail_file##*/}"
+      _detail_id="${_detail_id%.json}"
+      jq -c --arg fileid "$_detail_id" "$_enrich_filter" \
+        "$_detail_file" >> "$TMP/enrich-parts.ndjson" 2>/dev/null || \
+        log "warning: invalid detail JSON skipped during enrichment: $_detail_file"
+    done
+  fi
   jq -s 'add // {}' "$TMP/enrich-parts.ndjson" > "$TMP/enrich.json"
   # Max single climb per activity: compute once server-side from GPX files so the
   # browser never has to load hundreds of GPX files just for the dashboard chip.
@@ -652,6 +676,13 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   _hr_todo="$(wc -l < "$TMP/hr-gpx-paths.txt" | tr -d ' ')"
   _hr_computed=0
   _hr_batch=100
+  # Planned work this run = min(todo, batch); each GPX is a full awk parse, so this
+  # loop is the slowest render step (~minutes for a full batch). Log a start line and
+  # periodic progress so a long run doesn't look stuck between the single log lines.
+  _hr_plan="$_hr_todo"
+  [ "$_hr_plan" -gt "$_hr_batch" ] && _hr_plan="$_hr_batch"
+  [ "$_hr_plan" -gt 0 ] \
+    && log "render: computing GPX heart-rate summaries for $_hr_plan activities ($_hr_todo queued this run)"
   while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
     [ "$_hr_computed" -ge "$_hr_batch" ] && break
     _hr_gpx_path="$WEB_DIR/$_hr_gpx"
@@ -669,6 +700,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
       "$_hr_id" "$_hr_avg" "$_hr_max" "$_hr_effort" >> "$TMP/hr-summary-parts.ndjson"
     printf '%s\n' "$_hr_id" >> "$TMP/hr-cached-ids.txt"
     _hr_computed=$((_hr_computed + 1))
+    [ $((_hr_computed % 20)) -eq 0 ] && log "render: HR summary $_hr_computed/$_hr_plan"
   done < "$TMP/hr-gpx-paths.txt"
   jq -s 'add // {}' "$TMP/hr-summary-parts.ndjson" > "$TMP/hr-summary.json"
   cp "$TMP/hr-summary.json" "$_hr_cache"

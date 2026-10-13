@@ -203,6 +203,7 @@ function buildAthReg(allActs){
   return n2p;
 }
 function athKey(a,n2p){
+  if(a.athlete_id) return 'id:'+a.athlete_id;
   var pm=a.profile_medium||'';
   if(pm) return pm;
   var fn=a.firstname||'', ln=a.lastname||'';
@@ -483,7 +484,7 @@ function render(){
   if(typeof window._lbSecAfterRender==='function')window._lbSecAfterRender();
 }
 
-fetch("activities.json",{cache:"no-store"})
+fetch("activities.json",{cache:"no-cache"})
   .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
   .then(function(d){ DATA=d; init(); })
   .catch(function(err){

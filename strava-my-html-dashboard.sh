@@ -714,7 +714,7 @@ function render(){
 }
 
 progressStart();
-fetch("activities.json", { cache:"no-store" })
+fetch("activities.json", { cache:"no-cache" })
   .then(function(r){ if (!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
   .then(function(d){
     DATA = d;

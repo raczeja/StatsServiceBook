@@ -28,6 +28,10 @@ if [ -f "$WEB_DIR/activities.json" ]; then
   _hm_tab="$(printf '\t')"
   # Strava: no gpx_file field → derive from numeric id.
   # HealthSync: gpx_file field present (original filename stored in activities.json).
+  # Progress counter: this loop greps+awk-samples every GPX file, so it takes minutes
+  # on a large history. The body feeds jq via stdout, so progress logs MUST go to
+  # stderr (log() writes to stdout) — otherwise they would corrupt heatmap.json.
+  _hm_n=0
   jq -r '.activities[]? | select(.id != null) |
     [
       (if .gpx_file != null then .gpx_file
@@ -44,6 +48,8 @@ if [ -f "$WEB_DIR/activities.json" ]; then
       awk 'NR%10==1{split($0,a,"\""); printf "%s[%.4f,%.4f]",(f++ ? "," : ""),a[2]+0,a[4]+0}')"
     [ -z "$_hm_pts" ] && continue
     printf '{"d":"%s","s":"%s","p":[%s]}\n' "$_hm_date" "$_hm_sport" "$_hm_pts"
+    _hm_n=$((_hm_n + 1))
+    [ $((_hm_n % 50)) -eq 0 ] && log "html: heatmap.json — $_hm_n activities processed" >&2
   done | jq -s '(. // [])' > "$WEB_DIR/heatmap.json.tmp" 2>/dev/null \
         && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json" \
         || { rm -f "$WEB_DIR/heatmap.json.tmp"; [ -f "$WEB_DIR/heatmap.json" ] || printf '[]' > "$WEB_DIR/heatmap.json"; }
@@ -82,7 +88,8 @@ body{font-family:system-ui,Arial,sans-serif;background:#111;color:#ddd;
 select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
        padding:.25rem .5rem;cursor:pointer;font-size:.85rem}
 #count{margin-left:auto;font-size:.8rem;color:#888;white-space:nowrap}
-#map{flex:1;min-height:0}
+#map{flex:1;min-height:0;opacity:0;transition:opacity .3s ease}
+#map.ready{opacity:1}
 #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
      color:#888;font-size:.9rem;text-align:center;pointer-events:none;
      background:rgba(0,0,0,.5);padding:.6rem 1.2rem;border-radius:.4rem}
@@ -112,6 +119,16 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
 "use strict";
+// leaflet.heat's simpleheat calls getImageData on every redraw; hint the browser
+// to keep the bitmap readable so it doesn't log a willReadFrequently perf warning.
+// Scoped: the heat canvas is the only 2d canvas on this page.
+(function(){
+  var _gc = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(type, attrs){
+    if(type === '2d'){ attrs = attrs || {}; if(attrs.willReadFrequently === undefined) attrs.willReadFrequently = true; }
+    return _gc.call(this, type, attrs);
+  };
+})();
 fetch('../',{method:'HEAD'}).then(function(r){if(r.ok){var el=document.getElementById('leaderboard-link');if(el)el.style.display='';}}).catch(function(){});
 var _pbar=null,_pbarTick=null,_pbarPct=0,_pbarT0=0;
 function progressStart(){
@@ -217,7 +234,7 @@ function applyFilter(periodVal){
       radius:5, blur:8, minOpacity:0.4, max:5,
       gradient:{0.3:'#0055ff',0.55:'#fc4c02',0.8:'#ff8c00',1:'#ffff00'}
     }).addTo(map);
-    map.fitBounds(L.latLngBounds(pts),{padding:[30,30]});
+    map.fitBounds(L.latLngBounds(pts),{padding:[30,30],animate:false});
   }
 
   var n = acts.length;
@@ -227,7 +244,7 @@ function applyFilter(periodVal){
 }
 
 progressStart();
-fetch('heatmap.json')
+fetch('heatmap.json',{cache:'no-cache'})
   .then(function(r){ return r.json(); })
   .then(function(data){
     allData = data;
@@ -279,9 +296,13 @@ fetch('heatmap.json')
     psel.addEventListener('change', function(){ applyFilter(psel.value); });
     ssel.addEventListener('change', function(){ applyFilter(psel.value); });
     applyFilter('w90');
+    // Reveal the map only after the first fitBounds has positioned it, so the
+    // initial world-view render + tile reload doesn't flash ("blink") on open.
+    document.getElementById('map').classList.add('ready');
   })
   .catch(function(){
     progressDone();
+    document.getElementById('map').classList.add('ready');
     var el = document.getElementById('msg');
     if(el) el.textContent = 'Failed to load heatmap.json';
   });
