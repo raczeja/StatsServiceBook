@@ -454,13 +454,28 @@ def applyMerge:
       . + { firstname: (if $sp >= 0 then $c[0:$sp] else $c end),
             lastname:  (if $sp >= 0 then $c[$sp+1:] else "" end) }
     else . end;
+# athleteKey — stable per-athlete grouping key. Prefers the Strava athlete id
+# (scrape mode) so two people who share a first name are never merged; falls back
+# to first|last name only when no id is known (api-mode / pre-id rows).
+def athleteKey:
+  if ((.athlete_id // "") | tostring) != "" then "id:" + ((.athlete_id) | tostring)
+  else "nm:" + ((.firstname // "") | ascii_downcase) + "|" + ((.lastname // "") | ascii_downcase) end;
 def normArr:
   . as $arr |
-  ($arr | map(select((.lastname // "") != "")) | group_by(.firstname)
+  # Authoritative: all rows sharing an athlete_id get that athlete's one known
+  # full surname (len>1). Same person, so this can never merge two athletes.
+  ($arr | map(select(((.athlete_id // "") | tostring) != "" and ((.lastname // "") | length) > 1))
+   | group_by(.athlete_id) | map({((.[0].athlete_id) | tostring): .[0].lastname}) | add // {}) as $id_map |
+  # Heuristic (id-less rows only): a first name mapping to exactly one surname
+  # among the id-less rows fills blank surnames. Restricted to id-less rows so an
+  # id-bearing athlete can never inherit a different athlete's surname by first name.
+  ($arr | map(select((.lastname // "") != "" and ((.athlete_id // "") | tostring) == "")) | group_by(.firstname)
    | map(select((map(.lastname) | unique | length) == 1))
    | map({(.[0].firstname // ""): .[0].lastname}) | add // {}) as $fn_map |
   $arr | map(
-    if (.lastname // "") == "" and ($fn_map[.firstname // ""] // "") != ""
+    if ((.lastname // "") | length) <= 1 and ((.athlete_id // "") | tostring) != "" and ($id_map[(.athlete_id) | tostring] // "") != ""
+    then . + {lastname: $id_map[(.athlete_id) | tostring]}
+    elif (.lastname // "") == "" and ((.athlete_id // "") | tostring) == "" and ($fn_map[.firstname // ""] // "") != ""
     then . + {lastname: $fn_map[.firstname // ""]}
     else . end
   );

@@ -333,6 +333,40 @@ test.describe("activity-detail", () => {
     ).toBe("none");
   });
 
+  test("grade-dist-box-visible-from-splits", async () => {
+    // The whole-activity gradient-distribution donut is built from the per-km
+    // splits (distance + elevation_difference) for Strava-API activities.
+    const display = await page.$eval("#grade-dist-box", (el) => el.style.display);
+    expect(
+      display !== "none",
+      `#grade-dist-box hidden — gradient distribution not rendered from splits`,
+    ).toBeTruthy();
+  });
+
+  test("svg-gradedist-has-arcs", async () => {
+    const n = await page.$$eval("#svg-gradedist circle", (els) => els.length);
+    expect(
+      n >= 2,
+      `expected >= 2 donut arcs in #svg-gradedist, got ${n}`,
+    ).toBeTruthy();
+  });
+
+  test("grade-dist-legend-populated", async () => {
+    const rows = await page.$$eval(
+      "#grade-dist-legend .gd-row",
+      (els) => els.length,
+    );
+    expect(
+      rows >= 2,
+      `expected >= 2 gradient-distribution legend rows, got ${rows}`,
+    ).toBeTruthy();
+    const txt = await page.$eval("#grade-dist-legend", (el) => el.textContent);
+    expect(
+      /km/.test(txt),
+      `expected km values in gradient-distribution legend, got "${txt.slice(0, 200)}"`,
+    ).toBeTruthy();
+  });
+
   test("hr-maxavg-renders-from-samples", async () => {
     // Strava splits carry no per-sample HR series, so drive the max-average-HR
     // curve directly with a synthetic descending series and assert it renders.
@@ -1290,6 +1324,28 @@ test.describe("activity-detail-healthsync-cycling", () => {
     expect(card).toMatch(
       /Longest climb\s*\d+\s*m(\s·\s[\d.]+% avg ·\s[\d.]+\s(?:m|km))?/,
     );
+  });
+
+  test("grade-dist-box-visible-from-gpx-track", async () => {
+    // GPX activities build the gradient-distribution donut from the full track
+    // (smoothed into ~100 m blocks) inside updateLongestClimbCard.
+    await page.waitForFunction(
+      () => document.getElementById("grade-dist-box")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const n = await page.$$eval("#svg-gradedist circle", (els) => els.length);
+    expect(
+      n >= 1,
+      `expected donut arcs in #svg-gradedist from the GPX track, got ${n}`,
+    ).toBeTruthy();
+    const rows = await page.$$eval(
+      "#grade-dist-legend .gd-row",
+      (els) => els.length,
+    );
+    expect(
+      rows >= 1,
+      `expected gradient-distribution legend rows, got ${rows}`,
+    ).toBeTruthy();
   });
 });
 

@@ -653,7 +653,7 @@ function loadAll(){
   // in assignments from the last cron run; the CGI has the current state, so we
   // apply it on top to pick up changes made since the last script execution.
   Promise.all([
-    fetch("activities.json", { cache:"no-store" })
+    fetch("activities.json", { cache:"no-cache" })
       .then(function(r){ if(!r.ok) throw new Error("activities.json HTTP "+r.status); return r.json(); }),
     fetch("/cgi-bin/bike-assign", { cache:"no-store" })
       .then(function(r){ return r.ok ? r.json() : {}; }).catch(function(){ return {}; })

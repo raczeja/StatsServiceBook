@@ -572,11 +572,11 @@ function render(data,statuses,lbData){
   });
 }
 Promise.all([
-  fetch('activities.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('activities.json HTTP '+r.status);return r.json();}),
+  fetch('activities.json',{cache:'no-cache'}).then(function(r){if(!r.ok)throw new Error('activities.json HTTP '+r.status);return r.json();}),
   fetch('strava-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('healthsync-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../leaderboard-sync-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-  fetch('../activities.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('../activities.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../email-monthly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../email-weekly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
   fetch('../email-yearly-status.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
