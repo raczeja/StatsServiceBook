@@ -284,8 +284,22 @@ The activity pages (`index.html`, `activity.html`, `bike.html`, `stats.html`, `h
   string of athlete name + activity shape — `firstname|lastname|name|distance|
 moving_time|elapsed_time|total_elevation_gain|sport_type`. Strava's club feed
   has **no dates and no activity IDs**, so this is the only stable identity.
-- Leaderboard grouping/summing/ranking: group by `firstname|lastname|profile_medium`,
-  sum distance/time/elevation, rank by distance, avg speed in km/h.
+- Leaderboard grouping/summing/ranking: group by **`athleteKey`** (shared jq helper
+  in `strava-lib.sh`) — `id:<athlete_id>` when the Strava athlete id is known,
+  else `nm:<firstname>|<lastname>`. In scrape mode `athlete_id` comes from the feed
+  (`athleteId`) or is parsed from the avatar URL (`.../athletes/<id>/`) and is
+  stored on each row + backfilled onto old rows; the club API feed has none, so
+  those rows fall back to the name key. Keying on the id prevents two athletes who
+  share a first name from being merged. The surname self-heal / leaderboard-patch /
+  `normArr` passes are id-aware: they never copy a surname across different
+  athlete_ids. A **firstname→single-id self-heal** pass (scrape store backfill)
+  handles the inverse split: when a first name maps to exactly one athlete_id, that
+  id is stamped onto the same person's id-less rows so id-keyed and name-keyed
+  clusters of one athlete merge instead of splitting (the case where a new feed row
+  carries `athleteId` while older rows predate the feature and a non-Strava avatar —
+  e.g. a Google profile URL — blocks the `/athletes/<id>/` backfill). It skips any
+  first name shared by two athlete_ids, so it can never merge two people. Sum
+  distance/time/elevation, rank by distance, avg speed in km/h.
 
 **activities.ndjson store fields** (My Activities / HealthSync — the exact set projected into the store and emitted to `activities.json`):
 

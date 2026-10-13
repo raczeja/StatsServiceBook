@@ -53,6 +53,13 @@ KEEP_SNAPSHOTS="${STRAVA_KEEP_SNAPSHOTS:-90}"
 EXCLUDE_ATHLETES="${STRAVA_EXCLUDE_ATHLETES:-}"   # comma-separated "Firstname Lastname" to hide
 MERGE_ATHLETES="${STRAVA_MERGE_ATHLETES:-}"     # comma-separated "Canonical=Alias" pairs to merge
 ELEV_FETCH_MAX="${STRAVA_ELEV_FETCH_MAX:-20}"   # max Run elevation page-fetches per club per run (scrape mode)
+# Local timezone (POSIX TZ string, e.g. "CET-1CEST,M3.5.0,M10.5.0/3") used to
+# derive each scraped activity's calendar day from its UTC start time. Strava
+# hides exact start times for many athletes and snaps them to local midnight,
+# which lands ~22:00/23:00Z on the PREVIOUS UTC day — so a UTC-only date mis-files
+# such rides one day early. Defaults to the router's /etc/TZ; set STRAVA_TZ in the
+# config to override. Empty = UTC (original behaviour).
+STRAVA_TZ="${STRAVA_TZ:-$(cat /etc/TZ 2>/dev/null || echo "")}"
 
 command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
 command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
@@ -315,6 +322,7 @@ while IFS= read -r club_id; do
             firstname:      (.a.athlete.firstname // ""),
             lastname:       (.a.athlete.lastname  // ""),
             profile_medium: (.a.athlete.profile_medium // ""),
+            athlete_id:     "",
             name:           (.a.name // ""),
             distance:       (.a.distance // 0),
             moving_time:    (.a.moving_time // 0),
@@ -330,9 +338,29 @@ while IFS= read -r club_id; do
       # distance: "34.30<abbr...> km</abbr>" → 34300 m
       # elev:     "108<abbr...> m</abbr>"    → 108 m
       # time:     "1<abbr>h</abbr> 27<abbr>m</abbr>" → seconds
-      jq -c \
+      TZ="$STRAVA_TZ" jq -c \
         --arg cutoff "$SCRAPE_START_DATE" '
         def _n: if (. == null or . == "") then 0 else tonumber end;
+        # local_day — calendar day of an ISO-8601 UTC timestamp in the router
+        # timezone (TZ env). Strava snaps hidden start times to local midnight,
+        # which falls on the previous UTC day; converting via strflocaltime files
+        # the ride on the correct local day. Falls back to the raw UTC date if the
+        # value is blank or unparseable (keeps older/no-date feeds working).
+        def local_day:
+          (. // "") as $sd
+          | if ($sd | contains("T"))
+            then (try ($sd | fromdateiso8601 | strflocaltime("%Y-%m-%d"))
+                  catch ($sd | split("T")[0]))
+            else "" end;
+        # avatar_id — extract the numeric Strava athlete id embedded in a
+        # cloudfront avatar URL (.../pictures/athletes/<id>/...). No regex (the
+        # OpenWrt jq build crashes on it); plain split only. Default/blank avatars
+        # lack /athletes/ and yield "".
+        def avatar_id:
+          (. // "") as $u
+          | if ($u | type) == "string" and ($u | contains("/athletes/"))
+            then ($u | split("/athletes/")[1] | split("/")[0])
+            else "" end;
         # strip_html and digits avoid gsub/capture (both crash on this jq build:
         # the regex engine calls jq_util_input_get_position on any error, which
         # asserts because the error-callback state is uninitialised in this build).
@@ -361,6 +389,7 @@ while IFS= read -r club_id; do
                        stats: (.stats // []),
                        athlete: {firstName: (.athlete_firstname // ""),
                                  athleteName: (.athlete_name // ""),
+                                 athleteId: (.athlete_id // ""),
                                  avatarUrl: (.athlete_avatar_url // "")},
                        activityName: (.name // ""),
                        type: (.type // ""),
@@ -391,11 +420,16 @@ while IFS= read -r club_id; do
             | ($s2 | parse_time) as $pt2
             | (.athlete.firstName // "") as $fn
             | (.athlete.athleteName // "") as $an
+            | (.athlete.athleteId // "") as $aid_raw
+            | (if ($aid_raw | tostring) != "" and ($aid_raw | tostring) != "null"
+               then ($aid_raw | tostring)
+               else ((.athlete.avatarUrl // "") | avatar_id) end) as $aid
             | {
                 s:         .id,
                 firstname: $fn,
                 lastname:  ($an | ltrimstr($fn) | ltrimstr(" ")),
                 profile_medium: (.athlete.avatarUrl // ""),
+                athlete_id: $aid,
                 name:      (.activityName // ""),
                 distance:  ($s1 | parse_km),
                 moving_time: (if $has_subs
@@ -412,7 +446,7 @@ while IFS= read -r club_id; do
                                        end),
                 type:      (.type // ""),
                 sport_type: (.type // ""),
-                firstSeen: (.startDate // "" | split("T")[0])
+                firstSeen: ((.startDate // "") | local_day)
               }
           ]
         | unique_by(.s)
@@ -442,6 +476,7 @@ while IFS= read -r club_id; do
             firstname:    .firstname,
             lastname:     .lastname,
             profile_medium: .profile_medium,
+            athlete_id:   .athlete_id,
             name:         .name,
             distance:     .distance,
             moving_time:  .moving_time,
@@ -468,6 +503,88 @@ while IFS= read -r club_id; do
   # older entries no longer in the feed remain unchanged.
   case "$STRAVA_SOURCE" in
     scrape)
+      # Re-date self-heal: recompute firstSeen (local calendar day) for any stored
+      # row whose activity id is still in this run's feed. Fixes rows stamped with a
+      # UTC-only date before the local_day conversion existed — e.g. a privacy-hidden
+      # start time snapped to local midnight = ~22:00/23:00Z the previous UTC day,
+      # which mis-filed the ride one day early. Bounded to feed-visible ids (recent
+      # activities); older rows no longer in the feed keep their stored date.
+      TZ="$STRAVA_TZ" jq -c '
+        def local_day:
+          (. // "") as $sd
+          | if ($sd | contains("T"))
+            then (try ($sd | fromdateiso8601 | strflocaltime("%Y-%m-%d"))
+                  catch ($sd | split("T")[0]))
+            else "" end;
+        [ .[]
+          | if .entity == "Activity"
+            then (.activity | {id: (.id | tostring), sd: (.startDate // "")})
+            elif .entity == "GroupActivity"
+            then ((.rowData.activities // [])[] | {id: (.entity_id_str | tostring), sd: (.start_date // "")})
+            else empty end
+          | {id, d: ((.sd) | local_day)}
+          | select(.id != "" and .d != "") ]
+        | map({(.id): .d}) | add // {}
+      ' "$TMP/fetched.json" > "$TMP/feed_dates_${club_id}.json" \
+        || printf '{}' > "$TMP/feed_dates_${club_id}.json"
+      jq -c --argjson dm "$(cat "$TMP/feed_dates_${club_id}.json")" '
+        ($dm[(.signature // "") | tostring] // "") as $d
+        | if $d != "" and $d != (.firstSeen // "") then .firstSeen = $d else . end
+      ' "$CLUB_STORE" > "$TMP/store_redate_${club_id}.ndjson" \
+        && mv "$TMP/store_redate_${club_id}.ndjson" "$CLUB_STORE" \
+        || log "WARNING: club $club_id: firstSeen re-date jq failed"
+
+      # Backfill athlete_id from the avatar URL for any row missing it. New scrape
+      # rows already carry the feed's athleteId; this tags older rows (and pre-id
+      # api-mode rows) whose cloudfront avatar embeds /athletes/<id>/.
+      jq -c '
+        def avatar_id:
+          (. // "") as $u
+          | if ($u | type) == "string" and ($u | contains("/athletes/"))
+            then ($u | split("/athletes/")[1] | split("/")[0])
+            else "" end;
+        if ((.athlete_id // "") | tostring) == "" and ((.profile_medium // "") | contains("/athletes/"))
+        then . + {athlete_id: (.profile_medium | avatar_id)}
+        else . end
+      ' "$CLUB_STORE" > "$TMP/store_aid_${club_id}.ndjson" \
+        && mv "$TMP/store_aid_${club_id}.ndjson" "$CLUB_STORE" \
+        || log "WARNING: club $club_id: athlete_id avatar backfill jq failed"
+
+      # firstname -> single-id self-heal: when a first name maps to EXACTLY ONE
+      # athlete_id across all id-bearing rows, stamp that id onto this person's
+      # id-less rows too. This unifies a single athlete whose rows are only
+      # partially id-tagged (e.g. a new feed row carries athleteId while older
+      # rows pre-date the athlete_id feature, and a non-Strava avatar — a Google
+      # profile URL — blocks the /athletes/<id>/ avatar backfill above). Without
+      # it, id-keyed and name-keyed clusters of the same person never merge and
+      # their totals split. Piotr-safe by construction: a first name shared by
+      # two athletes maps to >=2 ids, so it is excluded from the map and nothing
+      # is stamped (the surname heuristic below carries the same guard).
+      jq -sc '
+        (map(select(((.athlete_id // "") | tostring) != "" and ((.firstname // "") != "")))
+          | group_by(.firstname)
+          | map(select((map(.athlete_id | tostring) | unique | length) == 1))
+          | map({(.[0].firstname): (.[0].athlete_id | tostring)}) | add // {}) as $fid |
+        [.[] | ($fid[.firstname // ""] // "") as $c
+             | if ((.athlete_id // "") | tostring) == "" and $c != "" and ((.firstname // "") != "")
+               then . + {athlete_id: $c} else . end] | .[]
+      ' "$CLUB_STORE" > "$TMP/store_fidheal_${club_id}.ndjson" \
+        && mv "$TMP/store_fidheal_${club_id}.ndjson" "$CLUB_STORE" \
+        || log "WARNING: club $club_id: firstname->id self-heal jq failed"
+
+      # Authoritative surname fill: a blank/single-initial lastname is filled from
+      # another stored row sharing the SAME athlete_id (same person — never merges
+      # two athletes the way the first-name heuristic below could).
+      jq -sc '
+        (map(select(((.athlete_id // "") | tostring) != "" and ((.lastname // "") | length) > 1))
+          | group_by(.athlete_id) | map({((.[0].athlete_id) | tostring): .[0].lastname}) | add // {}) as $idm |
+        [.[] | ($idm[(.athlete_id // "") | tostring] // "") as $c
+             | if ((.athlete_id // "") | tostring) != "" and ($c | length) > 1 and ((.lastname // "") | length) <= 1
+               then . + {lastname: $c} else . end] | .[]
+      ' "$CLUB_STORE" > "$TMP/store_idheal_${club_id}.ndjson" \
+        && mv "$TMP/store_idheal_${club_id}.ndjson" "$CLUB_STORE" \
+        || log "WARNING: club $club_id: athlete_id surname fill jq failed"
+
       _bf_any="$(grep -c '"lastname":""' "$CLUB_STORE" 2>/dev/null | tr -d ' \n')"
       if [ "${_bf_any:-0}" -gt 0 ]; then
         jq -c '
@@ -549,7 +666,8 @@ while IFS= read -r club_id; do
       _sh_any="$(jq -sc '[.[] | select((.lastname // "" | length) <= 1)] | length' "$CLUB_STORE" 2>/dev/null || printf '0')"
       if [ "${_sh_any:-0}" -gt 0 ]; then
         jq -sc '
-          (group_by(.firstname)
+          (map(select(((.athlete_id // "") | tostring) == ""))
+            | group_by(.firstname)
             | map({
                 fn: .[0].firstname,
                 lns: ([.[].lastname // ""] | map(select(length > 1)) | unique)
@@ -557,7 +675,8 @@ while IFS= read -r club_id; do
             | map(select(.fn != "" and (.lns | length) == 1))
             | map({(.fn): .lns[0]}) | add // {}) as $km |
           [.[] | ($km[.firstname] // "") as $c
-               | if ($c | length) > ((.lastname // "") | length)
+               | if ((.athlete_id // "") | tostring) == ""
+                     and ($c | length) > ((.lastname // "") | length)
                      and ( ((.lastname // "") | length) == 0
                            or ( ((.lastname // "") | length) <= 2
                                 and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
@@ -607,7 +726,8 @@ while IFS= read -r club_id; do
                 | group_by(.fn) | map({(.[0].fn): ([.[].ln] | unique | length)}) | add // {} ) as $cnt |
               [.[] | ($lm[.firstname] // "") as $c
                    | if ($cnt[.firstname] // 0) >= 2 then .
-                     elif ($c | length) > ((.lastname // "") | length)
+                     elif ((.athlete_id // "") | tostring) == ""
+                         and ($c | length) > ((.lastname // "") | length)
                          and ( ((.lastname // "") | length) == 0
                                or ( ((.lastname // "") | length) <= 2
                                     and ((.lastname // "") | ascii_downcase | .[0:1]) == ($c | ascii_downcase | .[0:1]) ) )
@@ -758,6 +878,7 @@ while IFS= read -r club_id; do
             firstname:            .firstname,
             lastname:             .lastname,
             profile_medium:       .profile_medium,
+            athlete_id:           (.athlete_id // ""),
             distance:             (.distance // 0),
             moving_time:          (.moving_time // 0),
             total_elevation_gain: (.total_elevation_gain // 0),
@@ -776,7 +897,6 @@ while IFS= read -r club_id; do
     ($exclude | if . == "" then []
                 else split(",") | map(ascii_downcase | ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""))
                 end) as $excl |
-    def athleteKey: "\(.firstname)|\(.lastname)";
     ( [ .[]
         | select( ($sport == "") or (((.sport_type // .type) // "") | ascii_downcase) == $sport )
         | applyMerge
@@ -786,8 +906,8 @@ while IFS= read -r club_id; do
       | normArr
       | group_by(athleteKey)
       | map({
-          firstname: .[0].firstname,
-          lastname:  .[0].lastname,
+          firstname: ([.[] | (.firstname // "")] | map(select(length > 0)) | (.[0] // "")),
+          lastname:  ([.[] | (.lastname  // "")] | map(select(length > 0)) | (.[0] // "")),
           distance:        (map(.distance // 0)             | add),
           moving_time:     (map(.moving_time // 0)          | add),
           elevation_gain:  (map(.total_elevation_gain // 0) | add),

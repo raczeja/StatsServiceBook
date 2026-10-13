@@ -94,6 +94,46 @@ assert_eq "$S" "gpx-mapped-to-filename-id" \
 assert_eq "$S" "payload-id-not-used-as-gps-key" \
     "$(printf '%s' "$_gps_by_filename" | jq 'has("19947838949")')" "false"
 
+# ── detail-scalar-enrichment ────────────────────────────────────────────────
+# The "building scalar detail enrichment" step in strava-my-activities.sh uses an
+# awk pass to wrap each file as {"__f":<stem>,"__d":<payload>}, then ONE jq to
+# project the scalars (deliberately NOT a single `input_filename` pass over the glob
+# — that aborts on the router's jq). Verify that fast path keys each activity's
+# scalars by BOTH the file-stem id and the payload .id, drops id-less files, skips
+# empty files, and merges across files — mirroring the production primary path.
+S="detail-scalar-enrichment"
+_enr_dir="$TMP/enrich-detail"
+mkdir -p "$_enr_dir"
+# Numeric file whose payload id matches the filename.
+printf '%s\n' '{"id":18784255013,"moving_time":3600,"gear":{"id":"b123"},"average_watts":225}' \
+    > "$_enr_dir/18784255013.json"
+# File whose payload .id differs from the file stem (scrape style): the file-stem key
+# must still be present so store records keyed by the stem get backfilled.
+printf '%s\n' '{"id":99,"total_elevation_gain":612,"gpx_file":"gpx/x.gpx"}' \
+    > "$_enr_dir/2026-06-22-15-07-running.json"
+# File with no id must be dropped entirely (select(.id != null)).
+printf '%s\n' '{"moving_time":10}' > "$_enr_dir/noid.json"
+# Empty file must be skipped by awk's FNR==1 guard (no wrapper emitted, jq unaffected).
+: > "$_enr_dir/empty.json"
+_enrich_filter='select(.id != null) as $d | ($d | {moving_time:(.moving_time//null),total_elevation_gain:(.total_elevation_gain//null),average_watts:(.average_watts//null),gear_id:(.gear.id//null),gpx_file:(.gpx_file//null)}) as $v | {($fileid):$v,($d.id|tostring):$v}'
+awk '
+    FNR==1 { if (started) printf "}\n"; f=FILENAME; sub(/.*\//, "", f); sub(/\.json$/, "", f); printf "{\"__f\":\"%s\",\"__d\":", f; started=1 }
+    { print }
+    END { if (started) printf "}\n" }
+  ' "$_enr_dir"/*.json > "$TMP/enrich-wrapped.ndjson" 2>/dev/null
+jq -c ".__f as \$fileid | .__d | $_enrich_filter" "$TMP/enrich-wrapped.ndjson" > "$TMP/enrich-parts.ndjson" 2>/dev/null
+_enr="$(jq -s 'add // {}' "$TMP/enrich-parts.ndjson")"
+assert_eq "$S" "keyed-by-filename-stem" \
+    "$(printf '%s' "$_enr" | jq -r '."2026-06-22-15-07-running".total_elevation_gain')" "612"
+assert_eq "$S" "keyed-by-payload-id" \
+    "$(printf '%s' "$_enr" | jq -r '."99".total_elevation_gain')" "612"
+assert_eq "$S" "gear-id-flattened" \
+    "$(printf '%s' "$_enr" | jq -r '."18784255013".gear_id')" "b123"
+assert_eq "$S" "idless-file-dropped" \
+    "$(printf '%s' "$_enr" | jq 'has("noid")')" "false"
+assert_eq "$S" "all-files-merged" \
+    "$(printf '%s' "$_enr" | jq 'keys | length')" "3"
+
 # ── leaderboard-status-web-link ─────────────────────────────────────────────
 # A relocated leaderboard web dir must expose its status under uhttpd's /www/strava path.
 S="leaderboard-status-web-link"
@@ -1274,11 +1314,15 @@ S="normArr"
 cat > "$TMP/normArr.jq" << 'JQ'
 def normArr:
   . as $arr |
-  ($arr | map(select((.lastname // "") != "")) | group_by(.firstname)
+  ($arr | map(select(((.athlete_id // "") | tostring) != "" and ((.lastname // "") | length) > 1))
+   | group_by(.athlete_id) | map({((.[0].athlete_id) | tostring): .[0].lastname}) | add // {}) as $id_map |
+  ($arr | map(select((.lastname // "") != "" and ((.athlete_id // "") | tostring) == "")) | group_by(.firstname)
    | map(select((map(.lastname) | unique | length) == 1))
    | map({(.[0].firstname // ""): .[0].lastname}) | add // {}) as $fn_map |
   $arr | map(
-    if (.lastname // "") == "" and ($fn_map[.firstname // ""] // "") != ""
+    if ((.lastname // "") | length) <= 1 and ((.athlete_id // "") | tostring) != "" and ($id_map[(.athlete_id) | tostring] // "") != ""
+    then . + {lastname: $id_map[(.athlete_id) | tostring]}
+    elif (.lastname // "") == "" and ((.athlete_id // "") | tostring) == "" and ($fn_map[.firstname // ""] // "") != ""
     then . + {lastname: $fn_map[.firstname // ""]}
     else . end
   );
@@ -2434,6 +2478,83 @@ _me_no_merge="$(jq -rn --arg month "2026-06" --arg merge "" \
     "$JQ_MERGE_FUNC"'[inputs | applyMerge | select(.firstSeen | startswith($month))]
      | group_by("\(.firstname)|\(.lastname)") | length' "$TMP/me_merge.ndjson")"
 assert_eq "$S" "empty-merge-three-groups"  "$_me_no_merge" "3"
+
+# ── athlete-id-grouping ───────────────────────────────────────────────────────
+# Verifies athleteKey + the athlete_id-aware normArr in strava-lib.sh: two people
+# who share a first name but have distinct athlete_ids are NEVER merged, blank
+# surnames are filled from a same-id sibling, and an id-less blank-surname row is
+# never given a surname that belongs to an id-bearing athlete.
+S="athlete-id-grouping"
+
+printf '%s\n' \
+    '{"firstname":"Milo","lastname":"Hart","athlete_id":"900001","distance":10000,"moving_time":1500,"total_elevation_gain":0,"sport_type":"Ride","firstSeen":"2026-06-01"}' \
+    '{"firstname":"Milo","lastname":"","athlete_id":"900002","distance":30000,"moving_time":3600,"total_elevation_gain":0,"sport_type":"Ride","firstSeen":"2026-06-02"}' \
+    '{"firstname":"Milo","lastname":"Vale","athlete_id":"900002","distance":20000,"moving_time":2400,"total_elevation_gain":0,"sport_type":"Ride","firstSeen":"2026-06-03"}' \
+    '{"firstname":"Milo","lastname":"","athlete_id":"","distance":5000,"moving_time":900,"total_elevation_gain":0,"sport_type":"Ride","firstSeen":"2026-06-04"}' \
+    > "$TMP/aid_group.ndjson"
+
+_aid="$(jq -n --arg merge "" "$JQ_MERGE_FUNC"'[inputs | applyMerge] | normArr' "$TMP/aid_group.ndjson")"
+
+# normArr fills the blank-surname Vale row from its same-id sibling (authoritative).
+assert_eq "$S" "blank-filled-from-same-id" \
+  "$(printf '%s' "$_aid" | jq -r 'map(select(.athlete_id=="900002" and .distance==30000)) | .[0].lastname')" \
+  "Vale"
+
+# The id-less blank "Milo" is NOT given either id-bearing athlete's surname (isolation).
+assert_eq "$S" "idless-blank-stays-blank" \
+  "$(printf '%s' "$_aid" | jq -r 'map(select(.athlete_id=="")) | .[0].lastname')" \
+  ""
+
+# Grouping by athleteKey keeps the two id-bearing Milos separate + the id-less one.
+assert_eq "$S" "three-distinct-groups" \
+  "$(jq -n --arg merge "" "$JQ_MERGE_FUNC"'[inputs | applyMerge] | normArr | group_by(athleteKey) | length' "$TMP/aid_group.ndjson")" \
+  "3"
+
+# Vale's two rides sum together (never merged into Hart despite shared first name).
+assert_eq "$S" "vale-distance-sum-isolated" \
+  "$(printf '%s' "$_aid" | jq '[.[] | select(.athlete_id=="900002") | .distance] | add')" \
+  "50000"
+
+# Hart stays a single-ride athlete, unpolluted by Vale's rides.
+assert_eq "$S" "hart-distance-isolated" \
+  "$(printf '%s' "$_aid" | jq '[.[] | select(.athlete_id=="900001") | .distance] | add')" \
+  "10000"
+
+# athleteKey yields an id: key when an athlete_id is present, nm: otherwise.
+assert_eq "$S" "athletekey-prefers-id" \
+  "$(jq -rn --arg merge "" "$JQ_MERGE_FUNC"'{firstname:"Milo",lastname:"Vale",athlete_id:"900002"} | athleteKey')" \
+  "id:900002"
+assert_eq "$S" "athletekey-falls-back-to-name" \
+  "$(jq -rn --arg merge "" "$JQ_MERGE_FUNC"'{firstname:"Milo",lastname:"Hart",athlete_id:""} | athleteKey')" \
+  "nm:milo|hart"
+
+# ── avatar-id-parse ───────────────────────────────────────────────────────────
+# Verifies the avatar_id jq helper used by strava-leaderboard.sh to recover the
+# numeric athlete id from a cloudfront avatar URL (no regex — OpenWrt jq crashes
+# on it). Default/blank avatars (no /athletes/) must yield "".
+S="avatar-id-parse"
+
+cat > "$TMP/avatar_id.jq" << 'JQ'
+def avatar_id:
+  (. // "") as $u
+  | if ($u | type) == "string" and ($u | contains("/athletes/"))
+    then ($u | split("/athletes/")[1] | split("/")[0])
+    else "" end;
+avatar_id
+JQ
+
+assert_eq "$S" "cloudfront-url-id" \
+  "$(printf '%s' '"https://dgalywyr863hv.cloudfront.net/pictures/athletes/900002/5945681/1/medium.jpg"' | jq -r -f "$TMP/avatar_id.jq")" \
+  "900002"
+assert_eq "$S" "default-avatar-empty" \
+  "$(printf '%s' '"https://d3nn82uaxijpm6.cloudfront.net/assets/avatar/athlete/medium-abc.png"' | jq -r -f "$TMP/avatar_id.jq")" \
+  ""
+assert_eq "$S" "empty-string-empty" \
+  "$(printf '%s' '""' | jq -r -f "$TMP/avatar_id.jq")" \
+  ""
+assert_eq "$S" "null-empty" \
+  "$(printf '%s' 'null' | jq -r -f "$TMP/avatar_id.jq")" \
+  ""
 
 # ── monthly-email-zero-distance-filter ────────────────────────────────────────
 # Mirrors the `map(select(.dist > 0))` drop added to the email leaderboard tables
@@ -4359,6 +4480,147 @@ assert_eq "$S" "matching-initial-extended" \
 # Total record count must be preserved (no duplicates, no drops)
 assert_eq "$S" "record-count-preserved" \
     "$(printf '%s\n' "$_sh_healed" | jq -s 'length')" "12"
+
+# ── leaderboard-firstname-id-selfheal ─────────────────────────────────────────
+# Mirrors the firstname->single-id self-heal block in strava-leaderboard.sh
+# (scrape mode). When a first name maps to EXACTLY ONE athlete_id across the
+# id-bearing rows, that id is stamped onto the same person's id-less rows so the
+# id-keyed and name-keyed clusters of one athlete merge instead of splitting
+# (the real symptom: a new feed row carries athleteId while older rows predate
+# the feature, and a non-Strava avatar blocks the /athletes/<id>/ backfill).
+# Piotr-safe: a first name shared by two athlete_ids is left untouched.
+S="leaderboard-firstname-id-selfheal"
+
+_fid_store="$TMP/fid_store.ndjson"
+# Mateo — one id-bearing row (700001) + two id-less rows → all stamped 700001
+# Luca  — two id-bearing rows (700002, 700003) + one id-less → ambiguous, id-less stays ""
+# Nora  — already carries an id (700004) → not overwritten
+# Sven  — only id-less (no id anywhere for this firstname) → stays ""
+# ""    — blank firstname must never seed a map key / stamp other blanks
+cat > "$_fid_store" << 'STORE'
+{"firstname":"Mateo","lastname":"","athlete_id":"700001","firstSeen":"2026-10-13"}
+{"firstname":"Mateo","lastname":"Ortiz","athlete_id":"","firstSeen":"2026-09-01"}
+{"firstname":"Mateo","lastname":"O.","athlete_id":"","firstSeen":"2026-08-01"}
+{"firstname":"Luca","lastname":"Bianchi","athlete_id":"700002","firstSeen":"2026-10-01"}
+{"firstname":"Luca","lastname":"Russo","athlete_id":"700003","firstSeen":"2026-10-02"}
+{"firstname":"Luca","lastname":"","athlete_id":"","firstSeen":"2026-10-03"}
+{"firstname":"Nora","lastname":"Vale","athlete_id":"700004","firstSeen":"2026-10-01"}
+{"firstname":"Sven","lastname":"Holt","athlete_id":"","firstSeen":"2026-10-01"}
+{"firstname":"","lastname":"","athlete_id":"","firstSeen":"2026-10-01"}
+STORE
+
+_fid_healed="$(jq -sc '
+  (map(select(((.athlete_id // "") | tostring) != "" and ((.firstname // "") != "")))
+    | group_by(.firstname)
+    | map(select((map(.athlete_id | tostring) | unique | length) == 1))
+    | map({(.[0].firstname): (.[0].athlete_id | tostring)}) | add // {}) as $fid |
+  [.[] | ($fid[.firstname // ""] // "") as $c
+       | if ((.athlete_id // "") | tostring) == "" and $c != "" and ((.firstname // "") != "")
+         then . + {athlete_id: $c} else . end] | .[]
+' "$_fid_store")"
+
+# Mateo id-less rows inherit the single known id → all Mateo rows share one id
+assert_eq "$S" "mateo-idless-ortiz-stamped" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="Mateo" and .lastname=="Ortiz") | .athlete_id')" \
+    "700001"
+assert_eq "$S" "mateo-idless-initial-stamped" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="Mateo" and .lastname=="O.") | .athlete_id')" \
+    "700001"
+assert_eq "$S" "mateo-all-rows-one-id" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -rs '[.[] | select(.firstname=="Mateo") | .athlete_id] | unique | join(",")')" \
+    "700001"
+
+# Luca has two distinct ids → ambiguous → id-less Luca is NOT stamped
+assert_eq "$S" "ambiguous-firstname-idless-untouched" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="Luca" and .lastname=="") | .athlete_id')" \
+    ""
+# Both id-bearing Luca rows keep their own ids
+assert_eq "$S" "luca-bianchi-id-kept" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.lastname=="Bianchi") | .athlete_id')" "700002"
+assert_eq "$S" "luca-russo-id-kept" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.lastname=="Russo") | .athlete_id')" "700003"
+
+# Nora already has an id → not overwritten
+assert_eq "$S" "existing-id-not-overwritten" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="Nora") | .athlete_id')" "700004"
+
+# Sven has no id anywhere for the firstname → stays blank
+assert_eq "$S" "no-id-for-firstname-stays-blank" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="Sven") | .athlete_id')" ""
+
+# Blank firstname row must never be stamped
+assert_eq "$S" "blank-firstname-stays-blank" \
+    "$(printf '%s\n' "$_fid_healed" \
+        | jq -r 'select(.firstname=="") | .athlete_id')" ""
+
+# Record count preserved (no duplicates, no drops)
+assert_eq "$S" "record-count-preserved" \
+    "$(printf '%s\n' "$_fid_healed" | jq -s 'length')" "9"
+
+# ── leaderboard-local-day-tz ──────────────────────────────────────────────────
+# Mirrors the local_day conversion added to the scrape merge + re-date pass in
+# strava-leaderboard.sh. Strava snaps hidden start times to local midnight, which
+# falls ~22:00/23:00Z on the PREVIOUS UTC day; local_day must map such timestamps
+# to the correct local calendar day (DST-aware via a POSIX TZ string), and fall
+# back to the raw UTC date / "" for blank or non-ISO values. Uses a POSIX TZ string
+# (parsed by libc directly — no zoneinfo files needed in the container).
+S="leaderboard-local-day-tz"
+
+_LD='def local_day: (. // "") as $sd | if ($sd | contains("T")) then (try ($sd | fromdateiso8601 | strflocaltime("%Y-%m-%d")) catch ($sd | split("T")[0])) else "" end; $s | local_day'
+_TZPL='CET-1CEST,M3.5.0,M10.5.0/3'
+
+# Summer (CEST, +2): 22:00Z = 00:00 local next day → rolls forward
+assert_eq "$S" "summer-midnight-rolls-forward" \
+    "$(TZ="$_TZPL" jq -rn --arg s "2026-10-12T22:00:01Z" "$_LD")" "2026-10-13"
+# Winter (CET, +1): 23:30Z = 00:30 local next day → rolls forward
+assert_eq "$S" "winter-midnight-rolls-forward" \
+    "$(TZ="$_TZPL" jq -rn --arg s "2026-01-12T23:30:00Z" "$_LD")" "2026-01-13"
+# Midday stays on the same day
+assert_eq "$S" "midday-same-day" \
+    "$(TZ="$_TZPL" jq -rn --arg s "2026-07-15T10:00:00Z" "$_LD")" "2026-07-15"
+# Blank start date → ""
+assert_eq "$S" "blank-startdate-empty" \
+    "$(TZ="$_TZPL" jq -rn --arg s "" "$_LD")" ""
+# Non-ISO value (no "T") → "" (feed had no usable timestamp)
+assert_eq "$S" "non-iso-empty" \
+    "$(TZ="$_TZPL" jq -rn --arg s "2026-10-12" "$_LD")" ""
+# Empty TZ = UTC (original behaviour): 22:00Z stays on the same UTC day
+assert_eq "$S" "empty-tz-utc-behaviour" \
+    "$(TZ="" jq -rn --arg s "2026-10-12T22:00:01Z" "$_LD")" "2026-10-12"
+
+# Re-date apply: a stored row whose id is in the feed map is corrected; a row
+# absent from the feed (or already matching) is left byte-for-byte unchanged.
+_rd_store="$TMP/rd_store.ndjson"
+cat > "$_rd_store" << 'STORE'
+{"signature":"111","firstSeen":"2026-10-12","distance":6440}
+{"signature":"222","firstSeen":"2026-10-05","distance":1000}
+{"signature":"333","firstSeen":"2026-10-13","distance":2000}
+STORE
+_rd_out="$(jq -c --argjson dm '{"111":"2026-10-13","333":"2026-10-13"}' '
+  ($dm[(.signature // "") | tostring] // "") as $d
+  | if $d != "" and $d != (.firstSeen // "") then .firstSeen = $d else . end
+' "$_rd_store")"
+
+# 111 is in the feed map with a different date → corrected
+assert_eq "$S" "redate-feed-row-corrected" \
+    "$(printf '%s\n' "$_rd_out" | jq -r 'select(.signature=="111") | .firstSeen')" "2026-10-13"
+# 222 is not in the feed map → unchanged
+assert_eq "$S" "redate-absent-row-unchanged" \
+    "$(printf '%s\n' "$_rd_out" | jq -r 'select(.signature=="222") | .firstSeen')" "2026-10-05"
+# 333 is in the map but already correct → unchanged (no needless rewrite)
+assert_eq "$S" "redate-already-correct-unchanged" \
+    "$(printf '%s\n' "$_rd_out" | jq -r 'select(.signature=="333") | .firstSeen')" "2026-10-13"
+# Record count preserved
+assert_eq "$S" "redate-record-count-preserved" \
+    "$(printf '%s\n' "$_rd_out" | jq -s 'length')" "3"
 
 # ── leaderboard-name-lb-patch ─────────────────────────────────────────────────
 # Mirrors the leaderboard endpoint name-patch step in strava-leaderboard.sh:

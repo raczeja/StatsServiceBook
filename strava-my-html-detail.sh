@@ -103,6 +103,21 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   .climb-prof-legend{display:flex;flex-wrap:wrap;gap:.35rem .9rem;margin-top:.5rem;font-size:.72rem;color:var(--text-3)}
   .climb-prof-legend span{display:inline-flex;align-items:center;gap:.3rem}
   .climb-prof-legend i{width:.85rem;height:.85rem;border-radius:2px;display:inline-block;flex-shrink:0}
+  /* Climbing analysis + gradient distribution sit side-by-side on desktop, stack on mobile. */
+  .climb-grade-row{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:flex-start}
+  .climb-grade-row>.box{margin:.5rem 0 1rem}
+  .climb-grade-row #climb-profile-box{flex:4 1 420px;min-width:0}
+  .climb-grade-row #grade-dist-box{flex:1 1 200px;min-width:0}
+  /* Cap the donut+legend cluster so it stays compact: side-by-side when the box is
+     wide (gradient section shown alone), legend wrapping below the donut when the box
+     is narrow (shown next to the climbing-analysis chart). */
+  .grade-dist-wrap{display:flex;align-items:center;gap:.5rem .9rem;flex-wrap:wrap;max-width:430px}
+  #svg-gradedist{width:150px;height:150px;flex:0 0 auto}
+  .grade-dist-legend{display:flex;flex-direction:column;gap:.3rem;font-size:.76rem;color:var(--text-2);flex:1 1 150px;min-width:150px;max-width:230px}
+  .grade-dist-legend .gd-row{display:flex;align-items:center;gap:.4rem}
+  .grade-dist-legend i{width:.8rem;height:.8rem;border-radius:2px;flex-shrink:0}
+  .grade-dist-legend .gd-lbl{flex:1 1 auto}
+  .grade-dist-legend .gd-val{color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
   .route-endpoint-tip{background:rgba(255,255,255,.92);color:#111;border:1px solid rgba(0,0,0,.25);border-radius:.25rem;font-size:.65rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:.05rem .3rem;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .route-endpoint-tip.leaflet-tooltip-top:before{border-top-color:rgba(0,0,0,.25)}
   #map-box.fs-map{position:fixed;inset:0;z-index:9000;margin:0;padding:0;background:#000;border-radius:0}
@@ -153,11 +168,20 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
       <div class="chart-scroll" style="flex:1;min-width:0"><svg class="splits" id="svg-elev" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
   </div>
-  <div class="sec box" data-sid="climbprof" id="climb-profile-box" style="display:none">
-    <h3 id="climb-prof-head"><span id="climb-prof-title">Climbing analysis</span></h3>
-    <div class="climb-prof-stats" id="climb-prof-stats"></div>
-    <svg id="svg-climbprof" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="climb-prof-legend" id="climb-prof-legend"></div>
+  <div class="sec climb-grade-row" data-sid="climbprof">
+    <div class="box" id="climb-profile-box" style="display:none">
+      <h3 id="climb-prof-head"><span id="climb-prof-title">Climbing analysis</span></h3>
+      <div class="climb-prof-stats" id="climb-prof-stats"></div>
+      <svg id="svg-climbprof" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="climb-prof-legend" id="climb-prof-legend"></div>
+    </div>
+    <div class="box" id="grade-dist-box" style="display:none">
+      <h3>Gradient distribution</h3>
+      <div class="grade-dist-wrap">
+        <svg id="svg-gradedist" viewBox="0 0 150 150" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="grade-dist-legend" id="grade-dist-legend"></div>
+      </div>
+    </div>
   </div>
   <div class="sec box" data-sid="hr" id="hr-box" style="display:none">
     <h3>Heart rate</h3>
@@ -241,6 +265,21 @@ var CLIMB_GRADE_BANDS=[
 function climbGradeColor(pct){
   for(var i=0;i<CLIMB_GRADE_BANDS.length;i++) if(pct>=CLIMB_GRADE_BANDS[i].min) return CLIMB_GRADE_BANDS[i].color;
   return CLIMB_GRADE_BANDS[CLIMB_GRADE_BANDS.length-1].color;
+}
+// Whole-activity gradient-distribution bands (steepest first) for the donut chart.
+// Same colours/thresholds as the per-climb bands but with flat/descending terrain
+// split out as its own "Other" slice (the climb chart lumps it into Cat4).
+var GRADE_DIST_BANDS=[
+  {min:12, color:"#e53935", label:"HC (>12%)"},
+  {min:9,  color:"#fb8c00", label:"Cat1 (9–12%)"},
+  {min:6,  color:"#fdd835", label:"Cat2 (6–9%)"},
+  {min:3,  color:"#43a047", label:"Cat3 (3–6%)"},
+  {min:0,  color:"#29b6f6", label:"Cat4 (0–3%)"},
+  {min:-1e9,color:"#9e9e9e",label:"Other (<0%)"}
+];
+function gradeBandIndex(pct){
+  for(var i=0;i<GRADE_DIST_BANDS.length;i++) if(pct>=GRADE_DIST_BANDS[i].min) return i;
+  return GRADE_DIST_BANDS.length-1;
 }
 // Per-segment gradient (%) using coarse fixed-distance blocks (~CLIMB_GRAD_BLOCK_M
 // metres each), so the colour bands come out as a few solid contiguous blocks like a
@@ -517,6 +556,8 @@ function updateLongestClimbCard(climbs, trackPts){
         _climbTrackPts[q - 1].lat, _climbTrackPts[q - 1].lon,
         _climbTrackPts[q].lat, _climbTrackPts[q].lon));
   }
+  // Whole-activity gradient distribution from the track (independent of climbs).
+  renderGradeDist(gradeBucketsFromTrack(_climbTrackPts, _climbCumDist));
   if (!climbs || !climbs.length) {
     _climbs = [];
     cardEl.style.display = "none";
@@ -531,6 +572,81 @@ function updateLongestClimbCard(climbs, trackPts){
   for (var p = 0; p < _climbs.length; p++) if (_climbs[p] === biggest) { _climbIdx = p; break; }
   renderClimbCardFace();
   renderClimbProfile(_climbs[_climbIdx]);
+}
+
+// Whole-activity gradient distribution: how much distance was spent in each
+// gradient band (HC…Cat4 + flat/descending "Other"). Fed from the GPX track
+// (updateLongestClimbCard) or, for Strava-API activities, from the per-km splits
+// (renderSplits). `buckets` is metres-per-band (GRADE_DIST_BANDS order) or null.
+function renderGradeDist(buckets){
+  var box = document.getElementById("grade-dist-box");
+  var svg = document.getElementById("svg-gradedist");
+  var leg = document.getElementById("grade-dist-legend");
+  if (!box || !svg || !leg) return;
+  var total = 0, i;
+  if (buckets) for (i = 0; i < buckets.length; i++) total += buckets[i] || 0;
+  if (!buckets || total <= 0) { box.style.display = "none"; return; }
+  // Donut via stroke-dasharray on concentric arcs, starting at 12 o'clock.
+  var cx = 75, cy = 75, r = 52, sw = 22, C = 2 * Math.PI * r, off = 0, parts = "";
+  for (i = 0; i < GRADE_DIST_BANDS.length; i++) {
+    var frac = (buckets[i] || 0) / total;
+    if (frac <= 0) continue;
+    var dash = frac * C, gap = C - dash;
+    parts += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="'
+      + GRADE_DIST_BANDS[i].color + '" stroke-width="' + sw + '" stroke-dasharray="'
+      + dash.toFixed(2) + ' ' + gap.toFixed(2) + '" stroke-dashoffset="' + (-off * C).toFixed(2)
+      + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"><title>' + GRADE_DIST_BANDS[i].label
+      + ': ' + (buckets[i] / 1000).toFixed(1) + ' km</title></circle>';
+    off += frac;
+  }
+  parts += '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-size="17" font-weight="600" fill="currentColor">'
+    + (total / 1000).toFixed(1) + '</text>';
+  parts += '<text x="' + cx + '" y="' + (cy + 13) + '" text-anchor="middle" font-size="9" fill="var(--text-4)">km total</text>';
+  svg.innerHTML = parts;
+  var lh = "";
+  for (i = 0; i < GRADE_DIST_BANDS.length; i++) {
+    if ((buckets[i] || 0) <= 0) continue;
+    lh += '<div class="gd-row"><i style="background:' + GRADE_DIST_BANDS[i].color + '"></i>'
+      + '<span class="gd-lbl">' + GRADE_DIST_BANDS[i].label + '</span>'
+      + '<span class="gd-val">' + (buckets[i] / 1000).toFixed(1) + ' km</span></div>';
+  }
+  leg.innerHTML = lh;
+  box.style.display = "";
+}
+
+// Bucket distance by gradient from the full GPX track. Elevation is smoothed over
+// ~100 m blocks so the bands reflect real terrain, not per-point GPS noise.
+function gradeBucketsFromTrack(pts, cum){
+  if (!pts || !cum || pts.length !== cum.length) return null;
+  var E = [], D = [], i;
+  for (i = 0; i < pts.length; i++) {
+    if (pts[i].ele != null && isFinite(pts[i].ele)) { E.push(pts[i].ele); D.push(cum[i]); }
+  }
+  if (E.length < 2 || (D[D.length - 1] - D[0]) <= 0) return null;
+  var buckets = [], BLOCK = 100, segStart = 0, total = 0;
+  for (i = 0; i < GRADE_DIST_BANDS.length; i++) buckets.push(0);
+  for (i = 1; i < E.length; i++) {
+    if ((D[i] - D[segStart]) >= BLOCK || i === E.length - 1) {
+      var d = D[i] - D[segStart];
+      if (d > 0) { buckets[gradeBandIndex((E[i] - E[segStart]) / d * 100)] += d; total += d; }
+      segStart = i;
+    }
+  }
+  return total > 0 ? buckets : null;
+}
+
+// Bucket distance by gradient from per-km Strava splits (distance + elevation_difference).
+function gradeBucketsFromSplits(splits){
+  if (!splits || !splits.length) return null;
+  var buckets = [], total = 0, hasElev = false, i;
+  for (i = 0; i < GRADE_DIST_BANDS.length; i++) buckets.push(0);
+  for (i = 0; i < splits.length; i++) {
+    var d = splits[i].distance || 0, ed = splits[i].elevation_difference;
+    if (d <= 0 || ed == null) continue;
+    hasElev = true;
+    buckets[gradeBandIndex(ed / d * 100)] += d; total += d;
+  }
+  return (hasElev && total > 0) ? buckets : null;
 }
 
 // Per-climb elevation profile, coloured by gradient (the Magene-style "Climbing
@@ -1428,7 +1544,7 @@ function findClimbs(trackPts, sport){
 var _gpxTextCache = {};
 function fetchGpxText(url){
   if (!_gpxTextCache[url]) {
-    _gpxTextCache[url] = fetch(url).then(function(r){
+    _gpxTextCache[url] = fetch(url, { cache: "no-cache" }).then(function(r){
       if (!r.ok) { var err = new Error("HTTP " + r.status); err.status = r.status; throw err; }
       return r.text();
     });
@@ -1919,6 +2035,8 @@ function renderSplits(d){
   var splits = d.splits_metric || [];
   if (!splits.length) { box.innerHTML = '<h3>Splits</h3><div class="note">No splits recorded for this activity.</div>'; return; }
 
+  // Whole-activity gradient distribution from per-km splits (no GPX track here).
+  renderGradeDist(gradeBucketsFromSplits(splits));
   // Elevation, heart rate, cadence, and power charts from splits data (when available).
   renderElevFromSplits(splits);
   renderHrFromSplits(splits);
@@ -2099,13 +2217,13 @@ function fail(msg){ progressDone(); hideMapSpin(); document.getElementById("err"
   if (!id) { fail("No activity id in the URL. Go back and click an activity."); return; }
   progressStart();
   Promise.all([
-    fetch("details/" + id + ".json", { cache: "no-store" })
+    fetch("details/" + id + ".json", { cache: "no-cache" })
       .then(function(r){
         if (r.status === 404) throw new Error("Detail for this activity hasn't been downloaded yet — it backfills over the next daily runs. Try again later.");
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       }),
-    fetch("activities.json")
+    fetch("activities.json", { cache: "no-cache" })
       .then(function(r){ return r.ok ? r.json() : {}; })
       .catch(function(){ return {}; })
   ]).then(function(res){

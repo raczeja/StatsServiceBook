@@ -61,6 +61,16 @@ STRAVA_CLUB_IDS="123456,123457"
 # controls what is displayed. Multiple pairs: "piecz .=piecz ..,John D.=Jon D."
 #STRAVA_MERGE_ATHLETES=""
 
+# Local timezone used to date each scraped activity by its LOCAL calendar day.
+# Strava hides many athletes' exact start times and snaps them to local midnight,
+# which lands ~22:00/23:00Z on the previous UTC day — so a UTC-only date would
+# mis-file those rides one day early. Must be a POSIX TZ string (NOT a zone name
+# like "Europe/Warsaw" — OpenWrt has no zoneinfo files). Defaults to the router's
+# /etc/TZ (set by install.sh to match your UCI timezone), so you normally leave
+# this unset. Override example (Poland): STRAVA_TZ="CET-1CEST,M3.5.0,M10.5.0/3".
+# Empty = UTC (original behaviour).
+#STRAVA_TZ=""
+
 # Filter to a single sport type (Run, Ride, Walk, Hike, ...). Empty = all.
 STRAVA_SPORT_TYPE=""
 
