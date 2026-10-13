@@ -223,3 +223,127 @@ test.describe("mobile-dashboard-layout", () => {
     expect(overflow, "h1 overflows mobile viewport on dashboard").toBe(false);
   });
 });
+
+// ── Activity detail – cooperative two-finger map gestures ──────────────────────
+//
+// enableCoopGestures() makes the detail route map require two fingers to pan on a
+// touch device: map.dragging is disabled on load, a one-finger swipe scrolls the
+// page and shows a "Use two fingers to move the map" hint instead, and dragging is
+// re-enabled only while two touches are down. Desktop projects have no touch, so
+// this behaviour can only be exercised here. leafletMap is a top-level global in
+// the detail page, so it is reachable as window.leafletMap.
+
+test.describe("mobile-activity-map-gestures", () => {
+  let page;
+  const jsErrors = [];
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    page.on("pageerror", (e) => jsErrors.push(e));
+    await page.goto(URLS.activityMultiClimb, {
+      waitUntil: "load",
+      timeout: 20000,
+    });
+    try {
+      await page.waitForFunction(
+        () => window.leafletMap && window.leafletMap.getContainer(),
+        { timeout: 15000 },
+      );
+    } catch (_) {}
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test("no-js-errors", async () => {
+    expect(
+      jsErrors.map((e) => e.message).join("; "),
+      "JS errors on mobile activity map",
+    ).toBe("");
+  });
+
+  test("dragging-disabled-on-load", async () => {
+    // enableCoopGestures() calls map.dragging.disable() immediately on touch.
+    const enabled = await page.evaluate(() =>
+      window.leafletMap.dragging.enabled(),
+    );
+    expect(
+      enabled,
+      "map dragging should be disabled on touch until two fingers are down",
+    ).toBe(false);
+  });
+
+  test("hint-shown-after-one-finger-touchmove", async () => {
+    // A one-finger touchmove over the map should surface the instruction overlay.
+    const opacity = await page.evaluate(() => {
+      const c = window.leafletMap.getContainer();
+      const b = c.getBoundingClientRect();
+      const t = new Touch({
+        identifier: 1,
+        target: c,
+        clientX: b.left + b.width / 2,
+        clientY: b.top + b.height / 2,
+      });
+      c.dispatchEvent(
+        new TouchEvent("touchmove", { bubbles: true, touches: [t] }),
+      );
+      const overlay = Array.from(c.querySelectorAll("div")).find((d) =>
+        /two fingers/i.test(d.textContent || ""),
+      );
+      return overlay ? overlay.style.opacity : null;
+    });
+    expect(
+      opacity,
+      'one-finger touchmove should show the "two fingers" hint overlay',
+    ).toBe("1");
+  });
+
+  test("dragging-enabled-with-two-fingers", async () => {
+    // Two touches down → map.dragging.enable().
+    const enabled = await page.evaluate(() => {
+      const c = window.leafletMap.getContainer();
+      const b = c.getBoundingClientRect();
+      const mk = (id, dx) =>
+        new Touch({
+          identifier: id,
+          target: c,
+          clientX: b.left + b.width / 2 + dx,
+          clientY: b.top + b.height / 2,
+        });
+      c.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          touches: [mk(1, -20), mk(2, 20)],
+        }),
+      );
+      return window.leafletMap.dragging.enabled();
+    });
+    expect(
+      enabled,
+      "two-finger touchstart should re-enable map dragging",
+    ).toBe(true);
+  });
+
+  test("dragging-disabled-again-after-lifting-to-one-finger", async () => {
+    // Lifting back to a single remaining touch should disable dragging again.
+    const enabled = await page.evaluate(() => {
+      const c = window.leafletMap.getContainer();
+      const b = c.getBoundingClientRect();
+      const t = new Touch({
+        identifier: 1,
+        target: c,
+        clientX: b.left + b.width / 2,
+        clientY: b.top + b.height / 2,
+      });
+      c.dispatchEvent(
+        new TouchEvent("touchend", { bubbles: true, touches: [t] }),
+      );
+      return window.leafletMap.dragging.enabled();
+    });
+    expect(
+      enabled,
+      "dragging should be disabled again once only one finger remains",
+    ).toBe(false);
+  });
+});
