@@ -42,8 +42,8 @@ BIRTH_YEAR="${HEALTHSYNC_BIRTH_YEAR:-}"
 ATHLETE_AGE=""
 [ -n "$BIRTH_YEAR" ] && ATHLETE_AGE="$(( $(date '+%Y') - BIRTH_YEAR ))"
 
-command -v curl >/dev/null 2>&1 || die "curl not installed (opkg install curl ca-bundle)"
-command -v jq   >/dev/null 2>&1 || die "jq not installed (opkg install jq)"
+command -v curl >/dev/null 2>&1 || die "curl not installed (apk add curl ca-bundle  /  opkg install curl ca-bundle)"
+command -v jq   >/dev/null 2>&1 || die "jq not installed (apk add jq  /  opkg install jq)"
 
 GPX_DIR="$WEB_DIR/gpx"
 DETAIL_DIR="$WEB_DIR/details"
@@ -631,6 +631,7 @@ for _hs in "$LIBDIR/strava-my-html-dashboard.sh" \
             "$LIBDIR/strava-my-html-heatmap.sh" \
             "$LIBDIR/strava-my-html-data-quality.sh" \
             "$LIBDIR/strava-render-pages.sh" \
+            "$LIBDIR/strava-offline.sh" \
             "$LIBDIR/strava-lib.sh"; do
     [ -f "$_hs" ] && [ "$_hs" -nt "${WEB_DIR}/index.html" ] && _hs_updated=1 && break
 done

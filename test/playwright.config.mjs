@@ -28,6 +28,9 @@ export default defineConfig({
   reporter: reporters,
   use: {
     baseURL: `http://${HOST}:${PORT}`,
+    // The offline service worker would bypass page.route() mocks after the first
+    // load; only offline.spec.mjs opts back in (test.use({ serviceWorkers: "allow" })).
+    serviceWorkers: "block",
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

@@ -130,6 +130,8 @@ details.cost-yr[open] summary::before{content:"▾ "}
 .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
 </style>
+<script>window.OFFLINE_CFG={rw:".btn,.tab.add",keep:"[onclick*='closeModal'],[onclick*='selectBike'],[data-queue-bike]"};</script>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="pbar"></div>

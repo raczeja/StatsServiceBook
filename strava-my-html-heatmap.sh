@@ -97,6 +97,7 @@ select{background:#222;color:#eee;border:1px solid #444;border-radius:.3rem;
 .city-lbl{font-size:.7rem;font-weight:600;color:#eee;text-shadow:0 0 3px #000,0 0 3px #000;
           white-space:nowrap;pointer-events:none;padding-left:6px}
 </style>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="pbar"></div>

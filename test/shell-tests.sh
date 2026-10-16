@@ -3748,6 +3748,29 @@ S="yearly-email-totals-formatted"
     assert_eq "$S" "totals-ynewclub-1-new-store" "$_ytf_new" "1"
 }
 
+# ── offline-helper ───────────────────────────────────────────────────────────
+# strava-offline.sh must write both files verbatim (quoted heredocs: no shell
+# expansion, so no '$' may appear) and the service worker must keep the pieces
+# the pages rely on.
+S="offline-helper"
+_off_tmp="$(mktemp -d)"
+_off_src="/usr/bin/strava-offline.sh"
+[ -f "$_off_src" ] || _off_src="$(dirname "$0")/../strava-offline.sh"
+( WEB_DIR="$_off_tmp"; log() { :; }; . "$_off_src" ) >/dev/null 2>&1
+for _f in sw.js offline.js; do
+    if [ -s "$_off_tmp/$_f" ]; then ok "$S" "$_f-written"; else err "$S" "$_f-written" "missing or empty"; fi
+done
+# offline.js has no '$' at all; sw.js has regex anchors that must survive unexpanded.
+if grep -q '\$' "$_off_tmp/offline.js"; then err "$S" "offline.js-no-dollar" "contains '\$' (heredoc expansion risk)"; else ok "$S" "offline.js-no-dollar"; fi
+if grep -q -- '-running\$|' "$_off_tmp/sw.js"; then ok "$S" "sw.js-regex-unexpanded"; else err "$S" "sw.js-regex-unexpanded" "regex anchor lost (heredoc expanded?)"; fi
+for _pat in "CACHE = 'ssb-offline" "unpkg.com/leaflet@1.9.4" "event.request\|e.request" "ssb: 'online'" "bike-service|bike-assign|ride-goals"; do
+    if grep -q "$_pat" "$_off_tmp/sw.js"; then ok "$S" "sw-has-$(printf '%s' "$_pat" | tr -c 'a-z0-9' '-')"; else err "$S" "sw-has-$_pat" "pattern not found"; fi
+done
+if grep -q "SOFT = " "$_off_tmp/sw.js" && grep -q "setTimeout(function () { finish(m); }, SOFT)" "$_off_tmp/sw.js"; then ok "$S" "sw-serves-cache-after-soft-timeout"; else err "$S" "sw-serves-cache-after-soft-timeout" "soft-timeout race missing"; fi
+if grep -q "req.method !== 'GET'" "$_off_tmp/sw.js"; then ok "$S" "sw-ignores-non-get"; else err "$S" "sw-ignores-non-get" "SW must not touch POST"; fi
+if grep -q "OFFLINE_CFG" "$_off_tmp/offline.js" && grep -q "HEAD" "$_off_tmp/offline.js"; then ok "$S" "offline-js-cfg-and-probe"; else err "$S" "offline-js-cfg-and-probe" "missing OFFLINE_CFG or HEAD probe"; fi
+rm -rf "$_off_tmp"
+
 # ── script-syntax-check ──────────────────────────────────────────────────────
 # Runs sh -n on every .sh script deployed into /opt/ so that:
 #   (a) any syntax error in a changed script is caught here, and
@@ -3775,6 +3798,7 @@ for _f in \
     /usr/bin/strava-my-bike-alert.sh \
     /usr/bin/strava-render-pages.sh \
     /usr/bin/strava-leaderboard-html.sh \
+    /usr/bin/strava-offline.sh \
     /usr/bin/healthsync-fit-import.sh \
 ; do
     _name="$(basename "$_f")"
@@ -3800,6 +3824,7 @@ for _f in \
             strava-my-bike-alert.sh) _alt="$(dirname "$0")/../strava-my-bike-alert.sh" ;;
             strava-render-pages.sh) _alt="$(dirname "$0")/../strava-render-pages.sh" ;;
             strava-leaderboard-html.sh) _alt="$(dirname "$0")/../strava-leaderboard-html.sh" ;;
+            strava-offline.sh) _alt="$(dirname "$0")/../strava-offline.sh" ;;
             healthsync-fit-import.sh) _alt="$(dirname "$0")/../healthsync-fit-import.sh" ;;
             *) _alt="" ;;
         esac

@@ -121,6 +121,8 @@ svg.bar{width:100%;display:block}
 .mo-nav-btn{background:none;border:1px solid var(--border-2);border-radius:.3rem;font-size:1.1rem;line-height:1;padding:.15rem .5rem;cursor:pointer;color:var(--text-2);font-weight:600}
 .mo-nav-btn:hover{border-color:var(--accent);color:var(--accent)}
 </style>
+<script>window.OFFLINE_CFG={rw:".goal-btn,#goalKmInput"};</script>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="pbar"></div>

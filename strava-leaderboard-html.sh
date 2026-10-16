@@ -89,6 +89,7 @@ cat > "$WEB_DIR/index.html" <<'HTML'
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
 #board{overflow-x:auto;-webkit-overflow-scrolling:touch}
 </style>
+<script src="offline.js"></script>
 </head>
 <body>
 <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.25rem"><h1 style="margin:0">🏆 Club Leaderboard</h1><button id="theme-tog">🌙</button></div>

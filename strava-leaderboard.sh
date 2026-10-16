@@ -1066,5 +1066,7 @@ log "wrote $WEB_DIR/activities.json and per-club leaderboard JSON (snapshot $STA
 # --- 6. Render the static HTML dashboard (see strava-leaderboard-html.sh) ---
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-leaderboard-html.sh"
+# shellcheck disable=SC1090
+. "$STRAVA_LIBDIR/strava-offline.sh"
 
 log "done."

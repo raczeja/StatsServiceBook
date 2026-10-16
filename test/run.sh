@@ -14,6 +14,7 @@ STATS=/usr/bin/strava-my-html-stats.sh
 HEATMAP=/usr/bin/strava-my-html-heatmap.sh
 DATA_QUALITY=/usr/bin/strava-my-html-data-quality.sh
 CLUB=/usr/bin/strava-leaderboard-html.sh
+OFFLINE=/usr/bin/strava-offline.sh
 
 WEB=/www/strava/me
 DATA=/data/bike-service.json
@@ -28,6 +29,11 @@ awk '/^cat > "\$WEB_DIR\/activity\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "
 awk '/^cat > "\$WEB_DIR\/stats\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "$STATS"     > "$WEB/stats.html"
 awk '/^cat > "\$WEB_DIR\/heatmap\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$HEATMAP" > "$WEB/heatmap.html"
 awk '/^cat > "\$WEB_DIR\/data-quality\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DATA_QUALITY" > "$WEB/data-quality.html"
+# Offline layer (service worker + shared client script) for both page trees.
+for _d in "$WEB" "$CLUB_WEB"; do
+  awk '/^cat > "\$WEB_DIR\/sw\.js" <<.JS.$/{f=1;next}      /^JS$/{f=0} f' "$OFFLINE" > "$_d/sw.js"
+  awk '/^cat > "\$WEB_DIR\/offline\.js" <<.JS.$/{f=1;next} /^JS$/{f=0} f' "$OFFLINE" > "$_d/offline.js"
+done
 {
   printf '%s\n' '<!doctype html><html lang="en"><head>'
   printf '<script>var _CFG={defaultBikeName:""};</script>\n'
