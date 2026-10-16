@@ -99,19 +99,25 @@ printf '1' > "$_RUNNING_FLAG" 2>/dev/null || true
 write_sync_status() {
   _rc=$?
   _now="$(date +%s)"
+  _start_time="${_SYNC_RUN_ID%%-*}"
+  _duration=$(( _now - _start_time ))
+  _prev_durs="$(jq -c '.recentDurations // []' "$WEB_DIR/leaderboard-sync-status.json" 2>/dev/null || printf '[]')"
+  _recent_durations="$(printf '%s' "$_prev_durs" | jq --argjson d "$_duration" '[$d] + . | .[:20]')"
   _status_tmp="$WEB_DIR/.leaderboard-sync-status.$$"
   _log_json="$(jq -Rsc 'split("\n")|map(select(length>0))|.[-50:]' "$_RUN_LOG" 2>/dev/null || printf '[]')"
   if [ "$_rc" -eq 0 ]; then
     jq -n --arg source "$STRAVA_SOURCE" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
+      --argjson duration "$_duration" --argjson recentDurations "$_recent_durations" \
       --argjson logs "$_log_json" \
-      '{source:$source,runId:$runId,ok:true,lastAttempt:$now,lastSuccess:$now,log:$logs}' > "$_status_tmp"
+      '{source:$source,runId:$runId,ok:true,lastAttempt:$now,lastSuccess:$now,duration:$duration,recentDurations:$recentDurations,log:$logs}' > "$_status_tmp"
   else
     _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/leaderboard-sync-status.json" 2>/dev/null || true)"
     case "$_last_success" in ''|*[!0-9]*) _last_success=0 ;; esac
     jq -n --arg source "$STRAVA_SOURCE" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
       --argjson lastSuccess "$_last_success" --arg error "Sync exited with status $_rc" \
+      --argjson duration "$_duration" --argjson recentDurations "$_recent_durations" \
       --argjson logs "$_log_json" \
-      '{source:$source,runId:$runId,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,log:$logs}' > "$_status_tmp"
+      '{source:$source,runId:$runId,ok:false,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:$error,duration:$duration,recentDurations:$recentDurations,log:$logs}' > "$_status_tmp"
   fi
   mv "$_status_tmp" "$WEB_DIR/leaderboard-sync-status.json"
   printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
