@@ -179,6 +179,7 @@ var GPS_OPTIONAL={'Swim':1,'Badminton':1,'Squash':1,'TableTennis':1,'WeightTrain
 function esc(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});}
 function stamp(value){if(!value)return "not recorded";var date=new Date(Number(value)*1000);return isNaN(date.getTime())?"not recorded":date.toLocaleString();}
 function timeAgo(secs){if(!secs||secs<0)return '';if(secs<120)return 'just now';if(secs<3600)return Math.floor(secs/60)+'m ago';if(secs<86400)return Math.floor(secs/3600)+'h ago';var d=Math.floor(secs/86400);if(d<30)return d+'d ago';var mo=Math.floor(d/30);if(mo<12)return mo+'mo ago';return Math.floor(mo/12)+'y ago';}
+function fmtDuration(secs){if(!secs||secs<0)return '';secs=Math.round(secs);if(secs<60)return secs+'s';var m=Math.floor(secs/60),s=secs%60;if(m<60)return m+'m'+(s?' '+s+'s':'');var h=Math.floor(m/60);m=m%60;return h+'h'+(m?' '+m+'m':'');}
 function renderActivityList(activities){
   var showGps=document.getElementById('filter-gps').checked;
   var showHeartRate=document.getElementById('filter-heart-rate').checked;
@@ -533,8 +534,14 @@ function sourceCard(name,status,srcKey){
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
   var warning=status.ok===false||disabled||!last||age>staleAfter;
-  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK'+(age!==null?' — '+timeAgo(age):'');
+  var dur=status.duration?fmtDuration(Number(status.duration)):'';
+  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK'+(age!==null?' — '+timeAgo(age):'')+(dur?' · '+dur:'');
   var cls=status.ok===false?'bad':warning?'warn':'';
+  var avgHtml='';
+  if(Array.isArray(status.recentDurations)&&status.recentDurations.length>1){
+    var sum=status.recentDurations.reduce(function(a,b){return a+b;},0);
+    avgHtml='<p style="font-size:.78rem;color:var(--muted)">avg last '+status.recentDurations.length+' runs: '+fmtDuration(Math.round(sum/status.recentDurations.length))+'</p>';
+  }
   var detail=status.error?'<p class="issues">'+esc(status.error)+'</p>':'';
   if(status.mode==='keepalive')detail+='<p>Latest run checked Drive access only; no activities were imported.</p>';
   if(status.importEnabled===false)detail+='<p>Activity import is disabled in configuration.</p>';
@@ -542,7 +549,7 @@ function sourceCard(name,status,srcKey){
   var logsInner=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
   var logsHtml=srcKey?'<div id="log-section-'+srcKey+'">'+logsInner+'</div>':logsInner;
   var syncBtn=srcKey?'<button class="sync-btn" data-src="'+srcKey+'" onclick="triggerSync(this.dataset.src,this)">↻ Sync now</button>':'';
-  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+syncBtn+'</article>';
+  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2>'+avgHtml+'<p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+syncBtn+'</article>';
 }
 function render(data,statuses,lbData){
   var activities=Array.isArray(data.activities)?data.activities:[];

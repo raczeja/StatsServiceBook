@@ -80,6 +80,10 @@ _hs_sync_error=""
 write_sync_status() {
     _rc=$?
     _now="$(date +%s)"
+    _start_time="${_SYNC_RUN_ID%%-*}"
+    _duration=$(( _now - _start_time ))
+    _prev_durs="$(jq -c '.recentDurations // []' "$WEB_DIR/healthsync-sync-status.json" 2>/dev/null || printf '[]')"
+    _recent_durations="$(printf '%s' "$_prev_durs" | jq --argjson d "$_duration" '[$d] + . | .[:20]')"
     _mode="${HEALTHSYNC_MODE:-full}"
     _status_tmp="$WEB_DIR/.healthsync-sync-status.$$"
     _last_success="$(jq -r '.lastSuccess // empty' "$WEB_DIR/healthsync-sync-status.json" 2>/dev/null || true)"
@@ -95,8 +99,9 @@ write_sync_status() {
     jq -n --arg mode "$_mode" --arg runId "$_SYNC_RUN_ID" --argjson now "$_now" \
         --argjson ok "$_ok" --argjson lastSuccess "$_last_success" --arg error "$_hs_sync_error" \
         --argjson importEnabled "$([ "$IMPORT_ENABLED" = "0" ] && printf false || printf true)" \
+        --argjson duration "$_duration" --argjson recentDurations "$_recent_durations" \
         --argjson logs "$_log_json" \
-        '{source:"HealthSync",runId:$runId,mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),log:$logs}' > "$_status_tmp"
+        '{source:"HealthSync",runId:$runId,mode:$mode,ok:$ok,importEnabled:$importEnabled,lastAttempt:$now,lastSuccess:(if $lastSuccess > 0 then $lastSuccess else null end),error:(if $error == "" then null else $error end),duration:$duration,recentDurations:$recentDurations,log:$logs}' > "$_status_tmp"
     mv "$_status_tmp" "$WEB_DIR/healthsync-sync-status.json"
     printf '0' > "$_RUNNING_FLAG" 2>/dev/null || true
     rm -rf "$TMP" "$LOCKFILE"
