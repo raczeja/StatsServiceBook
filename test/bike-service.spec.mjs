@@ -3,6 +3,15 @@ import { URLS, CGI } from "./test-urls.mjs";
 
 const BIKE_CGI = `${CGI}/bike-service`;
 
+// page.waitForFunction() treats an async predicate's Promise as truthy and returns
+// immediately, so it cannot wait on a fetch(). Poll via page.evaluate(), which does
+// await the returned Promise.
+async function waitForAsync(page, fn, arg) {
+  await expect
+    .poll(() => page.evaluate(fn, arg), { timeout: 15000, intervals: [100, 200, 400] })
+    .toBeTruthy();
+}
+
 // ── Bike Service ───────────────────────────────────────────────────────────────
 
 test.describe("bike-service", () => {
@@ -58,7 +67,7 @@ test.describe("bike-service", () => {
         movePartToInventory(id);
       }, chainId);
       await page.getByRole("button", { name: "Move to inventory" }).click();
-      await page.waitForFunction(async () => {
+      await waitForAsync(page, async () => {
         const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const chain = store.inventory?.find((item) => item.id === "p-chain");
         const service = chain?.serviceTypes?.[0];
@@ -84,7 +93,7 @@ test.describe("bike-service", () => {
       await page.getByRole("button", { name: "Gravel Bike", exact: true }).click();
       await page.getByRole("button", { name: "Install on Gravel Bike" }).click();
       await page.getByRole("button", { name: "Install part", exact: true }).click();
-      await page.waitForFunction(async () => {
+      await waitForAsync(page, async () => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const chain = saved.bikes.find((bike) => bike.id === "b-gravel")?.parts.find((part) =>
           part.name === "Chain" && part.usageHistory?.some((segment) => segment.bikeName === "Road Bike")
@@ -120,7 +129,7 @@ test.describe("bike-service", () => {
       await page.locator(".stock-service-mileage").fill("60");
       await page.locator(".stock-service-note").fill("recorded before storage");
       await page.getByRole("button", { name: "Add stock", exact: true }).click();
-      await page.waitForFunction(async () => {
+      await waitForAsync(page, async () => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 2);
       });
@@ -136,7 +145,7 @@ test.describe("bike-service", () => {
       );
       await page.locator("#r-stock").selectOption(stockId);
       await page.evaluate((id) => saveReplace(id), replaceId);
-      await page.waitForFunction(async () => {
+      await waitForAsync(page, async () => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         return saved.inventory?.some((item) => item.name === "Inventory test chain" && item.quantity === 1);
       });
@@ -198,7 +207,7 @@ test.describe("bike-service", () => {
       await page.getByRole("button", { name: "Road Bike", exact: true }).click();
       const archivedRow = page.locator("#bikepanel tr.archived:not(.ridesrow)").filter({ hasText: partName });
       await archivedRow.getByRole("button", { name: "To inventory" }).click();
-      await page.waitForFunction(async (name) => {
+      await waitForAsync(page, async (name) => {
         const store = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const item = store.inventory?.find((entry) => entry.name === name);
         return item?.emailAlert === true && item?.usageHistory?.at(-1)?.distance === 150 &&
@@ -235,7 +244,7 @@ test.describe("bike-service", () => {
       await page.locator("#archive-stock-mileage").fill("9876");
       await page.locator("#archive-stock-note").fill("retired from inventory");
       await page.getByRole("button", { name: "Archive one item" }).click();
-      await page.waitForFunction(async ({ name, date }) => {
+      await waitForAsync(page, async ({ name, date }) => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const archived = saved.bikes.find((bike) => bike.name === "Gravel Bike")?.parts
           .find((part) => part.name === name && part.status === "archived");
@@ -301,7 +310,7 @@ test.describe("bike-service", () => {
       await page.locator("#stock-email-alert").check();
       await page.getByRole("button", { name: "Add stock", exact: true }).click();
 
-      await page.waitForFunction(async (name) => {
+      await waitForAsync(page, async (name) => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const item = saved.inventory?.find((entry) => entry.name === name);
         return item?.emailAlert === true && item.serviceTypes?.length === 2;
@@ -329,7 +338,7 @@ test.describe("bike-service", () => {
       await itemCard.getByRole("button", { name: "Install on Road Bike" }).click();
       await page.locator("#stock-date").fill("2020-01-01");
       await page.getByRole("button", { name: "Install part", exact: true }).click();
-      await page.waitForFunction(async (name) => {
+      await waitForAsync(page, async (name) => {
         const data = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const bike = data.bikes.find((entry) => entry.name === "Road Bike");
         return bike?.parts.some((part) => part.name === name && part.emailAlert === true);
@@ -679,7 +688,7 @@ test.describe("bike-service", () => {
       });
       await page.selectOption("#move-target", before.targetId);
       await page.getByRole("button", { name: "Move part" }).click();
-      await page.waitForFunction(async ({ sourceId, targetId }) => {
+      await waitForAsync(page, async ({ sourceId, targetId }) => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         return !saved.bikes.find((b) => b.id === sourceId)?.parts?.some((p) => p.id === "p-chain") &&
           saved.bikes.find((b) => b.id === targetId)?.parts?.some((p) => p.id === "p-chain" && p.usageHistory?.length);
@@ -1000,7 +1009,7 @@ test.describe("bike-modal-crud", () => {
       await page.locator("#p-vendor").fill(vendor);
       await page.locator("#p-model").fill("Custom Model 42");
       await page.evaluate(() => savePart(null));
-      await page.waitForFunction(async ({ partName, vendor }) => {
+      await waitForAsync(page, async ({ partName, vendor }) => {
         const saved = await fetch("/cgi-bin/bike-service", { cache: "no-store" }).then((r) => r.json());
         const part = saved.bikes.flatMap((bike) => bike.parts || []).find((item) => item.name === partName);
         return part?.vendor === vendor && part?.model === "Custom Model 42" &&

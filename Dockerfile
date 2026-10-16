@@ -39,6 +39,7 @@ COPY strava-my-detail-backfill.sh /usr/bin/strava-my-detail-backfill.sh
 COPY strava-my-bike-alert.sh      /usr/bin/strava-my-bike-alert.sh
 COPY strava-render-pages.sh       /usr/bin/strava-render-pages.sh
 COPY strava-leaderboard-html.sh   /usr/bin/strava-leaderboard-html.sh
+COPY strava-offline.sh            /usr/bin/strava-offline.sh
 COPY healthsync-fit-import.sh     /usr/bin/healthsync-fit-import.sh
 
 RUN chmod 0755 \
@@ -62,6 +63,7 @@ RUN chmod 0755 \
     /usr/bin/strava-my-bike-alert.sh \
     /usr/bin/strava-render-pages.sh \
     /usr/bin/strava-leaderboard-html.sh \
+    /usr/bin/strava-offline.sh \
     /usr/bin/healthsync-fit-import.sh
 
 COPY docker/lighttpd.conf /etc/lighttpd/lighttpd.conf

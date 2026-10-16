@@ -457,6 +457,40 @@ try {
     console.warn("  climb-profile box did not render — skipping that screenshot");
   }
 
+  // ── Offline mode (phone viewport, router unreachable) ────────────────────────
+  // Service workers are only active on secure origins; http://localhost counts.
+  // Visit the pages online first so the service worker caches them, then go offline.
+  console.log("→ offline mode screenshots");
+  const offCtx = await browser.newContext({
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, serviceWorkers: "allow",
+  });
+  try {
+    const op = await offCtx.newPage();
+    const prime = async (url) => {
+      await op.goto(url, { waitUntil: "networkidle", timeout: 30000 });
+      await op.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+      await op.reload({ waitUntil: "networkidle" });
+    };
+    await prime(`http://${HOST}:${PORT}/strava/index.html`);
+    await prime(`${BASE}/index.html`);
+    await prime(`${BASE}/bike.html`);
+    await offCtx.setOffline(true);
+
+    await op.reload({ waitUntil: "domcontentloaded" });
+    await op.waitForSelector("#offline-bar", { timeout: 20000 });
+    await waitBikeReady(op);
+    await shot(op, "offline-bike-service");
+
+    await op.goto(`${BASE}/index.html`, { waitUntil: "domcontentloaded" });
+    await op.waitForSelector("#offline-bar", { timeout: 20000 });
+    await op.waitForSelector("#board tbody tr", { timeout: 10000 });
+    await shot(op, "offline-my-activities");
+  } catch (e) {
+    console.warn(`  offline screenshots failed: ${e.message}`);
+  } finally {
+    await offCtx.close();
+  }
+
 } finally {
   await browser.close();
 }

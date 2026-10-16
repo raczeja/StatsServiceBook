@@ -142,6 +142,8 @@ cat > "$WEB_DIR/activity.html" <<'HTML'
   .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
 @media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
 </style>
+<script>window.OFFLINE_CFG={rw:"#bike-sel"};</script>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="pbar"></div>

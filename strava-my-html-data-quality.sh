@@ -125,6 +125,8 @@ h2{font-size:1.1rem;margin:1rem 0 .5rem}.table-wrap{overflow-x:auto;border:1px s
 #send-email-status.ok{color:var(--good)}#send-email-status.err{color:var(--bad)}
 #email-to-override.invalid{border-color:var(--bad)!important;outline:none}
 </style>
+<script>window.OFFLINE_CFG={rw:".sync-btn"};</script>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="hdr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><clipPath id="clip"><circle cx="32" cy="32" r="30"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111111"/></linearGradient></defs><circle cx="32" cy="32" r="32" fill="url(#bg)"/><g clip-path="url(#clip)"><polygon points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32 60,56 4,56" fill="#fc4c02" fill-opacity="0.15"/><polyline points="4,46 13,46 19,32 25,40 32,18 39,32 45,25 51,32 60,32" fill="none" stroke="#fc4c02" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="46" r="2.5" fill="#fc4c02"/><circle cx="60" cy="32" r="2.5" fill="#fc4c02"/></g><path d="M43,13 Q50,7 57,13" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/><path d="M46,17 Q50,13 54,17" fill="none" stroke="#fc4c02" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/><circle cx="50" cy="21" r="2.2" fill="#fc4c02"/><circle cx="32" cy="32" r="31" fill="none" stroke="#fc4c02" stroke-width="0.8" stroke-opacity="0.35"/></svg><h1 style="margin:0">&#128203; Data completeness</h1><button id="theme-tog">🌙</button></div>
@@ -179,6 +181,7 @@ var GPS_OPTIONAL={'Swim':1,'Badminton':1,'Squash':1,'TableTennis':1,'WeightTrain
 function esc(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});}
 function stamp(value){if(!value)return "not recorded";var date=new Date(Number(value)*1000);return isNaN(date.getTime())?"not recorded":date.toLocaleString();}
 function timeAgo(secs){if(!secs||secs<0)return '';if(secs<120)return 'just now';if(secs<3600)return Math.floor(secs/60)+'m ago';if(secs<86400)return Math.floor(secs/3600)+'h ago';var d=Math.floor(secs/86400);if(d<30)return d+'d ago';var mo=Math.floor(d/30);if(mo<12)return mo+'mo ago';return Math.floor(mo/12)+'y ago';}
+function fmtDuration(secs){if(!secs||secs<0)return '';secs=Math.round(secs);if(secs<60)return secs+'s';var m=Math.floor(secs/60),s=secs%60;if(m<60)return m+'m'+(s?' '+s+'s':'');var h=Math.floor(m/60);m=m%60;return h+'h'+(m?' '+m+'m':'');}
 function renderActivityList(activities){
   var showGps=document.getElementById('filter-gps').checked;
   var showHeartRate=document.getElementById('filter-heart-rate').checked;
@@ -533,8 +536,14 @@ function sourceCard(name,status,srcKey){
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
   var disabled=status.importEnabled===false;
   var warning=status.ok===false||disabled||!last||age>staleAfter;
-  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK'+(age!==null?' — '+timeAgo(age):'');
+  var dur=status.duration?fmtDuration(Number(status.duration)):'';
+  var badge=status.ok===false?'Failed':disabled?'Disabled':!last?'No successful import':age>staleAfter?'Stale':'OK'+(age!==null?' — '+timeAgo(age):'')+(dur?' · '+dur:'');
   var cls=status.ok===false?'bad':warning?'warn':'';
+  var avgHtml='';
+  if(Array.isArray(status.recentDurations)&&status.recentDurations.length>1){
+    var sum=status.recentDurations.reduce(function(a,b){return a+b;},0);
+    avgHtml='<p style="font-size:.78rem;color:var(--muted)">avg last '+status.recentDurations.length+' runs: '+fmtDuration(Math.round(sum/status.recentDurations.length))+'</p>';
+  }
   var detail=status.error?'<p class="issues">'+esc(status.error)+'</p>':'';
   if(status.mode==='keepalive')detail+='<p>Latest run checked Drive access only; no activities were imported.</p>';
   if(status.importEnabled===false)detail+='<p>Activity import is disabled in configuration.</p>';
@@ -542,7 +551,7 @@ function sourceCard(name,status,srcKey){
   var logsInner=status.log&&status.log.length?'<details><summary style="cursor:pointer;font-size:.85rem;color:var(--muted)">Show run log ('+status.log.length+' lines)</summary><pre class="run-log">'+status.log.map(function(l){return esc(l);}).join('\n')+'</pre></details>':'';
   var logsHtml=srcKey?'<div id="log-section-'+srcKey+'">'+logsInner+'</div>':logsInner;
   var syncBtn=srcKey?'<button class="sync-btn" data-src="'+srcKey+'" onclick="triggerSync(this.dataset.src,this)">↻ Sync now</button>':'';
-  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2><p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+syncBtn+'</article>';
+  return '<article class="source"><h2>'+esc(name)+' <span class="badge '+cls+'">'+badge+'</span></h2>'+avgHtml+'<p>Latest attempt: '+stamp(status.lastAttempt)+'</p><p>Last successful import: '+stamp(status.lastSuccess)+'</p>'+detail+logsHtml+syncBtn+'</article>';
 }
 function render(data,statuses,lbData){
   var activities=Array.isArray(data.activities)?data.activities:[];
