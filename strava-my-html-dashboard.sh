@@ -74,6 +74,8 @@ svg.bar-chart{width:100%;height:150px;display:block}
 #board{overflow-x:auto;-webkit-overflow-scrolling:touch}
 @media(max-width:640px){body{margin:.75rem auto}#hdr{flex-wrap:wrap}h1{font-size:1.1rem}.chart-box{box-sizing:border-box}}
 </style>
+<script>window.OFFLINE_CFG={rw:"select.bike-sel"};</script>
+<script src="offline.js"></script>
 </head>
 <body>
 <div id="pbar"></div>

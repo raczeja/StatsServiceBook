@@ -23,6 +23,7 @@ A **router-native activity stats and bike service tracker** for OpenWrt. A set o
 | [strava-my-detail-backfill.sh](strava-my-detail-backfill.sh)     | Sourced by `strava-my-activities.sh` (§3b): rate-limited per-activity detail JSON backfill (API + scrape `case` branch inside); increments `ADDED`, `_sc_norm_fail`, `_sc_cookie_expired`, `_sc_layout_fail`.                                                                                                                                                                           |
 | [strava-my-bike-alert.sh](strava-my-bike-alert.sh)               | Sourced by `strava-my-activities.sh` (§6f): bike-service threshold email alerts via msmtp.                                                                                                                                                                                                                                                                                              |
 | [strava-render-pages.sh](strava-render-pages.sh)                 | Sourced by both `strava-my-activities.sh` and `healthsync-activities.sh`: wrapper that sources the dashboard, detail, bike, stats, and data-quality helpers.                                                                                                                                                                                                                            |
+| [strava-offline.sh](strava-offline.sh)                           | Sourced by `strava-render-pages.sh` and `strava-leaderboard.sh` (§6): writes `$WEB_DIR/sw.js` (service worker: network-first same-origin GETs with 4 s timeout + cache fallback, cache-first Leaflet/tiles, never touches POST/other CGIs) and `$WEB_DIR/offline.js` (registers the SW, probes reachability via HEAD, shows banner, disables write controls per `window.OFFLINE_CFG={rw,keep}` set in each page's `<head>`, rejects non-GET fetches while offline). Needs HTTPS or localhost. Installed to `/usr/bin/strava-offline.sh` (0644). |
 | [strava-leaderboard-html.sh](strava-leaderboard-html.sh)         | Sourced by `strava-leaderboard.sh` (§6): writes the club leaderboard `index.html`; single-quoted heredoc.                                                                                                                                                                                                                                                                               |
 | [healthsync-fit-import.sh](healthsync-fit-import.sh)             | Sourced by `healthsync-activities.sh` (§3b): Magene FIT file detection, GPS Visualizer FIT→GPX conversion, dual-source merge with watch records; increments `ADDED`.                                                                                                                                                                                                                    |
 | [config-my.example](config-my.example)                           | Config template → `/etc/strava-my-activities.conf` (holds secrets, `chmod 600`). Needs `activity:read` scope; `activity:read_all` for private activities. Includes `STRAVA_MY_DEFAULT_BIKE_NAME` for the initial bike-tracker seed.                                                                                                                                                     |
@@ -63,7 +64,7 @@ Run from the repo root on the dev machine:
 scp strava-my-activities.sh root@192.168.1.1:/usr/bin/strava-my-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
   && scp strava-my-html-dashboard.sh strava-my-html-detail.sh strava-my-html-bike.sh strava-my-html-stats.sh strava-my-html-heatmap.sh strava-my-html-data-quality.sh root@192.168.1.1:/usr/bin/ `
-  && scp strava-my-feed-api.sh strava-my-feed-scrape.sh strava-my-detail-backfill.sh strava-my-bike-alert.sh strava-render-pages.sh root@192.168.1.1:/usr/bin/ `
+  && scp strava-my-feed-api.sh strava-my-feed-scrape.sh strava-my-detail-backfill.sh strava-my-bike-alert.sh strava-render-pages.sh strava-offline.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-my-activities
 ```
 
@@ -72,7 +73,7 @@ For the HealthSync script (also push `strava-lib.sh` — it holds the shared wea
 ```powershell
 scp healthsync-activities.sh root@192.168.1.1:/usr/bin/healthsync-activities `
   && scp strava-lib.sh root@192.168.1.1:/usr/bin/strava-lib.sh `
-  && scp healthsync-fit-import.sh strava-render-pages.sh strava-my-html-data-quality.sh root@192.168.1.1:/usr/bin/ `
+  && scp healthsync-fit-import.sh strava-render-pages.sh strava-offline.sh strava-my-html-data-quality.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 healthsync-activities
 ```
 
@@ -80,7 +81,7 @@ For the club leaderboard script:
 
 ```powershell
 scp strava-leaderboard.sh root@192.168.1.1:/usr/bin/strava-leaderboard `
-  && scp strava-leaderboard-html.sh root@192.168.1.1:/usr/bin/ `
+  && scp strava-leaderboard-html.sh strava-offline.sh root@192.168.1.1:/usr/bin/ `
   && ssh root@192.168.1.1 strava-leaderboard
 ```
 
@@ -115,7 +116,8 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
 
 1. **Re-install packages** (they are gone):
    ```sh
-   ssh root@192.168.1.1 "opkg update && opkg install curl jq ca-bundle"
+   ssh root@192.168.1.1 "apk update && apk add curl jq ca-bundle"   # OpenWrt 24.10+/snapshots
+   # older releases: opkg update && opkg install curl jq ca-bundle
    ```
 2. **Re-deploy all scripts** (full reinstall from the repo):
    ```powershell
@@ -152,6 +154,9 @@ OpenWrt `sysupgrade` wipes `/usr/bin/`, `/usr/lib/`, and installed packages — 
    /usr/bin/strava-render-pages.sh
    /usr/bin/strava-leaderboard-html.sh
    /usr/bin/healthsync-fit-import.sh
+   /usr/bin/strava-offline.sh
+   /etc/uhttpd.crt
+   /etc/uhttpd.key
    /etc/strava-leaderboard.conf
    /etc/strava-my-activities.conf
    /etc/healthsync-activities.conf

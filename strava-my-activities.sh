@@ -461,6 +461,7 @@ for _hs in "$0" \
             "$STRAVA_LIBDIR/strava-my-html-heatmap.sh" \
             "$STRAVA_LIBDIR/strava-my-html-data-quality.sh" \
             "$STRAVA_LIBDIR/strava-render-pages.sh" \
+            "$STRAVA_LIBDIR/strava-offline.sh" \
             "$STRAVA_LIBDIR/strava-lib.sh"; do
     [ -f "$_hs" ] && _scripts_md5="$_scripts_md5$(md5sum "$_hs")"
 done
