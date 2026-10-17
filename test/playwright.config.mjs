@@ -17,6 +17,25 @@ if (process.env.CI) {
   ]);
 }
 
+// Specs that only read static pages or mock every CGI via page.route() — safe to
+// run concurrently. Everything else touches shared CGI state and must run serially.
+const PARALLEL_SPECS = [
+  "**/club-dashboard.spec.mjs",
+  "**/data-quality.spec.mjs",
+  "**/heatmap.spec.mjs",
+  "**/mobile.spec.mjs",
+  "**/offline.spec.mjs",
+];
+
+// Allow overriding with a system Chrome when bundled Chromium can't be downloaded
+// (e.g. network-restricted WSL). Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome.
+const browserUse = {
+  browserName: "chromium",
+  ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+    ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
+    : {}),
+};
+
 export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.mjs",
@@ -38,15 +57,15 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: {
-        browserName: "chromium",
-        // Allow overriding with a system Chrome when bundled Chromium can't be downloaded
-        // (e.g. network-restricted WSL). Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome.
-        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-          ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
-          : {}),
-      },
+      name: "parallel",
+      testMatch: PARALLEL_SPECS,
+      use: browserUse,
+    },
+    {
+      name: "serial",
+      testMatch: "**/*.spec.mjs",
+      testIgnore: PARALLEL_SPECS,
+      use: browserUse,
     },
   ],
 });
