@@ -58,6 +58,18 @@ jobs:
           if [ "${test_status:-0}" -ne 0 ]; then exit "$test_status"; fi
           if [ "${copy_status:-0}" -ne 0 ]; then exit "$copy_status"; fi
 
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(npm view @playwright/test version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers and npm packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.npm
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
       - name: Run functional tests
         run: |
           TMP_DIR=$(mktemp -d)
@@ -70,8 +82,15 @@ jobs:
           cp "$GITHUB_WORKSPACE/test/coverage-fixture.mjs" .
           cp "$GITHUB_WORKSPACE/test/coverage-utils.mjs" .
           cp "$GITHUB_WORKSPACE/test/playwright.config.mjs" .
+          cp "$GITHUB_WORKSPACE/test/playwright.merge.config.mjs" .
           mkdir -p test-results playwright-report coverage-data
-          COVERAGE_OUTPUT_DIR="$TMP_DIR/coverage-data" CI=true npx playwright test --config playwright.config.mjs || test_status=$?
+          # "parallel" specs never write shared CGI state -> several workers;
+          # "serial" specs POST to shared CGIs -> exactly one worker (see playwright.config.mjs).
+          COVERAGE_OUTPUT_DIR="$TMP_DIR/coverage-data" CI=true PLAYWRIGHT_BLOB_OUTPUT_FILE="$TMP_DIR/blob-reports/parallel.zip"             npx playwright test --config playwright.config.mjs --project=parallel --workers=3 --reporter=blob || test_status=$?
+          COVERAGE_OUTPUT_DIR="$TMP_DIR/coverage-data" CI=true PLAYWRIGHT_BLOB_OUTPUT_FILE="$TMP_DIR/blob-reports/serial.zip"             npx playwright test --config playwright.config.mjs --project=serial --workers=1 --reporter=blob || serial_status=$?
+          CI=true npx playwright merge-reports --config playwright.merge.config.mjs "$TMP_DIR/blob-reports" || merge_status=$?
+          if [ "${test_status:-0}" -eq 0 ]; then test_status=${serial_status:-0}; fi
+          if [ "${test_status:-0}" -eq 0 ]; then test_status=${merge_status:-0}; fi
           mkdir -p "$GITHUB_WORKSPACE/coverage-data"
           cp -r "$TMP_DIR/coverage-data/." "$GITHUB_WORKSPACE/coverage-data/"
           cp -r test-results "$GITHUB_WORKSPACE/test-results" 2>/dev/null || results_copy_status=$?
