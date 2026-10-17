@@ -13,7 +13,7 @@
   "packageRules": [
     {
       "matchDatasources": ["docker"],
-      "matchPackageNames": ["raczeja/statsservicebook"],
+      "matchPackageNames": ["jraczek/statsservicebook"],
       "enabled": false
     },
     {

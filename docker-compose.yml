@@ -13,7 +13,7 @@
 
 services:
   statsservicebook:
-    image: raczeja/statsservicebook:latest
+    image: jraczek/statsservicebook:latest
     # build: .    # uncomment to build from local source instead of Docker Hub
     ports:
       - "80:80"
