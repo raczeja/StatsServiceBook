@@ -672,12 +672,14 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
   _hr_cache="$STATE_DIR/hr-summary.json"
   [ -f "$_hr_cache" ] || printf '{}' > "$_hr_cache"
-  # Cached summaries depend on the calculation (GPX_HR_LOGIC_VERSION) and on the
-  # athlete age (HR zones); recompute everything only when either changes.
-  _hr_sig="v${GPX_HR_LOGIC_VERSION:-1}|age=${ATHLETE_AGE:-}"
+  # Cached summaries depend only on the calculation (GPX_HR_LOGIC_VERSION). The
+  # athlete age is deliberately NOT part of the signature: it changes every new
+  # year, and an old activity's effort should keep the age it was computed with.
+  # New activities simply use the current age.
+  _hr_sig="v${GPX_HR_LOGIC_VERSION:-1}"
   if [ "$(cat "$STATE_DIR/hr-summary.sig" 2>/dev/null)" != "$_hr_sig" ]; then
     [ -s "$_hr_cache" ] && [ "$(cat "$_hr_cache")" != '{}' ] \
-      && log "render: HR logic/age changed ($_hr_sig) — discarding cached HR summaries"
+      && log "render: HR logic changed ($_hr_sig) — discarding cached HR summaries"
     printf '{}' > "$_hr_cache"
     printf '%s' "$_hr_sig" > "$STATE_DIR/hr-summary.sig"
   fi
