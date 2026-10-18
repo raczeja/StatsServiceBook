@@ -493,6 +493,20 @@ fetch("activities.json",{cache:"no-cache"})
       "). Open this page via the router's web server, not from a file.";
   });
 
+// Called by offline.js when a sync rewrote activities.json: reload the data, rebuild
+// the selectors and put the user's year/month back.
+window.onDataChanged=function(){
+  return fetch("activities.json",{cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(d){
+      var y=yearSel.value, m=monthSel.value;
+      DATA=d; init();
+      if([].some.call(yearSel.options,function(o){return o.value===y;})) yearSel.value=y;
+      monthSel.value=m;
+      render();
+    });
+};
+
 (function(){
   var root=document.documentElement;
   var btn=document.getElementById('theme-tog');

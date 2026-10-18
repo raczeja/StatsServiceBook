@@ -1277,8 +1277,9 @@ function render(){
 }
 
 // ---- init -------------------------------------------------------------------
-function load(){
-  progressStart();
+function load(keep){
+  var _kept=keep?{y:selYear,m:selMonth,s:selSport}:null;
+  if(!keep) progressStart();
   fetch("activities.json",{cache:"no-cache"})
     .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
     .then(function(d){
@@ -1320,6 +1321,12 @@ function load(){
       });
       selMonth=_latestMo>=0?_latestMo:new Date().getMonth();
 
+      if(_kept){   // auto-refresh: keep the user's selection where it is still valid
+        var _ys=document.getElementById("yearSel"), _ss=document.getElementById("sportSel");
+        if([].some.call(_ss.options,function(o){return o.value===_kept.s;})){ selSport=_kept.s; _ss.value=selSport; }
+        if([].some.call(_ys.options,function(o){return o.value===String(_kept.y);})){ selYear=_kept.y; _ys.value=selYear; selMonth=_kept.m; }
+      }
+
       genStr=d.generatedAt?" · updated "+d.generatedAt.slice(0,10):"";
       progressDone();
       // load goals in parallel; render immediately, then re-render with goal data
@@ -1339,6 +1346,8 @@ document.getElementById("yearSel").addEventListener("change",function(){
   render();
 });
 load();
+// Called by offline.js when a sync rewrote activities.json.
+window.onDataChanged=function(){ load(true); };
 (function(){
   var STATS_SEC_KEY='ssb-stats-sec';
   var STATS_SEC_DEFAULT=['kpis','last-year','goals','weekly-goals','records','top10','year','monthly-chart','monthly-table','comparison','sport','dow'];

@@ -134,6 +134,52 @@ test.describe("offline mode", () => {
     await context.setOffline(false);
   });
 
+  for (const [label, url] of [["my activities", "dash"], ["stats", "stats"], ["club leaderboard", "club"]]) {
+    test(`${label} reloads its data when a sync rewrites activities.json`, async ({ page }) => {
+      let etag = "v1", heads = 0, gets = 0;
+      await page.route("**/activities.json", async (route) => {
+        const req = route.request();
+        if (req.method() === "HEAD") {
+          heads++;
+          return route.fulfill({ status: 200, headers: { etag, "content-length": "1" }, body: "" });
+        }
+        gets++;
+        return route.continue();
+      });
+      await page.goto(URLS[url]);
+      await expect.poll(() => heads, { timeout: 10000 }).toBeGreaterThanOrEqual(1); // baseline
+      const getsBefore = gets;
+      // Unchanged signature: a check must not reload anything.
+      await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await expect.poll(() => heads, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+      expect(gets).toBe(getsBefore);
+      // New signature: the page refetches and shows the toast.
+      etag = "v2";
+      await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await expect(page.locator("#data-toast")).toHaveText("Data updated", { timeout: 10000 });
+      expect(gets).toBeGreaterThan(getsBefore);
+    });
+  }
+
+  test("dashboard keeps its sport filter across an auto-refresh", async ({ page }) => {
+    let etag = "v1";
+    await page.route("**/activities.json", (route) =>
+      route.request().method() === "HEAD"
+        ? route.fulfill({ status: 200, headers: { etag, "content-length": "1" }, body: "" })
+        : route.continue());
+    await page.goto(URLS.dash);
+    await expect(page.locator("#board tbody tr").first()).toBeVisible();
+    const opts = await page.locator("#sport option").evaluateAll((o) => o.map((x) => x.value));
+    const pick = opts.find((v) => v !== "all" && v !== (opts.includes("Ride") ? "Ride" : "all"));
+    test.skip(!pick, "sample data has a single sport");
+    await page.selectOption("#sport", pick);
+    await page.waitForTimeout(3500); // baseline
+    etag = "v2";
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await expect(page.locator("#data-toast")).toHaveText("Data updated", { timeout: 10000 });
+    await expect(page.locator("#sport")).toHaveValue(pick);
+  });
+
   test("club leaderboard is available offline", async ({ page, context }) => {
     await primed(page, URLS.club);
     await context.setOffline(true);

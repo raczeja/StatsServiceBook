@@ -89,7 +89,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - **Bike setup and mileage** — add any number of bikes, assign each to a Strava/HealthSync gear, and optionally enter an odometer starting value. Mileage, riding time, and elevation are calculated from matching rides in `activities.json`; select a date to review historical mileage. Parts can be dragged into a custom order.
 - **Part records** — track free-form part names, vendor, model, notes, purchase cost, install date, and install mileage. Name and vendor suggestions are available, and custom entries are remembered.
 - **Service schedules and history** — give each part multiple named service types, each with its own kilometre, riding-hour, and/or calendar-time interval. Log dated service work with mileage, notes, and cost. The page shows usage since installation and since the last service, progress toward each interval, and expandable ride/service history.
-- **Service work queue** — one urgency-sorted list across bikes; items appear at ≥ 80% of a service interval. The queue is shown when at least one item is overdue (≥ 100%) and includes upcoming work on other parts.
+- **Service work queue** — one urgency-sorted list across bikes; items appear at ≥ 80% of a service interval. The queue is shown when at least one item reaches 90% (the email warning threshold — shown even if email alerts are not enabled) and includes upcoming work on other parts.
 - **Part lifecycle** — log a service, replace a part (the old part is archived with its final mileage and lifespan while its successor is fitted), or move an active part to another bike. Moving preserves accumulated usage, service types, records, and costs.
 - **Shared parts inventory** — keep quantities of new or previously used spares available to all bikes. Used stock can retain prior distance, service records, and alert settings. Move active or archived parts into stock, install stock on any bike, or move a used spare to a bike's archive; quantities decrease when a spare is installed or used as a replacement. A part's next interval starts from its installation on the destination bike.
 - **Bike comparison** — with two or more bikes, the Bike Statistics table compares distance, ride time, elevation, average ride distance, service count, and current part count.
@@ -115,6 +115,10 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - Every page (except the always-dark heatmap) has a 🌙/☀️ toggle button in the top-right corner
 - Defaults to the OS `prefers-color-scheme` setting; manual choice is remembered in `localStorage` across sessions
 - Full CSS variable conversion — SVG charts, bar fills, tooltips, and all UI elements adapt without re-rendering
+
+**Auto-refresh after a sync**
+
+- The My Activities dashboard, Stats and the club leaderboard check `activities.json` with a lightweight `HEAD` request every 60 s while the tab is visible (and when you return to the tab). When a sync has rewritten it, the page reloads its data in place and shows a short "Data updated" toast — your year / month / sport selection is kept. No daemon or extra files; the bike page is deliberately excluded so unsaved edits are never lost
 
 **Offline access** _(requires HTTPS or `localhost`)_
 

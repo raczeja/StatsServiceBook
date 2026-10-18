@@ -732,6 +732,13 @@ fetch("activities.json", { cache:"no-cache" })
     metaEl.textContent = "Failed to load activities.json ("+err.message+
       "). Open this page via the router's web server, not from a file.";
   });
+// Called by offline.js when a sync rewrote activities.json; init() restores the
+// saved filter/sort from sessionStorage, so the view stays where the user left it.
+window.onDataChanged = function(){
+  return fetch("activities.json", { cache:"no-store" })
+    .then(function(r){ if (!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(d){ DATA = d; init(); });
+};
 fetch("drive-status.json", { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(d){

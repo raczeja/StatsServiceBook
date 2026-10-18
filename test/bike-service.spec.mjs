@@ -416,10 +416,15 @@ test.describe("bike-service", () => {
         const viewBikeSelectsCorrectBike = selBike === "queue-gravel";
         MODEL.bikes[0].baseMileage = 20;
         render();
+        const upcomingOnlyStillHidden = !document.querySelector('.sec[data-sid="service-queue"]');
+        MODEL.bikes[1].baseMileage = 92; // 90%+ warning tier, no email flag set
+        render();
+        const shownAtWarning = !!document.querySelector('.sec[data-sid="service-queue"]');
         return {
           rows,
           viewBikeSelectsCorrectBike,
-          upcomingOnlyStillHidden: !document.querySelector('.sec[data-sid="service-queue"]'),
+          upcomingOnlyStillHidden,
+          shownAtWarning,
         };
       } finally {
         MODEL = saved.model;
@@ -436,6 +441,7 @@ test.describe("bike-service", () => {
     expect(result.rows[1].state).toBe("upcoming");
     expect(result.viewBikeSelectsCorrectBike).toBeTruthy();
     expect(result.upcomingOnlyStillHidden).toBeTruthy();
+    expect(result.shownAtWarning).toBeTruthy();
   });
 
   test("bike-tabs-present", async () => {
