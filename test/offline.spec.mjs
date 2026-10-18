@@ -134,6 +134,11 @@ test.describe("offline mode", () => {
     await context.setOffline(false);
   });
 
+  // page.route cannot see requests made by a service worker, so with the SW
+  // controlling the page the refetch would never be counted in `gets`. Block the
+  // SW here; the data-refresh logic under test does not depend on it.
+  test.describe("auto-refresh signature check", () => {
+    test.use({ serviceWorkers: "block" });
   for (const [label, url] of [["my activities", "dash"], ["stats", "stats"], ["club leaderboard", "club"]]) {
     test(`${label} reloads its data when a sync rewrites activities.json`, async ({ page }) => {
       let etag = "v1", heads = 0, gets = 0;
@@ -160,6 +165,7 @@ test.describe("offline mode", () => {
       expect(gets).toBeGreaterThan(getsBefore);
     });
   }
+  });
 
   test("dashboard keeps its sport filter across an auto-refresh", async ({ page }) => {
     let etag = "v1";
