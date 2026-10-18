@@ -4,16 +4,11 @@
 #   cp docker/strava-leaderboard.conf.example leaderboard.conf
 #   docker run ... -v ./leaderboard.conf:/etc/strava-leaderboard.conf:ro ...
 #
-# Data source: "api" (Strava API OAuth) or "scrape" (browser session cookie).
-STRAVA_SOURCE="api"
+# The leaderboard scrapes Strava's web club feed with your browser session cookie
+# (the Club Activities API was removed by Strava).
 
-# --- Strava API OAuth (required for source=api) ---
-STRAVA_CLIENT_ID=""
-STRAVA_CLIENT_SECRET=""
-STRAVA_REFRESH_TOKEN=""
-
-# --- Scrape mode (required for source=scrape) ---
-# STRAVA_SESSION_COOKIE=""
+# --- Session cookie (copy _strava4_session from browser DevTools; lasts ~30 days) ---
+STRAVA_SESSION_COOKIE=""
 
 # --- Club IDs (comma-separated numeric IDs from the Strava club URL) ---
 STRAVA_CLUB_IDS=""

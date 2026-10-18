@@ -175,7 +175,7 @@ function init(){
   var fsrc = document.getElementById("footer-source");
   if(fsrc) fsrc.textContent = DATA.source === "scrape"
     ? "scrape mode · real activity dates"
-    : "api mode · dates = first-seen day";
+    : "scrape mode";
 
   yearSel.onchange = render;
   monthSel.onchange = render;

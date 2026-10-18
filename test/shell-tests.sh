@@ -140,10 +140,10 @@ S="leaderboard-status-web-link"
 _lb_status_target="$TMP/usb/leaderboard-sync-status.json"
 _lb_status_served="$TMP/www/strava/leaderboard-sync-status.json"
 mkdir -p "$(dirname "$_lb_status_target")" "$(dirname "$_lb_status_served")"
-printf '{"source":"api","ok":true}\n' > "$_lb_status_target"
+printf '{"source":"scrape","ok":true}\n' > "$_lb_status_target"
 ln -sfn "$_lb_status_target" "$_lb_status_served"
 assert_eq "$S" "status-visible-at-served-path" \
-    "$(cat "$_lb_status_served")" '{"source":"api","ok":true}'
+    "$(cat "$_lb_status_served")" '{"source":"scrape","ok":true}'
 
 # ── activity-id-generation ────────────────────────────────────────────────────
 # Same logic as the `while IFS= read -r base` loop in healthsync-activities.sh.
@@ -1044,6 +1044,62 @@ assert_eq "$S" "moving-time-parsed"    "$(printf '%s' "$_sc_new" | jq '.[0].movi
 assert_eq "$S" "elev-parsed"           "$(printf '%s' "$_sc_new" | jq '.[0].total_elevation_gain')" "300"
 assert_eq "$S" "first-seen-from-date"  "$(printf '%s' "$_sc_new" | jq -r '.[0].firstSeen')" "2026-06-10"
 assert_eq "$S" "lastname-trimmed"      "$(printf '%s' "$_sc_new" | jq -r '.[0].lastname')" "Ward"
+
+# ── club-edit-refresh ─────────────────────────────────────────────────────────
+# Mirrors the parsed-feed → new/refresh split in strava-leaderboard.sh: unseen
+# signatures are appended, stored rows are refreshed when the athlete edited the
+# activity on Strava (elevation, distance, title…); a feed elevation of 0 never
+# wipes a stored one; firstSeen/athlete fields are untouched.
+S="club-edit-refresh"
+
+printf '%s\n' \
+    '{"signature":"a1","firstSeen":"2026-06-01","firstname":"Gwen","lastname":"Marsh","athlete_id":"7","name":"Old Ride","distance":10000,"moving_time":3600,"elapsed_time":3700,"total_elevation_gain":100,"type":"Ride","sport_type":"Ride"}' \
+    '{"signature":"a2","firstSeen":"2026-06-02","firstname":"Hugo","lastname":"Ward","athlete_id":"8","name":"Run","distance":5000,"moving_time":1500,"elapsed_time":1500,"total_elevation_gain":42,"type":"Run","sport_type":"Run"}' \
+    '{"signature":"a3","firstSeen":"2026-06-03","firstname":"Ivy","lastname":"Cole","athlete_id":"9","name":"Untouched","distance":8000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":10,"type":"Ride","sport_type":"Ride"}' \
+    > "$TMP/rf_store.ndjson"
+# Feed: a1 edited (elevation 100→250, renamed), a2 re-parsed with elev 0 (Run, no Elev stat),
+# a3 identical, a4 brand new.
+printf '%s\n' \
+    '{"signature":"a1","firstSeen":"2026-06-01","firstname":"Gwen","lastname":"Marsh","athlete_id":"7","name":"Renamed Ride","distance":10000,"moving_time":3600,"elapsed_time":3700,"total_elevation_gain":250,"type":"Ride","sport_type":"Ride"}' \
+    '{"signature":"a2","firstSeen":"2026-06-02","firstname":"Hugo","lastname":"Ward","athlete_id":"8","name":"Run","distance":5000,"moving_time":1500,"elapsed_time":1500,"total_elevation_gain":0,"type":"Run","sport_type":"Run"}' \
+    '{"signature":"a3","firstSeen":"2026-06-03","firstname":"Ivy","lastname":"Cole","athlete_id":"9","name":"Untouched","distance":8000,"moving_time":2400,"elapsed_time":2400,"total_elevation_gain":10,"type":"Ride","sport_type":"Ride"}' \
+    '{"signature":"a4","firstSeen":"2026-06-04","firstname":"Jo","lastname":"Park","athlete_id":"10","name":"New","distance":3000,"moving_time":900,"elapsed_time":900,"total_elevation_gain":5,"type":"Ride","sport_type":"Ride"}' \
+    > "$TMP/rf_parsed.ndjson"
+
+jq -sc '[ .[].signature ]' "$TMP/rf_store.ndjson" > "$TMP/rf_known.json"
+jq -sc 'map({ (.signature): . }) | add // {}' "$TMP/rf_parsed.ndjson" > "$TMP/rf_map.json"
+
+_rf_def='
+    def refresh_row($p):
+      ($p[(.signature // "") | tostring]) as $n
+      | if $n == null then .
+        else . + { name: $n.name, distance: $n.distance, moving_time: $n.moving_time,
+                   elapsed_time: $n.elapsed_time, type: $n.type, sport_type: $n.sport_type,
+                   total_elevation_gain: (if ($n.total_elevation_gain // 0) > 0
+                                          then $n.total_elevation_gain
+                                          else (.total_elevation_gain // 0) end) }
+        end;'
+
+_rf_new="$(jq -c --argjson known "$(cat "$TMP/rf_known.json")" '
+    ( $known | map({ (tostring): true }) | add // {} ) as $seen
+    | select($seen[.signature] | not)
+  ' "$TMP/rf_parsed.ndjson")"
+_rf_n="$(jq -n --argjson p "$(cat "$TMP/rf_map.json")" "$_rf_def"'
+    [ inputs | select(. != refresh_row($p)) ] | length
+  ' "$TMP/rf_store.ndjson")"
+jq -c --argjson p "$(cat "$TMP/rf_map.json")" "$_rf_def"'
+    refresh_row($p)
+  ' "$TMP/rf_store.ndjson" > "$TMP/rf_out.ndjson"
+
+assert_eq "$S" "only-unseen-is-new"     "$(printf '%s\n' "$_rf_new" | jq -r '.signature')"                                        "a4"
+assert_eq "$S" "changed-count"          "$_rf_n"                                                                                  "1"
+assert_eq "$S" "edited-elev-updated"    "$(jq -sr '.[] | select(.signature=="a1") | .total_elevation_gain' "$TMP/rf_out.ndjson")" "250"
+assert_eq "$S" "edited-name-updated"    "$(jq -sr '.[] | select(.signature=="a1") | .name' "$TMP/rf_out.ndjson")"                 "Renamed Ride"
+assert_eq "$S" "firstseen-preserved"    "$(jq -sr '.[] | select(.signature=="a1") | .firstSeen' "$TMP/rf_out.ndjson")"            "2026-06-01"
+assert_eq "$S" "athlete-preserved"      "$(jq -sr '.[] | select(.signature=="a1") | .athlete_id' "$TMP/rf_out.ndjson")"           "7"
+assert_eq "$S" "zero-elev-keeps-stored" "$(jq -sr '.[] | select(.signature=="a2") | .total_elevation_gain' "$TMP/rf_out.ndjson")" "42"
+assert_eq "$S" "unchanged-row-same"     "$(jq -sc '.[] | select(.signature=="a3")' "$TMP/rf_out.ndjson")" "$(jq -sc '.[] | select(.signature=="a3")' "$TMP/rf_store.ndjson")"
+assert_eq "$S" "row-count-unchanged"    "$(wc -l < "$TMP/rf_out.ndjson" | tr -d ' ')"                                             "3"
 
 # ── scrape-start-date ─────────────────────────────────────────────────────────
 # Mirrors the STRAVA_SCRAPE_START_DATE cutoff: activities before the date are
