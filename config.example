@@ -1,15 +1,20 @@
 # StravaStats for OpenWrt — configuration
 # Copy to /etc/strava-leaderboard.conf and `chmod 600` it (it holds secrets).
 # This file is sourced by /bin/sh, so use KEY="value" with no spaces around '='.
+#
+# The club leaderboard reads Strava's web club feed with your browser session
+# cookie. (Strava removed the Club Activities API; the old STRAVA_SOURCE,
+# STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REFRESH_TOKEN keys are no
+# longer used — an old STRAVA_SOURCE="api" line is ignored with a warning.)
 
-# --- Required: from your Strava API application -----------------------------
-# Create one at https://www.strava.com/settings/api
-STRAVA_CLIENT_ID="12345"
-STRAVA_CLIENT_SECRET="0000000000000000000000000000000000000000"
-
-# A long-lived refresh token authorized with the `activity:read` scope for a
-# user who is a member of the club. See README.md "One-time authorization".
-STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
+# --- Required: session cookie -------------------------------------------------
+# Strava uses OTP/magic-link login — automated password auth is not possible.
+# Instead, copy the _strava4_session cookie value from your already-logged-in
+# browser: DevTools → Application → Cookies → www.strava.com → _strava4_session
+# The account must be a member of the club(s) below. Sessions last ~30 days.
+# When the script reports "cookie has expired", paste a fresh value here and the
+# next run will re-verify automatically.
+STRAVA_SESSION_COOKIE="sm7ds67uj17reet9k7k54l0q83gl3oua"
 
 # One or more numeric club IDs, comma-separated. Taken from the club URL:
 # https://www.strava.com/clubs/<id>  — the number at the end is the club id.
@@ -17,36 +22,9 @@ STRAVA_REFRESH_TOKEN="0000000000000000000000000000000000000000"
 # The old single-value STRAVA_CLUB_ID is still accepted for backward compatibility.
 STRAVA_CLUB_IDS="123456,123457"
 
-# --- Data source (choose one) ------------------------------------------------
-# "api"    — default; OAuth-based, uses the Club Activities API.
-#            The Club Activities endpoint is deprecated effective 2026-09-01.
-#            Requires STRAVA_CLIENT_ID/SECRET/REFRESH_TOKEN above.
-# "scrape" — web-session-based; uses the Strava club feed endpoint directly.
-#            Switch to this after September 2026. Real activity dates + IDs.
-#            Requires STRAVA_EMAIL and STRAVA_PASSWORD below; the OAuth vars
-#            above are not used and can be left as placeholders.
-#STRAVA_SOURCE="api"
-
-# Required when STRAVA_SOURCE=scrape:
-# Strava uses OTP/magic-link login — automated password auth is not possible.
-# Instead, copy the _strava4_session cookie value from your already-logged-in
-# browser: DevTools → Application → Cookies → www.strava.com → _strava4_session
-# Sessions last ~30 days. When the script reports "cookie has expired", paste a
-# fresh value here and the next run will re-verify automatically.
-#STRAVA_SESSION_COOKIE="sm7ds67uj17reet9k7k54l0q83gl3oua"
-#
-# Cookie dry-run (STRAVA_SOURCE=api + STRAVA_SESSION_COOKIE set):
-# You can set STRAVA_SESSION_COOKIE even while still using the API source. The
-# script will verify the cookie on every run and display its status in the
-# dashboard banner — no scraped data is saved. Use this to confirm the session
-# is ready before switching to STRAVA_SOURCE=scrape after September 2026.
-
 # --- Optional ---------------------------------------------------------------
 # Ignore scraped activities whose actual start date is before this date (YYYY-MM-DD).
-# Only applies when STRAVA_SOURCE=scrape. Use this when switching from API mode to
-# avoid duplicating the overlap window: set it to ~4 weeks before the switch date so
-# the feed re-fills that window cleanly without importing old API-era entries again.
-# Comment it out (or leave empty) once the overlap period has passed.
+# Handy to skip old history on a fresh install. Comment it out (or leave empty) to keep all.
 #STRAVA_SCRAPE_START_DATE="2026-09-01"
 
 # Athletes to hide from the leaderboard — comma-separated "Firstname Lastname" values

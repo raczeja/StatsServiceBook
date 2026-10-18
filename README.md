@@ -66,6 +66,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 
 - Month/year filter, multiple clubs (`STRAVA_CLUB_IDS`), ranked by distance with avg speed
 - Per-club sections: filtered-period tiles, Top 5 year athletes, single-activity highlights (fastest / longest / most elevation), this-year summary, all-time club totals
+- Scrape-only (browser session cookie — the Strava club API no longer exists); each daily run also **refreshes stored activities that an athlete edited on Strava** (elevation, distance, title, sport), so corrections show up on the leaderboard
 - Accumulating store — deduplicated daily, filter back through full history
 
 **Personal stats**
@@ -224,7 +225,7 @@ cp docker/strava-my-activities.conf.example my-activities.conf
 
 # Optional: club leaderboard
 cp docker/strava-leaderboard.conf.example leaderboard.conf
-# edit leaderboard.conf — add CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN / CLUB_IDS
+# edit leaderboard.conf — add STRAVA_SESSION_COOKIE (from browser DevTools) and STRAVA_CLUB_IDS
 
 # Optional: HealthSync / Google Drive (Strava-API-free)
 # cp docker/healthsync-activities.conf.example healthsync.conf

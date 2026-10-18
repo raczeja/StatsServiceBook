@@ -9,7 +9,7 @@ A **router-native activity stats and bike service tracker** for OpenWrt. A set o
 | File                                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [strava-lib.sh](strava-lib.sh)                                   | Shared library: `log()`, `die()`, `ensure_access_token()`, `curl_retry()`, `fetch_weather_temp()`, `_rw_coords()`, `run_weather_backfill()`, `ensure_session_cookie()`. Sourced by both main scripts. Installed to `/usr/bin/strava-lib.sh` (0644 — not executable directly).                                                                                                           |
-| [strava-leaderboard.sh](strava-leaderboard.sh)                   | Club leaderboard: token refresh → page club feed → merge store → emit JSON → render HTML. Installed to `/usr/bin/strava-leaderboard`.                                                                                                                                                                                                                                                   |
+| [strava-leaderboard.sh](strava-leaderboard.sh)                   | Club leaderboard (scrape-only): session cookie → page club feed → merge store + refresh edited rows → emit JSON → render HTML. Installed to `/usr/bin/strava-leaderboard`.                                                                                                                                                                                                                                                   |
 | [config.example](config.example)                                 | Config template → `/etc/strava-leaderboard.conf` (holds secrets, `chmod 600`).                                                                                                                                                                                                                                                                                                          |
 | [strava-my-activities.sh](strava-my-activities.sh)               | My Activities: token refresh → page `/athlete/activities` → merge store (dedup by Strava ID) → emit JSON → source the four HTML helpers below. Installed to `/usr/bin/strava-my-activities`.                                                                                                                                                                                            |
 | [strava-my-html-dashboard.sh](strava-my-html-dashboard.sh)       | Sourced by `strava-my-activities.sh`: writes `index.html` (activities dashboard with year/month/sport filter + reset button).                                                                                                                                                                                                                                                           |
@@ -317,11 +317,14 @@ average_temp, suffer_score, elev_high, elev_low
 
 `gpx_file` is **not** in the standard Strava store record — it exists only in HealthSync store records and in detail JSONs (`$DETAIL_DIR/<id>.json`). The `activities.json` output merges in weather fields from `weather-cache.json`, gear name from detail JSONs, and `bike_id` from `bike-assignments.json`.
 
-**Key constraint:** Strava's `/clubs/{id}/activities` feed has **no dates and no
-activity IDs** — it's just _recent_ activities. The script works around this by
-accumulating a persistent store and stamping each newly seen activity with its
-**first-seen date** (today, or `STRAVA_FIRST_SEEN_DATE` for the initial seeding
-run). Dates are therefore approximate — first-seen, not performed.
+**Club leaderboard (scrape-only):** Strava removed the club activities API, so
+`strava-leaderboard.sh` only scrapes `/clubs/{id}/feed` with `STRAVA_SESSION_COOKIE`
+(a legacy `STRAVA_SOURCE` is read but ignored, with a warning). Rows are keyed by
+activity id (`signature`) and carry the real start date. Each run also **refreshes
+stored rows still in the feed** (distance, time, elevation, name, sport — athletes can
+edit activities after posting); a feed elevation of 0 never overwrites a stored one
+(Runs without an Elev Gain stat get theirs from `run_elev_cache.json`). Older
+content-hash-signature rows from the API era are left as-is.
 
 ## Bike-service tracker (the one read/WRITE page)
 
