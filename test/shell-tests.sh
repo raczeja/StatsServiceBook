@@ -1888,6 +1888,37 @@ else
     err "$S" "library-found" "could not locate strava-lib.sh"
 fi
 
+# ── render-cache-invalidation ────────────────────────────────────────────────
+# The GPS-flag cache re-scans only ids that are uncached or whose detail file is
+# newer than the cache, and prunes ids whose detail file is gone (same filters as
+# strava-my-activities.sh). HR/climb caches reset when their signature changes.
+S="render-cache-invalidation"
+_RCI="$TMP/rci"
+mkdir -p "$_RCI/details"
+for _i in 1 2 3; do printf '{}' > "$_RCI/details/$_i.json"; done
+printf '{"1":true,"2":false,"9":true}' > "$_RCI/cache.json"
+sleep 1
+printf '{"map":{}}' > "$_RCI/details/2.json"
+ls "$_RCI/details" | jq -R 'select(endswith(".json")) | rtrimstr(".json")' > "$_RCI/all.ndjson"
+find "$_RCI/details" -name '*.json' -newer "$_RCI/cache.json" \
+    | jq -R 'split("/") | last | rtrimstr(".json")' > "$_RCI/newer.ndjson"
+_todo="$(jq -nr --slurpfile all "$_RCI/all.ndjson" --slurpfile nw "$_RCI/newer.ndjson" \
+    --slurpfile c "$_RCI/cache.json" '
+    ($nw | map({(.): true}) | add // {}) as $n
+    | ($c[0] // {}) as $c
+    | $all[] | select(($c[.] == null) or $n[.])' | tr '\n' ' ')"
+assert_eq "$S" "todo-uncached-and-modified-only" "$_todo" "2 3 "
+printf '{"3":true}\n' > "$_RCI/parts.ndjson"
+_merged="$(jq -sc --slurpfile all "$_RCI/all.ndjson" '
+    ($all | map({(.): true}) | add // {}) as $keep
+    | (add // {}) | with_entries(select($keep[.key]))' "$_RCI/cache.json" "$_RCI/parts.ndjson")"
+assert_eq "$S" "merge-prunes-deleted-ids" "$_merged" '{"1":true,"2":false,"3":true}'
+_ver_ok="no"
+for _hr_lib_path in /usr/bin/strava-lib.sh /opt/strava-lib.sh "$(dirname "$0")/../strava-lib.sh"; do
+    [ -f "$_hr_lib_path" ] && grep -q '^GPX_HR_LOGIC_VERSION=[0-9]' "$_hr_lib_path" && _ver_ok="yes" && break
+done
+assert_eq "$S" "hr-logic-version-defined" "$_ver_ok" "yes"
+
 # ── set-eu-rw-coords ─────────────────────────────────────────────────────────
 # _rw_coords id gpx_file detail_dir web_dir (from strava-lib.sh) must exit 0
 # in all paths under BusyBox set -eu and must correctly prefer detail JSON,

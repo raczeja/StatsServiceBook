@@ -588,6 +588,20 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   # browser never has to load hundreds of GPX files just for the dashboard chip.
   _climb_cache="$STATE_DIR/max-climbs.json"
   [ -f "$_climb_cache" ] || printf '{}' > "$_climb_cache"
+  # Cached climbs depend on the awk algorithm (_climb_ver — bump when it changes) and
+  # the four thresholds; recompute everything only when one of them changes.
+  : "${STRAVA_MY_CLIMB_MIN_GAIN_RIDE:=25}"
+  : "${STRAVA_MY_CLIMB_MIN_DISTANCE:=100}"
+  : "${STRAVA_MY_CLIMB_MIN_GRADE_RIDE:=2}"
+  : "${STRAVA_MY_CLIMB_DESCENT_RESET:=30}"
+  _climb_ver=1
+  _climb_sig="v$_climb_ver|$STRAVA_MY_CLIMB_MIN_GAIN_RIDE|$STRAVA_MY_CLIMB_MIN_DISTANCE|$STRAVA_MY_CLIMB_MIN_GRADE_RIDE|$STRAVA_MY_CLIMB_DESCENT_RESET"
+  if [ "$(cat "$STATE_DIR/max-climbs.sig" 2>/dev/null)" != "$_climb_sig" ]; then
+    [ "$(cat "$_climb_cache")" != '{}' ] \
+      && log "render: climb logic/thresholds changed — discarding cached climbs"
+    printf '{}' > "$_climb_cache"
+    printf '%s' "$_climb_sig" > "$STATE_DIR/max-climbs.sig"
+  fi
   jq -r 'to_entries[] | select(.value.gpx_file != null) | [(.value.date // "0000-00-00"), .key, .value.gpx_file] | join(" ")' \
     "$TMP/enrich.json" 2>/dev/null | sort -ru | awk '{print $2, $3}' > "$TMP/gpx-paths.txt" || : > "$TMP/gpx-paths.txt"
   : > "$TMP/max-climbs-new.ndjson"
@@ -658,6 +672,15 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
   _hr_cache="$STATE_DIR/hr-summary.json"
   [ -f "$_hr_cache" ] || printf '{}' > "$_hr_cache"
+  # Cached summaries depend on the calculation (GPX_HR_LOGIC_VERSION) and on the
+  # athlete age (HR zones); recompute everything only when either changes.
+  _hr_sig="v${GPX_HR_LOGIC_VERSION:-1}|age=${ATHLETE_AGE:-}"
+  if [ "$(cat "$STATE_DIR/hr-summary.sig" 2>/dev/null)" != "$_hr_sig" ]; then
+    [ -s "$_hr_cache" ] && [ "$(cat "$_hr_cache")" != '{}' ] \
+      && log "render: HR logic/age changed ($_hr_sig) — discarding cached HR summaries"
+    printf '{}' > "$_hr_cache"
+    printf '%s' "$_hr_sig" > "$STATE_DIR/hr-summary.sig"
+  fi
   jq -c 'to_entries[] | {(.key): .value}' "$_hr_cache" > "$TMP/hr-summary-parts.ndjson"
   jq -s 'map({(.id | tostring): {moving_time: (.moving_time // null), max_heartrate: (.max_heartrate // null)}}) | add // {}' \
     "$STORE" > "$TMP/hr-feed-fields.json"
@@ -719,14 +742,33 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   # or mismatched .id while the file name and its GPX route match the activity.
   # Build one small record per file instead of combining input_filename with
   # inputs; that combination aborts in some router jq builds on large globs.
+  # Flags are cached in $STATE_DIR/gps-cache.json; only detail files that are new
+  # or modified since the cache was written are re-read, unless _gps_sig
+  # (bump when the flag rule below changes) differs from the stored signature.
+  _gps_cache="$STATE_DIR/gps-cache.json"
+  _gps_sig="v1"
+  if [ ! -f "$_gps_cache" ] || [ "$(cat "$STATE_DIR/gps-cache.sig" 2>/dev/null)" != "$_gps_sig" ]; then
+    printf '{}' > "$_gps_cache"
+    printf '%s' "$_gps_sig" > "$STATE_DIR/gps-cache.sig"
+  fi
+  ls "$DETAIL_DIR" | jq -R 'select(endswith(".json")) | rtrimstr(".json")' > "$TMP/gps-all-ids.ndjson"
+  find "$DETAIL_DIR" -name '*.json' -newer "$_gps_cache" \
+    | jq -R 'split("/") | last | rtrimstr(".json")' > "$TMP/gps-newer-ids.ndjson"
+  jq -nr --slurpfile all "$TMP/gps-all-ids.ndjson" --slurpfile nw "$TMP/gps-newer-ids.ndjson" \
+    --slurpfile c "$_gps_cache" '
+    ($nw | map({(.): true}) | add // {}) as $n
+    | ($c[0] // {}) as $c
+    | $all[] | select(($c[.] == null) or $n[.])
+  ' > "$TMP/gps-todo.txt"
+  _gps_todo_count="$(wc -l < "$TMP/gps-todo.txt" | tr -d ' ')"
   : > "$TMP/gps-parts.ndjson"
   _gps_detail_count=0
-  for _detail_file in "$DETAIL_DIR"/*.json; do
+  [ "$_gps_todo_count" -gt 0 ] && log "render: GPS detail: $_gps_todo_count new/changed detail files to scan"
+  while IFS= read -r _detail_id; do
+    _detail_file="$DETAIL_DIR/$_detail_id.json"
     [ -f "$_detail_file" ] || continue
-    _detail_id="${_detail_file##*/}"
-    _detail_id="${_detail_id%.json}"
     _gps_detail_count=$((_gps_detail_count + 1))
-    [ $((_gps_detail_count % 50)) -eq 0 ] && log "render: GPS detail $_gps_detail_count/$_detail_json_count"
+    [ $((_gps_detail_count % 50)) -eq 0 ] && log "render: GPS detail $_gps_detail_count/$_gps_todo_count"
     if ! jq -c --arg id "$_detail_id" '{
       ($id): (
         (((.map.polyline // "") | length) > 0)
@@ -738,11 +780,14 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
       log "warning: invalid detail JSON skipped while building GPS map: $_detail_file"
     fi
   done
-  if [ -s "$TMP/gps-parts.ndjson" ]; then
-    log "render: combining GPS flags ($_gps_detail_count/$_detail_json_count)"
-    jq -s 'add // {}' "$TMP/gps-parts.ndjson" > "$TMP/gps.json"
-  else
-    echo '{}' > "$TMP/gps.json"
+  # Cache first, fresh parts override; drop ids whose detail file no longer exists.
+  jq -s --slurpfile all "$TMP/gps-all-ids.ndjson" '
+    ($all | map({(.): true}) | add // {}) as $keep
+    | (add // {}) | with_entries(select($keep[.key]))
+  ' "$_gps_cache" "$TMP/gps-parts.ndjson" > "$TMP/gps.json"
+  if [ "$_gps_detail_count" -gt 0 ]; then
+    log "render: cached $_gps_detail_count GPS flags"
+    cp "$TMP/gps.json" "$_gps_cache"
   fi
 else
   echo '{}' > "$TMP/enrich.json"

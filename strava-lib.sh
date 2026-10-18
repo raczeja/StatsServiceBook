@@ -32,6 +32,10 @@ curl_retry() {
   done
 }
 
+# Bump when the gpx_hr_summary calculation changes: the cached summaries in
+# $STATE_DIR/hr-summary.json are discarded and recomputed once on the next run.
+GPX_HR_LOGIC_VERSION=1
+
 # gpx_hr_summary file moving_time max_heartrate athlete_age
 # Prints average HR, peak HR, and estimated HR effort as tab-separated values.
 gpx_hr_summary() {
