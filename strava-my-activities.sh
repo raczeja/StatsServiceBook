@@ -658,8 +658,12 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     printf '{"%s":%s}\n' "$_cid" "$_cval" >> "$TMP/max-climbs-new.ndjson"
     printf '%s\n' "$_cid" >> "$TMP/cached-climb-ids.txt"
     _climbs_computed=$((_climbs_computed + 1))
-    [ $((_climbs_computed % 10)) -eq 0 ] \
-      && log "render: max_single_climb $_climbs_computed/$_climbs_todo done"
+    if [ $((_climbs_computed % 10)) -eq 0 ]; then
+      log "render: max_single_climb $_climbs_computed/$_climbs_todo done"
+      # Checkpoint so a killed run (SSH drop, cron timeout) keeps its progress.
+      jq -s 'add // {}' "$TMP/max-climbs-new.ndjson" > "$_climb_cache.tmp" 2>/dev/null \
+        && mv "$_climb_cache.tmp" "$_climb_cache" || rm -f "$_climb_cache.tmp"
+    fi
   done < "$TMP/gpx-paths.txt"
   [ -s "$TMP/max-climbs-new.ndjson" ] \
     && jq -s 'add // {}' "$TMP/max-climbs-new.ndjson" > "$TMP/max-climbs.json" 2>/dev/null \
@@ -738,7 +742,12 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
       "$_hr_id" "$_hr_avg" "$_hr_max" "$_hr_effort" >> "$TMP/hr-summary-parts.ndjson"
     printf '%s\n' "$_hr_id" >> "$TMP/hr-cached-ids.txt"
     _hr_computed=$((_hr_computed + 1))
-    [ $((_hr_computed % 20)) -eq 0 ] && log "render: HR summary $_hr_computed/$_hr_plan"
+    if [ $((_hr_computed % 20)) -eq 0 ]; then
+      log "render: HR summary $_hr_computed/$_hr_plan"
+      # Checkpoint so a killed run keeps its progress.
+      jq -s 'add // {}' "$TMP/hr-summary-parts.ndjson" > "$_hr_cache.tmp" 2>/dev/null \
+        && mv "$_hr_cache.tmp" "$_hr_cache" || rm -f "$_hr_cache.tmp"
+    fi
   done < "$TMP/hr-gpx-paths.txt"
   jq -s 'add // {}' "$TMP/hr-summary-parts.ndjson" > "$TMP/hr-summary.json"
   cp "$TMP/hr-summary.json" "$_hr_cache"
