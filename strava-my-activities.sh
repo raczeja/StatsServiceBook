@@ -672,10 +672,9 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
   _hr_cache="$STATE_DIR/hr-summary.json"
   [ -f "$_hr_cache" ] || printf '{}' > "$_hr_cache"
-  # Cached summaries depend only on the calculation (GPX_HR_LOGIC_VERSION). The
-  # athlete age is deliberately NOT part of the signature: it changes every new
-  # year, and an old activity's effort should keep the age it was computed with.
-  # New activities simply use the current age.
+  # Cached summaries depend only on the calculation (GPX_HR_LOGIC_VERSION). Age is
+  # deliberately NOT part of the signature: each activity is rated with its own age
+  # (activity year - BIRTH_YEAR), so a new year never invalidates old entries.
   _hr_sig="v${GPX_HR_LOGIC_VERSION:-1}"
   if [ "$(cat "$STATE_DIR/hr-summary.sig" 2>/dev/null)" != "$_hr_sig" ]; then
     [ -s "$_hr_cache" ] && [ "$(cat "$_hr_cache")" != '{}' ] \
@@ -684,24 +683,31 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     printf '%s' "$_hr_sig" > "$STATE_DIR/hr-summary.sig"
   fi
   jq -c 'to_entries[] | {(.key): .value}' "$_hr_cache" > "$TMP/hr-summary-parts.ndjson"
-  jq -s 'map({(.id | tostring): {moving_time: (.moving_time // null), max_heartrate: (.max_heartrate // null)}}) | add // {}' \
+  jq -s 'map({(.id | tostring): {moving_time: (.moving_time // null), max_heartrate: (.max_heartrate // null), date: (.date // null)}}) | add // {}' \
     "$STORE" > "$TMP/hr-feed-fields.json"
-  jq -r --slurpfile fields "$TMP/hr-feed-fields.json" '
+  # 5th column = age on the activity's date (year - BIRTH_YEAR), 0 when unknown, so
+  # each activity is rated with the age it had then. Never empty: tab is IFS
+  # whitespace, so an empty field would shift the columns on read.
+  jq -r --argjson by "${BIRTH_YEAR:-0}" --slurpfile fields "$TMP/hr-feed-fields.json" '
     ($fields[0] // {}) as $feed
     | to_entries[]
     | select(.value.gpx_file != null and .value.average_heartrate == null)
     | [.key, .value.gpx_file,
        ($feed[.key].moving_time // .value.moving_time // 0),
-       ($feed[.key].max_heartrate // .value.max_heartrate // 0)]
+       ($feed[.key].max_heartrate // .value.max_heartrate // 0),
+       (($feed[.key].date // .value.date // "") as $d
+        | if $by > 0 and ($d | length) >= 4
+          then ((try ($d[0:4] | tonumber) catch 0) as $y | if $y > $by then $y - $by else 0 end)
+          else 0 end)]
     | @tsv
   ' "$TMP/enrich.json" 2>/dev/null \
     | sort -r > "$TMP/hr-gpx-paths.txt" || : > "$TMP/hr-gpx-paths.txt"
   jq -r 'keys[]' "$_hr_cache" > "$TMP/hr-cached-ids.txt" 2>/dev/null || : > "$TMP/hr-cached-ids.txt"
   : > "$TMP/hr-gpx-pending.txt"
   _tab="$(printf '\t')"
-  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax _hr_age; do
     if ! grep -qx "$_hr_id" "$TMP/hr-cached-ids.txt"; then
-      printf '%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" >> "$TMP/hr-gpx-pending.txt"
+      printf '%s\t%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" "$_hr_age" >> "$TMP/hr-gpx-pending.txt"
     fi
   done < "$TMP/hr-gpx-paths.txt"
   mv "$TMP/hr-gpx-pending.txt" "$TMP/hr-gpx-paths.txt"
@@ -715,11 +721,11 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_hr_plan" -gt "$_hr_batch" ] && _hr_plan="$_hr_batch"
   [ "$_hr_plan" -gt 0 ] \
     && log "render: computing GPX heart-rate summaries for $_hr_plan activities ($_hr_todo queued this run)"
-  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+  while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax _hr_age; do
     [ "$_hr_computed" -ge "$_hr_batch" ] && break
     _hr_gpx_path="$WEB_DIR/$_hr_gpx"
     [ -f "$_hr_gpx_path" ] || continue
-    _hr_values="$(gpx_hr_summary "$_hr_gpx_path" "$_hr_time" "$_hr_rawmax" "$ATHLETE_AGE" 2>/dev/null)" || _hr_values=""
+    _hr_values="$(gpx_hr_summary "$_hr_gpx_path" "$_hr_time" "$_hr_rawmax" "${_hr_age:-0}" 2>/dev/null)" || _hr_values=""
     case "$_hr_values" in
       *"$_tab"*) ;;
       *) _hr_values="null${_tab}null${_tab}null" ;;

@@ -1849,17 +1849,22 @@ assert_eq "$S" "scrape-mode-no-feedtestok" "$(printf '%s' "$_scrape_meta" | jq '
 # ── gpx-heart-rate-summary ────────────────────────────────────────────────────
 S="gpx-heart-rate-summary"
 _tab="$(printf '\t')"
-printf '17469224282\tgpx/17469224282.gpx\t9339\t0\n' > "$TMP/hr-gpx-queue.tsv"
+printf '17469224282\tgpx/17469224282.gpx\t9339\t0\t36\n' > "$TMP/hr-gpx-queue.tsv"
 : > "$TMP/hr-gpx-cached.txt"
 : > "$TMP/hr-gpx-pending.tsv"
-while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax; do
+while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax _hr_age; do
     if ! grep -qx "$_hr_id" "$TMP/hr-gpx-cached.txt"; then
-        printf '%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" >> "$TMP/hr-gpx-pending.tsv"
+        printf '%s\t%s\t%s\t%s\t%s\n' "$_hr_id" "$_hr_gpx" "$_hr_time" "$_hr_rawmax" "$_hr_age" >> "$TMP/hr-gpx-pending.tsv"
     fi
 done < "$TMP/hr-gpx-queue.tsv"
 assert_eq "$S" "queue-preserves-id" "$(cut -f1 "$TMP/hr-gpx-pending.tsv")" "17469224282"
 assert_eq "$S" "queue-preserves-gpx-path" "$(cut -f2 "$TMP/hr-gpx-pending.tsv")" "gpx/17469224282.gpx"
 assert_eq "$S" "queue-preserves-moving-time" "$(cut -f3 "$TMP/hr-gpx-pending.tsv")" "9339"
+assert_eq "$S" "queue-preserves-age" "$(cut -f5 "$TMP/hr-gpx-pending.tsv")" "36"
+_age_of() { jq -nr --argjson by "$1" --arg d "$2" 'if $by > 0 and ($d | length) >= 4 then ((try ($d[0:4] | tonumber) catch 0) as $y | if $y > $by then $y - $by else 0 end) else 0 end'; }
+assert_eq "$S" "age-on-activity-date" "$(_age_of 1990 2024-06-01T10:00:00Z)" "34"
+assert_eq "$S" "age-unknown-without-birth-year" "$(_age_of 0 2024-06-01T10:00:00Z)" "0"
+assert_eq "$S" "age-unknown-without-date" "$(_age_of 1990 '')" "0"
 _hr_lib=""
 for _hr_lib_path in \
     /usr/bin/strava-lib.sh \
