@@ -228,7 +228,47 @@ cat > "$WEB_DIR/offline.js" <<'JS'
   document.addEventListener('visibilitychange', function () { if (!document.hidden) probe(); });
   setInterval(function () { if (!document.hidden) probe(); }, 20000);
 
+  // Auto-refresh: pages that define window.onDataChanged get called when a sync has
+  // rewritten activities.json. Detected with a cheap HEAD (ETag / Last-Modified / size),
+  // every 60 s while the tab is visible and again when it becomes visible. The first
+  // check only records the baseline; coming back online after being offline counts as a
+  // change because the page may have been rendered from the cache.
+  var dataSig = null, wasOff = false, POLL_MS = 60000, toast = null;
+  function showToast(msg) {
+    if (!document.body) return;
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'data-toast';
+      toast.style.cssText = 'position:fixed;right:.8rem;top:.8rem;z-index:99998;background:#166534;color:#fff;' +
+        'font:600 .8rem system-ui,Arial,sans-serif;padding:.4rem .7rem;border-radius:6px;opacity:0;transition:opacity .3s';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    setTimeout(function () { if (toast) toast.style.opacity = '0'; }, 4000);
+  }
+  function fireDataChanged() {
+    try { Promise.resolve(window.onDataChanged()).then(function () { showToast('Data updated'); }, function () {}); }
+    catch (e) {}
+  }
+  function checkData() {
+    if (off || document.hidden || typeof window.onDataChanged !== 'function') return;
+    rawFetch('activities.json', { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) return;
+        var s = (r.headers.get('ETag') || '') + '|' + (r.headers.get('Last-Modified') || '') + '|' + (r.headers.get('Content-Length') || '');
+        var changed = dataSig !== null && s !== dataSig;
+        if (wasOff) { wasOff = false; changed = true; }
+        dataSig = s;
+        if (changed) fireDataChanged();
+      }).catch(function () {});
+  }
+  window.addEventListener('routerstatus', function (e) { if (e.detail.offline) wasOff = true; else checkData(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkData(); });
+  setInterval(checkData, POLL_MS);
+
   document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(checkData, 3000);   // record the baseline signature
     if (off) { showBar(true); showClubLink(); }
     if (cfg.rw && window.MutationObserver) {
       var pend = false;
