@@ -590,8 +590,10 @@ function serviceQueueHtml(){
       }
     });
   });
-  var hasOverdue=items.some(function(item){return item.pct>=100;});
-  if(!hasOverdue) return "";
+  // Same 90% threshold the email alert uses as its warning tier (strava-my-bike-alert.sh);
+  // shown regardless of whether email alerts are enabled.
+  var hasDue=items.some(function(item){return item.pct>=90;});
+  if(!hasDue) return "";
   items.sort(function(a,b){
     if(a.pct!==b.pct) return b.pct-a.pct;
     var bikeOrder=a.bike.name.localeCompare(b.bike.name);
