@@ -1614,9 +1614,31 @@ test.describe("activity-detail-multiclimb", () => {
     ).toBeTruthy();
   });
 
+  test("direction-arrows-on-map", async () => {
+    // Chevrons along the route show the direction of travel.
+    const n = await page.$$eval(
+      ".leaflet-marker-pane svg path[fill='#fc4c02']",
+      (els) => els.length,
+    );
+    expect(n >= 2, `expected direction arrows on the map, got ${n}`).toBeTruthy();
+  });
+
+  test("hide-climbs-button-toggles-climb-layers", async () => {
+    const btn = page.locator(".climb-toggle-btn");
+    await expect(btn).toHaveText("Hide climbs");
+    await btn.click();
+    await expect(btn).toHaveText("Show climbs");
+    const disp = await page.$eval(".leaflet-climb-pane", (e) => getComputedStyle(e).display);
+    expect(disp).toBe("none");
+    await btn.click();
+    await expect(btn).toHaveText("Hide climbs");
+    const disp2 = await page.$eval(".leaflet-climb-pane", (e) => getComputedStyle(e).display);
+    expect(disp2).not.toBe("none");
+  });
+
   test("both-climbs-drawn-on-map", async () => {
     // Each climb is drawn as its own blue (#1565c0) polyline over the orange route.
-    const n = await page.$$eval(".leaflet-overlay-pane path", (els) =>
+    const n = await page.$$eval(".leaflet-overlay-pane path, .leaflet-climb-pane path", (els) =>
       els.filter(
         (p) =>
           (p.getAttribute("stroke") || "").toLowerCase() === "#1565c0",
@@ -1761,7 +1783,7 @@ test.describe("activity-detail-multiclimb", () => {
     const r = await page.evaluate(() => {
       const bands = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#29b6f6"];
       const strokes = Array.from(
-        document.querySelectorAll(".leaflet-overlay-pane path"),
+        document.querySelectorAll(".leaflet-overlay-pane path, .leaflet-climb-pane path"),
       ).map((p) => (p.getAttribute("stroke") || "").toLowerCase());
       const bandHits = new Set(strokes.filter((s) => bands.includes(s)));
       return {

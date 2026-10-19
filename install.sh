@@ -153,9 +153,9 @@ fi
 # the files the leaderboard generates into the relocated web dir.
 if [ "$LB_WEB" != "/www/strava" ]; then
   LB_CLUB_IDS="$(conf_val "$CONF" STRAVA_CLUB_IDS "$(conf_val "$CONF" STRAVA_CLUB_ID "")")"
-  echo "==> linking /www/strava/{activities.json,index.html,sw.js,offline.js,leaderboard-sync-status.json,leaderboard-sync-live.log,leaderboard-sync-running,leaderboard_<club>.json} -> $LB_WEB"
+  echo "==> linking /www/strava/{activities.json,index.html,sw.js,offline.js,manifest.webmanifest,icon-192.png,icon-512.png,leaderboard-sync-status.json,leaderboard-sync-live.log,leaderboard-sync-running,leaderboard_<club>.json} -> $LB_WEB"
   mkdir -p /www/strava "$LB_WEB"
-  for f in activities.json index.html sw.js offline.js leaderboard-sync-status.json leaderboard-sync-live.log leaderboard-sync-running; do
+  for f in activities.json index.html sw.js offline.js manifest.webmanifest icon-192.png icon-512.png leaderboard-sync-status.json leaderboard-sync-live.log leaderboard-sync-running; do
     [ -e "/www/strava/$f" ] && [ ! -L "/www/strava/$f" ] && rm -f "/www/strava/$f"
     ln -sfn "$LB_WEB/$f" "/www/strava/$f"
   done

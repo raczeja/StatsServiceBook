@@ -30,10 +30,9 @@ awk '/^cat > "\$WEB_DIR\/stats\.html" <<.HTML.$/{f=1;next}    /^HTML$/{f=0} f' "
 awk '/^cat > "\$WEB_DIR\/heatmap\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$HEATMAP" > "$WEB/heatmap.html"
 awk '/^cat > "\$WEB_DIR\/data-quality\.html" <<.HTML.$/{f=1;next} /^HTML$/{f=0} f' "$DATA_QUALITY" > "$WEB/data-quality.html"
 # Offline layer (service worker + shared client script) for both page trees.
-for _d in "$WEB" "$CLUB_WEB"; do
-  awk '/^cat > "\$WEB_DIR\/sw\.js" <<.JS.$/{f=1;next}      /^JS$/{f=0} f' "$OFFLINE" > "$_d/sw.js"
-  awk '/^cat > "\$WEB_DIR\/offline\.js" <<.JS.$/{f=1;next} /^JS$/{f=0} f' "$OFFLINE" > "$_d/offline.js"
-done
+# (sourced, so sw.js/offline.js/manifest.webmanifest/icon.svg come out exactly as in production)
+( WEB_DIR="$WEB"; log() { :; }; . "$OFFLINE" )
+( WEB_DIR="$CLUB_WEB"; PWA_NAME="Club Leaderboard"; PWA_SHORT_NAME="Club"; log() { :; }; . "$OFFLINE" )
 {
   printf '%s\n' '<!doctype html><html lang="en"><head>'
   printf '<script>var _CFG={defaultBikeName:""};</script>\n'

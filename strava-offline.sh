@@ -18,9 +18,12 @@ var LEAFLET = [
 // Same-origin shell; entries that do not exist for this scope (e.g. activity.html
 // in the club leaderboard dir) are simply skipped.
 var SHELL = ['./', 'index.html', 'activity.html', 'bike.html', 'stats.html', 'heatmap.html',
-  'data-quality.html', 'offline.js', 'activities.json', 'heatmap.json', 'drive-status.json',
+  'data-quality.html', 'offline.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'activities.json', 'heatmap.json', 'drive-status.json',
   '/cgi-bin/bike-service', '/cgi-bin/bike-assign', '/cgi-bin/ride-goals'];
-var CGI_READ = /^\/cgi-bin\/(bike-service|bike-assign|ride-goals)$/;
+// My Activities (/strava/me/) links to the club leaderboard one level up. That page is
+// outside this worker's scope, so pre-cache it here (shared cache) for the offline link.
+if (/\/me\/sw\.js$/.test(self.location.pathname)) SHELL.push('../');
+var CGI_READ =/^\/cgi-bin\/(bike-service|bike-assign|ride-goals)$/;
 var SKIP = /\.(log)$|-running$|sync-status\.json$|sync-live/;
 var CROSS = /(^|\.)(unpkg\.com|tile\.openstreetmap\.org|basemaps\.cartocdn\.com)$/;
 
@@ -134,6 +137,19 @@ cat > "$WEB_DIR/offline.js" <<'JS'
   var cfg = window.OFFLINE_CFG || {}, off = false, bar = null, timer = null;
   var rawFetch = window.fetch ? window.fetch.bind(window) : null;
   if (!rawFetch || location.protocol === 'file:') return;
+
+  // Installable web app: add manifest + theme + iOS icon tags once per page.
+  if (!document.querySelector('link[rel="manifest"]') && document.head) {
+    [['link', { rel: 'manifest', href: 'manifest.webmanifest' }],
+     ['link', { rel: 'apple-touch-icon', href: 'icon-192.png' }],
+     ['meta', { name: 'theme-color', content: '#fc4c02' }],
+     ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
+     ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }]].forEach(function (t) {
+      var el = document.createElement(t[0]);
+      for (var k in t[1]) el.setAttribute(k, t[1][k]);
+      document.head.appendChild(el);
+    });
+  }
 
   if ('serviceWorker' in navigator && window.isSecureContext)
     navigator.serviceWorker.register('sw.js').catch(function () {});
@@ -269,7 +285,8 @@ cat > "$WEB_DIR/offline.js" <<'JS'
 
   document.addEventListener('DOMContentLoaded', function () {
     setTimeout(checkData, 3000);   // record the baseline signature
-    if (off) { showBar(true); showClubLink(); }
+    if (off) showBar(true);
+    showClubLink();   // don't wait for the offline probe: a cached club page is enough
     if (cfg.rw && window.MutationObserver) {
       var pend = false;
       new MutationObserver(function () {
@@ -284,4 +301,26 @@ cat > "$WEB_DIR/offline.js" <<'JS'
 })();
 JS
 
-log "wrote $WEB_DIR/sw.js and $WEB_DIR/offline.js"
+# --- Installable web app (PWA): manifest + icons ----------------------------------
+# offline.js injects <link rel="manifest"> so the pages need no per-file edits.
+# Caller may set PWA_NAME / PWA_SHORT_NAME / PWA_THEME (leaderboard does); defaults suit My Activities.
+_pwa_name="${PWA_NAME:-My Activities}"
+_pwa_theme="${PWA_THEME:-#fc4c02}"
+_pwa_short="${PWA_SHORT_NAME:-Activities}"
+jq -n --arg n "$_pwa_name" --arg s "$_pwa_short" --arg c "$_pwa_theme" '{
+  name: $n, short_name: $s, start_url: "./", scope: "./", display: "standalone",
+  background_color: "#111111", theme_color: $c,
+  icons: [
+    {src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any"},
+    {src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any"},
+    {src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable"}
+  ]
+}' > "$WEB_DIR/manifest.webmanifest"
+
+# Chrome/Android only accepts PNG icons (192 + 512) for installability. These are
+# 1-bit palette PNGs (orange square, three white bars; full-bleed, glyph inside the
+# maskable safe zone) written byte-exact with printf octal escapes: no extra tools.
+printf '\211\120\116\107\015\012\032\012\000\000\000\015\111\110\104\122\000\000\000\300\000\000\000\300\001\003\000\000\000\150\022\376\104\000\000\000\006\120\114\124\105\374\114\002\377\377\377\360\203\073\174\000\000\000\061\111\104\101\124\170\332\355\311\061\022\000\020\020\004\101\367\163\136\276\002\271\000\211\252\356\160\246\065\000\270\125\111\067\214\223\121\311\060\214\315\130\325\060\214\067\003\340\133\023\131\060\245\347\034\210\203\112\000\000\000\000\111\105\116\104\256\102\140\202' > "$WEB_DIR/icon-192.png"
+printf '\211\120\116\107\015\012\032\012\000\000\000\015\111\110\104\122\000\000\002\000\000\000\002\000\001\003\000\000\000\316\266\106\271\000\000\000\006\120\114\124\105\374\114\002\377\377\377\360\203\073\174\000\000\000\153\111\104\101\124\170\332\355\314\261\011\000\100\010\300\100\367\137\132\341\373\027\354\004\357\372\044\002\000\000\000\000\000\000\000\000\000\000\356\312\307\300\300\300\300\300\300\300\300\300\300\300\300\300\300\340\027\032\030\030\030\030\030\030\030\030\030\030\030\030\030\030\364\241\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\201\301\356\001\000\000\000\000\000\000\000\000\023\005\207\040\202\013\012\256\353\072\000\000\000\000\111\105\116\104\256\102\140\202' > "$WEB_DIR/icon-512.png"
+
+log "wrote $WEB_DIR/sw.js, offline.js, manifest.webmanifest and icon-192.png/icon-512.png"

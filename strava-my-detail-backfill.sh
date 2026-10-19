@@ -388,16 +388,23 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
   # in without re-fetching the detail.  Skips known-no-GPS and already-pending.
   if [ "$STRAVA_SOURCE" = "scrape" ] && [ -d "$DETAIL_DIR" ]; then
     _gpx_queued=0
-    for _dj in "$DETAIL_DIR"/*.json; do
+    # One jq over all detail files (a jq per file took ~30 s on the router for ~500 files).
+    # A unparseable file just ends the listing early; the weather pass quarantines those.
+    if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
+      jq -r 'select((.gpx_file // "") == "") | input_filename' "$DETAIL_DIR"/*.json \
+        > "$TMP/nogpx_details.txt" 2>/dev/null || true
+    else
+      : > "$TMP/nogpx_details.txt"
+    fi
+    while IFS= read -r _dj; do
       [ -f "$_dj" ] || continue
       _did="$(basename "$_dj" .json)"
-      jq -e '.gpx_file' "$_dj" >/dev/null 2>&1 && continue
       [ -f "$WEB_DIR/gpx/$_did.gpx" ] && continue
       grep -qxF "$_did" "$STATE_DIR/gpx-no-gps.txt" 2>/dev/null && continue
       grep -qxF "$_did" "$STATE_DIR/gpx-pending.txt" 2>/dev/null && continue
       echo "$_did" >> "$STATE_DIR/gpx-pending.txt"
       _gpx_queued=$((_gpx_queued + 1))
-    done
+    done < "$TMP/nogpx_details.txt"
     [ "$_gpx_queued" -gt 0 ] && log "detail backfill: queued $_gpx_queued historical activities for GPX download"
   fi
 

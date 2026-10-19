@@ -441,6 +441,38 @@ document.addEventListener("scroll", function(e) {
 
 // --- Google encoded-polyline decoder ---------------------------------------
 // Returns an array of [lat, lng] pairs. Standard precision-5 algorithm.
+// Direction chevrons along the route (like Strava). Placed at a fixed on-screen
+// spacing and rebuilt on zoom, so density stays constant at every zoom level.
+function addDirectionArrows(map, pts){
+  if (!pts || pts.length < 2) return;
+  var group = L.layerGroup().addTo(map);
+  var SPACING = 90;
+  function rebuild(){
+    group.clearLayers();
+    var z = map.getZoom(), prev = map.project(pts[0], z), acc = SPACING / 2, i;
+    for (i = 1; i < pts.length; i++) {
+      var cur = map.project(pts[i], z), dx = cur.x - prev.x, dy = cur.y - prev.y;
+      var seg = Math.sqrt(dx*dx + dy*dy);
+      if (seg < 0.5) continue;
+      var ang = Math.atan2(dy, dx) * 180 / Math.PI, pos = 0;
+      while (acc + (seg - pos) >= SPACING) {
+        pos += SPACING - acc; acc = 0;
+        var f = pos / seg;
+        var ll = map.unproject(L.point(prev.x + dx * f, prev.y + dy * f), z);
+        L.marker(ll, { interactive: false, keyboard: false, icon: L.divIcon({
+          className: "", iconSize: [16, 16], iconAnchor: [8, 8],
+          html: '<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(' + ang.toFixed(1) + 'deg);display:block;pointer-events:none">'
+              + '<path d="M4 2 L12 8 L4 14 L7 8 Z" fill="#fc4c02" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>'
+        }) }).addTo(group);
+      }
+      acc += seg - pos;
+      prev = cur;
+    }
+  }
+  map.on("zoomend", rebuild);
+  rebuild();
+}
+
 function decodePolyline(str){
   var pts = [], i = 0, lat = 0, lng = 0;
   while (i < str.length) {
@@ -835,14 +867,15 @@ function renderClimbGradientOnMap(climb){
   for (i = 0; i < lat.length; i++) all.push([lat[i], lon[i]]);
   // One continuous dark casing for the whole climb, then one coloured polyline per
   // contiguous same-colour run (keeps the layer count low and the bands solid).
-  layers.push(L.polyline(all, { color: "#1a1a1a", weight: 9, opacity: 0.9, lineJoin: "round", lineCap: "round" }));
+  var gp = _climbMap.getPane("climbPane") ? "climbPane" : "overlayPane";
+  layers.push(L.polyline(all, { pane: gp, color: "#1a1a1a", weight: 9, opacity: 0.9, lineJoin: "round", lineCap: "round" }));
   var r = 0;
   while (r < segCols.length) {
     var rc = segCols[r], rEnd = r;
     while (rEnd + 1 < segCols.length && segCols[rEnd + 1] === rc) rEnd++;
     var runPts = [];
     for (j = r; j <= rEnd + 1; j++) runPts.push([lat[j], lon[j]]);
-    layers.push(L.polyline(runPts, { color: rc, weight: 5, opacity: 1, lineJoin: "round", lineCap: "round" }));
+    layers.push(L.polyline(runPts, { pane: gp, color: rc, weight: 5, opacity: 1, lineJoin: "round", lineCap: "round" }));
     r = rEnd + 1;
   }
   _climbGradLayer = L.layerGroup(layers).addTo(_climbMap);
@@ -926,6 +959,9 @@ function renderCards(d){
   } else if (d.average_cadence && isFoot(sport)) {
     html += cardTip("Steps", Math.round(d.average_cadence * 2 * d.moving_time / 60).toLocaleString(),
       "Estimated total steps: avg cadence (strides/min) × 2 × moving time.");
+  } else if (d.distance > 0 && (sport === "Walk" || sport === "Hike")) {
+    html += cardTip("Steps", Math.round(d.distance / 0.75).toLocaleString(),
+      "Estimated total steps: distance ÷ 0.75 m average walking stride (no step or cadence data from Strava).");
   }
   if (d.average_watts)     html += card("Avg power", Math.round(d.average_watts) + " W");
   // Normalized power (weighted average) + Variability Index = NP / avg.
@@ -1587,6 +1623,8 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
         enableCoopGestures(map);
         var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: 0.9 }).addTo(map);
         leafletLine = line;
+        map.fitBounds(line.getBounds());
+        addDirectionArrows(map, pts);
         // Draw every qualifying climb (blue). The biggest gets a heavier line and
         // drives the initial zoom; when more than one is found the climb markers are
         // numbered ("Climb 2 …") to match the card's ‹ › switcher. Line layers are
@@ -1594,17 +1632,20 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
         var climbs = findClimbs(trackPts, sport);
         var climbLines = [];
         _climbMap = map; _climbLines = {};
+        // All climb overlays live in their own pane so the "Hide climbs" button can
+        // toggle them with one style change.
+        map.createPane("climbPane").style.zIndex = 450;
         if (climbs.length) {
           for (var ci = 0; ci < climbs.length; ci++) {
             var c = climbs[ci];
             var isBiggest = (ci === 0);
             var label = climbs.length > 1 ? "Climb " + c.idx : "Climb";
-            var cl = L.polyline(pts.slice(c.start, c.end + 1), { color: "#1565c0", weight: isBiggest ? 7 : 5, opacity: 0.9 }).addTo(map);
+            var cl = L.polyline(pts.slice(c.start, c.end + 1), { color: "#1565c0", weight: isBiggest ? 7 : 5, opacity: 0.9, pane: "climbPane" }).addTo(map);
             climbLines.push(cl);
             _climbLines[c.idx] = cl;
-            L.circleMarker(pts[c.start], { radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
+            L.circleMarker(pts[c.start], { pane: "climbPane", radius: 6, color: "#2e7d32", fillColor: "#66bb6a", fillOpacity: 1 })
               .bindTooltip(label + " start", {permanent:false}).addTo(map);
-            L.circleMarker(pts[c.end], { radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
+            L.circleMarker(pts[c.end], { pane: "climbPane", radius: 6, color: "#b71c1c", fillColor: "#ef5350", fillOpacity: 1 })
               .bindTooltip(label + " summit", {permanent:false}).addTo(map);
           }
           updateLongestClimbCard(climbs, trackPts);
@@ -1627,18 +1668,31 @@ function renderGpxMap(gpxUrl, sport, maxSingleClimb){
           .bindTooltip("Start", { permanent: true, direction: "top", className: "route-endpoint-tip" }).addTo(map);
         L.circleMarker(pts[pts.length-1], { radius: 8, color: "#ffffff", weight: 2, fillColor: "#111111", fillOpacity: 1 })
           .bindTooltip("Finish", { permanent: true, direction: "top", className: "route-endpoint-tip" }).addTo(map);
-        // "Full route" button — only shown when map is zoomed to the climbs
+        // "Full route" + "Hide climbs" buttons — only when the route has climbs
         if (climbGroup) {
           var fullBtn = L.control({ position: "bottomleft" });
           fullBtn.onAdd = function() {
-            var d = L.DomUtil.create("button", "");
+            var wrap = L.DomUtil.create("div", "");
+            var bs = "background:var(--btn-bg,rgba(255,255,255,.9));border:1px solid var(--border-2,#ccc);border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15);margin-right:.3rem";
+            var d = L.DomUtil.create("button", "", wrap);
             d.innerHTML = "Full route";
-            d.style.cssText = "background:var(--btn-bg,rgba(255,255,255,.9));border:1px solid var(--border-2,#ccc);border-radius:.3rem;padding:.2rem .5rem;font-size:.78rem;cursor:pointer;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.15)";
+            d.style.cssText = bs;
             L.DomEvent.on(d, "click", function(e) {
               L.DomEvent.stop(e);
               map.fitBounds(line.getBounds(), { padding: [20, 20] });
             });
-            return d;
+            var hb = L.DomUtil.create("button", "climb-toggle-btn", wrap);
+            hb.innerHTML = "Hide climbs";
+            hb.style.cssText = bs;
+            var hidden = false;
+            L.DomEvent.on(hb, "click", function(e) {
+              L.DomEvent.stop(e);
+              hidden = !hidden;
+              map.getPane("climbPane").style.display = hidden ? "none" : "";
+              hb.innerHTML = hidden ? "Show climbs" : "Hide climbs";
+            });
+            L.DomEvent.disableClickPropagation(wrap);
+            return wrap;
           };
           fullBtn.addTo(map);
         }
@@ -1937,6 +1991,7 @@ function renderMap(d){
     var line = L.polyline(pts, { color: "#fc4c02", weight: 4, opacity: .9 }).addTo(map);
     leafletLine = line;
     map.fitBounds(line.getBounds(), { padding: [20, 20] });
+    addDirectionArrows(map, pts);
     L.circleMarker(pts[0], { radius: 5, color: "#2e7d32", fillColor: "#2e7d32", fillOpacity: 1 }).addTo(map);
     L.circleMarker(pts[pts.length-1], { radius: 5, color: "#c62828", fillColor: "#c62828", fillOpacity: 1 }).addTo(map);
     // The container may have just become visible; re-measure so tiles fill it.

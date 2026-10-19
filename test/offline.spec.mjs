@@ -24,6 +24,24 @@ test.describe("offline mode", () => {
     expect(scope).toBe(BASE + "/");
   });
 
+  test("both page trees are installable (manifest linked, valid, icon served)", async ({ page, request }) => {
+    for (const [url, name] of [[URLS.dash, "My Activities"], [BASE.replace(/\/me$/, "") + "/", "Club Leaderboard"]]) {
+      await page.goto(url);
+      const href = await page.locator('link[rel="manifest"]').getAttribute("href");
+      expect(href).toBe("manifest.webmanifest");
+      const m = await (await request.get(new URL(href, page.url()).href)).json();
+      expect(m.name).toBe(name);
+      expect(m.display).toBe("standalone");
+      for (const sz of ["192x192", "512x512"]) {
+        const ic = m.icons.find((i) => i.sizes === sz && i.type === "image/png");
+        expect(ic, `PNG icon ${sz}`).toBeTruthy();
+        const res = await request.get(new URL(ic.src, page.url()).href);
+        expect(res.ok()).toBe(true);
+        expect((await res.body()).subarray(1, 4).toString()).toBe("PNG");
+      }
+    }
+  });
+
   test("a single failed reachability probe does not show the offline banner", async ({ page }) => {
     let heads = 0;
     await page.route("**/offline.js", (route) => {
@@ -123,12 +141,13 @@ test.describe("offline mode", () => {
   });
 
   test("club leaderboard link stays visible on My Activities pages offline", async ({ page, context }) => {
-    await primed(page, URLS.club); // caches the club page
+    // Only My Activities is visited: its service worker must pre-cache the club page itself.
     await primed(page, URLS.dash);
     await context.setOffline(true);
     await page.reload();
-    await expect(page.locator("#offline-bar")).toBeVisible();
-    await expect(page.locator("#leaderboard-link")).toBeVisible();
+    // Must appear right away, not only after the probe has shown the offline banner.
+    await expect(page.locator("#leaderboard-link")).toBeVisible({ timeout: 3000 });
+    await expect(page.locator("#offline-bar")).toHaveCount(0);
     await page.locator("#leaderboard-link").click();
     await expect(page).toHaveURL(URLS.club.replace(/index\.html$/, ""));
     await context.setOffline(false);

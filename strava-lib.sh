@@ -196,6 +196,14 @@ run_weather_backfill() {
   _rw_p1_unc=$(jq -s --slurpfile c "$_rw_cache" \
       '[.[] | select(.id as $i | ((($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == "")) and ($c[0][$i].s != "no-coord"))] | length' "$_rw_tmp/rw1.ndjson")
   log "weather: Pass 1 — $_rw_p1_unc to fetch of $_rw_p1_total null-temp..."
+  # Loop only over uncached rows (looping all rows with ~4 jq each took minutes for ~500).
+  if [ "$_rw_p1_unc" -gt 0 ]; then
+    jq -c --slurpfile c "$_rw_cache" \
+        'select(.id as $i | ((($c[0][$i]|type) != "object") or ($c[0][$i].t == null) or ($c[0][$i].s == "")) and ($c[0][$i].s != "no-coord"))' \
+        "$_rw_tmp/rw1.ndjson" > "$_rw_tmp/rw1u.ndjson"
+  else
+    : > "$_rw_tmp/rw1u.ndjson"
+  fi
   _rw_p1_fetched=0 _rw_p1_nocoord=0 _rw_p1_fail=0 _rw_p1_tried=0
   while [ "$_rw_p1_unc" -gt 0 ] && IFS= read -r _rwe; do
     _wid=$(printf '%s' "$_rwe"  | jq -r '.id')
@@ -228,7 +236,7 @@ run_weather_backfill() {
     if [ $((_rw_p1_fetched % 25)) -eq 0 ]; then
       log "weather: Pass 1 — $_rw_p1_fetched/$_rw_p1_unc fetched, $_rw_p1_rem remaining..."
     fi
-  done < "$_rw_tmp/rw1.ndjson"
+  done < "$_rw_tmp/rw1u.ndjson"
   log "weather: Pass 1 done — +$_rw_p1_fetched fetched, $_rw_p1_nocoord no-coord, $_rw_p1_fail api-fail, $(jq 'length' "$_rw_cache") total cached"
   _rw_changed=$((_rw_changed + _rw_p1_fetched))
 
@@ -238,19 +246,26 @@ run_weather_backfill() {
   if ls "$_rw_ddir"/*.json >/dev/null 2>&1; then
     : > "$_rw_tmp/rw2_details.ndjson"
     _rw_detail_count=0 _rw_detail_invalid=0
-    for _rw_detail_file in "$_rw_ddir"/*.json; do
-      [ -f "$_rw_detail_file" ] || continue
-      _rw_detail_count=$((_rw_detail_count + 1))
-      if jq -c 'select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}' \
-          "$_rw_detail_file" >> "$_rw_tmp/rw2_details.ndjson" 2>/dev/null; then
-        :
-      else
-        _rw_detail_invalid=$((_rw_detail_invalid + 1))
-        log "warning: weather skipped invalid detail JSON: $_rw_detail_file"
-        mv "$_rw_detail_file" "$_rw_detail_file.invalid"
-      fi
-      [ $((_rw_detail_count % 100)) -eq 0 ] && log "weather: Pass 2 checked $_rw_detail_count detail files"
-    done
+    # Fast path: one jq over every detail file (per-file jq was ~30 s for ~500 files).
+    # Only if it fails (some file is invalid JSON) fall back to the per-file loop
+    # that finds and quarantines the bad file(s).
+    if ! jq -c 'select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}' \
+        "$_rw_ddir"/*.json > "$_rw_tmp/rw2_details.ndjson" 2>/dev/null; then
+      : > "$_rw_tmp/rw2_details.ndjson"
+      for _rw_detail_file in "$_rw_ddir"/*.json; do
+        [ -f "$_rw_detail_file" ] || continue
+        _rw_detail_count=$((_rw_detail_count + 1))
+        if jq -c 'select(.id != null and .average_temp != null) | {(.id|tostring): .average_temp}' \
+            "$_rw_detail_file" >> "$_rw_tmp/rw2_details.ndjson" 2>/dev/null; then
+          :
+        else
+          _rw_detail_invalid=$((_rw_detail_invalid + 1))
+          log "warning: weather skipped invalid detail JSON: $_rw_detail_file"
+          mv "$_rw_detail_file" "$_rw_detail_file.invalid"
+        fi
+        [ $((_rw_detail_count % 100)) -eq 0 ] && log "weather: Pass 2 checked $_rw_detail_count detail files"
+      done
+    fi
     [ "$_rw_detail_invalid" -gt 0 ] && \
       log "weather: Pass 2 quarantined $_rw_detail_invalid invalid detail JSON file(s)"
     jq -s 'add // {}' \
@@ -265,6 +280,13 @@ run_weather_backfill() {
   _rw_p2_unc=$(jq -s --slurpfile c "$_rw_cache" \
       '[.[] | select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].ws == null))] | length' "$_rw_tmp/rw2.ndjson")
   log "weather: Pass 2 — $_rw_p2_unc to enrich of $_rw_p2_total has-temp..."
+  if [ "$_rw_p2_unc" -gt 0 ]; then
+    jq -c --slurpfile c "$_rw_cache" \
+        'select(.id as $i | (($c[0][$i]|type) != "object") or ($c[0][$i].ws == null))' \
+        "$_rw_tmp/rw2.ndjson" > "$_rw_tmp/rw2u.ndjson"
+  else
+    : > "$_rw_tmp/rw2u.ndjson"
+  fi
   _rw_p2_fetched=0
   while [ "$_rw_p2_unc" -gt 0 ] && IFS= read -r _rwe; do
     _wid=$(printf '%s' "$_rwe"  | jq -r '.id')
@@ -288,7 +310,7 @@ run_weather_backfill() {
     if [ $((_rw_p2_fetched % 25)) -eq 0 ]; then
       log "weather: Pass 2 — $_rw_p2_fetched/$_rw_p2_unc enriched..."
     fi
-  done < "$_rw_tmp/rw2.ndjson"
+  done < "$_rw_tmp/rw2u.ndjson"
   if [ "$_rw_p2_fetched" -gt 0 ]; then
     log "weather: Pass 2 done — enriched $_rw_p2_fetched activities with extended fields"
     _rw_changed=$((_rw_changed + _rw_p2_fetched))

@@ -3303,58 +3303,36 @@ S="skip-render-guard"
         "$(_run_skip 0 "$_sr_td/web" "$_sr_td/assign.json" "$_sr_td/scripts")" "0"
 }
 
-# ── heatmap-skip-guard ────────────────────────────────────────────────────────
-# Verifies the heatmap.json skip logic in strava-my-html-heatmap.sh using
-# controlled file timestamps.  Logic is replicated inline so the test is
-# self-contained and runs without GPX data or credentials.
-S="heatmap-skip-guard"
+# ── heatmap-incremental-cache ────────────────────────────────────────────────
+# Sources the real strava-my-html-heatmap.sh against a tiny fixture: only GPX
+# files missing from heatmap-cache.ndjson are sampled; cached ones are not re-read.
+S="heatmap-incremental-cache"
 {
-    _hsg_td="$TMP/heatmap_skip"
-    mkdir -p "$_hsg_td/web/gpx" "$_hsg_td/scripts"
-
-    # Inline the skip condition from strava-my-html-heatmap.sh.
-    # Returns 1 if heatmap.json would be skipped, 0 if it would be regenerated.
-    _hm_would_skip() {
-        _hsg_web="$1" _hsg_lib="$2"
-        _hm_skip=0
-        if [ -f "$_hsg_web/heatmap.json" ] && [ -d "$_hsg_web/gpx" ]; then
-            _hm_newer="$(find "$_hsg_web/gpx" -name '*.gpx' -newer "$_hsg_web/heatmap.json" 2>/dev/null | head -1)"
-            _hm_self="$_hsg_lib/strava-my-html-heatmap.sh"
-            if [ -z "$_hm_newer" ] && ! [ "$_hm_self" -nt "$_hsg_web/heatmap.json" ]; then
-                _hm_skip=1
-            fi
-        fi
-        printf '%s' "$_hm_skip"
+    _hic_td="$TMP/heatmap_inc"
+    rm -rf "$_hic_td"; mkdir -p "$_hic_td/web/gpx" "$_hic_td/state" "$_hic_td/tmp"
+    _hic_gpx() { # file lat
+        printf '<gpx><trk><trkseg><trkpt lat="%s" lon="17.0"></trkpt></trkseg></trk></gpx>' "$2" > "$1"
     }
-
-    # Base state: heatmap.json exists, one GPX file older than it, script older than it.
-    printf '[]' > "$_hsg_td/web/heatmap.json"
-    touch -t 202601010200 "$_hsg_td/web/heatmap.json"
-    printf 'x'  > "$_hsg_td/web/gpx/123.gpx"
-    touch -t 202601010100 "$_hsg_td/web/gpx/123.gpx"
-    printf 'x'  > "$_hsg_td/scripts/strava-my-html-heatmap.sh"
-    touch -t 202601010100 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
-
-    assert_eq "$S" "skips-when-quiet" \
-        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "1"
-
-    # New GPX file newer than heatmap.json → must regenerate
-    printf 'x' > "$_hsg_td/web/gpx/456.gpx"
-    touch -t 202601010300 "$_hsg_td/web/gpx/456.gpx"
-    assert_eq "$S" "no-skip-when-new-gpx" \
-        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
-    rm "$_hsg_td/web/gpx/456.gpx"
-
-    # Script newer than heatmap.json → must regenerate even with no new GPX
-    touch -t 202601010300 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
-    assert_eq "$S" "no-skip-when-script-updated" \
-        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
-    touch -t 202601010100 "$_hsg_td/scripts/strava-my-html-heatmap.sh"
-
-    # No heatmap.json at all → must generate from scratch
-    rm "$_hsg_td/web/heatmap.json"
-    assert_eq "$S" "no-skip-when-no-heatmap-json" \
-        "$(_hm_would_skip "$_hsg_td/web" "$_hsg_td/scripts")" "0"
+    _hic_gpx "$_hic_td/web/gpx/1.gpx" 51.1
+    _hic_gpx "$_hic_td/web/gpx/2.gpx" 52.2
+    printf '{"activities":[{"id":1,"date":"2026-01-01","sport_type":"Ride"},{"id":2,"date":"2026-01-02","sport_type":"Run"},{"id":3,"date":"2026-01-03","sport_type":"Ride"}]}' \
+        > "$_hic_td/web/activities.json"
+    _hic_run() ( WEB_DIR="$_hic_td/web" STATE_DIR="$_hic_td/state" TMP="$_hic_td/tmp"
+        log() { :; }
+        . /usr/bin/strava-my-html-heatmap.sh >/dev/null 2>&1 )
+    _hic_run
+    assert_eq "$S" "builds-two-activities" "$(jq 'length' "$_hic_td/web/heatmap.json")" "2"
+    assert_eq "$S" "cache-has-both-plus-nogps-free" "$(grep -c . "$_hic_td/state/heatmap-cache.ndjson")" "2"
+    # Tamper with the GPX of #1: a cached entry must NOT be re-read.
+    _hic_gpx "$_hic_td/web/gpx/1.gpx" 40.0
+    _hic_gpx "$_hic_td/web/gpx/3.gpx" 53.3
+    _hic_run
+    assert_eq "$S" "new-gpx-added" "$(jq 'length' "$_hic_td/web/heatmap.json")" "3"
+    assert_eq "$S" "cached-gpx-not-reread" "$(jq -r '[.[]|select(.d=="2026-01-01")][0].p[0][0]*10|round' "$_hic_td/web/heatmap.json")" "511"
+    # Version bump (simulated) invalidates the cache and re-samples everything.
+    printf '0' > "$_hic_td/state/heatmap-cache.ver"
+    _hic_run
+    assert_eq "$S" "version-change-resamples" "$(jq -r '[.[]|select(.d=="2026-01-01")][0].p[0][0]*10|round' "$_hic_td/web/heatmap.json")" "400"
 }
 
 # ── yearly-email-jq ──────────────────────────────────────────────────────────
@@ -3861,6 +3839,20 @@ done
 if grep -q "SOFT = " "$_off_tmp/sw.js" && grep -q "setTimeout(function () { finish(m); }, SOFT)" "$_off_tmp/sw.js"; then ok "$S" "sw-serves-cache-after-soft-timeout"; else err "$S" "sw-serves-cache-after-soft-timeout" "soft-timeout race missing"; fi
 if grep -q "req.method !== 'GET'" "$_off_tmp/sw.js"; then ok "$S" "sw-ignores-non-get"; else err "$S" "sw-ignores-non-get" "SW must not touch POST"; fi
 if grep -q "OFFLINE_CFG" "$_off_tmp/offline.js" && grep -q "HEAD" "$_off_tmp/offline.js"; then ok "$S" "offline-js-cfg-and-probe"; else err "$S" "offline-js-cfg-and-probe" "missing OFFLINE_CFG or HEAD probe"; fi
+# PWA manifest + icon (default = My Activities; PWA_NAME overrides for the leaderboard).
+if jq -e '.name=="My Activities" and .display=="standalone" and .start_url=="./" and (.icons|length)>0' "$_off_tmp/manifest.webmanifest" >/dev/null 2>&1; then ok "$S" "manifest-default"; else err "$S" "manifest-default" "invalid or wrong fields"; fi
+for _sz in 192 512; do
+    # PNG signature + IHDR width must survive the printf round-trip byte-exact (Chrome rejects broken icons).
+    _sig="$(head -c 8 "$_off_tmp/icon-$_sz.png" | od -An -tx1 | tr -d ' \n')"
+    _w="$(dd if="$_off_tmp/icon-$_sz.png" bs=1 skip=16 count=4 2>/dev/null | od -An -tu1 | tr -s ' ' | sed 's/^ //')"
+    if [ "$_sig" = "89504e470d0a1a0a" ] && [ "$_w" = "0 0 $((_sz / 256)) $((_sz % 256))" ]; then ok "$S" "icon-$_sz-valid-png"; else err "$S" "icon-$_sz-valid-png" "sig=$_sig width=$_w"; fi
+done
+if jq -e '[.icons[]|select(.type=="image/png")|.sizes]|index("192x192")!=null and index("512x512")!=null' "$_off_tmp/manifest.webmanifest" >/dev/null 2>&1 && jq -e '[.icons[].purpose]|index("maskable")!=null' "$_off_tmp/manifest.webmanifest" >/dev/null 2>&1; then ok "$S" "manifest-png-192-512-maskable"; else err "$S" "manifest-png-192-512-maskable" "Chrome needs PNG 192+512"; fi
+_off_tmp2="$(mktemp -d)"
+( WEB_DIR="$_off_tmp2"; PWA_NAME="Club Leaderboard"; PWA_SHORT_NAME="Club"; log() { :; }; . "$_off_src" ) >/dev/null 2>&1
+if jq -e '.name=="Club Leaderboard" and .short_name=="Club"' "$_off_tmp2/manifest.webmanifest" >/dev/null 2>&1; then ok "$S" "manifest-pwa-name-override"; else err "$S" "manifest-pwa-name-override" "PWA_NAME not honoured"; fi
+rm -rf "$_off_tmp2"
+if grep -q "manifest.webmanifest" "$_off_tmp/sw.js" && grep -q "rel: 'manifest'" "$_off_tmp/offline.js"; then ok "$S" "manifest-linked-and-cached"; else err "$S" "manifest-linked-and-cached" "offline.js must inject link, sw.js must cache it"; fi
 rm -rf "$_off_tmp"
 
 # ── script-syntax-check ──────────────────────────────────────────────────────
@@ -4970,6 +4962,72 @@ fi
 printf '%s\n' '{"firstname":"Ann","lastname":""}' >> "$_bf_store"
 _bf_any="$(grep -c '"lastname":""' "$_bf_store" 2>/dev/null | tr -d ' \n')"
 assert_eq "$S" "unhealed-store-counts-blanks" "$_bf_any" "1"
+
+# ── skip-render-backlog ───────────────────────────────────────────────────────
+# Runs the REAL strava-my-activities against a seeded store (curl stubbed to an
+# empty feed, so ADDED stays 0) with a tiny climb batch. A run that stops at the
+# batch limit must not record scripts.md5, otherwise the next no-change run logs
+# "skipping re-render" and the queued climbs/HR summaries are never worked off.
+S="skip-render-backlog"
+
+_rb_main=""
+for _p in /usr/bin/strava-my-activities "$(dirname "$0")/../strava-my-activities.sh"; do
+    [ -f "$_p" ] && _rb_main="$_p" && break
+done
+_rb="$TMP/rb"
+mkdir -p "$_rb/web/details" "$_rb/web/gpx" "$_rb/state" "$_rb/cgi" "$_rb/tmp" "$_rb/fakebin"
+printf '#!/bin/sh\nprintf "[]"\n' > "$_rb/fakebin/curl"
+chmod 0755 "$_rb/fakebin/curl"
+cat > "$_rb/conf" <<CONF
+STRAVA_CLIENT_ID="x"
+STRAVA_CLIENT_SECRET="x"
+STRAVA_REFRESH_TOKEN="x"
+STRAVA_MY_WEB_DIR="$_rb/web"
+STRAVA_MY_STATE_DIR="$_rb/state"
+STRAVA_MY_CGI_DIR="$_rb/cgi"
+STRAVA_MY_DETAIL_MAX_PER_RUN=0
+STRAVA_MY_GPX_MAX_PER_RUN=0
+STRAVA_CLIMB_BATCH=2
+CONF
+printf '{"access_token":"t","refresh_token":"r","expires_at":%s}' "$(( $(date +%s) + 86400 ))" \
+    > "$_rb/state/token.json"
+_rb_gpx=""
+for _p in /opt/multiclimb-sample.gpx "$(dirname "$0")/multiclimb-sample.gpx"; do
+    [ -f "$_p" ] && _rb_gpx="$_p" && break
+done
+for _i in 1 2 3 4 5; do
+    _id=$((9000 + _i))
+    printf '{"id":%s,"date":"2026-08-0%s","name":"R%s","sport_type":"Ride","distance":1000,"moving_time":600,"elapsed_time":600,"total_elevation_gain":100,"average_speed":2,"max_speed":4,"average_temp":15}\n' \
+        "$_id" "$_i" "$_i" >> "$_rb/state/activities.ndjson"
+    printf '{"id":%s,"gpx_file":"gpx/%s.gpx"}' "$_id" "$_id" > "$_rb/web/details/$_id.json"
+    cp "$_rb_gpx" "$_rb/web/gpx/$_id.gpx"
+done
+_rb_run() {
+    PATH="$_rb/fakebin:$PATH" TMPDIR="$_rb/tmp" STRAVA_MY_CONFIG="$_rb/conf" \
+        sh "$_rb_main" > "$_rb/run$1.log" 2>&1 < /dev/null || true
+}
+_rb_has() { grep -q "$2" "$_rb/run$1.log" && printf yes || printf no; }
+
+if [ -z "$_rb_main" ]; then
+    err "$S" "script-found" "strava-my-activities not found"
+else
+    _rb_run 1
+    assert_eq "$S" "run1-computes-first-batch" "$(_rb_has 1 'computing max_single_climb for 5 GPX')" "yes"
+    assert_eq "$S" "run1-reports-backlog" "$(_rb_has 1 'climb batch limit 2 reached; 3 activities queued')" "yes"
+    assert_eq "$S" "backlog-leaves-no-scripts-md5" \
+        "$([ -f "$_rb/state/scripts.md5" ] && printf yes || printf no)" "no"
+    _rb_run 2
+    assert_eq "$S" "run2-not-skipped-with-backlog" "$(_rb_has 2 'skipping re-render')" "no"
+    assert_eq "$S" "run2-continues-backlog" "$(_rb_has 2 'computing max_single_climb for 3 GPX')" "yes"
+    _rb_run 3
+    assert_eq "$S" "run3-finishes-backlog" "$(_rb_has 3 'computing max_single_climb for 1 GPX')" "yes"
+    assert_eq "$S" "all-climbs-cached" "$(jq 'length' "$_rb/state/max-climbs.json")" "5"
+    assert_eq "$S" "drained-backlog-records-scripts-md5" \
+        "$([ -f "$_rb/state/scripts.md5" ] && printf yes || printf no)" "yes"
+    assert_eq "$S" "gps-flags-cached-from-todo-list" "$(jq 'length' "$_rb/state/gps-cache.json")" "5"
+    _rb_run 4
+    assert_eq "$S" "run4-skips-when-nothing-to-do" "$(_rb_has 4 'skipping re-render')" "yes"
+fi
 
 # ── summary ───────────────────────────────────────────────────────────────────
 

@@ -796,7 +796,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     }' "$_detail_file" >> "$TMP/gps-parts.ndjson"; then
       log "warning: invalid detail JSON skipped while building GPS map: $_detail_file"
     fi
-  done
+  done < "$TMP/gps-todo.txt"
   # Cache first, fresh parts override; drop ids whose detail file no longer exists.
   jq -s --slurpfile all "$TMP/gps-all-ids.ndjson" '
     ($all | map({(.): true}) | add // {}) as $keep
@@ -917,7 +917,13 @@ log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/stats.html and 
 # shellcheck disable=SC1090
 . "$STRAVA_LIBDIR/strava-my-html-heatmap.sh"
 
-printf '%s\n' "$_scripts_md5" > "$STATE_DIR/scripts.md5"
+# Batch-limited caches (climbs, HR) may still have a backlog. Don't record the
+# scripts hash then, so the next run isn't skipped and keeps working through it.
+if [ "${_climbs_remaining:-0}" -gt 0 ] || [ "${_hr_remaining:-0}" -gt 0 ]; then
+  rm -f "$STATE_DIR/scripts.md5"
+else
+  printf '%s\n' "$_scripts_md5" > "$STATE_DIR/scripts.md5"
+fi
 
 fi  # _skip_render
 
