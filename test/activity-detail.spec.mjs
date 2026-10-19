@@ -2199,3 +2199,31 @@ test.describe("heatmap", () => {
     ).toBeTruthy();
   });
 });
+
+// ── Activity Detail (Walk — distance-based steps fallback) ────────────────────
+
+test.describe("activity-detail-walk-no-cadence", () => {
+  test("steps-card-falls-back-to-distance-estimate", async ({ browser }) => {
+    const page = await browser.newPage();
+    // Strip step_count / cadence so only distance remains: 5384.7 m / 0.75 ≈ 7180 steps.
+    await page.route("**/details/3.json*", async (route) => {
+      const res = await route.fetch();
+      const d = await res.json();
+      delete d.step_count;
+      delete d.average_cadence;
+      await route.fulfill({ response: res, json: d });
+    });
+    await page.goto(URLS.activityWalk, { waitUntil: "load", timeout: 20000 });
+    await page.waitForFunction(
+      () => document.getElementById("content")?.style.display !== "none",
+      { timeout: 10000 },
+    );
+    const text = await page.$eval(".cards", (el) => el.textContent);
+    const digits = text.replace(/[,.\s]/g, "");
+    expect(
+      text.includes("Steps") && digits.includes("7180"),
+      `expected distance-based Steps (7180): ${text.slice(0, 300)}`,
+    ).toBeTruthy();
+    await page.close();
+  });
+});

@@ -125,6 +125,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 - A service worker (`sw.js`) caches the pages, `activities.json`, bike data and any activity details you have opened, so the club leaderboard, My Activities, opened activity details, stats and the bike page stay readable when the phone is away from your home Wi-Fi
 - While the router is unreachable a banner is shown and every control that writes to the router (bike assignment, bike-service edits, ride goals, sync / cookie / email buttons) is disabled; they re-enable automatically when the router is back
 - Browsers only allow service workers on secure origins, so open the pages via `https://<router>/strava/me/` (uhttpd with a locally trusted certificate) — plain `http://<ip>` works as before but without offline support. Setup steps: [Operations → Offline access](https://github.com/raczeja/StatsServiceBook/wiki/Operations). With Docker, `http://localhost:PORT` works as is; for other hosts put an HTTPS reverse proxy in front.
+- The pages are installable: `offline.js` injects a web manifest (`manifest.webmanifest`, PNG icons 192/512), so browsers offer "Install app" / "Add to Home screen" (same HTTPS requirement); the club leaderboard installs as "Club Leaderboard"
 - Map tiles are cached only for areas you have already viewed
 
 **Cron self-healing** (via `strava-cron-guard`)
