@@ -480,7 +480,7 @@ function render(){
 
   meta.innerHTML = "Sport: "+esc(sport)+" · "+clubs.length+" club(s) · "+
     totalActs+" activities · "+fmtKm(totalDist)+" km total · "+esc(label)+
-    " · generated "+esc(DATA.generatedAt||"");
+    "";
   board.innerHTML = html;
   if(typeof window._lbSecAfterRender==='function')window._lbSecAfterRender();
 }

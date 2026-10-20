@@ -3318,7 +3318,7 @@ S="heatmap-incremental-cache"
     printf '{"activities":[{"id":1,"date":"2026-01-01","sport_type":"Ride"},{"id":2,"date":"2026-01-02","sport_type":"Run"},{"id":3,"date":"2026-01-03","sport_type":"Ride"}]}' \
         > "$_hic_td/web/activities.json"
     _hic_run() ( WEB_DIR="$_hic_td/web" STATE_DIR="$_hic_td/state" TMP="$_hic_td/tmp"
-        log() { :; }
+        log() { echo "$*" >> "$_hic_td/log.txt"; }
         . /usr/bin/strava-my-html-heatmap.sh >/dev/null 2>&1 )
     _hic_run
     assert_eq "$S" "builds-two-activities" "$(jq 'length' "$_hic_td/web/heatmap.json")" "2"
@@ -3333,6 +3333,49 @@ S="heatmap-incremental-cache"
     printf '0' > "$_hic_td/state/heatmap-cache.ver"
     _hic_run
     assert_eq "$S" "version-change-resamples" "$(jq -r '[.[]|select(.d=="2026-01-01")][0].p[0][0]*10|round' "$_hic_td/web/heatmap.json")" "400"
+    # Unchanged state (activity #3 has no GPX at first, #1/#2/#3 cached): nothing to
+    # sample, assembly skipped — and the GPX-less activity is not listed as "new".
+    rm -f "$_hic_td/web/gpx/3.gpx" "$_hic_td/log.txt"
+    printf '{"activities":[{"id":1,"date":"2026-01-01","sport_type":"Ride"},{"id":2,"date":"2026-01-02","sport_type":"Run"},{"id":4,"date":"2026-01-04","sport_type":"Ride"}]}' \
+        > "$_hic_td/web/activities.json"
+    _hic_run
+    assert_eq "$S" "no-gpx-activity-not-sampled" "$(grep -c 'sampling' "$_hic_td/log.txt" || true)" "0"
+    rm -f "$_hic_td/log.txt"; _hic_run
+    assert_eq "$S" "unchanged-run-skips-assembly" "$(grep -c 'up-to-date' "$_hic_td/log.txt" || true)" "1"
+    printf '{"activities":[{"id":1,"date":"2026-02-01","sport_type":"Ride"},{"id":2,"date":"2026-01-02","sport_type":"Run"}]}' \
+        > "$_hic_td/web/activities.json"
+    _hic_run
+    assert_eq "$S" "activity-list-change-reassembles" "$(jq -r '[.[]|select(.d=="2026-02-01")]|length' "$_hic_td/web/heatmap.json")" "1"
+}
+
+# ── name-override-id-keys ────────────────────────────────────────────────────
+# The manual-override jq in strava-leaderboard.sh accepts first-name keys and
+# "id:<athlete_id>" keys; the id key wins and is safe for shared first names.
+S="name-override-id-keys"
+{
+    _noi_prog='
+      [.[] | ($ov["id:" + ((.athlete_id // "") | tostring)] // "") as $byid
+           | ($ov[.firstname // ""] // "") as $byfn
+           | (if ($byid | length) > 0 then $byid else $byfn end) as $ln
+           | if ($ln | length) > 0
+             then . + {lastname: $ln}
+             else . end] | .[]'
+    # drift guard: the production script must still contain this exact expression
+    if grep -qF '$ov["id:" + ((.athlete_id // "") | tostring)]' /usr/bin/strava-leaderboard \
+       && grep -qF '(if ($byid | length) > 0 then $byid else $byfn end) as $ln' /usr/bin/strava-leaderboard; then
+        ok "$S" "script-contains-id-override-logic"
+    else
+        err "$S" "script-contains-id-override-logic" "override jq in strava-leaderboard.sh drifted from test"
+    fi
+    _noi_store='{"firstname":"Adrian","lastname":"","athlete_id":"111"}
+{"firstname":"Adrian","lastname":"","athlete_id":"222"}
+{"firstname":"Adrian","lastname":""}
+{"firstname":"Marta","lastname":"K.","athlete_id":"333"}'
+    _noi_out() { printf '%s\n' "$_noi_store" | jq -sc --argjson ov "$1" "$_noi_prog" | jq -sr 'map(.lastname) | join(",")'; }
+    assert_eq "$S" "firstname-key-applies-to-all" "$(_noi_out '{"Adrian":"Zuk"}')" "Zuk,Zuk,Zuk,K."
+    assert_eq "$S" "id-key-only-hits-that-athlete" "$(_noi_out '{"id:111":"Zuk"}')" "Zuk,,,K."
+    assert_eq "$S" "id-key-beats-firstname-key" "$(_noi_out '{"Adrian":"Nowak","id:222":"Zuk"}')" "Nowak,Zuk,Nowak,K."
+    assert_eq "$S" "empty-overrides-noop" "$(_noi_out '{}')" ",,,K."
 }
 
 # ── yearly-email-jq ──────────────────────────────────────────────────────────

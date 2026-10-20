@@ -460,9 +460,9 @@ function addDirectionArrows(map, pts){
         var f = pos / seg;
         var ll = map.unproject(L.point(prev.x + dx * f, prev.y + dy * f), z);
         L.marker(ll, { interactive: false, keyboard: false, icon: L.divIcon({
-          className: "", iconSize: [16, 16], iconAnchor: [8, 8],
-          html: '<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(' + ang.toFixed(1) + 'deg);display:block;pointer-events:none">'
-              + '<path d="M4 2 L12 8 L4 14 L7 8 Z" fill="#fc4c02" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>'
+          className: "", iconSize: [20, 20], iconAnchor: [10, 10],
+          html: '<svg width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(' + ang.toFixed(1) + 'deg);display:block;pointer-events:none">'
+              + '<path d="M4 3 L16 10 L4 17 L8 10 Z" fill="#fc4c02" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'
         }) }).addTo(group);
       }
       acc += seg - pos;

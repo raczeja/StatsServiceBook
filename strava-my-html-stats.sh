@@ -222,7 +222,7 @@ function progressDone(){
   var wait=350-Math.min(350,Date.now()-_pbarT0);
   if(wait>0){setTimeout(_progressFinish,wait);}else{_progressFinish();}
 }
-var DATA = null, ALL_ACTS = [], genStr = "";
+var DATA = null, ALL_ACTS = [];
 var selSport = "Ride", selYear = "";
 var ATHLETE_AGE = 0;
 var CLIMB_GAIN_BY_SPORT = {"Ride":25,"Run":5,"Hike":10,"Walk":3,"Other":10};
@@ -903,7 +903,7 @@ function render(){
   var _period = isAll ? fmtPeriod(ALL_ACTS) : "";
   if(ALL_ACTS.length){
     document.getElementById("meta").textContent =
-      ALL_ACTS.length+" activities"+(_period?" · "+_period:"")+genStr;
+      ALL_ACTS.length+" activities"+(_period?" · "+_period:"");
   }
   document.getElementById("dowSubtitle").innerHTML = "— selected sport · " + (isAll ? "all years" : selYear);
   document.getElementById("sportSubtitle").innerHTML = "— " + (isAll ? "all time"+(_period?" · "+_period:"") : selYear);
@@ -1327,7 +1327,6 @@ function load(keep){
         if([].some.call(_ys.options,function(o){return o.value===String(_kept.y);})){ selYear=_kept.y; _ys.value=selYear; selMonth=_kept.m; }
       }
 
-      genStr=d.generatedAt?" · updated "+d.generatedAt.slice(0,10):"";
       progressDone();
       // load goals in parallel; render immediately, then re-render with goal data
       render();

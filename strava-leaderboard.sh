@@ -138,6 +138,7 @@ STAMP="$(date '+%Y%m%d')"
 # Write club IDs one-per-line so iteration avoids a pipe subshell.
 printf '%s\n' "$STRAVA_CLUB_IDS" | tr ',' '\n' > "$TMP/club_ids.txt"
 : > "$TMP/clubs_manifest.txt"
+_lb_changed=0   # set to 1 when any club's output was re-emitted this run
 
 while IFS= read -r club_id; do
   club_id="$(printf '%s' "$club_id" | tr -d ' \t')"
@@ -438,6 +439,24 @@ while IFS= read -r club_id; do
   cat "$TMP/new.ndjson" >> "$CLUB_STORE"
   log "club $club_id: +$ADDED new, $(wc -l < "$CLUB_STORE" | tr -d ' ') total"
 
+  # Skip the name/id healing passes below when they cannot change anything: no new
+  # rows, no edited rows, and the store, overrides file, this script and the calendar
+  # day are all identical to the end of the last run (which left the store healed).
+  # Each pass re-reads the whole store with jq (~3 s each on the router); the day in
+  # the fingerprint forces one full pass per day, which also retries the
+  # leaderboard-endpoint surname lookup.
+  _heal_sigfile="$STATE_DIR/heal_${club_id}.sig"
+  _heal_sig_now() {
+    printf '%s' "$(md5sum < "$CLUB_STORE")$(md5sum 2>/dev/null < "$STATE_DIR/name-overrides.json")$(md5sum < "$0")$(date +%Y%m%d)" | md5sum | cut -d' ' -f1
+  }
+  _heal_skip=0
+  if [ "$ADDED" -eq 0 ] && [ "$_rf_n" -eq 0 ] && [ -f "$_heal_sigfile" ] \
+     && [ "$(cat "$_heal_sigfile" 2>/dev/null)" = "$(_heal_sig_now)" ]; then
+    _heal_skip=1
+    log "club $club_id: store unchanged since last run — skipping name/id healing passes"
+  fi
+  if [ "$_heal_skip" -eq 0 ]; then
+
   # Backfill: for scrape mode, patch any existing store entries that have a blank
   # lastname or missing profile_medium, using name/avatar data from the current
   # feed.  This self-heals entries stored before the Activity-entity lastName fix.
@@ -684,19 +703,25 @@ while IFS= read -r club_id; do
   fi
 
   # Manual name overrides: $STATE_DIR/name-overrides.json
-  # Format: {"Firstname": "Lastname"} — applied last, wins over all automatic sources.
-  # Useful for athletes whose full name Strava never returns in any feed or endpoint.
+  # Format: {"Firstname": "Lastname", "id:12345678": "Lastname"} — applied last, wins
+  # over all automatic sources. An "id:<athlete_id>" key beats a first-name key, so it
+  # is safe when two athletes share a first name. Useful for athletes whose full name
+  # Strava never returns in any feed or endpoint.
   _nm_override="$STATE_DIR/name-overrides.json"
   if [ -f "$_nm_override" ] && jq -e 'type == "object"' "$_nm_override" >/dev/null 2>&1; then
     jq -sc --argjson ov "$(cat "$_nm_override")" '
-      [.[] | if ($ov[.firstname] // "" | length) > 0
-             then . + {lastname: $ov[.firstname]}
+      [.[] | ($ov["id:" + ((.athlete_id // "") | tostring)] // "") as $byid
+           | ($ov[.firstname // ""] // "") as $byfn
+           | (if ($byid | length) > 0 then $byid else $byfn end) as $ln
+           | if ($ln | length) > 0
+             then . + {lastname: $ln}
              else . end] | .[]
     ' "$CLUB_STORE" > "$TMP/store_nm_override_${club_id}.ndjson" \
       && mv "$TMP/store_nm_override_${club_id}.ndjson" "$CLUB_STORE" \
       && log "club $club_id: applied manual name overrides from name-overrides.json" \
       || log "WARNING: club $club_id: manual name override jq failed"
   fi
+  fi  # _heal_skip
 
   # Backfill: for scrape mode, fetch elevation from individual activity pages
   # for Run activities where the club feed only shows pace as stat_two.
@@ -773,11 +798,32 @@ while IFS= read -r club_id; do
     fi
   fi
 
+  # Record the fingerprint of the final store (after elevation + purge, the last
+  # writers) so the next unchanged run can skip the healing passes.
+  _heal_sig_now > "$_heal_sigfile"
+
   # Rebuild the grep-filtered view of the store after merge (new entries are valid
   # jq output so they pass the filter; the check prevents any pre-existing bad
   # lines from reaching jq's NDJSON parser in 5a/5b).
   grep '^{.*}$' "$CLUB_STORE" > "$TMP/store_${club_id}.json" 2>/dev/null \
     || : > "$TMP/store_${club_id}.json"
+
+  # Unchanged club: when the store, club info, this script, the grouping knobs and
+  # the calendar day (daily snapshot) all match the last emit, 5a/5b would produce
+  # the same output — reuse this club's block from the existing activities.json
+  # instead of re-running two whole-store jq passes and rewriting the snapshot.
+  _out_sigfile="$STATE_DIR/out_${club_id}.sig"
+  _out_sig="$(printf '%s' "$(md5sum < "$TMP/store_${club_id}.json")$(md5sum < "$TMP/club_info_${club_id}.json")$(md5sum < "$0")$SPORT_LC|$EXCLUDE_ATHLETES|$MERGE_ATHLETES|$STAMP" | md5sum | cut -d' ' -f1)"
+  if [ "$(cat "$_out_sigfile" 2>/dev/null)" = "$_out_sig" ] \
+     && [ -f "$WEB_DIR/leaderboard_${club_id}.json" ] && [ -f "$WEB_DIR/activities.json" ] \
+     && jq -ce --arg id "$club_id" '.clubs[]? | select(.clubId == $id)' "$WEB_DIR/activities.json" \
+          > "$TMP/clubdata_${club_id}.json" 2>/dev/null \
+     && [ -s "$TMP/clubdata_${club_id}.json" ]; then
+    log "club $club_id: unchanged since last run — reusing existing leaderboard output"
+    printf '%s\n' "$club_id" >> "$TMP/clubs_manifest.txt"
+    continue
+  fi
+  _lb_changed=1
 
   # 5a. Emit per-club activities temp file (assembled into activities.json below).
   jq -s --arg clubId "$club_id" --arg sport "$SPORT_LC" \
@@ -874,6 +920,7 @@ while IFS= read -r club_id; do
     rm -f "$f"
   done
 
+  printf '%s' "$_out_sig" > "$_out_sigfile"
   printf '%s\n' "$club_id" >> "$TMP/clubs_manifest.txt"
 done < "$TMP/club_ids.txt"
 
@@ -895,6 +942,16 @@ if [ "$_sc_age" -gt 0 ]; then
     cookieRefreshNeededBy:(($ts + 2592000) | todate | split("T")[0])
   }')"
 fi
+
+# Skip aggregation + HTML render when no club was re-emitted, the render scripts are
+# unchanged (so are the cookie-expiry metadata and the outputs on disk).
+_lb_rsig="$(printf '%s' "$(md5sum < "$STRAVA_LIBDIR/strava-leaderboard-html.sh")$(md5sum < "$STRAVA_LIBDIR/strava-offline.sh")$(md5sum < "$STRAVA_LIBDIR/strava-lib.sh")$_sc_meta" | md5sum | cut -d' ' -f1)"
+_lb_skip=0
+if [ "$_lb_changed" -eq 0 ] && [ -f "$WEB_DIR/index.html" ] && [ -f "$WEB_DIR/activities.json" ]    && [ "$(cat "$STATE_DIR/render.sig" 2>/dev/null)" = "$_lb_rsig" ]; then
+  _lb_skip=1
+  log "no club changed and render scripts unchanged — skipping aggregation and render"
+fi
+if [ "$_lb_skip" -eq 0 ]; then
 
 log "aggregating leaderboard JSON..."
 # shellcheck disable=SC2086
@@ -918,5 +975,8 @@ log "wrote $WEB_DIR/activities.json and per-club leaderboard JSON (snapshot $STA
 PWA_NAME="Club Leaderboard"
 PWA_SHORT_NAME="Club"
 . "$STRAVA_LIBDIR/strava-offline.sh"
+printf '%s' "$_lb_rsig" > "$STATE_DIR/render.sig"
+
+fi  # _lb_skip
 
 log "done."

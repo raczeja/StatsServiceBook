@@ -1408,9 +1408,8 @@ function render(){
   }).join("");
   bt += '<button class="tab add" onclick="showAddBike()">＋ Add bike</button>';
   document.getElementById("bikes").innerHTML = bt;
-  var gen = (ACT && ACT.generatedAt) ? (" · rides as of " + esc(ACT.generatedAt.slice(0,10))) : "";
   document.getElementById("meta").innerHTML =
-    RIDES.length + " outdoor rides found in activities.json" + gen +
+    RIDES.length + " outdoor rides found in activities.json" +
     (MODEL.updatedAt ? " · saved " + esc(String(MODEL.updatedAt).slice(0,10)) : "");
 
   var b = curBike();

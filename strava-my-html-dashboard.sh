@@ -210,15 +210,6 @@ function fmtTime(s){
 function fmtInt(n){
   return Math.round(n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
-// ISO/UTC timestamp -> local "YYYY-MM-DD HH:MM" (no seconds).
-function fmtGenerated(iso){
-  if (!iso) return "";
-  var d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  function p(n){ return (n<10?"0":"")+n; }
-  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+
-    " "+p(d.getHours())+":"+p(d.getMinutes());
-}
 // Inclusive calendar span between two "YYYY-MM-DD" dates -> "1 year 3 months".
 function fmtSpan(first, last){
   if (!first || !last) return "";
@@ -569,7 +560,7 @@ function render(){
     if (a.date){ if (!first || a.date < first) first = a.date; if (!last || a.date > last) last = a.date; }
   });
 
-  metaEl.innerHTML = esc(label)+" &middot; "+rows.length+" activities &middot; generated "+esc(fmtGenerated(DATA.generatedAt||""));
+  metaEl.innerHTML = esc(label)+" &middot; "+rows.length+" activities";
 
   var yearRows = (DATA.activities || []).filter(function(a) {
     if (!a.date) return false;

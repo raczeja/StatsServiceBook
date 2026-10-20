@@ -12,6 +12,7 @@
 _hm_ver=1
 _hm_cache="${STATE_DIR:-$WEB_DIR}/heatmap-cache.ndjson"
 _hm_verfile="${STATE_DIR:-$WEB_DIR}/heatmap-cache.ver"
+_hm_sigfile="${STATE_DIR:-$WEB_DIR}/heatmap-cache.sig"
 log "html: writing heatmap.json..."
 # heatmap.json: [{d:"YYYY-MM-DD", s:"Ride", p:[[lat,lng],...]}]
 # Source: activities.json for GPX paths, dates and sport types; every 10th trkpt.
@@ -24,21 +25,27 @@ if [ -f "$WEB_DIR/activities.json" ]; then
   [ -f "$_hm_cache" ] || : > "$_hm_cache"
   # Strava: no gpx_file field → derive from numeric id.
   # HealthSync: gpx_file field present (original filename stored in activities.json).
-  # GPX paths with no cache entry yet. Progress logs MUST go to stderr (log() writes
-  # to stdout) — the loop body's stdout is appended to the cache.
-  jq -r --slurpfile c "$_hm_cache" '
-    ($c | map({(.k): 1}) | add // {}) as $have
-    | .activities[]? | select(.id != null and (.date // "") != "")
-    | (if .gpx_file != null then .gpx_file else "gpx/" + (.id | tostring) + ".gpx" end)
-    | select($have[.] | not)' "$WEB_DIR/activities.json" 2>/dev/null \
-    | sort -u > "$TMP/hm_missing.txt" || true
+  # Candidate GPX paths come from activities.json (small); cached keys are read with grep
+  # (no JSON parse of the multi-MB cache on the router). Only GPX files that EXIST and
+  # have no cache entry are sampled — activities without a GPX file (indoor etc.) are
+  # skipped silently and cost nothing. Progress logs MUST go to stderr (log() writes to
+  # stdout) — the loop body's stdout is appended to the cache.
+  jq -r '.activities[]? | select(.id != null and (.date // "") != "")
+    | (if .gpx_file != null then .gpx_file else "gpx/" + (.id | tostring) + ".gpx" end)' \
+    "$WEB_DIR/activities.json" 2>/dev/null | sort -u > "$TMP/hm_all.txt" || true
+  grep -o '^{"k":"[^"]*"' "$_hm_cache" 2>/dev/null | awk -F'"' '{print $4}' > "$TMP/hm_have.txt" || true
+  : > "$TMP/hm_missing.txt"
+  # BusyBox `grep -vxF -f <empty file>` prints nothing, so special-case a cold cache.
+  { if [ -s "$TMP/hm_have.txt" ]; then grep -vxF -f "$TMP/hm_have.txt" "$TMP/hm_all.txt" 2>/dev/null || true
+    else cat "$TMP/hm_all.txt"; fi; } | while IFS= read -r _hm_gpx; do
+    [ -f "$WEB_DIR/$_hm_gpx" ] && printf '%s\n' "$_hm_gpx"
+  done > "$TMP/hm_missing.txt" || true
   _hm_total="$(grep -c . "$TMP/hm_missing.txt" 2>/dev/null || true)"
   [ "${_hm_total:-0}" -gt 0 ] && log "html: heatmap.json — sampling $_hm_total new GPX files"
   _hm_n=0
   while IFS= read -r _hm_gpx; do
     [ -n "$_hm_gpx" ] || continue
     _hm_path="$WEB_DIR/$_hm_gpx"
-    [ -f "$_hm_path" ] || continue
     # Extract every 10th trkpt; split 'trkpt lat="LL" lon="NN"' on " to get a[2]=lat a[4]=lon
     _hm_pts="$(grep -o 'trkpt lat="[0-9.-]*" lon="[0-9.-]*"' "$_hm_path" | \
       awk 'NR%10==1{split($0,a,"\""); printf "%s[%.4f,%.4f]",(f++ ? "," : ""),a[2]+0,a[4]+0}')" || _hm_pts=""
@@ -47,6 +54,11 @@ if [ -f "$WEB_DIR/activities.json" ]; then
     _hm_n=$((_hm_n + 1))
     [ $((_hm_n % 50)) -eq 0 ] && log "html: heatmap.json — $_hm_n/$_hm_total sampled" >&2
   done < "$TMP/hm_missing.txt"
+  # Skip the (slow) assembly when nothing was sampled and the activity list is unchanged.
+  _hm_sig="$_hm_ver $(jq -c '[.activities[]? | [.id, .date, .sport_type, .gpx_file]]' "$WEB_DIR/activities.json" 2>/dev/null | md5sum)"
+  if [ "$_hm_n" -eq 0 ] && [ -f "$WEB_DIR/heatmap.json" ] && [ "$(cat "$_hm_sigfile" 2>/dev/null)" = "$_hm_sig" ]; then
+    log "html: heatmap.json up-to-date (no new GPX files, activity list unchanged) — skipping"
+  else
   jq -c --slurpfile c "$_hm_cache" '
     ($c | map({(.k): .p}) | add // {}) as $m
     | [ .activities[]? | select(.id != null and (.date // "") != "")
@@ -55,12 +67,14 @@ if [ -f "$WEB_DIR/activities.json" ]; then
         | {d: .date, s: (.sport_type // ""), p: $m[$g]} ]' \
     "$WEB_DIR/activities.json" > "$WEB_DIR/heatmap.json.tmp" 2>/dev/null \
         && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json" \
+        && printf '%s' "$_hm_sig" > "$_hm_sigfile" \
         || { rm -f "$WEB_DIR/heatmap.json.tmp"; [ -f "$WEB_DIR/heatmap.json" ] || printf '[]' > "$WEB_DIR/heatmap.json"; }
-  unset _hm_tab _hm_gpx _hm_path _hm_pts _hm_n _hm_total
+  fi
+  unset _hm_tab _hm_gpx _hm_path _hm_pts _hm_n _hm_total _hm_sig
 else
   printf '[]' > "$WEB_DIR/heatmap.json.tmp" && mv "$WEB_DIR/heatmap.json.tmp" "$WEB_DIR/heatmap.json"
 fi
-unset _hm_ver _hm_cache _hm_verfile
+unset _hm_ver _hm_cache _hm_verfile _hm_sigfile
 
 # --- 7b. Write heatmap.html -------------------------------------------------
 log "html: writing heatmap.html..."
