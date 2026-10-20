@@ -186,6 +186,12 @@ if [ "$HS_WEB" != "/www/strava/me" ]; then
   if [ "$ME_WEB" = "/www/strava/me" ]; then
     echo "==> coexistence: linking /www/strava/me/drive-status.json -> $HS_WEB/drive-status.json"
     ln -sf "$HS_WEB/drive-status.json" /www/strava/me/drive-status.json
+  elif [ "$ME_WEB" != "$HS_WEB" ] && [ -f "$ME_WEB/activities.json" ] && \
+       { [ ! -f "$HS_WEB/activities.json" ] || [ "$ME_WEB/activities.json" -nt "$HS_WEB/activities.json" ]; }; then
+    # Both sources relocated to different dirs: keep the link to whichever one
+    # actually holds the newer output, so a stale/empty HealthSync dir can't
+    # shadow the My Activities pages.
+    echo "==> keeping /www/strava/me -> $ME_WEB ($ME_WEB has newer output than $HS_WEB)"
   else
     echo "==> linking /www/strava/me -> $HS_WEB (relocated HealthSync web dir)"
     [ -e /www/strava/me ] && [ ! -L /www/strava/me ] && rm -rf /www/strava/me
@@ -209,6 +215,61 @@ if command -v uci >/dev/null 2>&1 && uci -q get uhttpd.main >/dev/null 2>&1; the
     echo "==> uhttpd CGI already enabled (cgi_prefix=/cgi-bin)"
   fi
 fi
+
+# --- Sysupgrade self-heal -----------------------------------------------------
+# sysupgrade wipes /usr/bin and packages but keeps /etc. Stage a copy of this
+# repo on persistent storage and install a boot hook (/etc/rc.local ->
+# /etc/strava-restore.sh) that re-runs install.sh when the scripts are gone.
+ME_STATE="$(conf_val "$CONF_ME" STRAVA_MY_STATE_DIR /usr/lib/strava-my-activities)"
+BUNDLE_DIR="${STRAVA_BUNDLE_DIR:-$ME_STATE/install-bundle}"
+echo "==> staging install bundle in $BUNDLE_DIR"
+mkdir -p "$BUNDLE_DIR"
+if [ "$SRC_DIR" != "$BUNDLE_DIR" ]; then
+  cp "$SRC_DIR"/*.sh "$SRC_DIR"/config*.example "$BUNDLE_DIR"/
+fi
+
+cp "$SRC_DIR/strava-restore.sh" /etc/strava-restore.sh
+chmod 0755 /etc/strava-restore.sh
+printf 'STRAVA_BUNDLE_DIR="%s"\n' "$BUNDLE_DIR" > /etc/strava-restore.conf
+
+RESTORE_LINE='[ -f /usr/bin/strava-lib.sh ] || sh /etc/strava-restore.sh >/dev/null 2>&1 &'
+if ! grep -qF 'strava-restore.sh' /etc/rc.local 2>/dev/null; then
+  echo "==> adding sysupgrade restore hook to /etc/rc.local"
+  _rc_tmp="/etc/rc.local.new"
+  _rc_done=0
+  : > "$_rc_tmp"
+  if [ -f /etc/rc.local ]; then
+    while IFS= read -r _line || [ -n "$_line" ]; do
+      if [ "$_rc_done" = 0 ] && [ "$_line" = "exit 0" ]; then
+        printf '%s\n' "$RESTORE_LINE" >> "$_rc_tmp"; _rc_done=1
+      fi
+      printf '%s\n' "$_line" >> "$_rc_tmp"
+    done < /etc/rc.local
+  fi
+  if [ "$_rc_done" = 0 ]; then
+    printf '%s\nexit 0\n' "$RESTORE_LINE" >> "$_rc_tmp"
+  fi
+  chmod 0755 "$_rc_tmp"
+  mv "$_rc_tmp" /etc/rc.local
+else
+  echo "==> /etc/rc.local restore hook already present"
+fi
+
+# Keep everything the restore needs across sysupgrade (append missing only).
+echo "==> ensuring /etc/sysupgrade.conf lists installed files and state"
+touch /etc/sysupgrade.conf
+for _p in \
+    "$BIN" "$BIN_ME" "$BIN_HS" "$BIN_GUARD" "$BIN_EMAIL" "$BIN_EMAIL_WEEKLY" "$BIN_EMAIL_YEARLY" \
+    /usr/bin/strava-lib.sh /usr/bin/strava-my-html-dashboard.sh /usr/bin/strava-my-html-detail.sh \
+    /usr/bin/strava-my-html-bike.sh /usr/bin/strava-my-html-stats.sh /usr/bin/strava-my-html-heatmap.sh \
+    /usr/bin/strava-my-html-data-quality.sh /usr/bin/strava-my-feed-api.sh /usr/bin/strava-my-feed-scrape.sh \
+    /usr/bin/strava-my-detail-backfill.sh /usr/bin/strava-my-bike-alert.sh /usr/bin/strava-render-pages.sh \
+    /usr/bin/strava-leaderboard-html.sh /usr/bin/healthsync-fit-import.sh /usr/bin/strava-offline.sh \
+    /etc/uhttpd.crt /etc/uhttpd.key "$CONF" "$CONF_ME" "$CONF_HS" \
+    /etc/rc.local /etc/strava-restore.sh /etc/strava-restore.conf \
+    "$(conf_val "$CONF" STRAVA_STATE_DIR /usr/lib/strava-leaderboard)" "$ME_STATE" "$HS_STATE" "$BUNDLE_DIR"; do
+  grep -qxF "$_p" /etc/sysupgrade.conf || echo "$_p" >> /etc/sysupgrade.conf
+done
 
 echo "==> scheduling daily runs: leaderboard '$CRON_TIME', my-activities '$CRON_TIME_ME', healthsync '$CRON_TIME_HS', monthly-email '$CRON_TIME_EMAIL', weekly-email '$CRON_TIME_EMAIL_WEEKLY', yearly-email '$CRON_TIME_EMAIL_YEARLY'"
 CRON_LINE="$CRON_TIME $BIN_GUARD strava-leaderboard >> /var/log/strava-leaderboard.log 2>&1"

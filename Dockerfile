@@ -42,6 +42,9 @@ COPY strava-leaderboard-html.sh   /usr/bin/strava-leaderboard-html.sh
 COPY strava-offline.sh            /usr/bin/strava-offline.sh
 COPY healthsync-fit-import.sh     /usr/bin/healthsync-fit-import.sh
 
+# Sysupgrade self-heal (router-only; installed to /etc by install.sh)
+COPY strava-restore.sh            /etc/strava-restore.sh
+
 RUN chmod 0755 \
     /usr/bin/strava-leaderboard \
     /usr/bin/strava-my-activities \

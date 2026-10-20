@@ -3927,6 +3927,7 @@ for _f in \
     /usr/bin/strava-leaderboard-html.sh \
     /usr/bin/strava-offline.sh \
     /usr/bin/healthsync-fit-import.sh \
+    /etc/strava-restore.sh \
 ; do
     _name="$(basename "$_f")"
     _check="$_f"
@@ -3953,6 +3954,7 @@ for _f in \
             strava-leaderboard-html.sh) _alt="$(dirname "$0")/../strava-leaderboard-html.sh" ;;
             strava-offline.sh) _alt="$(dirname "$0")/../strava-offline.sh" ;;
             healthsync-fit-import.sh) _alt="$(dirname "$0")/../healthsync-fit-import.sh" ;;
+            strava-restore.sh) _alt="$(dirname "$0")/../strava-restore.sh" ;;
             *) _alt="" ;;
         esac
         if [ -n "$_alt" ] && [ -f "$_alt" ]; then
