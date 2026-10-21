@@ -35,6 +35,7 @@ card for synch is also not updated when Sync C| **Data completeness** | `/strava
 
 - Sortable table: distance, time, elevation, avg/max speed, VAM, avg HR, avg power, work (kJ)
 - Year/month/sport-type filters; period "bests" strip (longest, most climbing, fastest, best VAM, most work); "Longest climb" tile shows "—" when no GPX data is available for the filtered set
+- **Max speed fallback** — activities with no recorded max speed (e.g. scrape mode) get one computed from the GPX track during render (6 s smoothing, cached in `max-speeds.json`, up to `STRAVA_CLIMB_BATCH` activities per run), so the dashboard column matches the detail page
 - Monthly bar charts for distance, time, and elevation — all client-side from a single JSON file
 
 **Data completeness**

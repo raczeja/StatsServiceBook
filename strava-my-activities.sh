@@ -674,6 +674,74 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   _climbs_remaining=$((_climbs_todo - _climbs_computed))
   [ "$_climbs_remaining" -gt 0 ] \
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
+  # Max speed (m/s) per GPX activity, for records that carry none (scrape mode). Mirrors
+  # the detail page's GPX card: speed = distance ÷ time over a ~6 s centred window.
+  _ms_cache="$STATE_DIR/max-speeds.json"
+  [ -f "$_ms_cache" ] || printf '{}' > "$_ms_cache"
+  # Bump _ms_ver when the awk algorithm or smoothing window changes; the cache is
+  # discarded and recomputed (same scheme as the climb cache above).
+  _ms_ver=1
+  _ms_sig="v$_ms_ver|6"
+  if [ "$(cat "$STATE_DIR/max-speeds.sig" 2>/dev/null)" != "$_ms_sig" ]; then
+    [ "$(cat "$_ms_cache")" != '{}' ] \
+      && log "render: max-speed logic changed — discarding cached max speeds"
+    printf '{}' > "$_ms_cache"
+    printf '%s' "$_ms_sig" > "$STATE_DIR/max-speeds.sig"
+  fi
+  jq -c 'to_entries[] | {(.key): .value}' "$_ms_cache" > "$TMP/max-speeds-new.ndjson" 2>/dev/null || : > "$TMP/max-speeds-new.ndjson"
+  jq -r 'keys[]' "$_ms_cache" > "$TMP/cached-ms-ids.txt" 2>/dev/null || : > "$TMP/cached-ms-ids.txt"
+  _ms_computed=0
+  _ms_todo=$(( $(wc -l < "$TMP/gpx-paths.txt" | tr -d ' ') - $(wc -l < "$TMP/cached-ms-ids.txt" | tr -d ' ') ))
+  [ "$_ms_todo" -lt 0 ] && _ms_todo=0
+  [ "$_ms_todo" -gt 0 ] && log "render: computing max speed for $_ms_todo GPX activities"
+  while read -r _cid _cgpx; do
+    grep -qx "$_cid" "$TMP/cached-ms-ids.txt" && continue
+    [ "$_ms_computed" -ge "$_climb_batch" ] && break
+    [ -f "$WEB_DIR/$_cgpx" ] || continue
+    _mval="$(awk '
+      BEGIN{pi=3.14159265358979;n=0;plat="";plon="";tot=0}
+      function hav(la1,lo1,la2,lo2,  R,dl,dn,a){
+        R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
+        a=sin(dl/2)*sin(dl/2)+cos(la1*pi/180)*cos(la2*pi/180)*sin(dn/2)*sin(dn/2)
+        return R*2*atan2(sqrt(a),sqrt(1-a))}
+      function epoch(s,  y,m,d,h,mi,se,yy,era,yoe,doy,doe){
+        y=substr(s,1,4)+0;m=substr(s,6,2)+0;d=substr(s,9,2)+0
+        h=substr(s,12,2)+0;mi=substr(s,15,2)+0;se=substr(s,18,2)+0
+        yy=y-(m<=2);era=int(yy/400);yoe=yy-era*400
+        doy=int((153*(m+(m>2?-3:9))+2)/5)+d-1;doe=yoe*365+int(yoe/4)-int(yoe/100)+doy
+        return (era*146097+doe-719468)*86400+h*3600+mi*60+se}
+      /lat=/{s=$0;gsub(/.*lat="/,"",s);gsub(/".*$/,"",s);clat=s+0
+             s=$0;gsub(/.*lon="/,"",s);gsub(/".*$/,"",s);clon=s+0
+             if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
+             plat=clat;plon=clon}
+      /<time>/{s=$0;sub(/.*<time>/,"",s);if(s ~ /^[0-9][0-9][0-9][0-9]-/){T[n]=epoch(s);Dd[n]=tot;n++}}
+      END{best=0
+        for(i=0;i<n;i++){a=i;b=i
+          while((T[b]-T[a])<6&&(a>0||b<n-1)){if(a>0)a--;if(b<n-1)b++}
+          dt=T[b]-T[a];if(dt>0){v=(Dd[b]-Dd[a])/dt;if(v>best)best=v}}
+        printf "%.2f",best}' "$WEB_DIR/$_cgpx" 2>/dev/null)"
+    _ms_computed=$((_ms_computed + 1))
+    # A failed/empty result (no timestamps, unparsable GPX) is not cached, so it is
+    # retried on a later run; it still counts against this run's batch.
+    case "$_mval" in ''|*[!0-9.]*|0|0.00) continue ;; esac
+    printf '{"%s":%s}\n' "$_cid" "$_mval" >> "$TMP/max-speeds-new.ndjson"
+    printf '%s\n' "$_cid" >> "$TMP/cached-ms-ids.txt"
+    if [ $((_ms_computed % 10)) -eq 0 ]; then
+      log "render: max speed $_ms_computed/$_ms_todo done"
+      # Checkpoint so a killed run (SSH drop, cron timeout) keeps its progress.
+      jq -s 'add // {}' "$TMP/max-speeds-new.ndjson" > "$_ms_cache.tmp" 2>/dev/null \
+        && mv "$_ms_cache.tmp" "$_ms_cache" || rm -f "$_ms_cache.tmp"
+    fi
+  done < "$TMP/gpx-paths.txt"
+  [ -s "$TMP/max-speeds-new.ndjson" ] \
+    && jq -s 'add // {}' "$TMP/max-speeds-new.ndjson" > "$TMP/max-speeds.json" 2>/dev/null \
+    || printf '{}' > "$TMP/max-speeds.json"
+  [ "$_ms_computed" -gt 0 ] \
+    && cp "$TMP/max-speeds.json" "$_ms_cache" \
+    && log "render: computed max speed for $_ms_computed GPX activities"
+  _ms_remaining=$((_ms_todo - _ms_computed))
+  [ "$_ms_remaining" -gt 0 ] \
+    && log "render: max-speed batch limit $_climb_batch reached; $_ms_remaining activities queued for next run"
   _hr_cache="$STATE_DIR/hr-summary.json"
   [ -f "$_hr_cache" ] || printf '{}' > "$_hr_cache"
   # Cached summaries depend only on the calculation (GPX_HR_LOGIC_VERSION). Age is
@@ -837,6 +905,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
   --slurpfile gps "$TMP/gps.json" \
   --slurpfile gears "$TMP/gears.json" \
   --slurpfile climbs "$TMP/max-climbs.json" \
+  --slurpfile mspd "$TMP/max-speeds.json" \
   --slurpfile assigns "$TMP/bike-assign.json" \
   --slurpfile wcache "$WEATHER_CACHE" '
   ( ($det[0] // []) | map({ (.): true }) | add // {} ) as $have
@@ -871,7 +940,7 @@ jq -s --arg generatedAt "$GENERATED_AT" \
           elapsed_time:           (if (.elapsed_time // 0) > 0 then .elapsed_time else ($e.elapsed_time // 0) end),
           total_elevation_gain:   (if (.total_elevation_gain // 0) > 0 then .total_elevation_gain else ($e.total_elevation_gain // 0) end),
           average_speed:          (if (.average_speed // 0) > 0 then .average_speed else ($e.average_speed // 0) end),
-          max_speed:              (if (.max_speed // 0) > 0 then .max_speed else ($e.max_speed // 0) end),
+          max_speed:              (if (.max_speed // 0) > 0 then .max_speed elif ($e.max_speed // 0) > 0 then $e.max_speed else (($mspd[0] // {})[(.id | tostring)] // 0) end),
           average_heartrate:      (.average_heartrate // $e.average_heartrate // $hr_by_id[(.id | tostring)].average_heartrate),
           max_heartrate:          (.max_heartrate // $e.max_heartrate // $hr_by_id[(.id | tostring)].max_heartrate),
           estimated_hr_effort:   ($hr_by_id[(.id | tostring)].estimated_hr_effort // null),

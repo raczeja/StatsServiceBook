@@ -520,6 +520,70 @@ cat > "$TMP/climb_reset.gpx" << 'GPX'
 GPX
 assert_eq "$S" "post-reset-climb-detected" "$(_climb_awk "$TMP/climb_reset.gpx")" "60"
 
+# ── gpx-max-speed ────────────────────────────────────────────────────────────
+# Mirrors the GPX max-speed awk in strava-my-activities.sh (max-speeds.json cache):
+# speed = distance ÷ time over a ~6 s centred window, in m/s, printed as %.2f.
+S="gpx-max-speed"
+
+_ms_awk() {
+    awk '
+      BEGIN{pi=3.14159265358979;n=0;plat="";plon="";tot=0}
+      function hav(la1,lo1,la2,lo2,  R,dl,dn,a){
+        R=6371000;dl=(la2-la1)*pi/180;dn=(lo2-lo1)*pi/180
+        a=sin(dl/2)*sin(dl/2)+cos(la1*pi/180)*cos(la2*pi/180)*sin(dn/2)*sin(dn/2)
+        return R*2*atan2(sqrt(a),sqrt(1-a))}
+      function epoch(s,  y,m,d,h,mi,se,yy,era,yoe,doy,doe){
+        y=substr(s,1,4)+0;m=substr(s,6,2)+0;d=substr(s,9,2)+0
+        h=substr(s,12,2)+0;mi=substr(s,15,2)+0;se=substr(s,18,2)+0
+        yy=y-(m<=2);era=int(yy/400);yoe=yy-era*400
+        doy=int((153*(m+(m>2?-3:9))+2)/5)+d-1;doe=yoe*365+int(yoe/4)-int(yoe/100)+doy
+        return (era*146097+doe-719468)*86400+h*3600+mi*60+se}
+      /lat=/{s=$0;gsub(/.*lat="/,"",s);gsub(/".*$/,"",s);clat=s+0
+             s=$0;gsub(/.*lon="/,"",s);gsub(/".*$/,"",s);clon=s+0
+             if(plat!="")tot+=hav(plat+0,plon+0,clat,clon)
+             plat=clat;plon=clon}
+      /<time>/{s=$0;sub(/.*<time>/,"",s);if(s ~ /^[0-9][0-9][0-9][0-9]-/){T[n]=epoch(s);Dd[n]=tot;n++}}
+      END{best=0
+        for(i=0;i<n;i++){a=i;b=i
+          while((T[b]-T[a])<6&&(a>0||b<n-1)){if(a>0)a--;if(b<n-1)b++}
+          dt=T[b]-T[a];if(dt>0){v=(Dd[b]-Dd[a])/dt;if(v>best)best=v}}
+        printf "%.2f",best}' "$1"
+}
+
+# Constant pace: 0.0001° lat ≈ 11.12 m every 2 s ≈ 5.56 m/s. The timestamps cross a
+# month boundary (28 Feb → 1 Mar 2026, non-leap) to exercise the epoch conversion.
+cat > "$TMP/ms_const.gpx" << 'GPX'
+<?xml version="1.0"?>
+<gpx version="1.1"><trk><trkseg>
+<trkpt lat="50.0000" lon="20.0"><time>2026-02-28T23:59:50Z</time></trkpt>
+<trkpt lat="50.0001" lon="20.0"><time>2026-02-28T23:59:52Z</time></trkpt>
+<trkpt lat="50.0002" lon="20.0"><time>2026-02-28T23:59:54Z</time></trkpt>
+<trkpt lat="50.0003" lon="20.0"><time>2026-02-28T23:59:56Z</time></trkpt>
+<trkpt lat="50.0004" lon="20.0"><time>2026-02-28T23:59:58Z</time></trkpt>
+<trkpt lat="50.0005" lon="20.0"><time>2026-03-01T00:00:00Z</time></trkpt>
+<trkpt lat="50.0006" lon="20.0"><time>2026-03-01T00:00:02Z</time></trkpt>
+<trkpt lat="50.0007" lon="20.0"><time>2026-03-01T00:00:04Z</time></trkpt>
+<trkpt lat="50.0008" lon="20.0"><time>2026-03-01T00:00:06Z</time></trkpt>
+</trkseg></trk></gpx>
+GPX
+assert_eq "$S" "constant-pace-5.56-mps" "$(_ms_awk "$TMP/ms_const.gpx")" "5.56"
+
+# No timestamps at all → 0.00 (the caller then does not cache it and retries later).
+cat > "$TMP/ms_notime.gpx" << 'GPX'
+<gpx version="1.1"><trk><trkseg>
+<trkpt lat="50.0000" lon="20.0"><ele>100</ele></trkpt>
+<trkpt lat="50.0001" lon="20.0"><ele>101</ele></trkpt>
+</trkseg></trk></gpx>
+GPX
+assert_eq "$S" "no-timestamps-zero" "$(_ms_awk "$TMP/ms_notime.gpx")" "0.00"
+
+# Cache-skip guard: results the loop must NOT cache.
+_ms_cacheable() { case "$1" in ''|*[!0-9.]*|0|0.00) echo no ;; *) echo yes ;; esac; }
+assert_eq "$S" "zero-not-cached"    "$(_ms_cacheable 0.00)" "no"
+assert_eq "$S" "empty-not-cached"   "$(_ms_cacheable '')"   "no"
+assert_eq "$S" "garbage-not-cached" "$(_ms_cacheable 5.5x)" "no"
+assert_eq "$S" "valid-cached"       "$(_ms_cacheable 12.34)" "yes"
+
 # ── max-speed-no-extension ────────────────────────────────────────────────────
 # GPX without a :speed extension must produce 0, not null or an error.
 S="max-speed-no-extension"
