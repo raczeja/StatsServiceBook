@@ -988,7 +988,7 @@ log "wrote $WEB_DIR/index.html, $WEB_DIR/activity.html, $WEB_DIR/stats.html and 
 
 # Batch-limited caches (climbs, HR) may still have a backlog. Don't record the
 # scripts hash then, so the next run isn't skipped and keeps working through it.
-if [ "${_climbs_remaining:-0}" -gt 0 ] || [ "${_hr_remaining:-0}" -gt 0 ]; then
+if [ "${_climbs_remaining:-0}" -gt 0 ] || [ "${_ms_remaining:-0}" -gt 0 ] || [ "${_hr_remaining:-0}" -gt 0 ]; then
   rm -f "$STATE_DIR/scripts.md5"
 else
   printf '%s\n' "$_scripts_md5" > "$STATE_DIR/scripts.md5"
