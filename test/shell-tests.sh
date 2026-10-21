@@ -5138,6 +5138,54 @@ else
     assert_eq "$S" "run4-skips-when-nothing-to-do" "$(_rb_has 4 'skipping re-render')" "yes"
 fi
 
+# ── skip-render-max-speed-backlog ─────────────────────────────────────────────
+# Same harness, but the rows carry no max_speed and the GPX has timestamps, so the
+# GPX max-speed fallback has a real backlog. It must be worked off over consecutive
+# no-change runs, and activities that already have a max_speed must not be queued.
+S="skip-render-max-speed-backlog"
+_mb="$TMP/mb"
+mkdir -p "$_mb/web/details" "$_mb/web/gpx" "$_mb/state" "$_mb/cgi" "$_mb/tmp" "$_mb/fakebin"
+cp "$_rb/fakebin/curl" "$_mb/fakebin/curl"
+sed "s#$_rb#$_mb#g" "$_rb/conf" > "$_mb/conf"
+cp "$_rb/state/token.json" "$_mb/state/token.json"
+for _i in 1 2 3 4 5 6; do
+    _id=$((9100 + _i))
+    # Row 6 already has a max_speed: it must never be computed from GPX.
+    _mx=0; [ "$_i" -eq 6 ] && _mx=4
+    printf '{"id":%s,"date":"2026-08-0%s","name":"M%s","sport_type":"Ride","distance":1000,"moving_time":600,"elapsed_time":600,"total_elevation_gain":100,"average_speed":2,"max_speed":%s,"average_temp":15}\n' \
+        "$_id" "$_i" "$_i" "$_mx" >> "$_mb/state/activities.ndjson"
+    printf '{"id":%s,"gpx_file":"gpx/%s.gpx"}' "$_id" "$_id" > "$_mb/web/details/$_id.json"
+    {
+        printf '<?xml version="1.0"?>\n<gpx><trk><trkseg>\n'
+        for _s in 0 1 2 3 4 5 6 7 8 9; do
+            printf '<trkpt lat="50.%05d" lon="19.00000"><ele>200</ele><time>2026-08-01T10:00:%02dZ</time></trkpt>\n' \
+                "$((_s * 9))" "$_s"
+        done
+        printf '</trkseg></trk></gpx>\n'
+    } > "$_mb/web/gpx/$_id.gpx"
+done
+_mb_run() {
+    PATH="$_mb/fakebin:$PATH" TMPDIR="$_mb/tmp" STRAVA_MY_CONFIG="$_mb/conf" \
+        sh "$_rb_main" > "$_mb/run$1.log" 2>&1 < /dev/null || true
+}
+_mb_has() { grep -q "$2" "$_mb/run$1.log" && printf yes || printf no; }
+
+if [ -n "$_rb_main" ]; then
+    _mb_run 1
+    assert_eq "$S" "run1-queues-only-missing" "$(_mb_has 1 'max-speed batch limit 2 reached; 3 activities queued')" "yes"
+    _mb_run 2
+    assert_eq "$S" "run2-not-skipped-with-backlog" "$(_mb_has 2 'skipping re-render')" "no"
+    assert_eq "$S" "run2-continues-backlog" "$(_mb_has 2 'computing max speed for 3 GPX')" "yes"
+    _mb_run 3
+    assert_eq "$S" "run3-finishes-backlog" "$(_mb_has 3 'computing max speed for 1 GPX')" "yes"
+    assert_eq "$S" "cached-only-missing-ones" "$(jq 'length' "$_mb/state/max-speeds.json")" "5"
+    assert_eq "$S" "existing-max-speed-not-cached" "$(jq 'has("9106")' "$_mb/state/max-speeds.json")" "false"
+    assert_eq "$S" "emitted-from-gpx" \
+        "$(jq '[.activities[] | select(.id != 9106) | select(.max_speed > 0)] | length' "$_mb/web/activities.json")" "5"
+    _mb_run 4
+    assert_eq "$S" "run4-skips-when-drained" "$(_mb_has 4 'skipping re-render')" "yes"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
