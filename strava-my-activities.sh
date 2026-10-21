@@ -690,12 +690,18 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   fi
   jq -c 'to_entries[] | {(.key): .value}' "$_ms_cache" > "$TMP/max-speeds-new.ndjson" 2>/dev/null || : > "$TMP/max-speeds-new.ndjson"
   jq -r 'keys[]' "$_ms_cache" > "$TMP/cached-ms-ids.txt" 2>/dev/null || : > "$TMP/cached-ms-ids.txt"
+  # Only activities with no max speed in the store or detail JSON need the GPX fallback.
+  { jq -r 'select((.max_speed // 0) > 0) | .id' "$STORE" 2>/dev/null
+    jq -r 'to_entries[] | select((.value.max_speed // 0) > 0) | .key' "$TMP/enrich.json" 2>/dev/null
+    cat "$TMP/cached-ms-ids.txt"; } > "$TMP/have-ms-ids.txt" || :
+  : > "$TMP/ms-paths.txt"
+  while read -r _cid _cgpx; do
+    grep -qx "$_cid" "$TMP/have-ms-ids.txt" || printf '%s %s\n' "$_cid" "$_cgpx" >> "$TMP/ms-paths.txt"
+  done < "$TMP/gpx-paths.txt"
   _ms_computed=0
-  _ms_todo=$(( $(wc -l < "$TMP/gpx-paths.txt" | tr -d ' ') - $(wc -l < "$TMP/cached-ms-ids.txt" | tr -d ' ') ))
-  [ "$_ms_todo" -lt 0 ] && _ms_todo=0
+  _ms_todo="$(wc -l < "$TMP/ms-paths.txt" | tr -d ' ')"
   [ "$_ms_todo" -gt 0 ] && log "render: computing max speed for $_ms_todo GPX activities"
   while read -r _cid _cgpx; do
-    grep -qx "$_cid" "$TMP/cached-ms-ids.txt" && continue
     [ "$_ms_computed" -ge "$_climb_batch" ] && break
     [ -f "$WEB_DIR/$_cgpx" ] || continue
     _mval="$(awk '
@@ -732,7 +738,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
       jq -s 'add // {}' "$TMP/max-speeds-new.ndjson" > "$_ms_cache.tmp" 2>/dev/null \
         && mv "$_ms_cache.tmp" "$_ms_cache" || rm -f "$_ms_cache.tmp"
     fi
-  done < "$TMP/gpx-paths.txt"
+  done < "$TMP/ms-paths.txt"
   [ -s "$TMP/max-speeds-new.ndjson" ] \
     && jq -s 'add // {}' "$TMP/max-speeds-new.ndjson" > "$TMP/max-speeds.json" 2>/dev/null \
     || printf '{}' > "$TMP/max-speeds.json"
