@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-DEFAULT_MAX_REPORTS=3
 PAGES_SIZE_LIMIT_BYTES=$((1000 * 1000 * 1000))
 RUN_FOLDER="run-${GITHUB_RUN_NUMBER}"
 
@@ -23,58 +22,29 @@ site_size_mb() {
   format_mb "$(site_size_bytes)"
 }
 
-prune_reports() {
-  local dir="$1"
-  local max_reports="${2:-$DEFAULT_MAX_REPORTS}"
-  [ -d "$dir" ] || return 0
-
-  local old_folders
-  old_folders="$(find "$dir" -mindepth 1 -maxdepth 1 -type d -name 'run-*' -mtime +7 -printf '%f\n' 2>/dev/null || true)"
-  if [ -n "$old_folders" ]; then
-    echo "[prune] Removing run folders older than 7 days in ${dir}:"
-    echo "$old_folders" | sed 's/^/  - /'
-    find "$dir" -mindepth 1 -maxdepth 1 -type d -name 'run-*' -mtime +7 -exec rm -rf {} + || true
-  fi
-
-  local count=0
-  while IFS= read -r report_dir; do
-    count=$((count + 1))
-    if [ "$count" -gt "$max_reports" ]; then
-      local folder_size
-      folder_size="$(du -sh "$dir/$report_dir" 2>/dev/null | awk '{print $1}' || echo '?')"
-      echo "[prune] Removing excess run (count=${count}, max=${max_reports}): ${dir}/${report_dir} (${folder_size})"
-      rm -rf "$dir/$report_dir"
-    fi
-  done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d -name 'run-*' -printf '%f\n' | sort -t- -k2,2nr)
-}
-
+# Delete the oldest run-* folders (lowest run number first, never the current
+# run) until the site fits under the Pages size limit.
 enforce_site_size_limit() {
   local current_size
   current_size="$(site_size_bytes)"
   echo "[size] Site size: $(format_mb "$current_size") (limit: $(format_mb "$PAGES_SIZE_LIMIT_BYTES"))"
 
-  [ "$current_size" -le "$PAGES_SIZE_LIMIT_BYTES" ] && { echo "[size] Within limit."; return; }
-
-  for keep in 2 1; do
-    echo "[size] Reducing retention to ${keep} run(s)."
-    prune_reports site "$keep"
-    current_size="$(site_size_bytes)"
-    [ "$current_size" -le "$PAGES_SIZE_LIMIT_BYTES" ] && { echo "[size] Reduced to $(format_mb "$current_size")."; return; }
-  done
-
   while [ "$current_size" -gt "$PAGES_SIZE_LIMIT_BYTES" ]; do
-    local oldest_run_path
-    oldest_run_path="$(find site -mindepth 1 -maxdepth 1 -type d -name 'run-*' ! -name "${RUN_FOLDER}" -printf '%T@ %p\n' | sort -n | head -n 1 | cut -d' ' -f2-)"
-    [ -z "$oldest_run_path" ] && oldest_run_path="$(find site -mindepth 1 -maxdepth 1 -type d -name 'run-*' -printf '%T@ %p\n' | sort -n | head -n 1 | cut -d' ' -f2-)"
-    [ -z "$oldest_run_path" ] || [ ! -d "$oldest_run_path" ] && { echo "[size] No runs left to delete."; return; }
+    local oldest_run
+    oldest_run="$(find site -mindepth 1 -maxdepth 1 -type d -name 'run-*' ! -name "${RUN_FOLDER}" -printf '%f
+' | sort -t- -k2,2n | head -n 1)"
+    if [ -z "$oldest_run" ]; then
+      echo "[size] No older runs left to delete."
+      return
+    fi
     local folder_size
-    folder_size="$(du -sh "$oldest_run_path" 2>/dev/null | awk '{print $1}' || echo '?')"
-    echo "[size] Removing oldest run: ${oldest_run_path} (${folder_size})"
-    rm -rf "$oldest_run_path"
+    folder_size="$(du -sh "site/$oldest_run" 2>/dev/null | awk '{print $1}' || echo '?')"
+    echo "[size] Removing oldest run: site/${oldest_run} (${folder_size})"
+    rm -rf "site/$oldest_run"
     current_size="$(site_size_bytes)"
   done
 
-  echo "[size] Final site size: $(format_mb "$current_size")"
+  echo "[size] Within limit: $(format_mb "$current_size")"
 }
 
 # ---------------------------------------------------------------------------
@@ -94,6 +64,23 @@ fi
 # Copy the downloaded Playwright report to site/run-N/
 # download-artifact v4+ places files directly into the target dir (no subdir wrapper).
 found=0
+skipped_oversize=0
+report_src=""
+if [ -f downloaded-report/index.html ]; then
+  report_src="downloaded-report"
+elif [ -d downloaded-report ]; then
+  for d in downloaded-report/*/; do
+    [ -f "${d}index.html" ] && { report_src="${d%/}"; break; }
+  done
+fi
+if [ -n "$report_src" ]; then
+  report_bytes="$(du -sb "$report_src" | awk '{print $1}')"
+  if [ "$report_bytes" -gt "$PAGES_SIZE_LIMIT_BYTES" ]; then
+    echo "[add] Report is $(format_mb "$report_bytes"), over the $(format_mb "$PAGES_SIZE_LIMIT_BYTES") limit — not publishing it (statistics only)."
+    skipped_oversize=1
+    rm -rf downloaded-report
+  fi
+fi
 if [ -d downloaded-report ]; then
   if [ -f "downloaded-report/index.html" ]; then
     local_size="$(du -sh downloaded-report 2>/dev/null | awk '{print $1}' || echo '?')"
@@ -117,7 +104,7 @@ if [ -d downloaded-report ]; then
   fi
 fi
 
-if [ "$found" -eq 0 ]; then
+if [ "$found" -eq 0 ] && [ "$skipped_oversize" -eq 0 ]; then
   echo "[site] No report found in downloaded-report — creating placeholder page"
   mkdir -p "site/$RUN_FOLDER"
   cat > "site/$RUN_FOLDER/index.html" <<HTML
@@ -206,6 +193,11 @@ run_link = (
     f'<a href="{html.escape(run_url, quote=True)}">GitHub Actions run #{html.escape(os.environ["GITHUB_RUN_NUMBER"])}</a>'
     if run_url else f'GitHub Actions run #{html.escape(os.environ["GITHUB_RUN_NUMBER"])}'
 )
+run_number = html.escape(os.environ["GITHUB_RUN_NUMBER"])
+report_link = (
+    f'<a href="../run-{run_number}/">Playwright report for this run</a>'
+    if os.path.isdir(f"site/run-{run_number}") else ""
+)
 document = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -230,7 +222,7 @@ table{{width:100%;border-collapse:collapse;text-align:left}}th,td{{padding:.8rem
 <body>
 <header class="topbar">StatsServiceBook · Playwright Coverage</header>
 <main>
-<nav class="nav"><a href="../">← Test reports</a><a href="../stats/">Test statistics — last 30 days</a>{f'<a href="../run-{html.escape(os.environ["GITHUB_RUN_NUMBER"])}/">Playwright report for this run</a>'}</nav>
+<nav class="nav"><a href="../">← Test reports</a><a href="../stats/">Test statistics — last 30 days</a>{report_link}</nav>
 <section class="card summary">
 <div class="score {tone(overall)}">{overall:.2f}%</div>
 <div><h1>Browser-side JavaScript coverage</h1><div class="muted">Measured {html.escape(generated)} · {run_link}</div></div>
@@ -285,14 +277,13 @@ a{color:#2563eb;text-decoration:none}a:hover{text-decoration:underline}
 <div class="topbar"><span class="topbar-title">StatsServiceBook &middot; Test Reports</span></div>
 <div class="page">
 <h1>Report not found</h1>
-<p>This run has been pruned (only the last 3 are kept).</p>
+<p>This run has been pruned (oldest reports are removed to stay under the 1 GB Pages limit).</p>
 <p>Redirecting to <a href="./..">&larr; all reports</a>&hellip;</p>
 </div>
 <script>setTimeout(function(){window.location.href='./..'},3000)</script>
 </body></html>
 HTML
 
-prune_reports site "$DEFAULT_MAX_REPORTS"
 echo "[size] Site size before size-limit enforcement: $(site_size_mb)"
 enforce_site_size_limit
 echo "[size] Final site size: $(site_size_mb)"
