@@ -1817,6 +1817,16 @@ test.describe("bike-parts-sorting", () => {
     await expect(page.locator('#bikepanel th[data-sort="name"]')).not.toHaveClass(/sorted-/);
   });
 
+  test("Reset order button also clears the column sort", async ({ page }) => {
+    const defaultOrder = await partNames(page);
+    await page.locator('#bikepanel th[data-sort="name"]').click();
+    await expect(page.locator('#bikepanel th[data-sort="name"]')).toHaveClass(/sorted-asc/);
+    await page.locator("#bikepanel .sec-order-reset").click();
+    await expect(page.locator("#bikepanel th.sorted-asc, #bikepanel th.sorted-desc")).toHaveCount(0);
+    expect(await partNames(page)).toEqual(defaultOrder);
+    expect(await page.evaluate(() => sessionStorage.getItem("bikePartSort"))).toBeNull();
+  });
+
   test("sort choice survives a reload within the tab", async ({ page }) => {
     await page.locator('#bikepanel th[data-sort="cost"]').click();
     await page.reload({ waitUntil: "networkidle" });

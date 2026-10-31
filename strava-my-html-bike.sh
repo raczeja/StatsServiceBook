@@ -592,6 +592,13 @@ window.sortParts=function(key){
   try{ sessionStorage.setItem("bikePartSort",JSON.stringify(PSORT)); }catch(e){}
   render();
 };
+// Called by the "Reset order" button: drop any column sort and re-render in the default order.
+window.resetPartSort=function(){
+  if(!PSORT.key) return;
+  PSORT={key:null,dir:1};
+  try{ sessionStorage.removeItem("bikePartSort"); }catch(e){}
+  render();
+};
 // Worst % across all service types; 0 when no thresholds configured (used for sorting).
 function partPct(bike,p){
   var types=p.serviceTypes||[];
@@ -1762,6 +1769,7 @@ loadAll();
     try{localStorage.removeItem(BIKE_SEC_KEY);}catch(e){}
     var secMap={};getSecs().forEach(function(s){secMap[s.getAttribute('data-sid')]=s;});
     BIKE_SEC_DEFAULT.forEach(function(sid){if(secMap[sid])panel.appendChild(secMap[sid]);});
+    if(typeof window.resetPartSort==='function')window.resetPartSort();
   }
   function dropInto(sid,e){
     if(!dragSrc||dragSrc===sid)return;
