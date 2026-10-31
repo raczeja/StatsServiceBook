@@ -5138,6 +5138,39 @@ else
     assert_eq "$S" "run4-skips-when-nothing-to-do" "$(_rb_has 4 'skipping re-render')" "yes"
 fi
 
+# ── skip-render-unprocessable-not-backlog ─────────────────────────────────────
+# An activity whose detail JSON points at a GPX that does not exist can never be
+# computed. It must not count as queued backlog, otherwise scripts.md5 is deleted
+# on every run and the (slow) render never skips again, even with no new activity.
+S="skip-render-unprocessable-not-backlog"
+_ub="$TMP/ub"
+mkdir -p "$_ub/web/details" "$_ub/web/gpx" "$_ub/state" "$_ub/cgi" "$_ub/tmp" "$_ub/fakebin"
+cp "$_rb/fakebin/curl" "$_ub/fakebin/curl"
+sed "s#$_rb#$_ub#g" "$_rb/conf" > "$_ub/conf"
+cp "$_rb/state/token.json" "$_ub/state/token.json"
+for _i in 1 2 3; do
+    _id=$((9200 + _i))
+    printf '{"id":%s,"date":"2026-08-0%s","name":"U%s","sport_type":"Ride","distance":1000,"moving_time":600,"elapsed_time":600,"total_elevation_gain":100,"average_speed":2,"max_speed":4,"average_temp":15}\n' \
+        "$_id" "$_i" "$_i" >> "$_ub/state/activities.ndjson"
+    printf '{"id":%s,"gpx_file":"gpx/%s.gpx"}' "$_id" "$_id" > "$_ub/web/details/$_id.json"
+    # Newest activity (3) has no GPX file on disk.
+    [ "$_i" -lt 3 ] && cp "$_rb_gpx" "$_ub/web/gpx/$_id.gpx"
+done
+if [ -z "$_rb_main" ]; then
+    err "$S" "script-found" "strava-my-activities not found"
+else
+    PATH="$_ub/fakebin:$PATH" TMPDIR="$_ub/tmp" STRAVA_MY_CONFIG="$_ub/conf" \
+        sh "$_rb_main" > "$_ub/run1.log" 2>&1 < /dev/null || true
+    assert_eq "$S" "missing-gpx-not-reported-as-queued" \
+        "$(grep -q 'queued for next run' "$_ub/run1.log" && printf yes || printf no)" "no"
+    assert_eq "$S" "scripts-md5-recorded-despite-missing-gpx" \
+        "$([ -f "$_ub/state/scripts.md5" ] && printf yes || printf no)" "yes"
+    PATH="$_ub/fakebin:$PATH" TMPDIR="$_ub/tmp" STRAVA_MY_CONFIG="$_ub/conf" \
+        sh "$_rb_main" > "$_ub/run2.log" 2>&1 < /dev/null || true
+    assert_eq "$S" "next-run-skips-render" \
+        "$(grep -q 'skipping re-render' "$_ub/run2.log" && printf yes || printf no)" "yes"
+fi
+
 # ── skip-render-max-speed-backlog ─────────────────────────────────────────────
 # Same harness, but the rows carry no max_speed and the GPX has timestamps, so the
 # GPX max-speed fallback has a real backlog. It must be worked off over consecutive

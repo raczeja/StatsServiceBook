@@ -621,6 +621,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_climbs_todo" -gt 0 ] \
     && log "render: computing max_single_climb for $_climbs_todo GPX activities (cached: $_climbs_cached)"
   _climbs_computed=0
+  _climbs_skipped=0
   _climb_batch="${STRAVA_CLIMB_BATCH:-50}"
   # Use same defaults as strava-my-html-detail.sh so server and client thresholds match.
   : "${STRAVA_MY_CLIMB_MIN_GAIN_RIDE:=25}"
@@ -635,7 +636,9 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     grep -qx "$_cid" "$TMP/cached-climb-ids.txt" && continue
     [ "$_climbs_computed" -ge "$_climb_batch" ] && break
     _cgpx_path="$WEB_DIR/$_cgpx"
-    [ -f "$_cgpx_path" ] || continue
+    # A missing GPX can never be computed: don't count it as backlog (it would
+    # otherwise defeat the render-skip guard on every run).
+    [ -f "$_cgpx_path" ] || { _climbs_skipped=$((_climbs_skipped + 1)); continue; }
     # Emit every qualifying climb as a JSON array of [gain,distance] in track order
     # (mirrors findClimbs() in strava-my-html-detail.sh): a descent > dreset below
     # the running peak flushes the current segment and starts a new one.
@@ -675,7 +678,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_climbs_computed" -gt 0 ] \
     && cp "$TMP/max-climbs.json" "$_climb_cache" \
     && log "render: computed max_single_climb for $_climbs_computed new GPX activities"
-  _climbs_remaining=$((_climbs_todo - _climbs_computed))
+  _climbs_remaining=$((_climbs_todo - _climbs_computed - _climbs_skipped))
+  [ "$_climbs_remaining" -lt 0 ] && _climbs_remaining=0
   [ "$_climbs_remaining" -gt 0 ] \
     && log "render: climb batch limit $_climb_batch reached; $_climbs_remaining activities queued for next run"
   # Max speed (m/s) per GPX activity, for records that carry none (scrape mode). Mirrors
@@ -703,11 +707,12 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
     grep -qx "$_cid" "$TMP/have-ms-ids.txt" || printf '%s %s\n' "$_cid" "$_cgpx" >> "$TMP/ms-paths.txt"
   done < "$TMP/gpx-paths.txt"
   _ms_computed=0
+  _ms_failed=0
   _ms_todo="$(wc -l < "$TMP/ms-paths.txt" | tr -d ' ')"
   [ "$_ms_todo" -gt 0 ] && log "render: computing max speed for $_ms_todo GPX activities"
   while read -r _cid _cgpx; do
     [ "$_ms_computed" -ge "$_climb_batch" ] && break
-    [ -f "$WEB_DIR/$_cgpx" ] || continue
+    [ -f "$WEB_DIR/$_cgpx" ] || { _ms_failed=$((_ms_failed + 1)); continue; }
     _mval="$(awk '
       BEGIN{pi=3.14159265358979;n=0;plat="";plon="";tot=0}
       function hav(la1,lo1,la2,lo2,  R,dl,dn,a){
@@ -730,10 +735,11 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
           while((T[b]-T[a])<6&&(a>0||b<n-1)){if(a>0)a--;if(b<n-1)b++}
           dt=T[b]-T[a];if(dt>0){v=(Dd[b]-Dd[a])/dt;if(v>best)best=v}}
         printf "%.2f",best}' "$WEB_DIR/$_cgpx" 2>/dev/null)"
-    _ms_computed=$((_ms_computed + 1))
     # A failed/empty result (no timestamps, unparsable GPX) is not cached, so it is
-    # retried on a later run; it still counts against this run's batch.
-    case "$_mval" in ''|*[!0-9.]*|0|0.00) continue ;; esac
+    # retried on a later render; it does not use up the batch or count as backlog,
+    # otherwise it would starve real work and defeat the render-skip guard.
+    case "$_mval" in ''|*[!0-9.]*|0|0.00) _ms_failed=$((_ms_failed + 1)); continue ;; esac
+    _ms_computed=$((_ms_computed + 1))
     printf '{"%s":%s}\n' "$_cid" "$_mval" >> "$TMP/max-speeds-new.ndjson"
     printf '%s\n' "$_cid" >> "$TMP/cached-ms-ids.txt"
     if [ $((_ms_computed % 10)) -eq 0 ]; then
@@ -749,7 +755,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   [ "$_ms_computed" -gt 0 ] \
     && cp "$TMP/max-speeds.json" "$_ms_cache" \
     && log "render: computed max speed for $_ms_computed GPX activities"
-  _ms_remaining=$((_ms_todo - _ms_computed))
+  _ms_remaining=$((_ms_todo - _ms_computed - _ms_failed))
+  [ "$_ms_remaining" -lt 0 ] && _ms_remaining=0
   [ "$_ms_remaining" -gt 0 ] \
     && log "render: max-speed batch limit $_climb_batch reached; $_ms_remaining activities queued for next run"
   _hr_cache="$STATE_DIR/hr-summary.json"
@@ -795,6 +802,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   mv "$TMP/hr-gpx-pending.txt" "$TMP/hr-gpx-paths.txt"
   _hr_todo="$(wc -l < "$TMP/hr-gpx-paths.txt" | tr -d ' ')"
   _hr_computed=0
+  _hr_skipped=0
   _hr_batch=100
   # Planned work this run = min(todo, batch); each GPX is a full awk parse, so this
   # loop is the slowest render step (~minutes for a full batch). Log a start line and
@@ -806,7 +814,7 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   while IFS="$_tab" read -r _hr_id _hr_gpx _hr_time _hr_rawmax _hr_age; do
     [ "$_hr_computed" -ge "$_hr_batch" ] && break
     _hr_gpx_path="$WEB_DIR/$_hr_gpx"
-    [ -f "$_hr_gpx_path" ] || continue
+    [ -f "$_hr_gpx_path" ] || { _hr_skipped=$((_hr_skipped + 1)); continue; }
     _hr_values="$(gpx_hr_summary "$_hr_gpx_path" "$_hr_time" "$_hr_rawmax" "${_hr_age:-0}" 2>/dev/null)" || _hr_values=""
     case "$_hr_values" in
       *"$_tab"*) ;;
@@ -830,7 +838,8 @@ if ls "$DETAIL_DIR"/*.json >/dev/null 2>&1; then
   jq -s 'add // {}' "$TMP/hr-summary-parts.ndjson" > "$TMP/hr-summary.json"
   cp "$TMP/hr-summary.json" "$_hr_cache"
   [ "$_hr_computed" -gt 0 ] && log "render: cached GPX heart-rate summaries for $_hr_computed activities"
-  _hr_remaining=$((_hr_todo - _hr_computed))
+  _hr_remaining=$((_hr_todo - _hr_computed - _hr_skipped))
+  [ "$_hr_remaining" -lt 0 ] && _hr_remaining=0
   [ "$_hr_remaining" -gt 0 ] \
     && log "render: HR summary batch limit $_hr_batch reached; $_hr_remaining activities queued for next run"
   # GPS is keyed by the detail filename: scraped detail JSON may carry a stale
