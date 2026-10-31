@@ -1071,4 +1071,20 @@ test.describe("data-quality", () => {
       }
     }
   });
+  test("progress-bar-runs-while-loading-then-fades", async ({ page }) => {
+    let release;
+    const gate = new Promise((r) => (release = r));
+    await page.route("**/me/activities.json", async (route) => {
+      await gate;
+      await route.continue();
+    });
+    await page.goto(URLS.dataQuality, { waitUntil: "commit" });
+    const pbar = page.locator("#pbar");
+    await expect(pbar).toHaveCSS("opacity", "1");
+    await expect
+      .poll(() => pbar.evaluate((el) => parseFloat(el.style.width) || 0))
+      .toBeGreaterThan(0);
+    release();
+    await expect(pbar).toHaveCSS("opacity", "0", { timeout: 5000 });
+  });
 });
