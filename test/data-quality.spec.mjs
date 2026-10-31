@@ -1087,4 +1087,33 @@ test.describe("data-quality", () => {
     release();
     await expect(pbar).toHaveCSS("opacity", "0", { timeout: 5000 });
   });
+  test("email-stale-limit-matches-send-cadence", async ({ page }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const mk = (mode, days) => ({
+      mode,
+      ok: true,
+      lastAttempt: now,
+      lastSuccess: now - days * 86400,
+    });
+    const statusByType = {
+      monthly: mk("monthly", 20),
+      weekly: mk("weekly", 6),
+      yearly: mk("yearly", 200),
+    };
+    for (const [type, status] of Object.entries(statusByType)) {
+      await page.route(`**/email-${type}-status.json`, (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(status),
+        }),
+      );
+    }
+    await page.goto(URLS.dataQuality, { waitUntil: "networkidle" });
+    const cards = page.locator("#email-cards .email-status-card");
+    for (const name of ["Monthly", "Weekly", "Yearly"]) {
+      await expect(
+        cards.filter({ hasText: `${name} email` }).locator(".badge"),
+      ).toContainText("OK");
+    }
+  });
 });

@@ -345,7 +345,7 @@ function saveCookie(){
 function emailCard(name,status){
   if(!status)return '';
   var now=Math.floor(Date.now()/1000),last=Number(status.lastSuccess)||0,age=last?now-last:null;
-  var staleLimit=status.mode==='yearly'?370*86400:8*86400;
+  var staleLimit=(status.mode==='yearly'?370:status.mode==='monthly'?35:8)*86400;
   var badge,cls;
   if(status.ok===false){badge='Failed';cls='bad';}
   else if(age!==null&&age>staleLimit){badge='Stale';cls='warn';}
