@@ -131,7 +131,7 @@ details.cost-yr[open] summary::before{content:"▾ "}
 .sec.sec-drag-over{outline:2px dashed var(--accent);outline-offset:2px}
 .sec-order-reset{font-size:.72rem;color:var(--text-3);background:none;border:1px solid var(--border-2);border-radius:.25rem;padding:.15rem .5rem;cursor:pointer;display:block;margin-left:auto;margin-bottom:.4rem}
 .sec-order-reset:hover{color:var(--accent);border-color:var(--accent)}
-@media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}}
+@media(pointer:coarse){.sec-handle,.sec-order-reset{display:none}.sec-order-reset.sort-active{display:block}}
 </style>
 <script>window.OFFLINE_CFG={rw:".btn,.tab.add",keep:"[onclick*='closeModal'],[onclick*='selectBike'],[data-queue-bike]"};</script>
 <script src="offline.js"></script>
@@ -1787,6 +1787,8 @@ loadAll();
       rb.onclick=function(){doReset();injectHandles();};
       panel.insertBefore(rb,panel.firstChild);
     }
+    // Touch devices can't reorder sections, so the button only shows there while a column sort is active.
+    panel.querySelector('.sec-order-reset').classList.toggle('sort-active',!!PSORT.key);
     getSecs().forEach(function(s){
       var old=s.querySelector('.sec-handle');if(old)old.parentNode.removeChild(old);
       var sid=s.getAttribute('data-sid');

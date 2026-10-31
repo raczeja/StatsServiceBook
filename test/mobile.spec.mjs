@@ -72,6 +72,30 @@ test.describe("mobile-stats-touch-controls", () => {
   });
 });
 
+// ── Bike – reset button is touch-visible only while a column sort is active ──────
+
+test.describe("mobile-bike-sort-reset", () => {
+  test("reset-button-appears-on-touch-only-while-sorted", async ({ page }) => {
+    await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+    await page.evaluate(() => { try { sessionStorage.removeItem("bikePartSort"); } catch (_) {} });
+    await page.waitForSelector(".bikes .tab:not(.add)");
+    await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
+      if (tab) tab.click();
+    });
+    const btn = page.locator("#bikepanel .sec-order-reset");
+    await page.waitForSelector('#bikepanel th[data-sort="name"]');
+    await expect(btn).toBeHidden();
+
+    await page.locator('#bikepanel th[data-sort="name"]').click();
+    await expect(btn).toBeVisible();
+
+    await btn.click();
+    await expect(page.locator("#bikepanel th.sorted-asc, #bikepanel th.sorted-desc")).toHaveCount(0);
+    await expect(page.locator("#bikepanel .sec-order-reset")).toBeHidden();
+  });
+});
+
 // ── Stats – narrow layout ──────────────────────────────────────────────────────
 
 test.describe("mobile-stats-layout", () => {
