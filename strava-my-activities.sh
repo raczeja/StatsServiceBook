@@ -465,6 +465,10 @@ for _hs in "$0" \
             "$STRAVA_LIBDIR/strava-lib.sh"; do
     [ -f "$_hs" ] && _scripts_md5="$_scripts_md5$(md5sum "$_hs")"
 done
+# Fold in the cookie-verification stamp so scrapeMeta (data-quality "expired"
+# banner) is refreshed in activities.json whenever the session is re-verified,
+# even on runs with no new activities.
+_scripts_md5="$_scripts_md5$(cat "$STATE_DIR/strava_session_age.txt" 2>/dev/null || true)"
 _scripts_md5=$(printf '%s' "$_scripts_md5" | md5sum | cut -d' ' -f1)
 if [ "$ADDED" -eq 0 ] && [ -f "$WEB_DIR/activities.json" ] && \
    [ -f "$WEB_DIR/index.html" ] && \

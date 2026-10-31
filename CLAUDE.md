@@ -318,6 +318,8 @@ average_temp, suffer_score, elev_high, elev_low
 
 `gpx_file` is **not** in the standard Strava store record — it exists only in HealthSync store records and in detail JSONs (`$DETAIL_DIR/<id>.json`). The `activities.json` output merges in weather fields from `weather-cache.json`, gear name from detail JSONs, and `bike_id` from `bike-assignments.json`.
 
+**Render skip + cookie status (My Activities):** `strava-my-activities.sh` skips the whole re-render (`activities.json` + HTML) when `ADDED=0`, the scripts' md5 is unchanged and `bike-assignments.json` is not newer. `scrapeMeta` (`cookieVerifiedAt` / `cookieRefreshNeededBy` = `strava_session_age.txt` + 30 d, shown on `data-quality.html`) is written **only during a render**, so anything that feeds it must be part of the skip signature — otherwise the page shows a stale "Expired" while the scrape works. `strava_session_age.txt` is only touched when the cached CSRF token (25-day TTL) is re-fetched with the cookie, so it is a "last proven valid" stamp, not a real expiry. The stamp is folded into `_scripts_md5` for this reason (the leaderboard does the same via `$_sc_meta` in `_lb_rsig`).
+
 **Club leaderboard (scrape-only):** Strava removed the club activities API, so
 `strava-leaderboard.sh` only scrapes `/clubs/{id}/feed` with `STRAVA_SESSION_COOKIE`
 (a legacy `STRAVA_SOURCE` is read but ignored, with a warning). Rows are keyed by
