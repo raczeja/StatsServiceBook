@@ -60,6 +60,9 @@ a{color:var(--accent)}
 table{border-collapse:collapse;width:100%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08);margin:.3rem 0}
 th,td{padding:.45rem .6rem;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
 th{background:#fc4c02;color:#fff;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sorted-asc::after{content:" \2191"}
+th.sorted-desc::after{content:" \2193"}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 tr:nth-child(even) td{background:var(--row-alt)}
 .muted{color:var(--text-4);font-size:.85rem}
@@ -567,6 +570,28 @@ function stPct(bike,p,st){
   var pctDays=(adv>0)?(refDays/adv*100):0;
   return Math.max(pctKm,pctH,pctDays);
 }
+// True when a service type has any alert threshold (km, hours or calendar time).
+function stHasThreshold(st){
+  return !!((st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0)||(alertTimeDays(st)>0));
+}
+// Latest service date across all of a part's service types ("" when never serviced).
+function partLastServiceDate(p){
+  var d="";
+  (p.serviceTypes||[]).forEach(function(st){
+    (st.services||[]).forEach(function(s){ if(s.date>d) d=s.date; });
+  });
+  return d;
+}
+// Column sort for "Parts in use": key=null → default order. Persisted per browser tab.
+var PSORT={key:null,dir:1};
+try{ var _ps=JSON.parse(sessionStorage.getItem("bikePartSort")||"null"); if(_ps&&_ps.key) PSORT=_ps; }catch(e){}
+window.sortParts=function(key){
+  if(PSORT.key!==key) PSORT={key:key,dir:1};
+  else if(PSORT.dir>0) PSORT={key:key,dir:-1};
+  else PSORT={key:null,dir:1};   // third click restores the default order
+  try{ sessionStorage.setItem("bikePartSort",JSON.stringify(PSORT)); }catch(e){}
+  render();
+};
 // Worst % across all service types; 0 when no thresholds configured (used for sorting).
 function partPct(bike,p){
   var types=p.serviceTypes||[];
@@ -580,8 +605,7 @@ function serviceQueueHtml(){
     (bike.parts||[]).forEach(function(part){
       if(part.status==="archived") return;
       (part.serviceTypes||[]).forEach(function(st){
-        var hasThreshold=(st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0)||(alertTimeDays(st)>0);
-        if(!hasThreshold) return;
+        if(!stHasThreshold(st)) return;
         var pct=stPct(bike,part,st);
         if(pct>=80) items.push({bike:bike,part:part,type:st.name||"Service",pct:pct});
       });
@@ -1507,13 +1531,33 @@ function render(){
   active = active.slice().sort(function(x,y){
     var rx=!!x.needsReplacement, ry=!!y.needsReplacement;
     if(rx!==ry) return rx?-1:1;
-    var ha=(x.serviceTypes||[]).some(function(st){return (st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);});
-    var hb=(y.serviceTypes||[]).some(function(st){return (st.alertKm&&+st.alertKm>0)||(st.alertH&&+st.alertH>0);});
+    var ha=(x.serviceTypes||[]).some(stHasThreshold);
+    var hb=(y.serviceTypes||[]).some(stHasThreshold);
     if(ha!==hb) return ha?-1:1;
     if(ha){ var pa=partPct(b,x),pb=partPct(b,y); return pb-pa; }
     var da=x.installedDate||"",db=y.installedDate||"";
     return da<db?1:da>db?-1:0;
   });
+  // User-chosen column sort (click a header) overrides the default order above.
+  if(PSORT.key){
+    var pv=function(p){
+      switch(PSORT.key){
+        case "name": return String(p.name||"").toLowerCase();
+        case "installed": return p.currentBikeInstalledDate||p.installedDate||"";
+        case "ridden": return partUsedKm(b,p);
+        case "last": return partLastServiceDate(p);
+        case "since": return partPct(b,p);
+        case "cost": return partTotalCost(p);
+      }
+      return 0;
+    };
+    active.sort(function(x,y){
+      var a=pv(x),c=pv(y);
+      if(a<c) return -PSORT.dir;
+      if(a>c) return PSORT.dir;
+      return String(x.name||"").toLowerCase()<String(y.name||"").toLowerCase()?-1:1;
+    });
+  }
   var archived = b.parts.filter(function(p){ return p.status === "archived"; });
 
   // active parts
@@ -1522,7 +1566,12 @@ function render(){
   if (!active.length){
     html += '<div class="panel empty">No active parts. Add a chain, tyres, brake pads… each tracks the km ridden since you fitted it.</div>';
   } else {
-    html += '<table><thead><tr><th>Part</th><th>Installed</th><th>Ridden since install</th><th>Last service</th><th>Since service</th><th>Cost</th><th></th></tr></thead><tbody>';
+    var sth=function(key,label){
+      return '<th class="sortable'+(PSORT.key===key?' sorted-'+(PSORT.dir>0?'asc':'desc'):'')+
+        '" data-sort="'+key+'" onclick="sortParts(\''+key+'\')">'+label+'</th>';
+    };
+    html += '<table class="partstbl"><thead><tr>'+sth("name","Part")+sth("installed","Installed")+sth("ridden","Ridden since install")+
+      sth("last","Last service")+sth("since","Since service")+sth("cost","Cost")+'<th></th></tr></thead><tbody>';
     active.forEach(function(p){
       var ridden = partUsedKm(b,p);
       var riddenSec = partUsedTime(b,p);

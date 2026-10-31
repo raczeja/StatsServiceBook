@@ -1772,3 +1772,60 @@ test.describe("dark-mode", () => {
     });
   }
 });
+
+// ── Parts in use: ordering + column sort ───────────────────────────────────────
+
+test.describe("bike-parts-sorting", () => {
+  const partNames = (page) =>
+    page.$$eval('#bikepanel .sec[data-sid="parts"] table.partstbl tbody tr:not(.ridesrow) td:first-child b',
+      (els) => els.map((e) => e.textContent.trim()));
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(URLS.bike, { waitUntil: "networkidle", timeout: 20000 });
+    await page.evaluate(() => { try { sessionStorage.removeItem("bikePartSort"); } catch (_) {} });
+    await page.waitForSelector(".bikes .tab:not(.add)");
+    await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
+      if (tab) tab.click();
+    });
+    await page.waitForSelector('#bikepanel .sec[data-sid="parts"] table.partstbl');
+  });
+
+  test("time-only alert part sorts with thresholded parts, not by install date", async ({ page }) => {
+    // Road Bike "Fork service" has only a calendar-time alert; every part shares one install date,
+    // so it must lead (threshold group) rather than trail in stored order.
+    const names = await partNames(page);
+    expect(names[0]).toBe("Fork service");
+  });
+
+  test("clicking a header sorts asc, desc, then restores default", async ({ page }) => {
+    const defaultOrder = await partNames(page);
+    const th = page.locator('#bikepanel th[data-sort="name"]');
+
+    await th.click();
+    const asc = await partNames(page);
+    expect(asc.map((n) => n.toLowerCase())).toEqual([...asc.map((n) => n.toLowerCase())].sort());
+    await expect(page.locator('#bikepanel th[data-sort="name"]')).toHaveClass(/sorted-asc/);
+
+    await page.locator('#bikepanel th[data-sort="name"]').click();
+    const desc = await partNames(page);
+    expect(desc).toEqual([...asc].reverse());
+    await expect(page.locator('#bikepanel th[data-sort="name"]')).toHaveClass(/sorted-desc/);
+
+    await page.locator('#bikepanel th[data-sort="name"]').click();
+    expect(await partNames(page)).toEqual(defaultOrder);
+    await expect(page.locator('#bikepanel th[data-sort="name"]')).not.toHaveClass(/sorted-/);
+  });
+
+  test("sort choice survives a reload within the tab", async ({ page }) => {
+    await page.locator('#bikepanel th[data-sort="cost"]').click();
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForSelector(".bikes .tab:not(.add)");
+    await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll(".bikes .tab:not(.add)")).find((el) => el.textContent.includes("Road Bike"));
+      if (tab) tab.click();
+    });
+    await page.waitForSelector('#bikepanel th[data-sort="cost"]');
+    await expect(page.locator('#bikepanel th[data-sort="cost"]')).toHaveClass(/sorted-asc/);
+  });
+});
