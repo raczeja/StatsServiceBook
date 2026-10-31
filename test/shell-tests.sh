@@ -5165,6 +5165,10 @@ else
         "$(grep -q 'queued for next run' "$_ub/run1.log" && printf yes || printf no)" "no"
     assert_eq "$S" "scripts-md5-recorded-despite-missing-gpx" \
         "$([ -f "$_ub/state/scripts.md5" ] && printf yes || printf no)" "yes"
+    # run 1 creates bike-assignments.json and writes activities.json; on a fast host both
+    # land in the same mtime second, and the skip guard needs activities.json strictly newer.
+    sleep 1
+    touch "$_ub/web/activities.json"
     PATH="$_ub/fakebin:$PATH" TMPDIR="$_ub/tmp" STRAVA_MY_CONFIG="$_ub/conf" \
         sh "$_rb_main" > "$_ub/run2.log" 2>&1 < /dev/null || true
     assert_eq "$S" "next-run-skips-render" \
