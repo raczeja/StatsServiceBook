@@ -8,6 +8,20 @@
 #   STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN, TMP
 # Sets: ACCESS_TOKEN (used by the calling script after ensure_access_token)
 
+# Strava API base URL. Strava moves the REST API to api-v3.strava.com on
+# 2027-01-04 (old www.strava.com/api/v3 is later retired); /oauth/token stays on
+# www.strava.com. Override with STRAVA_API_BASE (no trailing slash) in the config.
+# Call resolve_strava_api_base AFTER the config is sourced (lib loads before it).
+resolve_strava_api_base() {
+  if [ -z "${STRAVA_API_BASE:-}" ]; then
+    if [ "$(date +%Y%m%d)" -ge 20270104 ]; then
+      STRAVA_API_BASE="https://api-v3.strava.com"
+    else
+      STRAVA_API_BASE="https://www.strava.com/api/v3"
+    fi
+  fi
+}
+
 log() { logger -t strava "$*"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$(basename "$0")] $*"; }
 die() { logger -t strava "ERROR: $*"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$(basename "$0")] ERROR: $*" >&2; exit 1; }
 

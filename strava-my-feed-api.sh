@@ -6,7 +6,7 @@
 log "fetching athlete activities via API (up to $MAX_PAGES pages of $PER_PAGE)..."
 while [ "$page" -le "$MAX_PAGES" ]; do
   log "page $page: GET /api/v3/athlete/activities?per_page=$PER_PAGE&page=$page"
-  curl_retry -fsS "https://www.strava.com/api/v3/athlete/activities?per_page=$PER_PAGE&page=$page" \
+  curl_retry -fsS "$STRAVA_API_BASE/athlete/activities?per_page=$PER_PAGE&page=$page" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -o "$TMP/page.json" || die "activities fetch failed (page $page)"
 

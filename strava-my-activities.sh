@@ -21,6 +21,7 @@ CONFIG="${STRAVA_MY_CONFIG:-/etc/strava-my-activities.conf}"
 [ -f "$CONFIG" ] || die "config not found: $CONFIG (copy config-my.example and edit it)"
 # shellcheck disable=SC1090
 . "$CONFIG"
+resolve_strava_api_base
 
 STRAVA_SOURCE="${STRAVA_MY_SOURCE:-api}"
 case "$STRAVA_SOURCE" in

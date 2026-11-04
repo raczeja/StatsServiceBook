@@ -42,7 +42,7 @@ if [ "$DETAIL_MAX_PER_RUN" -gt 0 ]; then
       api)
         log "detail backfill: GET /api/v3/activities/$id"
         code="$(curl_retry -sS -o "$TMP/detail.json" -w '%{http_code}' \
-          "https://www.strava.com/api/v3/activities/$id?include_all_efforts=false" \
+          "$STRAVA_API_BASE/activities/$id?include_all_efforts=false" \
           -H "Authorization: Bearer $ACCESS_TOKEN" || echo 000)"
         ;;
       scrape)

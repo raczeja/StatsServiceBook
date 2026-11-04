@@ -8,6 +8,10 @@
 #                     use when the API subscription is unavailable or ends.
 #STRAVA_MY_SOURCE="api"
 
+# Strava REST API base URL (api mode). Default: www.strava.com/api/v3 until
+# 2027-01-04, api-v3.strava.com from that date. Override only to force one.
+#STRAVA_API_BASE="https://api-v3.strava.com"
+
 # --- Required for STRAVA_MY_SOURCE=api (Strava API application) -------------
 # Same app credentials as the leaderboard (same client ID/secret/token).
 STRAVA_CLIENT_ID="12345"
