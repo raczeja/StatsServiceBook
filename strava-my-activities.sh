@@ -309,7 +309,15 @@ if [ -s "$TMP/changed_ids.txt" ]; then
   log "detail: invalidated $CHANGED changed activities for re-fetch"
 fi
 if [ -s "$TMP/deleted_ids.txt" ] || [ -s "$TMP/changed_ids.txt" ]; then
-  printf '{}' > "$STATE_DIR/hr-summary.json"
+  if [ -f "$STATE_DIR/hr-summary.json" ]; then
+    cat "$TMP/deleted_ids.txt" "$TMP/changed_ids.txt" \
+      | jq -Rsc 'split("\n") | map(select(length > 0) | {(.): true}) | add // {}' \
+      > "$TMP/hr-invalid-ids.json"
+    jq --slurpfile invalid "$TMP/hr-invalid-ids.json" \
+      'with_entries(select(($invalid[0][.key] // false) != true))' \
+      "$STATE_DIR/hr-summary.json" > "$TMP/hr-summary.new"
+    mv "$TMP/hr-summary.new" "$STATE_DIR/hr-summary.json"
+  fi
 fi
 
 # Cross-check every stored gear_id against the cached detail file's .gear.id.

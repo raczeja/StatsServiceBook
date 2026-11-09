@@ -1987,6 +1987,12 @@ for _hr_lib_path in /usr/bin/strava-lib.sh /opt/strava-lib.sh "$(dirname "$0")/.
     [ -f "$_hr_lib_path" ] && grep -q '^GPX_HR_LOGIC_VERSION=[0-9]' "$_hr_lib_path" && _ver_ok="yes" && break
 done
 assert_eq "$S" "hr-logic-version-defined" "$_ver_ok" "yes"
+printf '{"1":{"average_heartrate":120},"2":{"average_heartrate":130},"3":{"average_heartrate":140}}' > "$_RCI/hr-cache.json"
+printf '2\n' | jq -Rsc 'split("\n") | map(select(length > 0) | {(.): true}) | add // {}' > "$_RCI/hr-invalid.json"
+_hr_retained="$(jq --slurpfile invalid "$_RCI/hr-invalid.json" \
+    -c 'with_entries(select(($invalid[0][.key] // false) != true))' "$_RCI/hr-cache.json")"
+assert_eq "$S" "hr-cache-invalidates-only-changed-id" "$_hr_retained" \
+    '{"1":{"average_heartrate":120},"3":{"average_heartrate":140}}'
 
 # ── set-eu-rw-coords ─────────────────────────────────────────────────────────
 # _rw_coords id gpx_file detail_dir web_dir (from strava-lib.sh) must exit 0
