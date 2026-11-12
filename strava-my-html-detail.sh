@@ -1855,24 +1855,34 @@ function renderGpxCharts(gpxUrl, maxHR, movingTime, sport, maxSingleClimb, detai
       }
 
       if (allT.length) {
-        // Drop the first few km: device temperature sensors start at the storage/garage
-        // temperature and only settle to ambient once riding — those early readings skew
-        // the range. Keep everything on short rides that never pass the skip distance.
-        var TEMP_SKIP_KM = 3;
+        // Device temperature sensors may start at storage/garage temperature and settle
+        // to ambient after riding for a while, so exclude the first 5 km.
+        var TEMP_SKIP_KM = 5;
         var tVals = [], tLabels = [];
         for (i = 0; i < allT.length; i++) {
           if (allTDist[i] >= TEMP_SKIP_KM) { tVals.push(allT[i]); tLabels.push(allTDist[i]); }
         }
-        if (!tVals.length) { tVals = allT.slice(); tLabels = allTDist.slice(); }
-        var loT = tVals[0], hiT = tVals[0], sumT = 0;
-        for (i = 0; i < tVals.length; i++) { if (tVals[i] < loT) loT = tVals[i]; if (tVals[i] > hiT) hiT = tVals[i]; sumT += tVals[i]; }
-        var dsT = dsWithKmLabels(tVals, tLabels);
-        document.getElementById("temp-box").style.display = "";
-        document.getElementById("temp-summary").textContent =
-          "Min " + Math.round(loT) + " °C · Avg " + Math.round(sumT / tVals.length) + " °C · Max " + Math.round(hiT) + " °C";
-        // Span the whole ride (0 … total km) so the temperature chart lines up with the others
-        // even though its data starts after the skipped section.
-        drawLineSvg("svg-temp", dsT.vals, "#f4511e", "°C", dsT.labels, true, 0, cumDist / 1000);
+        if (!tVals.length && cumDist <= TEMP_SKIP_KM * 1000) {
+          tVals = allT.slice();
+          tLabels = allTDist.slice();
+        }
+        if (tVals.length) {
+          var loT = tVals[0], hiT = tVals[0], sumT = 0;
+          for (i = 0; i < tVals.length; i++) { if (tVals[i] < loT) loT = tVals[i]; if (tVals[i] > hiT) hiT = tVals[i]; sumT += tVals[i]; }
+          var chartTVals = tVals.slice(), chartTDist = tLabels.slice();
+          if (cumDist > TEMP_SKIP_KM * 1000) {
+            var avgT = sumT / tVals.length;
+            chartTVals.unshift(avgT, avgT);
+            chartTDist.unshift(0, TEMP_SKIP_KM);
+          }
+          var dsT = dsWithKmLabels(chartTVals, chartTDist);
+          document.getElementById("temp-box").style.display = "";
+          document.getElementById("temp-summary").textContent =
+            "Min " + Math.round(loT) + " °C · Avg " + Math.round(sumT / tVals.length) + " °C · Max " + Math.round(hiT) + " °C";
+          // Show the post-5 km average from the start through the excluded section.
+          // Span the whole ride so the chart lines up with the other distance charts.
+          drawLineSvg("svg-temp", dsT.vals, "#f4511e", "°C", dsT.labels, true, 0, cumDist / 1000);
+        }
       }
 
       // Speed (km/h): instantaneous speed from consecutive points is too noisy to plot,

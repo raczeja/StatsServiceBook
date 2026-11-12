@@ -1484,16 +1484,28 @@ test.describe("activity-detail-magene", () => {
     ).toBeTruthy();
   });
 
-  test("temp-summary-excludes-first-3km-garage-readings", async () => {
-    // The GPX carries 34–35 °C "garage" readings in the first 3 km (sensor at storage
-    // temperature) and 12–22 °C once riding. The first-3km skip must exclude the garage
-    // readings, so the summary is Min 12 · Avg 17 · Max 22 — not Max 35.
+  test("temp-summary-excludes-first-5km-garage-readings", async () => {
+    // The GPX carries 34–35 °C "garage" readings through the first 4 km and a 12 °C
+    // reading just before 5 km. The summary and the first-5-km chart average use
+    // only readings from after that cutoff.
     const txt = await page.$eval("#temp-summary", (el) => el.textContent);
     expect(
-      /Min\s+12\s*°C/.test(txt) &&
-        /Avg\s+17\s*°C/.test(txt) &&
+      /Min\s+15\s*°C/.test(txt) &&
+        /Avg\s+19\s*°C/.test(txt) &&
         /Max\s+22\s*°C/.test(txt),
-      `expected "Min 12 · Avg 17 · Max 22 °C" (garage readings skipped), got "${txt}"`,
+      `expected "Min 15 · Avg 19 · Max 22 °C" (first 5 km skipped), got "${txt}"`,
+    ).toBeTruthy();
+  });
+
+  test("temp-chart-shows-post-5km-average-through-first-5km", async () => {
+    const firstTips = await page.evaluate(
+      () => (window.LINE_TIPS["svg-temp"] || []).slice(0, 2).map((tip) => tip.html),
+    );
+    expect(
+      firstTips.length === 2 &&
+        /<strong>Km 0\.00<\/strong>19 °C/.test(firstTips[0]) &&
+        /<strong>Km 5\.00<\/strong>19 °C/.test(firstTips[1]),
+      `expected 19 °C average at km 0 and km 5, got ${JSON.stringify(firstTips)}`,
     ).toBeTruthy();
   });
 
