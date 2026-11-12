@@ -1,0 +1,3766 @@
+{
+  "runs": [
+    {
+      "run_id": "301",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39028461528",
+      "timestamp": "2026-10-17T11:26:54Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 191224.361,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6820
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6234
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5960
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5596
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5089
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5037
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4846
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4824
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4813
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4784
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "302",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39034441792",
+      "timestamp": "2026-10-17T12:59:54Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 213089.024,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6965
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6336
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6010
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5679
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5283
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5263
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4953
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4943
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4876
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4865
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "303",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39034569932",
+      "timestamp": "2026-10-17T13:01:29Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 196523.3,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6860
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6227
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5904
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5631
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5140
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5140
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4957
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4945
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4872
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4862
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "304",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39035313465",
+      "timestamp": "2026-10-17T13:12:42Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 209193.19400000002,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7000
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6214
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6028
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5684
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5327
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5265
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5008
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4923
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4846
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4836
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "305",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39035320795",
+      "timestamp": "2026-10-17T13:13:00Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 210242.55899999998,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6972
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6303
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6002
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5676
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5257
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5249
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4992
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4919
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4866
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4858
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "306",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39036618299",
+      "timestamp": "2026-10-17T13:28:11Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 0,
+      "slowest_tests": [],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 0,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "307",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39036654413",
+      "timestamp": "2026-10-17T13:28:39Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 0,
+      "slowest_tests": [],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 0,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "308",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39036830514",
+      "timestamp": "2026-10-17T13:33:57Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 148962.82104492188,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6986
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6445
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5938
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5752
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5279
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5228
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4975
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4916
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4821
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4776
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "309",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39037295971",
+      "timestamp": "2026-10-17T13:40:39Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 151664.15698242188,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7034
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6405
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5989
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5684
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5465
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5286
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5065
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4975
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4955
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4849
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 628,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "311",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39119912853",
+      "timestamp": "2026-10-18T10:39:56Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 149836.01806640625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6903
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6380
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5973
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5660
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5345
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5291
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4997
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4925
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4844
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4768
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 637,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "310",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39119874696",
+      "timestamp": "2026-10-18T10:40:14Z",
+      "total": 517,
+      "passed": 517,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 166281.21411132812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7080
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6552
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6054
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5806
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5418
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5382
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4903
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4898
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4786
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4691
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 637,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "312",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39121972031",
+      "timestamp": "2026-10-18T11:10:54Z",
+      "total": 521,
+      "passed": 518,
+      "failed": 3,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 149457.60205078125,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6842
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6219
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5884
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5597
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5203
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5177
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4875
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4851
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4848
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4821
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "offline.spec.mjs > offline mode > my activities reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > stats reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 637,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "313",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39122017244",
+      "timestamp": "2026-10-18T11:11:49Z",
+      "total": 521,
+      "passed": 518,
+      "failed": 3,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 155601.53295898438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6956
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6217
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5927
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5638
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5334
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5321
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4956
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4875
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4866
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4853
+        }
+      ],
+      "failed_tests": [
+        {
+          "title": "offline.spec.mjs > offline mode > my activities reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > stats reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard reloads its data when a sync rewrites activities.json",
+          "file": "offline.spec.mjs",
+          "error": "Error: expect(received).toBeGreaterThan(expected)\n\nExpected: > 1\nReceived:   1\n\n  158 |       await page.evaluate(() => document.dispatchEvent(new Event(\"visibilitychange\")));\n  159 |       await expect(page.locator(\"#data-toast\")).toHaveText(\"Data updated\", { timeout: 10000 });\n> 160 |       expect"
+        }
+      ],
+      "flaky_tests": [],
+      "shell_passed": 637,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "314",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39123321364",
+      "timestamp": "2026-10-18T11:31:31Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 165456.11206054688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7134
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6404
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6042
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5723
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5447
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5357
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5106
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4964
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4870
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4746
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 640,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "315",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39131702514",
+      "timestamp": "2026-10-18T13:32:19Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 168245.07592773438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7149
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6421
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6041
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5812
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5592
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5357
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5128
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5062
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5000
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4921
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 640,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "316",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39132169199",
+      "timestamp": "2026-10-18T13:38:14Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 145315.68896484375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6858
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6308
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5890
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5596
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5208
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5136
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4959
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4929
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4858
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4783
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 644,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "317",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39138796729",
+      "timestamp": "2026-10-18T15:07:55Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 167556.50805664062,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7093
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6418
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6042
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5800
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5458
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5363
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4975
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4889
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4885
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4806
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 644,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "318",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39248483588",
+      "timestamp": "2026-10-19T12:02:07Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 167099.28002929688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7165
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6385
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6027
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5756
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5566
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5431
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5095
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5091
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5040
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4884
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 644,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "319",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39249067250",
+      "timestamp": "2026-10-19T12:06:54Z",
+      "total": 521,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 166844.08911132812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7139
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6383
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6026
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5782
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard link stays visible on My Activities pages offline",
+          "duration_ms": 5579
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5352
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5090
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5081
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4988
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4941
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 644,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "320",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39288417509",
+      "timestamp": "2026-10-19T16:51:41Z",
+      "total": 524,
+      "passed": 524,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 163867.13208007812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7021
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6331
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5999
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5714
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5425
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5016
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4987
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4967
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4878
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4730
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 661,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "321",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39292125950",
+      "timestamp": "2026-10-19T17:16:28Z",
+      "total": 524,
+      "passed": 524,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 167200.98999023438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7152
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6370
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6082
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5737
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5374
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5112
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5049
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5023
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4959
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4797
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 661,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "322",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39292349651",
+      "timestamp": "2026-10-19T17:18:00Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 151782.32202148438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6956
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6226
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5948
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5635
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5232
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5044
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4875
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4838
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4816
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4648
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 661,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "323",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39395803455",
+      "timestamp": "2026-10-20T08:50:13Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 164322.458984375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7033
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6293
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6006
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5698
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5267
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5041
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5010
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4969
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4876
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4741
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 669,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "324",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39404504880",
+      "timestamp": "2026-10-20T10:01:40Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 155930.23706054688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7024
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6293
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6004
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5704
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5390
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4954
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4911
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4891
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4858
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4698
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 670,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "325",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39562866993",
+      "timestamp": "2026-10-21T07:37:49Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 166753.68090820312,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7014
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6335
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6022
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5732
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5447
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5062
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5003
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4898
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4772
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4758
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 676,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "326",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39660551204",
+      "timestamp": "2026-10-21T19:19:45Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 0,
+      "slowest_tests": [],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 673,
+      "shell_failed": 1,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "327",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39661954703",
+      "timestamp": "2026-10-21T19:32:33Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 164864.23095703125,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7092
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6386
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6050
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5770
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5391
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5140
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5053
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5040
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4925
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4809
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 676,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "328",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39663111455",
+      "timestamp": "2026-10-21T19:40:33Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 169187.67993164062,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7038
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6352
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6020
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5738
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5357
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5081
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5064
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4921
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4800
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4745
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "329",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39767837376",
+      "timestamp": "2026-10-22T11:12:05Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 165856.22094726562,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7123
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6323
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6047
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5693
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5403
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5075
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5043
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4954
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4903
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4774
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "330",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39910204002",
+      "timestamp": "2026-10-23T06:17:50Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 161202.330078125,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7012
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6304
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5992
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5737
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5349
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4983
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4969
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4883
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4863
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4707
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "331",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/39942685289",
+      "timestamp": "2026-10-23T11:00:49Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 143576.6298828125,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6833
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6188
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5868
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5589
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5245
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4908
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4843
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4830
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4808
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4720
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "332",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40084982268",
+      "timestamp": "2026-10-24T10:15:57Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 144983.93310546875,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6840
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6181
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5997
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5604
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5152
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4965
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4922
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4912
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4881
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4780
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "333",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40084992740",
+      "timestamp": "2026-10-24T10:16:13Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 150836.22192382812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6973
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6265
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5931
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5633
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5201
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4956
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4887
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4862
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4814
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4749
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "334",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40185535313",
+      "timestamp": "2026-10-25T10:41:28Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 164766.88598632812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7033
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6305
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5996
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5687
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5429
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5033
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4992
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4985
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4888
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4787
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "336",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40320774581",
+      "timestamp": "2026-10-26T12:16:36Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 169272.291015625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7140
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6365
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6038
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5751
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5287
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5196
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5152
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5014
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4933
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4796
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "335",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40320518730",
+      "timestamp": "2026-10-26T12:18:35Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 164967.26806640625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7117
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6328
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6014
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5704
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5302
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5005
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4979
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4915
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4772
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4735
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "337",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40496853238",
+      "timestamp": "2026-10-27T11:35:59Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 167557.93408203125,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7025
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6322
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6039
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5705
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5313
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5037
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5034
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5034
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4943
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4796
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "338",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40660146531",
+      "timestamp": "2026-10-28T08:58:20Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 168023.65795898438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7059
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6330
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6029
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5782
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5485
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5093
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5073
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4985
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4898
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4781
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "339",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40684591804",
+      "timestamp": "2026-10-28T12:06:22Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 165230.8779296875,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7081
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6328
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6036
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5707
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5386
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 5131
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5043
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5003
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4742
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4702
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "340",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/40871403076",
+      "timestamp": "2026-10-29T12:16:37Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 162196.86206054688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7152
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6308
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6023
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5684
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5306
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5022
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4983
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4966
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4850
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4735
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "341",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41044469140",
+      "timestamp": "2026-10-30T11:01:06Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 165985.97192382812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7072
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6314
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6020
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5728
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5278
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5035
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5032
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4986
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4888
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4755
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "342",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41173698416",
+      "timestamp": "2026-10-31T05:46:42Z",
+      "total": 525,
+      "passed": 525,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 152820.84008789062,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6981
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6257
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5959
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5654
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5352
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4992
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4902
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4884
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4851
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4769
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "343",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41174345195",
+      "timestamp": "2026-10-31T05:57:21Z",
+      "total": 526,
+      "passed": 526,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 168124.03295898438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7094
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6326
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6075
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5720
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5422
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5091
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5068
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4883
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4790
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4781
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "344",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41174660552",
+      "timestamp": "2026-10-31T06:02:10Z",
+      "total": 527,
+      "passed": 527,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 166896.87109375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7039
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6289
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6104
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5735
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5496
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5134
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5069
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4917
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4791
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4791
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "345",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41197660819",
+      "timestamp": "2026-10-31T11:42:05Z",
+      "total": 527,
+      "passed": 527,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 169712.44897460938,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7157
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6335
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6051
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5768
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5433
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5255
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5188
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5043
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4912
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4773
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 684,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "346",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41221366223",
+      "timestamp": "2026-10-31T16:51:36Z",
+      "total": 527,
+      "passed": 527,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 171206.39599609375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7080
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6285
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6166
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5734
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5500
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5100
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5072
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4921
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4801
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4791
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "347",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41226792055",
+      "timestamp": "2026-10-31T17:59:12Z",
+      "total": 530,
+      "passed": 530,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 174607.8701171875,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7049
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6351
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6150
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5722
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5402
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5249
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5106
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5035
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4879
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4795
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "348",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41227710675",
+      "timestamp": "2026-10-31T18:06:41Z",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 0,
+      "slowest_tests": [],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 678,
+      "shell_failed": 1,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "349",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41229396392",
+      "timestamp": "2026-10-31T18:29:57Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 161104.10791015625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6925
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6256
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6040
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5726
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5333
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4972
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4951
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4948
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4923
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4787
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "350",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41307294435",
+      "timestamp": "2026-11-01T12:40:13Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 160556.88891601562,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6998
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6299
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5997
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5703
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5262
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 5009
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4996
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4990
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4900
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4755
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "351",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41463956533",
+      "timestamp": "2026-11-02T14:43:55Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 178190.84790039062,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7059
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6366
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6191
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5794
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5444
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5087
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5081
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4910
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4854
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4816
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "352",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41464432209",
+      "timestamp": "2026-11-02T14:45:57Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 158521.03295898438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7045
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6266
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6020
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5705
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5250
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5130
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 5035
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5018
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4988
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4789
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "353",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41645210878",
+      "timestamp": "2026-11-03T13:36:55Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 176149.0791015625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7056
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6348
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6223
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5791
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5499
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5174
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5100
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5077
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4930
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4880
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "354",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/41816472948",
+      "timestamp": "2026-11-04T10:51:21Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 170812.50610351562,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6995
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6347
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6112
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5783
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5393
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5173
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5029
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4993
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4862
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4768
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "355",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42040079840",
+      "timestamp": "2026-11-05T13:59:17Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 151892.54296875,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6857
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6223
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5955
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5661
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5273
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4972
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4910
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4907
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4880
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4793
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "356",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42192522148",
+      "timestamp": "2026-11-06T09:10:39Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 157669.1640625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6951
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6286
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5968
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5692
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5229
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4991
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4963
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4958
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4929
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4777
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "357",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42194412454",
+      "timestamp": "2026-11-06T09:35:11Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 170761.73999023438,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7089
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6360
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6132
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5806
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5402
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5222
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5126
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5095
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4910
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4799
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "358",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42227494563",
+      "timestamp": "2026-11-06T13:45:19Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 173672.5869140625,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6987
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 6620
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6383
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6299
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5817
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5346
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 5340
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5080
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4824
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4781
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "359",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42372156483",
+      "timestamp": "2026-11-07T12:26:19Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 169759.40502929688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7036
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6340
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6082
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5823
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5459
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5203
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5198
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5029
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4891
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4786
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 687,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "360",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42573852576",
+      "timestamp": "2026-11-09T06:38:36Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 173102.28002929688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7095
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6336
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6050
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5806
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5373
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5167
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5038
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4921
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4797
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4763
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "361",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42640327853",
+      "timestamp": "2026-11-09T15:04:31Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 149221.18896484375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6851
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6214
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6013
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5605
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5261
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4980
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike page is readable offline but write buttons are disabled",
+          "duration_ms": 4921
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4893
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4884
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 4867
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "362",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42640345815",
+      "timestamp": "2026-11-09T15:04:56Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 157288.34790039062,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6892
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6306
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5970
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5719
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5252
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 5043
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5008
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 4999
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4934
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4829
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "363",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42641163922",
+      "timestamp": "2026-11-09T15:10:04Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 174507.99096679688,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7007
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6352
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6162
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5837
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5453
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5164
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5107
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5059
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4937
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 4850
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "364",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42777361270",
+      "timestamp": "2026-11-10T07:48:13Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 162946.92504882812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6967
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6283
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6009
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5723
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5346
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5080
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5048
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4967
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4816
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4726
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "365",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/42777409433",
+      "timestamp": "2026-11-10T07:48:44Z",
+      "total": 532,
+      "passed": 532,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 174661.2099609375,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 7120
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6260
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 6050
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5885
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5501
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5271
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5246
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 5036
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4929
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > two consecutive failed probes show the offline banner",
+          "duration_ms": 4774
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    },
+    {
+      "run_id": "366",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/43185165234",
+      "timestamp": "2026-11-12T08:49:18Z",
+      "total": 533,
+      "passed": 533,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 157615.26098632812,
+      "slowest_tests": [
+        {
+          "title": "data-quality.spec.mjs > data-quality > idle-sync-running-flag-does-not-show-running",
+          "duration_ms": 6958
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-all-refreshes-cards-when-attempt-timestamps-do-not-change",
+          "duration_ms": 6264
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > sync-completion-renders-live-log-and-refreshes-source-card",
+          "duration_ms": 5993
+        },
+        {
+          "title": "data-quality.spec.mjs > data-quality > detects-a-sync-started-outside-the-page",
+          "duration_ms": 5696
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > a single failed reachability probe does not show the offline banner",
+          "duration_ms": 5295
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > offline banner reserves space so it does not cover page content on a phone",
+          "duration_ms": 5060
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > writes are rejected client-side while offline",
+          "duration_ms": 5034
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > dashboard still renders activities when the router is unreachable",
+          "duration_ms": 5024
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > club leaderboard is available offline",
+          "duration_ms": 4884
+        },
+        {
+          "title": "offline.spec.mjs > offline mode > bike-assign dropdowns are disabled offline and re-enabled online",
+          "duration_ms": 4788
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": [],
+      "shell_passed": 688,
+      "shell_failed": 0,
+      "shell_skipped": 0,
+      "shell_failed_tests": []
+    }
+  ]
+}
