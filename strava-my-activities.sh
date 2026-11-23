@@ -146,6 +146,7 @@ trap 'write_sync_status' EXIT
 _sc_norm_fail=0       # jq normalization failures on list pages (activities missing)
 _sc_cookie_expired=0  # session cookie expired mid detail-backfill
 _sc_layout_fail=0     # detail page layout change (parse produced no data)
+ADDED=0
 
 if [ "$IMPORT_ENABLED" != "0" ]; then
 

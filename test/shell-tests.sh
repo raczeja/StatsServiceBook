@@ -5392,6 +5392,35 @@ if [ -n "$_rb_main" ]; then
     assert_eq "$S" "run4-skips-when-drained" "$(_mb_has 4 'skipping re-render')" "yes"
 fi
 
+# ── import-disabled-rerender ──────────────────────────────────────────────────
+# Re-rendering the stored activities with STRAVA_MY_IMPORT_ENABLED=0 must not
+# read an unset ADDED under set -u, and should still generate the bike page.
+S="import-disabled-rerender"
+_ir="$TMP/import-disabled"
+mkdir -p "$_ir/web/details" "$_ir/web/gpx" "$_ir/state" "$_ir/cgi" "$_ir/tmp"
+cat > "$_ir/conf" <<CONF
+STRAVA_CLIENT_ID="x"
+STRAVA_CLIENT_SECRET="x"
+STRAVA_REFRESH_TOKEN="x"
+STRAVA_MY_WEB_DIR="$_ir/web"
+STRAVA_MY_STATE_DIR="$_ir/state"
+STRAVA_MY_CGI_DIR="$_ir/cgi"
+CONF
+: > "$_ir/state/activities.ndjson"
+printf '{}\n' > "$_ir/state/bike-assignments.json"
+if [ -n "$_rb_main" ] && \
+   PATH="$_rb/fakebin:$PATH" TMPDIR="$_ir/tmp" STRAVA_MY_CONFIG="$_ir/conf" \
+     STRAVA_MY_IMPORT_ENABLED=0 sh "$_rb_main" > "$_ir/run.log" 2>&1 < /dev/null; then
+    ok "$S" "rerender-exits-successfully"
+    assert_eq "$S" "render-ran" \
+        "$(grep -q 'html: rendering pages...' "$_ir/run.log" && printf yes || printf no)" "yes"
+    assert_eq "$S" "bike-page-complete" \
+        "$(grep -q '</html>' "$_ir/web/bike.html" && printf yes || printf no)" "yes"
+else
+    err "$S" "rerender-exits-successfully" \
+        "$(tail -n 8 "$_ir/run.log" 2>/dev/null | tr '\n' ' ')"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 
 if [ -n "$JUNIT_OUT" ]; then
