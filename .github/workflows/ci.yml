@@ -449,7 +449,7 @@ jobs:
 
       - name: Add format-extensible test statistics
         if: always() && steps.stats-inputs.outputs.files != ''
-        uses: raczeja/test-stats-gh-pages-action@a32b79ab1dfafaf4a0146037c969758c1d9ca85d # v1.1.9
+        uses: raczeja/test-stats-gh-pages-action@247ee79c779bd7553aebb9d803fdb0b2d1500816 # v1.2.0
         with:
           result-files: ${{ steps.stats-inputs.outputs.files }}
           site-directory: site
