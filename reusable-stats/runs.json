@@ -1,0 +1,1395 @@
+{
+  "runs": [
+    {
+      "run_id": "374",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44061485074",
+      "timestamp": "2026-11-17T10:08:42Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 332439,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 153008
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 179431
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "375",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44077558664",
+      "timestamp": "2026-11-17T11:53:48Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 335047,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 153658
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 181389
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "376",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44080619184",
+      "timestamp": "2026-11-17T12:14:07Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 331996,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 152932
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 179064
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "377",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44083638342",
+      "timestamp": "2026-11-17T12:33:12Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 325741,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 148948
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 176793
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "378",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44087883521",
+      "timestamp": "2026-11-17T13:00:55Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 328234,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 151549
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 176685
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "379",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44093194033",
+      "timestamp": "2026-11-17T13:33:37Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 371825,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 174913
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 196912
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "380",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44104657512",
+      "timestamp": "2026-11-17T14:39:06Z",
+      "total": 1762,
+      "passed": 1762,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 368077,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 172739
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 195338
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 692,
+          "passed": 692,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "381",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44141750666",
+      "timestamp": "2026-11-17T17:56:28Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 342111,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 157733
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 184378
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "383",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44266272628",
+      "timestamp": "2026-11-18T08:26:04Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 331501,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 152754
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 178747
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "384",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44330648754",
+      "timestamp": "2026-11-18T15:04:46Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 345207,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 159856
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 185351
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "385",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44352840005",
+      "timestamp": "2026-11-18T16:59:51Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 369570,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 172663
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 196907
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "386",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44551643435",
+      "timestamp": "2026-11-19T15:13:56Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 378124,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 176107
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 202017
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "387",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44552401701",
+      "timestamp": "2026-11-19T15:23:57Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 326887,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 151168
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 175719
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "388",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44583090970",
+      "timestamp": "2026-11-19T18:03:54Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 345101,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 159570
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 185531
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "389",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44602847692",
+      "timestamp": "2026-11-19T19:56:46Z",
+      "total": 1766,
+      "passed": 1766,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 370899,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 173612
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 535,
+          "passed": 535,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 197287
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "394",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44691096006",
+      "timestamp": "2026-11-20T06:57:58Z",
+      "total": 1770,
+      "passed": 1770,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 326457,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 149057
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 177400
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "396",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44694880021",
+      "timestamp": "2026-11-20T07:30:07Z",
+      "total": 1770,
+      "passed": 1770,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 330147,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 152077
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 178070
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 696,
+          "passed": 696,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "398",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44713658230",
+      "timestamp": "2026-11-20T09:51:18Z",
+      "total": 1777,
+      "passed": 1777,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 333015,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 154160
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 537,
+          "passed": 537,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 178855
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "400",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44881102838",
+      "timestamp": "2026-11-21T07:41:44Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 373096,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 175096
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 198000
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "401",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44881859284",
+      "timestamp": "2026-11-21T07:51:53Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 355094,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 166935
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 188159
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "405",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44886400631",
+      "timestamp": "2026-11-21T08:49:59Z",
+      "total": 1781,
+      "passed": 1781,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 372556,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 539,
+          "passed": 539,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 174598
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 539,
+          "passed": 539,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 197958
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "406",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44888100446",
+      "timestamp": "2026-11-21T09:11:56Z",
+      "total": 1783,
+      "passed": 1783,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 345710,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 159768
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 185942
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "409",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44889175116",
+      "timestamp": "2026-11-21T09:25:19Z",
+      "total": 1783,
+      "passed": 1783,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 369494,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 173283
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 196211
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "413",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44894223408",
+      "timestamp": "2026-11-21T10:28:57Z",
+      "total": 1783,
+      "passed": 1783,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 331056,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 152920
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 540,
+          "passed": 540,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 178136
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "416",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/44898547172",
+      "timestamp": "2026-11-21T11:23:30Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 370872,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 173545
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 197327
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "418",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45126969739",
+      "timestamp": "2026-11-23T06:55:26Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 348961,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 161209
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 187752
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "419",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45126999252",
+      "timestamp": "2026-11-23T06:55:45Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 363221,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 168726
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 194495
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "420",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45230217058",
+      "timestamp": "2026-11-23T17:47:33Z",
+      "total": 1779,
+      "passed": 1779,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 333847,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 154157
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 179690
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 703,
+          "passed": 703,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "422",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45238137048",
+      "timestamp": "2026-11-23T18:29:14Z",
+      "total": 1782,
+      "passed": 1782,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 370560,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 174473
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 196087
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 706,
+          "passed": 706,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "424",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45385144849",
+      "branch": "main",
+      "timestamp": "2026-11-24T11:37:01Z",
+      "total": 1782,
+      "passed": 1782,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 367828,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 172213
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 195615
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 706,
+          "passed": 706,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "425",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45482598709",
+      "branch": "v1.6.3",
+      "timestamp": "2026-11-24T20:41:05Z",
+      "total": 1782,
+      "passed": 1782,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 368777,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 172954
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 195823
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 706,
+          "passed": 706,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "427",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/45956738453",
+      "branch": "main",
+      "timestamp": "2026-11-27T07:15:02Z",
+      "total": 1782,
+      "passed": 1782,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 339476,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 156531
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 182945
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 706,
+          "passed": 706,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    },
+    {
+      "run_id": "429",
+      "run_url": "https://github.com/raczeja/StatsServiceBook/actions/runs/46090004505",
+      "branch": "main",
+      "timestamp": "2026-11-28T00:54:16Z",
+      "total": 1782,
+      "passed": 1782,
+      "failed": 0,
+      "skipped": 0,
+      "flaky_count": 0,
+      "duration_ms": 331086,
+      "sources": [
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/results.json",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 152462
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-results/junit.xml",
+          "total": 538,
+          "passed": 538,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 178624
+        },
+        {
+          "path": "/home/runner/work/StatsServiceBook/StatsServiceBook/downloaded-shell-report/shell-tests.xml",
+          "total": 706,
+          "passed": 706,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0,
+          "duration_ms": 0
+        }
+      ],
+      "failed_tests": [],
+      "flaky_tests": []
+    }
+  ],
+  "schemaVersion": 1
+}
